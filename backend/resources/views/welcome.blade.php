@@ -57,14 +57,8 @@
         <label>Name:</label><br>
         <input type="text" name="name"><br><br>
 
-        <label>Email:</label><br>
-        <input type="email" name="email"><br><br>
-
         <label>Password:</label><br>
         <input type="password" name="password"><br><br>
-
-        <label>Phone:</label><br>
-        <input type="text" name="phone"><br><br>
 
         <label>Role:</label><br>
         <select name="role">
