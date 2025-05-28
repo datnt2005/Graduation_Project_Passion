@@ -1,14 +1,27 @@
-// https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   compatibilityDate: '2025-05-15',
+
+  // CSS global
+  css: ['@/assets/css/tailwind.css'],
+
+  // Plugins
+  plugins: ['~/plugins/fontawesome'],
+
+  // Devtools bật trong chế độ phát triển
   devtools: { enabled: true },
-  modules: [
-    '@nuxtjs/tailwindcss',
-    '@nuxtjs/supabase',
-    '@nuxtjs/color-mode',
-    'nuxt-icon',
-    '@nuxtjs/sitemap',
-    '@nuxtjs/robots',
-    '@pinia/nuxt',
-  ],
-})
+
+  // Cấu hình PostCSS
+  postcss: {
+    plugins: {
+      tailwindcss: {},   // OK
+      autoprefixer: {},  // OK
+    },
+  },
+  runtimeConfig: {
+  public: {
+    apiBaseUrl: process.env.API_BASE_URL || 'http://localhost:8000/api',
+  }
+}
+
+});
+ 
