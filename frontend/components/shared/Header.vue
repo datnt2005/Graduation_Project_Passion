@@ -5,17 +5,17 @@
 <header class="bg-[#1BA0E2] text-white text-sm py-2">
   <div class="max-w-7xl mx-auto flex justify-between items-center px-4">
     <div class="space-x-2">
-      <a href="#" class="hover:underline inline-flex items-center gap-1">
+      <NuxtLink href="/Seller" class="hover:underline inline-flex items-center gap-1">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h4l3 10h8l3-10h4" />
         </svg>
         Đăng ký bán hàng
-      </a>
+      </NuxtLink>
       <a href="#" class="hover:underline inline-flex items-center gap-1">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2h5" />
         </svg>
-        Kết nối
+        Kết nối   <font-awesome-icon :icon="['fab', 'facebook']" />  <font-awesome-icon :icon="['fab', 'instagram']" />
       </a>
     </div>
     <div class="hidden sm:flex space-x-4">
@@ -60,7 +60,7 @@
       <!-- NAVIGATION -->
         <div class="relative group ml-20 hidden md:block">
         <a href="#" class="text-gray-700 hover:text-blue-600 font-semibold">
-            Danh mục
+            Danh mục <font-awesome-icon :icon="['fas', 'bars']" />
         </a>
 
         <!-- MEGA MENU -->
@@ -125,15 +125,52 @@
         </div>
 
         <!-- Menu PC -->
-        <div class="hidden sm:flex items-center space-x-6 text-sm">
-          <NuxtLink href="/" class="text-gray-700 hover:text-blue-600 font-semibold"><font-awesome-icon :icon="['fas', 'house']" />Trang chủ</NuxtLink>
-          <a href="#" class="text-gray-700 hover:text-blue-600 font-semibold"><font-awesome-icon :icon="['fas', 'user']" />Tài khoản</a>
-          <a href="#" class="text-gray-700 hover:text-blue-600 font-semibold"><font-awesome-icon :icon="['fas', 'cart-shopping']" />Giỏ hàng</a>
+        <div class="hidden sm:flex items-center gap-x-6 text-sm font-medium text-gray-700">
+      <!-- Trang chủ -->
+      <NuxtLink
+        href="/"
+        class="hover:text-blue-600 transition-colors duration-200 tracking-wide flex items-center gap-1"
+      >
+        <font-awesome-icon :icon="['fas', 'house']" />
+        Trang chủ
+      </NuxtLink>
+
+      <!-- Tài khoản -->
+        <div class="relative group inline-block">
+          <div class="cursor-pointer hover:text-blue-600 transition-colors duration-200 tracking-wide flex items-center gap-1">
+            <font-awesome-icon :icon="['fas', 'user']" />
+            Tài khoản
+          </div>
+
+          <!-- Dropdown nếu có -->
+          <ul
+            class="absolute left-0 top-full hidden group-hover:flex flex-col 
+                  bg-white border border-gray-200 rounded shadow-lg w-48 
+                  opacity-0 group-hover:opacity-100 
+                  translate-y-2 group-hover:translate-y-0 
+                  transition-all duration-300 ease-in-out z-50 text-sm text-gray-700"
+          >
+            <li><a href="#" class="block px-4 py-2 hover:bg-gray-100">Thông tin tài khoản</a></li>
+            <li><a href="#" class="block px-4 py-2 hover:bg-gray-100">Đơn hàng của tôi</a></li>
+            <li><a href="#" class="block px-4 py-2 hover:bg-gray-100">Trung tâm hỗ trợ</a></li>
+            <li><a href="#" class="block px-4 py-2 hover:bg-gray-100">Đăng xuất</a></li>
+          </ul>
         </div>
 
+        <!-- Giỏ hàng -->
+        <NuxtLink
+          href="/cart"
+          class="hover:text-blue-600 transition-colors duration-200 tracking-wide flex items-center gap-1"
+        >
+          <font-awesome-icon :icon="['fas', 'cart-shopping']" />
+          Giỏ hàng
+        </NuxtLink>
+      </div>
+
+      
         <!-- Icon menu mobile -->
         <div class="sm:hidden">
-          <button @click="isMobileMenuOpen = !isMobileMenuOpen">
+          <button @click="isMobileMenuOpen = true">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                 d="M4 6h16M4 12h16M4 18h16" />
@@ -166,24 +203,68 @@
 
     </div> 
 
-    <!-- Menu mobile dropdown -->
-    <div v-if="isMobileMenuOpen" class="sm:hidden bg-white shadow-md z-[9999] relative">
+    <!-- Mobile Modal Menu -->
+  <div v-if="isMobileMenuOpen" class="fixed inset-0 z-[9999] bg-black bg-opacity-50 flex items-start justify-end sm:hidden">
+    <div class="w-3/4 bg-white shadow-md h-full p-4 relative">
 
-      <div class="px-4 py-2 space-y-2 text-sm">
-        <a href="#" class="block text-gray-700 hover:text-blue-600"><font-awesome-icon :icon="['fas', 'house']" /> Trang chủ</a>
-        <a href="#" class="block text-gray-700 hover:text-blue-600"><font-awesome-icon :icon="['fas', 'user']" />Tài khoản</a>
-        <a href="#" class="block text-gray-700 hover:text-blue-600"><font-awesome-icon :icon="['fas', 'cart-shopping']" />Giỏ hàng</a>
-        <a href="#" class="block text-gray-700 hover:text-blue-600"><font-awesome-icon :icon="['fas', 'bell']" />Thông báo</a>
-        <NuxtLink href="/support" class="block text-gray-700 hover:text-blue-600"><font-awesome-icon :icon="['fas', 'info']" />Hỗ trợ</NuxtLink>
-        <a href="#" class="block text-gray-700 hover:text-blue-600">Đăng nhập</a>
-        <a href="#" class="block text-gray-700 hover:text-blue-600">Đăng ký</a>
+      <!-- Close button -->
+      <button @click="isMobileMenuOpen = false" class="absolute top-4 right-4 text-gray-600 hover:text-black">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+
+      <!-- Menu Items -->
+      <div class="space-y-4 mt-10 text-sm">
+        <a href="#" class="block text-gray-700 hover:text-blue-600">
+          <font-awesome-icon :icon="['fas', 'house']" /> Trang chủ
+        </a>
+     <div class="infor relative group inline-block">
+     <!-- Nút tài khoản -->
+      <a href="#" class="block text-gray-700 hover:text-blue-600 font-semibold">
+        <font-awesome-icon :icon="['fas', 'user']" /> Tài khoản
+      </a>
+
+      <!-- Dropdown mượt mà -->
+      <ul
+        class="absolute left-0 top-full hidden group-hover:flex flex-col 
+              bg-white border border-gray-200 rounded shadow-lg w-48 
+              opacity-0 group-hover:opacity-100 
+              translate-y-2 group-hover:translate-y-0 
+              transition-all duration-300 ease-in-out z-50"
+      >
+        <li><a href="#" class="block px-4 py-2 hover:bg-gray-100">Thông tin tài khoản</a></li>
+        <li><a href="#" class="block px-4 py-2 hover:bg-gray-100">Đơn hàng của tôi</a></li>
+        <li><a href="#" class="block px-4 py-2 hover:bg-gray-100">Trung tâm hỗ trợ</a></li>
+        <li><a href="#" class="block px-4 py-2 hover:bg-gray-100">Đăng xuất</a></li>
+      </ul>
+    </div>
+
+
+
+
+        <a href="#" class="block text-gray-700 hover:text-blue-600">
+          <font-awesome-icon :icon="['fas', 'cart-shopping']" /> Giỏ hàng
+        </a>
+        <a href="#" class="block text-gray-700 hover:text-blue-600">
+          <font-awesome-icon :icon="['fas', 'bell']" /> Thông báo
+        </a>
+        <NuxtLink href="/support" class="block text-gray-700 hover:text-blue-600">
+          <font-awesome-icon :icon="['fas', 'info']" /> Hỗ trợ
+        </NuxtLink>
+        <a href="#" class="block text-gray-700 hover:text-blue-600"><font-awesome-icon :icon="['fas', 'right-to-bracket']" /> Đăng nhập</a>
+        <a href="#" class="block text-gray-700 hover:text-blue-600"><font-awesome-icon :icon="['fas', 'plus']" /> Đăng ký</a>
       </div>
     </div>
   </div>
+  </div>
+        <Features />
+
 </template>
 
 <script setup>
 import { ref } from 'vue'
 
 const isMobileMenuOpen = ref(false)
+import Features from '~/components/shared/Features.vue'
 </script>
