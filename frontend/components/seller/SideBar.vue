@@ -1,14 +1,14 @@
 <template>
   <aside class="w-64 bg-white h-screen shadow-md p-6 hidden md:block">
-    <h2 class="text-2xl font-semibold text-gray-800 mb-8">Admin Dashboard</h2>
+    <h2 class="text-2xl font-semibold text-gray-800 mb-8">Admin seller</h2>
 
     <nav class="flex flex-col space-y-3 text-gray-700">
-
       <!-- Bảng điều khiển -->
       <a href="#" class="flex items-center gap-4 px-3 py-2 rounded-md hover:bg-blue-50 hover:text-blue-600 transition">
         <i class="fas fa-home w-5 text-blue-500"></i>
         <span class="font-medium"><font-awesome-icon :icon="['fas', 'house']" /> Bảng điều khiển</span>
       </a>
+
       <!-- Dropdown Sản phẩm -->
      <div class="relative">
   <div
@@ -52,7 +52,6 @@
 
 
       <!-- Các mục khác -->
-
       <a href="#" class="flex items-center gap-4 px-3 py-2 rounded-md hover:bg-blue-50 hover:text-blue-600 transition">
         <i class="fas fa-shopping-bag w-5 text-blue-500"></i>
         <span class="font-medium"><font-awesome-icon :icon="['fas', 'box-archive']" /> Đơn hàng</span>
@@ -70,13 +69,11 @@
 
       <a href="#" class="flex items-center gap-4 px-3 py-2 rounded-md hover:bg-blue-50 hover:text-blue-600 transition">
         <i class="fas fa-file-alt w-5 text-blue-500"></i>
-
         <span class="font-medium"><font-awesome-icon :icon="['fab', 'rocketchat']" /> Bài viết</span>
       </a>
 
       <a href="#" class="flex items-center gap-4 px-3 py-2 rounded-md hover:bg-blue-50 hover:text-blue-600 transition">
         <i class="fas fa-bell w-5 text-blue-500"></i>
-
         <span class="font-medium"><font-awesome-icon :icon="['fas', 'gear']" /> Cài đặt</span>
       </a>
       <a href="#" class="flex items-center gap-4 px-3 py-2 rounded-md hover:bg-blue-50 hover:text-blue-600 transition">
@@ -88,7 +85,6 @@
 </template>
 
 <script setup>
-
 import { ref } from 'vue'
 
 const isOpen = ref(false)
