@@ -2,7 +2,9 @@
 Dự án tốt nghiệp, xây dựng sàn thương mại điện tử Passion
 
 Lệnh:
-
+comporse install
+composer require illuminate/filesystem
+php artisan migrate
 
 ---everyone--- 
 1: Trước khi bắt đầu "LUÔN LUÔN CHECK GIT XEM CÓ CODE MỚI KHÔNG. LUÔN LUÔN PULL CODE MỚI TRƯỚC KHI BẮT ĐẦU CODE".
