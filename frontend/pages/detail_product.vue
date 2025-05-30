@@ -13,27 +13,25 @@
                 <div class="flex flex-col md:flex-row gap-6">
                     <!-- Left images -->
                     <div class="flex flex-col items-center md:items-start gap-3 md:w-1/3">
-                        <img alt="Samsung Note20 Ultra 5G smartphone front view with rose gold color and stylus pen"
-                            class="w-full max-w-[300px] rounded-md border border-gray-300" height="400"
-                            src="https://storage.googleapis.com/a1aa/image/7ad18199-6b36-4171-e823-9cec3d8bde9f.jpg"
-                            width="300" />
+                        <img
+                            :src="productImages[currentImage]"
+                            :alt="productImagesAlt[currentImage]"
+                            class="w-full max-w-[300px] rounded-md border border-gray-300"
+                            height="400"
+                            width="300"
+                        />
                         <div class="flex gap-2 w-full max-w-[300px] overflow-x-auto">
-                            <img alt="Side view 1 of Samsung Note20 Ultra 5G smartphone in rose gold"
-                                class="rounded-md border border-gray-300 cursor-pointer" height="60"
-                                src="https://storage.googleapis.com/a1aa/image/c63c6593-7a16-4b2b-b1ea-ec7d1b11003e.jpg"
-                                width="60" />
-                            <img alt="Side view 2 of Samsung Note20 Ultra 5G smartphone in rose gold"
-                                class="rounded-md border border-gray-300 cursor-pointer" height="60"
-                                src="https://storage.googleapis.com/a1aa/image/8eaf1eab-cd53-4bff-45c8-c143d44e1c15.jpg"
-                                width="60" />
-                            <img alt="Side view 3 of Samsung Note20 Ultra 5G smartphone in rose gold"
-                                class="rounded-md border border-gray-300 cursor-pointer" height="60"
-                                src="https://storage.googleapis.com/a1aa/image/3dbab879-76d8-4e84-9737-f049ded0520f.jpg"
-                                width="60" />
-                            <img alt="Side view 4 of Samsung Note20 Ultra 5G smartphone in rose gold"
-                                class="rounded-md border border-gray-300 cursor-pointer" height="60"
-                                src="https://storage.googleapis.com/a1aa/image/4b9472fd-7cf0-4bc4-cb5b-57b24d34bf33.jpg"
-                                width="60" />
+                            <img
+                                v-for="(img, idx) in productImages"
+                                :key="idx"
+                                :src="img"
+                                :alt="productImagesAlt[idx]"
+                                class="rounded-md border border-gray-300 cursor-pointer"
+                                height="60"
+                                width="60"
+                                :class="{'ring-2 ring-red-400': idx === currentImage}"
+                                @click="currentImage = idx"
+                            />
                         </div>
                     </div>
                     <!-- Right product info -->
@@ -53,57 +51,60 @@
                             </p>
                             <!-- Thay thế đoạn flex-wrap bằng flex-col và gap-4 để mỗi nhóm xuống dòng và cách nhau -->
                             <div class="flex flex-col gap-4 mb-4 text-xs text-gray-700">
+                                <!-- Ram -->
                                 <div>
-                                    <span class="font-semibold">
-                                        Ram:
-                                    </span>
-                                    <button class="border border-gray-300 rounded px-2 py-0.5 text-gray-700 mr-2">
-                                        8GB
-                                    </button>
-                                    <button class="border border-gray-300 rounded px-2 py-0.5 text-gray-700 mr-2">
-                                        12GB
-                                    </button>
-                                    <button class="border border-gray-300 rounded px-2 py-0.5 text-gray-700">
-                                        16GB
+                                    <span class="font-semibold">Ram:</span>
+                                    <button
+                                      v-for="ram in ramOptions"
+                                      :key="ram"
+                                      class="border border-gray-300 rounded px-2 py-0.5 text-gray-700 mr-2"
+                                      :class="selectedRam === ram ? 'bg-blue-500 text-white border-blue-500' : ''"
+                                      @click="selectedRam = ram"
+                                      type="button"
+                                    >
+                                      {{ ram }}
                                     </button>
                                 </div>
+                                <!-- Rom -->
                                 <div>
-                                    <span class="font-semibold">
-                                        Rom:
-                                    </span>
-                                    <button class="border border-gray-300 rounded px-2 py-0.5 text-gray-700 mr-2">
-                                        128GB
-                                    </button>
-                                    <button class="border border-gray-300 rounded px-2 py-0.5 text-gray-700 mr-2">
-                                        256GB
-                                    </button>
-                                    <button class="border border-gray-300 rounded px-2 py-0.5 text-gray-700">
-                                        512GB
+                                    <span class="font-semibold">Rom:</span>
+                                    <button
+                                      v-for="rom in romOptions"
+                                      :key="rom"
+                                      class="border border-gray-300 rounded px-2 py-0.5 text-gray-700 mr-2"
+                                      :class="selectedRom === rom ? 'bg-blue-500 text-white border-blue-500' : ''"
+                                      @click="selectedRom = rom"
+                                      type="button"
+                                    >
+                                      {{ rom }}
                                     </button>
                                 </div>
+                                <!-- Color -->
                                 <div>
-                                    <span class="font-semibold">
-                                        Color:
-                                    </span>
-                                    <button class="border border-gray-300 rounded px-2 py-0.5 text-gray-700 mr-2">
-                                        Đen
-                                    </button>
-                                    <button class="border border-gray-300 rounded px-2 py-0.5 text-gray-700 mr-2">
-                                        Bạc
-                                    </button>
-                                    <button class="border border-gray-300 rounded px-2 py-0.5 text-gray-700">
-                                        Vàng
+                                    <span class="font-semibold">Color:</span>
+                                    <button
+                                      v-for="color in colorOptions"
+                                      :key="color"
+                                      class="border border-gray-300 rounded px-2 py-0.5 text-gray-700 mr-2"
+                                      :class="selectedColor === color ? 'bg-blue-500 text-white border-blue-500' : ''"
+                                      @click="selectedColor = color"
+                                      type="button"
+                                    >
+                                      {{ color }}
                                     </button>
                                 </div>
+                                <!-- Bảo hành -->
                                 <div>
-                                    <span class="font-semibold">
-                                        Bảo hành:
-                                    </span>
-                                    <button class="border border-gray-300 rounded px-2 py-0.5 text-gray-700 mr-2">
-                                        12 tháng
-                                    </button>
-                                    <button class="border border-gray-300 rounded px-2 py-0.5 text-gray-700">
-                                        18 tháng
+                                    <span class="font-semibold">Bảo hành:</span>
+                                    <button
+                                      v-for="warranty in warrantyOptions"
+                                      :key="warranty"
+                                      class="border border-gray-300 rounded px-2 py-0.5 text-gray-700 mr-2"
+                                      :class="selectedWarranty === warranty ? 'bg-blue-500 text-white border-blue-500' : ''"
+                                      @click="selectedWarranty = warranty"
+                                      type="button"
+                                    >
+                                      {{ warranty }}
                                     </button>
                                 </div>
                             </div>
@@ -137,8 +138,7 @@
                                     </span>
                                 </label>
                             </div>
-                            <input class="border border-gray-300 rounded px-3 py-1 text-xs w-full max-w-xs mb-4"
-                                placeholder="Hiện thị số 0374******" type="text" />
+                            
                         </div>
                         <div class="flex items-center gap-3 bg-gray-100 p-3 rounded-md">
                             <img alt="Avatar of user Phan Minh Tuấn" class="w-10 h-10 rounded-full" height="40"
@@ -164,7 +164,11 @@
                 <h2 class="text-sm font-semibold mb-2">
                     Mô tả chi tiết
                 </h2>
-                <p class="text-xs text-gray-700 mb-4 leading-relaxed">
+                <p
+                  class="text-xs text-gray-700 mb-4 leading-relaxed"
+                  :class="{ 'line-clamp-2': isCollapsed }"
+                  v-show="!isCollapsed || showFull"
+                >
                     Samsung note20 ultra 5G ram 12G ổ cứng 256 G. Máy đầy đủ tính năng. Ngoại hình đẹp 99%. Màn chính
                     kim. Giá chỉ 5tr6, với các trạng thái như mới, chưa trầy xước, chưa tróc sơn, vân tay.
                     <br />
@@ -178,8 +182,10 @@
                 </p>
                 <button
                     class="text-xs text-gray-700 border border-gray-300 rounded px-3 py-1 hover:bg-gray-100 transition"
-                    type="button">
-                    Thu gọn
+                    type="button"
+                    @click="isCollapsed = !isCollapsed"
+                >
+                    {{ isCollapsed ? 'Xem thêm' : 'Thu gọn' }}
                 </button>
             </section>
             <!-- Phone number reveal -->
@@ -604,3 +610,55 @@
         </main>
     </body>
 </template>
+
+<script setup>
+import { ref, onMounted, onBeforeUnmount } from 'vue'
+
+const ramOptions = ['8GB', '12GB', '16GB']
+const romOptions = ['128GB', '256GB', '512GB']
+const colorOptions = ['Đen', 'Bạc', 'Vàng']
+const warrantyOptions = ['12 tháng', '18 tháng']
+
+const selectedRam = ref(null)
+const selectedRom = ref(null)
+const selectedColor = ref(null)
+const selectedWarranty = ref(null)
+
+const productImages = [
+  'https://storage.googleapis.com/a1aa/image/7ad18199-6b36-4171-e823-9cec3d8bde9f.jpg',
+  'https://storage.googleapis.com/a1aa/image/c63c6593-7a16-4b2b-b1ea-ec7d1b11003e.jpg',
+  'https://storage.googleapis.com/a1aa/image/8eaf1eab-cd53-4bff-45c8-c143d44e1c15.jpg',
+  'https://storage.googleapis.com/a1aa/image/3dbab879-76d8-4e84-9737-f049ded0520f.jpg',
+  'https://storage.googleapis.com/a1aa/image/4b9472fd-7cf0-4bc4-cb5b-57b24d34bf33.jpg'
+]
+const productImagesAlt = [
+  "Samsung Note20 Ultra 5G smartphone front view with rose gold color and stylus pen",
+  "Side view 1 of Samsung Note20 Ultra 5G smartphone in rose gold",
+  "Side view 2 of Samsung Note20 Ultra 5G smartphone in rose gold",
+  "Side view 3 of Samsung Note20 Ultra 5G smartphone in rose gold",
+  "Side view 4 of Samsung Note20 Ultra 5G smartphone in rose gold"
+]
+const currentImage = ref(0)
+let intervalId = null
+
+const isCollapsed = ref(true)
+
+onMounted(() => {
+  intervalId = setInterval(() => {
+    currentImage.value = (currentImage.value + 1) % productImages.length
+  }, 3000)
+})
+
+onBeforeUnmount(() => {
+  clearInterval(intervalId)
+})
+</script>
+
+<style scoped>
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+</style>

@@ -172,7 +172,7 @@
       <div class="px-4 py-2 space-y-2 text-sm">
         <a href="#" class="block text-gray-700 hover:text-blue-600"><font-awesome-icon :icon="['fas', 'house']" /> Trang chủ</a>
         <a href="#" class="block text-gray-700 hover:text-blue-600"><font-awesome-icon :icon="['fas', 'user']" />Tài khoản</a>
-        <a href="#" class="block text-gray-700 hover:text-blue-600"><font-awesome-icon :icon="['fas', 'cart-shopping']" />Giỏ hàng</a>
+        <a href="/cart" class="block text-gray-700 hover:text-blue-600"><font-awesome-icon :icon="['fas', 'cart-shopping']" />Giỏ hàng</a>
         <a href="#" class="block text-gray-700 hover:text-blue-600"><font-awesome-icon :icon="['fas', 'bell']" />Thông báo</a>
         <NuxtLink href="/support" class="block text-gray-700 hover:text-blue-600"><font-awesome-icon :icon="['fas', 'info']" />Hỗ trợ</NuxtLink>
         <a href="#" class="block text-gray-700 hover:text-blue-600">Đăng nhập</a>
