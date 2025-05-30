@@ -331,45 +331,56 @@ public function login(Request $request)
     }
 
 // logout
-  public function logout(Request $request)
+ public function logout(Request $request)
 {
     try {
-        $userId = session('user_id') ?? Auth::id();
+        $token = $request->bearerToken();
+        $accessToken = \Laravel\Sanctum\PersonalAccessToken::findToken($token);
 
-        if (!$userId) {
+        if (!$accessToken) {
+            \Log::warning('Logout failed: Invalid token.', [
+                'ip' => $request->ip(),
+                'authorization' => $token,
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'Không tìm thấy người dùng đang đăng nhập.',
             ], 401);
         }
 
-        $prefix = config('database.redis.options.prefix', '');
-        $redisKey = $prefix . 'user:session:' . $userId;
+        $user = $accessToken->tokenable;
 
+        \Log::info('Attempting logout for user', [
+            'user_id' => $user->id,
+            'email' => $user->email,
+        ]);
+
+        $redisKey = 'user:session:' . $user->id;
         if (Redis::exists($redisKey)) {
             Redis::del($redisKey);
-            Log::info('Đã xoá Redis key của user khi logout', ['key' => $redisKey]);
+            \Log::info('Deleted Redis key', ['key' => $redisKey]);
         } else {
-            Log::info('Không tìm thấy Redis key để xoá', ['key' => $redisKey]);
+            \Log::info('Redis key not found', ['key' => $redisKey]);
         }
 
-        session()->forget(['user_id', 'user_role', 'user_name']);
-        session()->flush();
+        Session::forget(['user_id', 'user_role', 'user_name']);
+
+        $accessToken->delete();
 
         return response()->json([
             'success' => true,
             'message' => 'Đăng xuất thành công.',
         ]);
     } catch (\Exception $e) {
-        Log::error('Lỗi khi logout: ' . $e->getMessage(), [
+        \Log::error('Error during logout: ' . $e->getMessage(), [
             'trace' => $e->getTraceAsString()
         ]);
-
         return response()->json([
             'success' => false,
             'message' => 'Lỗi khi đăng xuất.',
         ], 500);
     }
 }
+
 
 }
