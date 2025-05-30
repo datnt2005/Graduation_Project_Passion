@@ -6,8 +6,7 @@
       <!-- Main content -->
       <section class="flex-1 space-y-6">
         <!-- Banner -->
-        <Banner />
-       
+        <Banner />      
       
         <!-- Brands -->
         <Brands />

@@ -61,7 +61,7 @@
         <div class="relative group ml-20 hidden md:block">
         <a href="#" class="text-gray-700 hover:text-blue-600 font-semibold">
             Danh mục <font-awesome-icon :icon="['fas', 'bars']" />
-        </a>
+         </a>
 
         <!-- MEGA MENU -->
         <div class="absolute left-0 mt-6 w-[1200px] bg-white border border-gray-200 shadow-lg rounded-md opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 p-6 grid grid-cols-5 gap-6">
@@ -259,7 +259,6 @@
   </div>
   </div>
         <Features />
-
 </template>
 
 <script setup>
