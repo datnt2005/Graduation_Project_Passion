@@ -1,5 +1,5 @@
 <template>
-  <main class="bg-[#F5F5FA] py-6">
+  <main class="bg-[#F5F5FA] py-2">
     <div class="max-w-7xl mx-auto flex gap-4 px-4">
       <!-- Sidebar -->
       <Sidebar />
@@ -7,17 +7,12 @@
       <section class="flex-1 space-y-6">
         <!-- Banner -->
         <Banner />
-        <!-- Features -->
-        <Features />
-
+       
+      
         <!-- Brands -->
         <Brands />
-
-        <!-- // san pham  -->
-         <Products />
-
-
-
+        <!-- Products -->
+        <Products />
       </section>
     </div>
   </main>
@@ -26,7 +21,6 @@
 <script setup>
 import Sidebar from '~/components/shared/Sidebar.vue'
 import Banner from '~/components/shared/Banner.vue'
-import Features from '~/components/shared/Features.vue'; 
-import Brands from '~/components/shared/Brands.vue'; 
-import Products from '~/components/shared/Products.vue';
+import Brands from '~/components/shared/Brands.vue'
+import Products from '~/components/shared/Products.vue'
 </script>
