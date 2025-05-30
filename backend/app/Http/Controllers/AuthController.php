@@ -8,7 +8,11 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 use App\Mail\OtpMail;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Redis;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Session;
 
 class AuthController extends Controller
 {
@@ -19,18 +23,25 @@ class AuthController extends Controller
             $validated = $request->validate([
                 'name' => ['required', 'string', 'max:255'],
                 'email' => [
-                    'required', 'email', 'max:255', 'unique:users,email',
+                    'required',
+                    'email',
+                    'max:255',
+                    'unique:users,email',
                     'regex:/^[\w.+-]+@((gmail\.com)|(yahoo\.com)|(hotmail\.com)|([\w-]+\.edu))$/i',
                 ],
                 'password' => [
-                    'required', 'confirmed',
+                    'required',
+                    'confirmed',
                     Password::min(8)
                         ->mixedCase()
                         ->numbers()
                         ->uncompromised(),
                 ],
                 'phone' => [
-                    'required', 'string', 'max:20', 'unique:users,phone',
+                    'required',
+                    'string',
+                    'max:11',
+                    'unique:users,phone',
                     'regex:/^(\+84|0)(3[2-9]|5[6-9]|7[0-9]|8[1-9]|9[0-9])[0-9]{7}$/',
                 ],
             ], [
@@ -50,9 +61,7 @@ class AuthController extends Controller
                 'phone.regex' => 'Số điện thoại không hợp lệ.',
             ]);
 
-            // Normalize phone number
             $validated['phone'] = preg_replace('/\D/', '', $validated['phone']);
-            // Normalize email to lowercase
             $validated['email'] = strtolower($validated['email']);
 
             $otp = rand(100000, 999999);
@@ -67,10 +76,9 @@ class AuthController extends Controller
                 'status' => 'active',
                 'otp' => $otp,
                 'otp_expired_at' => $otpExpiredAt,
-                'is_verified' => false, // Ensure default is false
+                'is_verified' => false,
             ]);
 
-            // Send OTP email
             try {
                 Mail::to($user->email)->send(new OtpMail($otp));
             } catch (\Exception $e) {
@@ -171,63 +179,92 @@ class AuthController extends Controller
     }
 
     // Đăng nhập
-    public function login(Request $request)
-    {
-        try {
-            $validated = $request->validate([
-                'email' => ['required', 'email', 'max:255'],
-                'password' => ['required', 'string'],
-            ], [
-                'email.required' => 'Trường email là bắt buộc.',
-                'email.email' => 'Email không đúng định dạng.',
-                'password.required' => 'Trường mật khẩu là bắt buộc.',
-            ]);
 
-            $user = User::where('email', strtolower($validated['email']))->first();
+public function login(Request $request)
+{
+    try {
+        $validated = $request->validate([
+            'email' => ['required', 'email', 'max:255'],
+            'password' => ['required', 'string'],
+        ], [
+            'email.required' => 'Trường email là bắt buộc.',
+            'email.email' => 'Email không đúng định dạng.',
+            'password.required' => 'Trường mật khẩu là bắt buộc.',
+        ]);
 
-            if (!$user || !Hash::check($validated['password'], $user->password)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Email hoặc mật khẩu không đúng.',
-                ], 401);
-            }
+        $user = User::where('email', strtolower($validated['email']))->first();
 
-            if (!$user->is_verified) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Tài khoản chưa được xác minh. Vui lòng kiểm tra email để xác minh OTP.',
-                ], 403);
-            }
-
-            if ($user->status !== 'active') {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Tài khoản hiện đang ' . $user->status . '. Vui lòng liên hệ quản trị viên.',
-                ], 403);
-            }
-
-            $token = $user->createToken('api_token')->plainTextToken;
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Đăng nhập thành công.',
-                'token' => $token,
-                'user' => $user,
-            ]);
-        } catch (ValidationException $e) {
+        if (!$user || !Hash::check($validated['password'], $user->password)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Dữ liệu không hợp lệ.',
-                'errors' => $e->errors(),
-            ], 422);
-        } catch (\Exception $e) {
-            \Log::error('Error during login: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Lỗi khi đăng nhập.',
-            ], 500);
+                'message' => 'Email hoặc mật khẩu không đúng.',
+            ], 401);
         }
+
+        if (!$user->is_verified) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tài khoản chưa được xác minh. Vui lòng kiểm tra email để xác minh OTP.',
+            ], 403);
+        }
+
+        if ($user->status !== 'active') {
+            $messages = "";
+                 if( $user->status === 'inactive') {
+                   $messages = 'Hiện tại tài khoản của bạn đang không hoạt động. Vui lòng liên hệ quản trị viên để biết thêm chi tiết.';
+                } elseif ($user->status === 'banned') {
+                    $messages = 'Tài khoản đã bị cấm. Vui lòng liên hệ quản trị viên.';
+                } else {
+                    $messages = 'Tài khoản hiện đang ' . $user->status . '. Vui lòng liên hệ quản trị viên.';
+                }
+            return response()->json([
+                'success' => false,
+                'message' => $messages,
+                // 'message' => 'Tài khoản hiện đang ' . $user->status . '. Vui lòng liên hệ quản trị viên.',
+            ], 403);
+        }
+
+        $token = $user->createToken('api_token')->plainTextToken;
+
+        $redisKey = 'user:session:' . $user->id;
+        $redisData = [
+            'user_id' => $user->id,
+            'email' => $user->email,
+            'name' => $user->name,
+            'role' => $user->role,
+            'status' => $user->status,
+            'avatar' => $user->avatar,
+            'token' => $token,
+            'logged_in_at' => now()->toDateTimeString(),
+        ];
+        Redis::setex($redisKey, 7200, json_encode($redisData));
+
+        session([
+            'user_id' => $user->id,
+            'user_role' => $user->role,
+            'user_name' => $user->name,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Đăng nhập thành công.',
+            'token' => $token,
+            'user' => $user,
+        ]);
+    } catch (ValidationException $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Dữ liệu không hợp lệ.',
+            'errors' => $e->errors(),
+        ], 422);
+    } catch (\Exception $e) {
+        \Log::error('Error during login: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Lỗi khi đăng nhập.',
+        ], 500);
     }
+}
 
     // Gửi lại mã OTP
     public function resendOtp(Request $request)
@@ -292,4 +329,47 @@ class AuthController extends Controller
             ], 500);
         }
     }
+
+// logout
+  public function logout(Request $request)
+{
+    try {
+        $userId = session('user_id') ?? Auth::id();
+
+        if (!$userId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không tìm thấy người dùng đang đăng nhập.',
+            ], 401);
+        }
+
+        $prefix = config('database.redis.options.prefix', '');
+        $redisKey = $prefix . 'user:session:' . $userId;
+
+        if (Redis::exists($redisKey)) {
+            Redis::del($redisKey);
+            Log::info('Đã xoá Redis key của user khi logout', ['key' => $redisKey]);
+        } else {
+            Log::info('Không tìm thấy Redis key để xoá', ['key' => $redisKey]);
+        }
+
+        session()->forget(['user_id', 'user_role', 'user_name']);
+        session()->flush();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Đăng xuất thành công.',
+        ]);
+    } catch (\Exception $e) {
+        Log::error('Lỗi khi logout: ' . $e->getMessage(), [
+            'trace' => $e->getTraceAsString()
+        ]);
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Lỗi khi đăng xuất.',
+        ], 500);
+    }
+}
+
 }

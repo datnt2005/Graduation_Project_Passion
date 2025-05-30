@@ -98,7 +98,6 @@
             <div class="otp-code" aria-label="Mã OTP">{{ $otp }}</div>
             <p>Mã này có hiệu lực trong <strong>5 phút</strong>.</p>
             <p>Nếu bạn không yêu cầu mã này, vui lòng bỏ qua email này hoặc liên hệ với chúng tôi.</p>
-            <a href="{{ url('/verify-otp') }}" class="button">Xác minh ngay</a>
         </div>
 
         <div class="footer">
@@ -112,3 +111,4 @@
     </div>
 </body>
 </html>
+
