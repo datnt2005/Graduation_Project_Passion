@@ -35,6 +35,7 @@
     <h2 class="text-lg font-semibold mb-4">Về Chúng Tôi</h2>
     <ul class="space-y-1 text-sm">
       <li><NuxtLink to="/introduce" class="hover:underline inline-flex items-center gap-1">Giới Thiệu</NuxtLink></li>
+
       <li><a href="#" class="hover:underline inline-flex items-center gap-1">Quy chế hoạt động</a></li>
       <li><a href="#" class="hover:underline inline-flex items-center gap-1">Chính sách bảo mật</a></li>
       <li><a href="#" class="hover:underline inline-flex items-center gap-1">Giải quyết tranh chấp</a></li>

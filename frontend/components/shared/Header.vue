@@ -31,18 +31,19 @@
         </svg>
         Hỗ trợ  
       </NuxtLink>
-      <a href="#" class="hover:underline inline-flex items-center gap-1">
+      <NuxtLink to="/auth/login" class="hover:underline inline-flex items-center gap-1">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
         </svg>
         Đăng nhập
-      </a>
-      <a href="#" class="hover:underline inline-flex items-center gap-1">
+      </NuxtLink>
+      <NuxtLink to="/auth/register" class="hover:underline inline-flex items-center gap-1">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
         </svg>
         Đăng ký
-      </a>
+      </NuxtLink>
+      <!-- Thêm liên kết Quên mật khẩu nếu muốn -->
     </div>
   </div>
 </header>
@@ -61,7 +62,7 @@
         <div class="relative group ml-20 hidden md:block">
         <a href="#" class="text-gray-700 hover:text-blue-600 font-semibold">
             Danh mục <font-awesome-icon :icon="['fas', 'bars']" />
-        </a>
+         </a>
 
         <!-- MEGA MENU -->
         <div class="absolute left-0 mt-6 w-[1200px] bg-white border border-gray-200 shadow-lg rounded-md opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 p-6 grid grid-cols-5 gap-6">
@@ -259,7 +260,6 @@
   </div>
   </div>
         <Features />
-
 </template>
 
 <script setup>

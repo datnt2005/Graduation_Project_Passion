@@ -1,5 +1,14 @@
 <template>
 
+    <nav class="flex flex-col space-y-3 text-gray-700">
+
+      <!-- Bảng điều khiển -->
+      <a href="#" class="flex items-center gap-4 px-3 py-2 rounded-md hover:bg-blue-50 hover:text-blue-600 transition">
+        <i class="fas fa-home w-5 text-blue-500"></i>
+        <span class="font-medium"><font-awesome-icon :icon="['fas', 'house']" /> Bảng điều khiển</span>
+      </a>
+      <!-- Dropdown Sản phẩm -->
+     <div class="relative">
   <div
     v-if="show"
     @click="$emit('close')"
@@ -79,7 +88,6 @@
           </NuxtLink>
         </li>
 
-
         <!-- Notifications -->
         <li class="pt-2 border-t border-gray-800">
           <NuxtLink to="#" class="flex items-center px-4 py-2 hover:bg-gray-800 gap-3" @click="$emit('close')">
@@ -105,6 +113,7 @@
 </template>
 
 <script setup>
+
 import { ref } from 'vue'
 defineProps({ show: Boolean })
 defineEmits(['close'])

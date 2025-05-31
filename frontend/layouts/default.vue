@@ -3,7 +3,7 @@
          <Header />
          <!-- nội dung  -->
             <NuxtPage />
-
+            
          <Footer />   
 
 
