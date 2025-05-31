@@ -31,18 +31,19 @@
         </svg>
         Hỗ trợ  
       </NuxtLink>
-      <a href="#" class="hover:underline inline-flex items-center gap-1">
+      <NuxtLink to="/auth/login" class="hover:underline inline-flex items-center gap-1">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
         </svg>
         Đăng nhập
-      </a>
-      <a href="#" class="hover:underline inline-flex items-center gap-1">
+      </NuxtLink>
+      <NuxtLink to="/auth/register" class="hover:underline inline-flex items-center gap-1">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
         </svg>
         Đăng ký
-      </a>
+      </NuxtLink>
+      <!-- Thêm liên kết Quên mật khẩu nếu muốn -->
     </div>
   </div>
 </header>
