@@ -18,7 +18,6 @@
     <p class="text-gray-600 text-xs">Mẹo vặt, hướng dẫn giúp mua hàng nhanh chóng và tiện lợi trên Pasion</p>
   </div>
 </div>
-
     <!-- Wrapper cho FAQ và Form -->
   <div class="flex flex-col md:flex-row gap-4 mb-4">
 
@@ -75,6 +74,5 @@
       </form>
     </div>
   </div>
-
   </div>
 </template>

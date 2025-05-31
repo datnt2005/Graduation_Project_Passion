@@ -1,8 +1,6 @@
 <template>
   <div class="bg-white p-2 border-sm shadow relative overflow-hidden">
-    <h2 class="text-lg sm:text-xl font-semibold text-gray-800 mb-4 text-center">
-      Thương hiệu nổi bật
-    </h2>
+
 
     <!-- Responsive grid -->
     <transition-group

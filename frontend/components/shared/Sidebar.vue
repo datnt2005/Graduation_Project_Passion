@@ -1,5 +1,5 @@
 <template>
-  <aside class="hidden md:block w-1/5 bg-white p-2 rounded shadow-sm">
+  <aside class="hidden md:block w-1/6 bg-white p-2 rounded shadow-sm">
     <ul class="space-y-2">
       <li
         v-for="(item, index) in categories "

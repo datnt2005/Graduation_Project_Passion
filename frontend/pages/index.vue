@@ -1,13 +1,12 @@
 <template>
   <main class="bg-[#F5F5FA] py-2">
-    <div class="max-w-7xl mx-auto flex gap-4 px-4">
+    <div class="container mx-auto flex gap-4 px-4">
       <!-- Sidebar -->
       <Sidebar />
       <!-- Main content -->
       <section class="flex-1 space-y-6">
         <!-- Banner -->
-        <Banner />
-       
+        <Banner />      
       
         <!-- Brands -->
         <Brands />

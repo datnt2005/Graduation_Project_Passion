@@ -3,9 +3,9 @@
     <!-- Thanh trên cùng -->
 <!-- Thanh trên cùng -->
 <header class="bg-[#1BA0E2] text-white text-sm py-2">
-  <div class="max-w-7xl mx-auto flex justify-between items-center px-4">
+  <div class="container mx-auto flex justify-between items-center px-4">
     <div class="space-x-2">
-      <NuxtLink href="/Seller" class="hover:underline inline-flex items-center gap-1">
+      <NuxtLink to="/Seller" class="hover:underline inline-flex items-center gap-1">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h4l3 10h8l3-10h4" />
         </svg>
@@ -25,24 +25,25 @@
         </svg>
         Thông báo
       </a>
-      <NuxtLink href="/support" class="hover:underline inline-flex items-center gap-1">
+      <NuxtLink to="/support" class="hover:underline inline-flex items-center gap-1">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 1.105-1.12 2-2.5 2h-13C4.12 14 3 13.105 3 12s1.12-2 2.5-2h13c1.38 0 2.5.895 2.5 2z" />
         </svg>
         Hỗ trợ  
       </NuxtLink>
-      <a href="#" class="hover:underline inline-flex items-center gap-1">
+      <NuxtLink to="/auth/login" class="hover:underline inline-flex items-center gap-1">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
         </svg>
         Đăng nhập
-      </a>
-      <a href="#" class="hover:underline inline-flex items-center gap-1">
+      </NuxtLink>
+      <NuxtLink to="/auth/register" class="hover:underline inline-flex items-center gap-1">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
         </svg>
         Đăng ký
-      </a>
+      </NuxtLink>
+      <!-- Thêm liên kết Quên mật khẩu nếu muốn -->
     </div>
   </div>
 </header>
@@ -50,7 +51,7 @@
 
     <!-- Thanh giữa -->
     <div class="bg-white shadow-sm">
-      <div class="max-w-7xl mx-auto flex items-center justify-between px-4 py-3">
+      <div class="container mx-auto flex items-center justify-between px-4 py-3">
         <!-- Logo -->
         <div class="flex items-center space-x-4">
           <div class="w-10 h-10 bg-gray-300 rounded text-center text-xs flex items-center justify-center">
@@ -61,7 +62,7 @@
         <div class="relative group ml-20 hidden md:block">
         <a href="#" class="text-gray-700 hover:text-blue-600 font-semibold">
             Danh mục <font-awesome-icon :icon="['fas', 'bars']" />
-        </a>
+         </a>
 
         <!-- MEGA MENU -->
         <div class="absolute left-0 mt-6 w-[1200px] bg-white border border-gray-200 shadow-lg rounded-md opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 p-6 grid grid-cols-5 gap-6">
@@ -150,9 +151,9 @@
                   translate-y-2 group-hover:translate-y-0 
                   transition-all duration-300 ease-in-out z-50 text-sm text-gray-700"
           >
-            <li><a href="#" class="block px-4 py-2 hover:bg-gray-100">Thông tin tài khoản</a></li>
-            <li><a href="#" class="block px-4 py-2 hover:bg-gray-100">Đơn hàng của tôi</a></li>
-            <li><a href="#" class="block px-4 py-2 hover:bg-gray-100">Trung tâm hỗ trợ</a></li>
+            <li><a href="/users/profile" class="block px-4 py-2 hover:bg-gray-100">Thông tin tài khoản</a></li>
+            <li><a href="/users/order" class="block px-4 py-2 hover:bg-gray-100">Đơn hàng của tôi</a></li>
+            <li><a href="/support" class="block px-4 py-2 hover:bg-gray-100">Trung tâm hỗ trợ</a></li>
             <li><a href="#" class="block px-4 py-2 hover:bg-gray-100">Đăng xuất</a></li>
           </ul>
         </div>
@@ -249,7 +250,7 @@
         <a href="#" class="block text-gray-700 hover:text-blue-600">
           <font-awesome-icon :icon="['fas', 'bell']" /> Thông báo
         </a>
-        <NuxtLink href="/support" class="block text-gray-700 hover:text-blue-600">
+        <NuxtLink to="/support" class="block text-gray-700 hover:text-blue-600">
           <font-awesome-icon :icon="['fas', 'info']" /> Hỗ trợ
         </NuxtLink>
         <a href="#" class="block text-gray-700 hover:text-blue-600"><font-awesome-icon :icon="['fas', 'right-to-bracket']" /> Đăng nhập</a>
@@ -259,7 +260,6 @@
   </div>
   </div>
         <Features />
-
 </template>
 
 <script setup>

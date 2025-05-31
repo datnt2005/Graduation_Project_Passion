@@ -1,124 +1,83 @@
 <template>
-  <div class="p-6 bg-gray-50 min-h-screen">
-    <h1 class="text-2xl font-bold mb-1">Quản lí sản phẩm</h1>
-    <p class="text-gray-600 mb-4">Danh sách sản phẩm hiện có</p>
-
-    <div class="flex flex-wrap items-center gap-2 mb-4">
-      <div class="flex items-center gap-2">
-        <label class="text-sm font-medium">Hiển thị</label>
-        <select class="border rounded px-2 py-1 text-sm">
-          <option>5</option>
-          <option>10</option>
-          <option>20</option>
-        </select>
-      </div>
-
-      <input type="text" placeholder="Tìm kiếm" class="border px-3 py-2 rounded w-48 text-sm" />
-
-      <select class="border rounded px-2 py-1 text-sm">
-        <option>Danh mục</option>
-      </select>
-
-      <select class="border rounded px-2 py-1 text-sm">
-        <option>Thương hiệu</option>
-      </select>
-
-      <button class="bg-gray-100 px-3 py-1 rounded text-sm">Lọc</button>
-
-      <div class="ml-auto flex gap-2">
-        <button class="border px-3 py-1 rounded text-sm">Xuất csv</button>
-        <button class="border px-3 py-1 rounded text-sm">Xuất Excel</button>
-        <button class="border px-3 py-1 rounded text-sm text-gray-400" disabled>Upload File</button>
-        <button class="bg-blue-600 text-white px-3 py-1 rounded text-sm">Thêm sản phẩm</button>
-      </div>
+  <!-- Tiêu đề -->
+  <div class="flex flex-col md:flex-row justify-between items-center mb-4 gap-2">
+    <h1 class="text-2xl font-bold">Sản phẩm</h1>
+    <div class="space-x-2">
+      <button class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Thêm sản phẩm mới</button>
+      <button class="bg-gray-200 px-4 py-2 rounded hover:bg-gray-300">Nhập dữ liệu</button>
+      <button class="bg-gray-200 px-4 py-2 rounded hover:bg-gray-300">Xuất dữ liệu</button>
     </div>
+  </div>
 
-    <div class="overflow-x-auto">
-      <table class="w-full text-sm text-left border rounded bg-white shadow-sm">
-        <thead class="bg-gray-100 font-semibold text-gray-700">
-          <tr>
-            <th class="px-3 py-2"><input type="checkbox" /></th>
-            <th class="px-3 py-2">#</th>
-            <th class="px-3 py-2">Tên sản phẩm</th>
-            <th class="px-3 py-2">Giá nhập</th>
-            <th class="px-3 py-2">Giá bán</th>
-            <th class="px-3 py-2">Danh mục</th>
-            <th class="px-3 py-2">Khuyến mãi</th>
-            <th class="px-3 py-2">Hình ảnh</th>
-            <th class="px-3 py-2">Số lượng</th>
-            <th class="px-3 py-2">Biến thể</th>
-            <th class="px-3 py-2">Slug</th>
-            <th class="px-3 py-2">Thao tác</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="(product, index) in products" :key="product.id" class="border-t hover:bg-gray-50">
-            <td class="px-3 py-2"><input type="checkbox" /></td>
-            <td class="px-3 py-2">{{ index + 1 }}</td>
-            <td class="px-3 py-2 font-medium">{{ product.name }}</td>
-            <td class="px-3 py-2">${{ product.importPrice }}</td>
-            <td class="px-3 py-2">${{ product.sellPrice }}</td>
-            <td class="px-3 py-2">{{ product.category }}</td>
-            <td class="px-3 py-2">${{ product.promotion }}</td>
-            <td class="px-3 py-2">
-              <img :src="product.image" alt="Product Image" class="w-12 h-12 object-cover rounded" />
-            </td>
-            <td class="px-3 py-2">{{ product.quantity }}</td>
-            <td class="px-3 py-2 whitespace-nowrap">
-              <div v-for="variant in product.variants" :key="variant" class="text-xs">{{ variant }}</div>
-            </td>
-            <td class="px-3 py-2">{{ product.slug }}</td>
-            
-          
-            <td class="px-3 py-2">Xoá | Sửa</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+  <!-- Bộ lọc -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-2 mb-4">
+    <select class="p-2 border rounded w-full">
+      <option>Tất cả điểm SEO</option>
+    </select>
+    <select class="p-2 border rounded w-full">
+      <option>Tất cả điểm dễ đọc</option>
+    </select>
+    <select class="p-2 border rounded w-full">
+      <option>Chọn danh mục</option>
+    </select>
+    <select class="p-2 border rounded w-full">
+      <option>Lọc theo loại sản phẩm</option>
+    </select>
+    <select class="p-2 border rounded w-full">
+      <option>Lọc theo tình trạng kho</option>
+    </select>
+    <select class="p-2 border rounded w-full">
+      <option>Lọc theo thương hiệu</option>
+    </select>
+  </div>
 
-    <div class="flex justify-center mt-4">
-      <ul class="inline-flex space-x-1 text-sm">
-        <li v-for="page in 5" :key="page">
-          <button class="px-3 py-1 border rounded hover:bg-gray-100" :class="{ 'bg-blue-600 text-white': page === 2 }">{{ page }}</button>
-        </li>
-      </ul>
-    </div>
+  <!-- Thanh tìm kiếm -->
+  <div class="flex justify-end mb-4">
+    <input type="text" placeholder="Tìm kiếm sản phẩm..." class="border p-2 rounded w-full md:w-1/3" />
+  </div>
+
+  <!-- Bảng sản phẩm -->
+  <div class="overflow-auto bg-white shadow rounded">
+    <table class="min-w-full text-sm">
+      <thead class="bg-gray-200 text-left">
+        <tr>
+          <th class="p-2"><input type="checkbox" /></th>
+          <th class="p-2">Ảnh</th>
+          <th class="p-2">Tên sản phẩm</th>
+          <th class="p-2">Mã SKU</th>
+          <th class="p-2">Tình trạng</th>
+          <th class="p-2">Giá</th>
+          <th class="p-2">Danh mục</th>
+          <th class="p-2">Ngày tạo</th>
+          <th class="p-2">Thương hiệu</th>
+          <th class="p-2">Hành động</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Dòng sản phẩm mẫu -->
+        <tr class="border-t hover:bg-gray-50">
+          <td class="p-2"><input type="checkbox" /></td>
+          <td class="p-2"><img src="https://via.placeholder.com/40" alt="Product" class="h-10 w-10 object-cover" /></td>
+          <td class="p-2 text-blue-600 font-medium">Quần nỉ bé gái dáng jogger có túi ốp</td>
+          <td class="p-2">–</td>
+          <td class="p-2 text-green-600 font-semibold">Còn hàng</td>
+          <td class="p-2">550.000₫</td>
+          <td class="p-2">Quần áo trẻ em</td>
+          <td class="p-2">2025/02/18 12:58</td>
+          <td class="p-2">–</td>
+          <td class="p-2">
+            <!-- Nút hành động có thể thêm tại đây -->
+            <button class="text-blue-600 hover:underline">Sửa</button>
+          </td>
+        </tr>
+        <!-- Thêm các dòng khác nếu cần -->
+      </tbody>
+    </table>
   </div>
 </template>
 
-
 <script setup>
-
-const products = ref([
-  {
-    id: 1,
-    name: 'Sản phẩm A',
-    importPrice: 10,
-    sellPrice: 109,
-    category: 'Kính nữ',
-    promotion: 0,
-    image: 'https://via.placeholder.com/50x50?text=🕶️',
-    quantity: 200,
-    variants: ['biến thể 1', 'biến thể 2'],
-    slug: 'slug',
-  },
-  {
-    id: 2,
-    name: 'Sản phẩm B',
-    importPrice: 10,
-    sellPrice: 109,
-    category: 'Kính nữ',
-    promotion: 0,
-    image: 'https://via.placeholder.com/50x50?text=🕶️',
-    quantity: 200,
-    variants: ['biến thể 1', 'biến thể 2'],
-    slug: 'slug',
-  },
-  // Thêm các sản phẩm khác nếu muốn
-])
-
-
 definePageMeta({
-  layout: 'default-admin' // Dùng layout riêng cho admin
+  layout: 'default-admin'
 })
 </script>
