@@ -7,9 +7,6 @@
     <div class="flex-1 flex flex-col">
       <!-- Header -->
        <Header />
-
-    
-
       <!-- Slot for page content -->
       <main class="p-6 overflow-auto">
         <slot />

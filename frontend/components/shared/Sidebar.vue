@@ -1,5 +1,5 @@
 <template>
-  <aside class="hidden md:block w-1/5 bg-white p-4 rounded shadow-sm">
+  <aside class="hidden md:block w-1/5 bg-white p-2 rounded shadow-sm">
     <ul class="space-y-2">
       <li
         v-for="(item, index) in categories "
@@ -9,7 +9,7 @@
         <img
          :src="item.image"
           alt="item"
-          class="w-12 h-12 object-contain rounded-full"
+          class="w-8 h-8 object-contain rounded-full"
         />
         <span class="text-sm font-medium">{{ item.name }}</span>
       </li>
