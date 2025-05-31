@@ -1,14 +1,14 @@
 <template>
 
-    <nav class="flex flex-col space-y-3 text-gray-700">
+    <!-- <nav class="flex flex-col space-y-3 text-gray-700"> -->
 
       <!-- Bảng điều khiển -->
-      <a href="#" class="flex items-center gap-4 px-3 py-2 rounded-md hover:bg-blue-50 hover:text-blue-600 transition">
-        <i class="fas fa-home w-5 text-blue-500"></i>
-        <span class="font-medium"><font-awesome-icon :icon="['fas', 'house']" /> Bảng điều khiển</span>
-      </a>
+      <!-- <a href="#" class="flex items-center gap-4 px-3 py-2 rounded-md hover:bg-blue-50 hover:text-blue-600 transition"> -->
+        <!-- <i class="fas fa-home w-5 text-blue-500"></i> -->
+        <!-- <span class="font-medium"><font-awesome-icon :icon="['fas', 'house']" /> Bảng điều khiển</span> -->
+      <!-- </a> -->
       <!-- Dropdown Sản phẩm -->
-     <div class="relative">
+     <!-- <div class="relative"> -->
   <div
     v-if="show"
     @click="$emit('close')"

@@ -143,9 +143,12 @@
       TỔNG TIỀN: $1998.000
     </div>
     <div class="flex items-center space-x-4">
+      <nuxt-link to="/checkout">
+      
       <button class="bg-blue-400 text-white text-sm px-5 py-2 rounded">
         Thanh toán
       </button>
+      </nuxt-link>
     </div>
   </div>
   <!-- Related products title -->
