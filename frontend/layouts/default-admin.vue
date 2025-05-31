@@ -1,17 +1,12 @@
 <template>
-  <div class="flex h-screen">
+  <div class="flex h-screen overflow-hidden">
     <!-- Sidebar -->
-    <SideBar />
+    <Sidebar :show="showSidebar" @close="showSidebar = false" />
 
-    <!-- Main content -->
+    <!-- Nội dung chính -->
     <div class="flex-1 flex flex-col">
-      <!-- Header -->
-       <Header />
-
-    
-
-      <!-- Slot for page content -->
-      <main class="p-6 overflow-auto">
+      <Header @toggle-sidebar="showSidebar = !showSidebar" />
+      <main class="p-4 overflow-y-auto">
         <slot />
       </main>
     </div>
@@ -19,6 +14,9 @@
 </template>
 
 <script setup>
-import SideBar from '~/components/admin-ui/SideBar.vue'
-import Header from '~/components/admin-ui/Header.vue'
+import Sidebar from '~/components/admin-ui/SideBar.vue';
+import Header from '~/components/admin-ui/Header.vue';
+import { ref } from 'vue'
+
+const showSidebar = ref(false)
 </script>

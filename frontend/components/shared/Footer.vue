@@ -25,7 +25,7 @@
   </NuxtLink>
 </li>
 
-      <li><NuxtLink href="/support" class="hover:underline inline-flex items-center gap-1">Hỗ trợ khách hàng</NuxtLink></li>
+      <li><NuxtLink to="/support" class="hover:underline inline-flex items-center gap-1">Hỗ trợ khách hàng</NuxtLink></li>
       <li><a href="#" class="hover:underline inline-flex items-center gap-1">An toàn mua bán</a></li>
     </ul>
   </div>
@@ -34,7 +34,7 @@
   <div>
     <h2 class="text-lg font-semibold mb-4">Về Chúng Tôi</h2>
     <ul class="space-y-1 text-sm">
-      <li><NuxtLink href="/introduce" class="hover:underline inline-flex items-center gap-1">Giới Thiệu</NuxtLink></li>
+      <li><NuxtLink to="/introduce" class="hover:underline inline-flex items-center gap-1">Giới Thiệu</NuxtLink></li>
       <li><a href="#" class="hover:underline inline-flex items-center gap-1">Quy chế hoạt động</a></li>
       <li><a href="#" class="hover:underline inline-flex items-center gap-1">Chính sách bảo mật</a></li>
       <li><a href="#" class="hover:underline inline-flex items-center gap-1">Giải quyết tranh chấp</a></li>
