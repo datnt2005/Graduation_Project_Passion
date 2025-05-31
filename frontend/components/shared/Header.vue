@@ -3,7 +3,7 @@
     <!-- Thanh trên cùng -->
 <!-- Thanh trên cùng -->
 <header class="bg-[#1BA0E2] text-white text-sm py-2">
-  <div class="max-w-7xl mx-auto flex justify-between items-center px-4">
+  <div class="container mx-auto flex justify-between items-center px-4">
     <div class="space-x-2">
       <NuxtLink to="/Seller" class="hover:underline inline-flex items-center gap-1">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -51,7 +51,7 @@
 
     <!-- Thanh giữa -->
     <div class="bg-white shadow-sm">
-      <div class="max-w-7xl mx-auto flex items-center justify-between px-4 py-3">
+      <div class="container mx-auto flex items-center justify-between px-4 py-3">
         <!-- Logo -->
         <div class="flex items-center space-x-4">
           <div class="w-10 h-10 bg-gray-300 rounded text-center text-xs flex items-center justify-center">
