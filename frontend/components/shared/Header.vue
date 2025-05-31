@@ -151,16 +151,16 @@
                   translate-y-2 group-hover:translate-y-0 
                   transition-all duration-300 ease-in-out z-50 text-sm text-gray-700"
           >
-            <li><a href="#" class="block px-4 py-2 hover:bg-gray-100">Thông tin tài khoản</a></li>
-            <li><a href="#" class="block px-4 py-2 hover:bg-gray-100">Đơn hàng của tôi</a></li>
-            <li><a href="#" class="block px-4 py-2 hover:bg-gray-100">Trung tâm hỗ trợ</a></li>
+            <li><a href="/users/profile" class="block px-4 py-2 hover:bg-gray-100">Thông tin tài khoản</a></li>
+            <li><a href="/users/order" class="block px-4 py-2 hover:bg-gray-100">Đơn hàng của tôi</a></li>
+            <li><a href="/support" class="block px-4 py-2 hover:bg-gray-100">Trung tâm hỗ trợ</a></li>
             <li><a href="#" class="block px-4 py-2 hover:bg-gray-100">Đăng xuất</a></li>
           </ul>
         </div>
 
         <!-- Giỏ hàng -->
         <NuxtLink
-          href="#"
+          href="/cart"
           class="hover:text-blue-600 transition-colors duration-200 tracking-wide flex items-center gap-1"
         >
           <font-awesome-icon :icon="['fas', 'cart-shopping']" />
