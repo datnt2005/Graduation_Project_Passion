@@ -1,5 +1,5 @@
 <template>
-    <h3 class="text-3xl text-center font-bold"> this is dashboard</h3>
+  <h3> this is dasdboard admin</h3>
 </template>
 
 

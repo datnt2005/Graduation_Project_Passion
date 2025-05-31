@@ -1,41 +1,48 @@
 <template>
-  <div class="bg-white p-6 rounded-xl shadow-md relative overflow-hidden">
-    <h2 class="text-xl font-bold text-gray-800 mb-4">Thương hiệu nổi bật</h2>
+  <div class="bg-white p-2 border-sm shadow relative overflow-hidden">
+    <h2 class="text-lg sm:text-xl font-semibold text-gray-800 mb-4 text-center">
+      Thương hiệu nổi bật
+    </h2>
 
     <!-- Responsive grid -->
-   <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-6">
-  <div
-    v-for="(item, index) in paginatedBrands"
-    :key="index"
-    class="flex flex-col items-center bg-gray-50 p-4 rounded-lg hover:shadow-lg transition duration-300 ease-in-out hover:scale-105"
-  >
-    <img
-      :src="item.image"
-      alt="Logo thương hiệu"
-      class="w-30 h-30 sm:w-20 sm:h-20 object-contain mb-2"
-    />
-    <p class="text-sm font-medium text-gray-700 text-center truncate w-full">
-      {{ item.name }}
-    </p>
-  </div>
-</div>
+    <transition-group
+      name="fade"
+      tag="div"
+      class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 sm:gap-6"
+    >
+      <div
+        v-for="(item, index) in paginatedBrands"
+        :key="item.id || index"
+        class="flex flex-col items-center bg-gray-50 p-3 rounded-md hover:shadow transition duration-300 ease-in-out hover:scale-105"
+      >
+        <img
+          :src="item.image"
+          alt="Logo thương hiệu"
+          class="w-16 h-16 sm:w-15 sm:h-15 object-contain"
+        />
+        <p class="text-xs sm:text-sm font-medium text-gray-700 text-center truncate w-full">
+          {{ item.name }}
+        </p>
+      </div>
+    </transition-group>
 
 
     <!-- Controls -->
-    <button
-      @click="prevBrand"
-      class="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white p-2 rounded-full shadow hover:bg-gray-100 z-10"
-      v-if="canNavigate"
-    >
-      ❮
-    </button>
-    <button
-      @click="nextBrand"
-      class="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white p-2 rounded-full shadow hover:bg-gray-100 z-10"
-      v-if="canNavigate"
-    >
-      ❯
-    </button>
+      <button
+        @click="prevBrand"
+        class="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white p-1.5 sm:p-2 rounded-full shadow hover:bg-gray-100 hover:scale-110 transition duration-200 ease-in-out z-10"
+        v-if="canNavigate"
+      >
+        ❮
+      </button>
+      <button
+        @click="nextBrand"
+        class="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white p-1.5 sm:p-2 rounded-full shadow hover:bg-gray-100 hover:scale-110 transition duration-200 ease-in-out z-10"
+        v-if="canNavigate"
+      >
+        ❯
+      </button>
+
   </div>
 </template>
 
@@ -76,11 +83,14 @@ const prevBrand = () => {
 
 const canNavigate = computed(() => totalPages.value > 1)
 </script>
-
 <style scoped>
-@media (max-width: 640px) {
-  .grid-cols-3 {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.4s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>
+

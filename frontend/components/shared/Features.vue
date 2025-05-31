@@ -1,35 +1,64 @@
 <template>
+  <div class=" text-sm text-gray-700 px-6 py-2 flex justify-center rounded-lg shadow-sm">
+    <!-- Desktop: hiển thị tất cả -->
+    <div class="hidden md:flex flex-wrap gap-4 text-center items-center">
+      <span
+        v-for="(item, index) in items"
+        :key="index"
+        class="pl-2 border-l border-gray-300 flex items-center gap-1 whitespace-nowrap"
+      >
+        {{ item }}
+      </span>
+    </div>
 
-    <div class="overflow-x-auto">
-  <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm min-w-max sm:min-w-0">
-    <button class="flex items-center gap-2 bg-white py-3 px-4 rounded shadow-sm hover:bg-gray-100 whitespace-nowrap">
-      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.126 2a9.003 9.003 0 00-15.708 0m15.708 0A9.003 9.003 0 014 15.582V20h5m6-16v4m0 4v4m0 4v4"/>
-      </svg>
-      Đổi/Hoàn hàng
-    </button>
-
-    <button class="flex items-center gap-2 bg-white py-3 px-4 rounded shadow-sm hover:bg-gray-100 whitespace-nowrap">
-      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c.656 0 1.5-.672 1.5-1.5S12.656 8 12 8s-1.5.672-1.5 1.5S11.344 11 12 11zm0 1v6m-6 2a9 9 0 1118 0H6z"/>
-      </svg>
-      Bảo mật thông tin
-    </button>
-
-    <button class="flex items-center gap-2 bg-white py-3 px-4 rounded shadow-sm hover:bg-gray-100 whitespace-nowrap">
-      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a5 5 0 00-10 0v2H5v14h14V9h-2zM7 9V7a5 5 0 0110 0v2H7z"/>
-      </svg>
-      Voucher
-    </button>
-
-    <button class="flex items-center gap-2 bg-white py-3 px-4 rounded shadow-sm hover:bg-gray-100 whitespace-nowrap">
-      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a5 5 0 00-10 0v2H5v14h14V9h-2zM7 9V7a5 5 0 0110 0v2H7z"/>
-      </svg>
-      Thanh toán
-    </button>
+    <!-- Mobile: chỉ hiển thị từng cái, auto chuyển -->
+    <div class="md:hidden text-center min-h-[24px] flex items-center justify-center relative w-full">
+      <transition name="fade" mode="out-in">
+        <span
+          :key="currentIndex"
+          class="pl-2 border-l border-gray-300 flex items-center gap-1 absolute left-1/2 -translate-x-1/2"
+        >
+          {{ items[currentIndex] }}
+        </span>
+      </transition>
+    </div>
   </div>
-</div>
-
 </template>
+
+<script setup>
+import { ref, onMounted, onUnmounted } from 'vue'
+
+const items = [
+  ' Cam kết',
+  '✅ 100% hàng thật',
+  '🚚 Freeship mọi đơn',
+  '💯 Hoàn 200% nếu hàng giả',
+  '🔄 30 ngày đổi trả',
+  '⚡ Giao hàng nhanh 2h',
+  '💸 Giá siêu rẻ',
+]
+
+const currentIndex = ref(0)
+let intervalId = null
+
+onMounted(() => {
+  intervalId = setInterval(() => {
+    currentIndex.value = (currentIndex.value + 1) % items.length
+  }, 2500) // 2.5s để người dùng đọc kịp
+})
+
+onUnmounted(() => {
+  clearInterval(intervalId)
+})
+</script>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.5s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+</style>
