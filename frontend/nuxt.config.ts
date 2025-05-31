@@ -1,14 +1,13 @@
-// https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   compatibilityDate: '2025-05-15',
+  css: ['@/assets/css/tailwind.css'],
+  plugins: ['~/plugins/fontawesome'],
   devtools: { enabled: true },
-  modules: [
-    '@nuxtjs/tailwindcss',
-    '@nuxtjs/supabase',
-    '@nuxtjs/color-mode',
-    'nuxt-icon',
-    '@nuxtjs/sitemap',
-    '@nuxtjs/robots',
-    '@pinia/nuxt',
-  ],
-})
+   postcss: {
+    plugins: {
+       tailwindcss: {},
+      autoprefixer: {},
+    },
+  },
+});
+

@@ -34,3 +34,4 @@ php artisan migrate
 7: Mỗi ngày kết thúc việc code phải báo cáo trong daily stand up bao gồm task của mình progress, effort bao nhiêu giờ, issue(vấn đề cần hỗ trợ) leader sẽ check hằng ngày để đảm bảo tiến độ của dự án.
 
 Chúc các bạn làm việc thật hiệu quả. Passion💕 .
+

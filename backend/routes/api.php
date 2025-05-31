@@ -4,7 +4,9 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\AttributeController;
-use App\Models\Category;
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\TagController;
 
 // Category
 Route::get('/categories', [CategoryController::class, 'index']);
@@ -16,12 +18,12 @@ Route::put('/categories/{id}', [CategoryController::class, 'update']);
 Route::delete('/categories/{id}', [CategoryController::class, 'destroy']);
 
 //tags
-Route::get('/tags', [\App\Http\Controllers\TagController::class, 'index']);
-Route::get('/tags/{id}', [\App\Http\Controllers\TagController::class, 'show']);
-Route::post('/tags', [\App\Http\Controllers\TagController::class, 'store']);
-Route::put('/tags/{id}', [\App\Http\Controllers\TagController::class, 'update']);
-Route::patch('/tags/{id}', [\App\Http\Controllers\TagController::class, 'update']);
-Route::delete('/tags/{id}', [\App\Http\Controllers\TagController::class, 'destroy']);
+Route::get('/tags', [TagController::class, 'index']);
+Route::get('/tags/{id}', [TagController::class, 'show']);
+Route::post('/tags', [TagController::class, 'store']);
+Route::put('/tags/{id}', [TagController::class, 'update']);
+Route::patch('/tags/{id}', [TagController::class, 'update']);
+Route::delete('/tags/{id}', [TagController::class, 'destroy']);
 
 //attributes
 Route::get('/attributes', [AttributeController::class, 'index']);
@@ -39,3 +41,20 @@ Route::prefix('products')->group(function () {
     Route::put('/{id}', [ProductController::class, 'update']);
     Route::delete('/{id}', [ProductController::class, 'destroy']);
 });
+
+
+
+// Api user login, otp, register, and resend otp
+Route::post('/register', [AuthController::class, 'register']);
+Route::post('/verify-otp', [AuthController::class, 'verifyOtp']);
+Route::post('login', [AuthController::class, 'login']);
+Route::post('/resend-otp', [AuthController::class, 'resendOtp']);
+Route::middleware('auth:sanctum')->post('/logout', [AuthController::class, 'logout']);
+
+
+// crud user
+Route::apiResource('users', UserController::class);
+
+
+
+

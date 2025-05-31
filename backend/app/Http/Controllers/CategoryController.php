@@ -58,11 +58,22 @@ class CategoryController extends Controller
         }
 
         $slug = $request->slug ?? Str::slug($request->name);
-
+        if (Category::where('slug', $slug)->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Slug đã tồn tại.',
+            ], 422);
+        }
+        if ($request->hasFile(key: 'image')) {
+                $path = $request->file('image')->store('images', options: 's3');
+                $data['image'] = "/passion/{$path}";
+            }
+        
         $category = Category::create([
             'name' => $request->name,
             'slug' => $slug,
             'parent_id' => $request->parent_id,
+            'image' => $data['image'] ?? null,
         ]);
 
         return response()->json([
@@ -102,10 +113,18 @@ class CategoryController extends Controller
             ], 422);
         }
 
+        if ($request->hasFile(key: 'image')) {
+            $path = $request->file('image')->store('images', options: 's3');
+            $data['image'] = "/passion/{$path}";
+        }
+        if (isset($data['image'])) {
+            $category->image = $data['image'];
+        }
         $category->update([
             'name' => $request->name,
             'slug' => $request->slug ?? Str::slug($request->name),
             'parent_id' => $request->parent_id,
+            'image' => $data['image'] ?? $category->image,
         ]);
 
         return response()->json([
