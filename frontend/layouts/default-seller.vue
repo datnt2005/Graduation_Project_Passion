@@ -19,6 +19,6 @@
 </template>
 
 <script setup>
-import SideBar from '~/components/admin-ui/SideBar.vue'
-import Header from '~/components/admin-ui/Header.vue'
+import SideBar from '~/components/seller/SideBar.vue'
+import Header from '~/components/seller/Header.vue'
 </script>

@@ -1,6 +1,6 @@
 <template>
   <aside class="w-64 bg-white h-screen shadow-md p-6 hidden md:block">
-    <h2 class="text-2xl font-semibold text-gray-800 mb-8">Admin Dashboard</h2>
+    <h2 class="text-2xl font-semibold text-gray-800 mb-8">Admin seller</h2>
 
     <nav class="flex flex-col space-y-3 text-gray-700">
       <!-- Bảng điều khiển -->
