@@ -5,7 +5,7 @@
 <header class="bg-[#1BA0E2] text-white text-sm py-2">
   <div class="max-w-7xl mx-auto flex justify-between items-center px-4">
     <div class="space-x-2">
-      <NuxtLink href="/Seller" class="hover:underline inline-flex items-center gap-1">
+      <NuxtLink to="/Seller" class="hover:underline inline-flex items-center gap-1">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h4l3 10h8l3-10h4" />
         </svg>
@@ -25,7 +25,7 @@
         </svg>
         Thông báo
       </a>
-      <NuxtLink href="/support" class="hover:underline inline-flex items-center gap-1">
+      <NuxtLink to="/support" class="hover:underline inline-flex items-center gap-1">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 1.105-1.12 2-2.5 2h-13C4.12 14 3 13.105 3 12s1.12-2 2.5-2h13c1.38 0 2.5.895 2.5 2z" />
         </svg>
@@ -160,7 +160,7 @@
 
         <!-- Giỏ hàng -->
         <NuxtLink
-          href="/cart"
+          href="#"
           class="hover:text-blue-600 transition-colors duration-200 tracking-wide flex items-center gap-1"
         >
           <font-awesome-icon :icon="['fas', 'cart-shopping']" />
@@ -250,7 +250,7 @@
         <a href="#" class="block text-gray-700 hover:text-blue-600">
           <font-awesome-icon :icon="['fas', 'bell']" /> Thông báo
         </a>
-        <NuxtLink href="/support" class="block text-gray-700 hover:text-blue-600">
+        <NuxtLink to="/support" class="block text-gray-700 hover:text-blue-600">
           <font-awesome-icon :icon="['fas', 'info']" /> Hỗ trợ
         </NuxtLink>
         <a href="#" class="block text-gray-700 hover:text-blue-600"><font-awesome-icon :icon="['fas', 'right-to-bracket']" /> Đăng nhập</a>

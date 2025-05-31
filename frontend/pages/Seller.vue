@@ -1,5 +1,5 @@
 <template>
-  <div class="bg-white p-4 shadow w-full max-w-[1200px] mx-auto mt-4">
+  <div class="container bg-white p-4 shadow w-full  mx-auto mt-4">
     <!-- Header: Thông tin shop -->
     <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
       <div class="flex items-center gap-4">
@@ -99,11 +99,11 @@
         </div>
 
         <!-- Grid sản phẩm -->
-        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-5">
           <!-- Card sản phẩm -->
           <div class="bg-white rounded shadow p-3 text-left">
             <img src="https://salt.tikicdn.com/cache/750x750/ts/product/a9/83/7c/6664136e604227071213793e7a2091d9.jpg.webp" alt="book"
-              class="w-full h-40 object-cover mb-2 rounded-md">
+              class="w-full h-35 object-cover mb-2 rounded-md">
             <p class="text-sm leading-snug font-medium mb-1">PHẠM XUÂN ẨN - Tên Người Như Cuộc Đời</p>
             <p class="text-gray-500 text-xs mb-1">Tác giả</p>
             <div class="flex items-center text-xs text-gray-600 mb-1">
