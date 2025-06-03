@@ -33,7 +33,6 @@ class AuthController extends Controller
                     'required',
                     'confirmed',
                     Password::min(8)
-                        ->mixedCase()
                         ->numbers()
                         ->uncompromised(),
                 ],
@@ -53,12 +52,12 @@ class AuthController extends Controller
                 'password.required' => 'Trường mật khẩu là bắt buộc.',
                 'password.confirmed' => 'Mật khẩu xác nhận không khớp.',
                 'password.min' => 'Mật khẩu phải có ít nhất 8 ký tự.',
-                'password.mixedCase' => 'Mật khẩu phải chứa ít nhất một chữ cái in hoa và một chữ cái thường.',
                 'password.numbers' => 'Mật khẩu phải chứa ít nhất một số.',
                 'password.uncompromised' => 'Mật khẩu đã bị rò rỉ, vui lòng chọn mật khẩu khác.',
                 'phone.required' => 'Trường số điện thoại là bắt buộc.',
                 'phone.unique' => 'Số điện thoại đã được đăng ký.',
                 'phone.regex' => 'Số điện thoại không hợp lệ.',
+                'phone.max' => 'Số điện thoại không được vượt quá 11 ký tự.',
             ]);
 
             $validated['phone'] = preg_replace('/\D/', '', $validated['phone']);
