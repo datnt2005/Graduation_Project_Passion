@@ -1,53 +1,85 @@
 <template>
   <div>
     <!-- Thanh trên cùng -->
-<!-- Thanh trên cùng -->
-<header class="bg-[#1BA0E2] text-white text-sm py-2">
-  <div class="container mx-auto flex justify-between items-center px-4">
-    <div class="space-x-2">
-      <NuxtLink to="/Seller" class="hover:underline inline-flex items-center gap-1">
-        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h4l3 10h8l3-10h4" />
-        </svg>
-        Đăng ký bán hàng
-      </NuxtLink>
-      <a href="#" class="hover:underline inline-flex items-center gap-1">
-        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2h5" />
-        </svg>
-        Kết nối   <font-awesome-icon :icon="['fab', 'facebook']" />  <font-awesome-icon :icon="['fab', 'instagram']" />
-      </a>
+  <header class="bg-[#1BA0E2] text-white text-sm py-2">
+    <div class="container mx-auto flex justify-between items-center px-4">
+      <div class="space-x-2">
+        <NuxtLink to="/Seller" class="hover:underline inline-flex items-center gap-1">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24"
+            stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M3 10h4l3 10h8l3-10h4" /></svg>
+          Đăng ký bán hàng
+        </NuxtLink>
+        <a href="#" class="hover:underline inline-flex items-center gap-1">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24"
+            stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M17 20h5v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2h5" /></svg>
+          Kết nối <font-awesome-icon :icon="['fab', 'facebook']" />
+          <font-awesome-icon :icon="['fab', 'instagram']" />
+        </a>
+      </div>
+      <div class="hidden sm:flex space-x-4">
+        <a href="#" class="hover:underline inline-flex items-center gap-1">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24"
+            stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.437L4 17h5" /></svg>
+          Thông báo
+        </a>
+        <NuxtLink to="#" @click.prevent="openLogin" class="hover:underline inline-flex items-center gap-1">
+          <i><font-awesome-icon :icon="['fas', 'right-to-bracket']" /></i>
+          Đăng nhập
+        </NuxtLink>
+        <NuxtLink to="#" @click.prevent="openRegister" class="hover:underline inline-flex items-center gap-1">
+          <i><font-awesome-icon :icon="['fas', 'plus']" /></i>
+          Đăng ký
+        </NuxtLink>
+      </div>
     </div>
-    <div class="hidden sm:flex space-x-4">
-      <a href="#" class="hover:underline inline-flex items-center gap-1">
-        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.437L4 17h5" />
-        </svg>
-        Thông báo
-      </a>
-      <NuxtLink to="/support" class="hover:underline inline-flex items-center gap-1">
-        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 1.105-1.12 2-2.5 2h-13C4.12 14 3 13.105 3 12s1.12-2 2.5-2h13c1.38 0 2.5.895 2.5 2z" />
-        </svg>
-        Hỗ trợ  
-      </NuxtLink>
-      <NuxtLink to="/auth/login" class="hover:underline inline-flex items-center gap-1">
-        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-        </svg>
-        Đăng nhập
-      </NuxtLink>
-      <NuxtLink to="/auth/register" class="hover:underline inline-flex items-center gap-1">
-        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-        </svg>
-        Đăng ký
-      </NuxtLink>
-      <!-- Thêm liên kết Quên mật khẩu nếu muốn -->
-    </div>
-  </div>
-</header>
+  </header>
 
+  <!-- MODAL -->
+  <transition name="fade-scale">
+    <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+      <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md relative">
+        <button class="absolute top-3 right-4 text-gray-400 hover:text-red-500 text-2xl" @click="closeModal">
+          &times;
+        </button>
+
+        <!-- Form đăng ký / đăng nhập -->
+        <div v-if="!showOtp" class="space-y-5">
+          <div class="flex justify-between items-center mb-2">
+            <h2 class="text-2xl font-bold text-[#1BA0E2]">{{ isLogin ? 'Đăng nhập' : 'Đăng ký' }}</h2>
+            <button @click="isLogin = !isLogin" class="text-sm text-blue-500 hover:underline">
+              {{ isLogin ? 'Chưa có tài khoản?' : 'Đã có tài khoản?' }}
+            </button>
+          </div>
+          <form @submit.prevent="submitForm" class="space-y-3">
+            <input v-if="!isLogin" v-model="form.name" type="text" placeholder="Họ và tên"
+              class="input-style" />
+            <input v-model="form.email" type="email" placeholder="Email" class="input-style" />
+            <input v-model="form.password" type="password" placeholder="Mật khẩu" class="input-style" />
+            <input v-if="!isLogin" v-model="form.confirmPassword" type="password" placeholder="Xác nhận mật khẩu"
+              class="input-style" />
+            <input v-if="!isLogin" v-model="form.phone" type="text" placeholder="Số điện thoại"
+              class="input-style" />
+            <button type="submit" class="btn-style">
+              {{ isLogin ? 'Đăng nhập' : 'Đăng ký' }}
+            </button>
+          </form>
+        </div>
+
+        <!-- Form nhập OTP -->
+        <div v-else class="space-y-5">
+          <h2 class="text-xl font-semibold text-[#1BA0E2]">Xác minh OTP</h2>
+          <p class="text-gray-600 text-sm">Vui lòng kiểm tra email và nhập mã OTP để xác minh tài khoản.</p>
+          <form @submit.prevent="verifyOtp" class="space-y-3">
+            <input v-model="otp" type="text" placeholder="Nhập mã OTP" class="input-style" />
+            <button type="submit" class="btn-style">Xác minh</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </transition>
 
     <!-- Thanh giữa -->
     <div class="bg-white shadow-sm">
@@ -264,7 +296,118 @@
 
 <script setup>
 import { ref } from 'vue'
+import axios from 'axios'
+import Swal from 'sweetalert2'
 
+const showModal = ref(false)
+const isLogin = ref(true)
+const showOtp = ref(false)
+const otp = ref('')
+const tempUserId = ref(null)
+
+const form = ref({
+  name: '',
+  email: '',
+  password: '',
+  confirmPassword: '',
+  phone: '',
+})
+
+const openLogin = () => {
+  isLogin.value = true
+  showModal.value = true
+  showOtp.value = false
+}
+
+const openRegister = () => {
+  isLogin.value = false
+  showModal.value = true
+  showOtp.value = false
+}
+
+const closeModal = () => {
+  showModal.value = false
+  showOtp.value = false
+  otp.value = ''
+  form.value = {
+    name: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    phone: '',
+  }
+}
+
+const config = useRuntimeConfig()
+const api = config.public.apiBaseUrl
+const submitForm = async () => {
+  try {
+    if (isLogin.value) {
+      const res = await axios.post(`${api}/login`, {
+        email: form.value.email,
+        password: form.value.password,
+      })
+      Swal.fire('Thành công!', 'Đăng nhập thành công!', 'success')
+      closeModal()
+    } else {
+      const res = await axios.post(`${api}/register`, {
+        name: form.value.name,
+        email: form.value.email,
+        password: form.value.password,
+        password_confirmation: form.value.confirmPassword,
+        phone: form.value.phone,
+      })
+      tempUserId.value = res.data.user_id
+      showOtp.value = true
+      Swal.fire('Thành công!', 'Đăng ký thành công. Vui lòng kiểm tra email để lấy mã OTP.', 'success')
+    }
+  } catch (err) {
+   console.error('Lỗi chi tiết:', err.response?.data)
+  const errors = err.response?.data?.errors
+  const message = err.response?.data?.message || 'Đăng ký thất bại.'
+
+  if (errors) {
+    const firstError = Object.values(errors)[0][0]
+    Swal.fire('Lỗi!', firstError, 'error')
+  } else {
+    Swal.fire('Lỗi!', message, 'error')
+  }
+  }
+}
+
+const verifyOtp = async () => {
+  try {
+    await axios.post(`${api}/verify-otp`, {
+      user_id: tempUserId.value,
+      otp: otp.value,
+    })
+    Swal.fire('Xác minh thành công!', 'Bạn có thể đăng nhập.', 'success')
+    closeModal()
+  } catch (err) {
+    const msg = err.response?.data?.message || 'Mã OTP không hợp lệ hoặc đã hết hạn.'
+    Swal.fire('Lỗi!', msg, 'error')
+  }
+}
 const isMobileMenuOpen = ref(false)
 import Features from '~/components/shared/Features.vue'
 </script>
+
+<style scoped>
+.input-style {
+  @apply w-full border rounded-xl px-4 py-2 focus:ring-2 focus:ring-[#1BA0E2] outline-none;
+}
+.btn-style {
+  @apply w-full bg-[#1BA0E2] text-white py-2 rounded-xl hover:bg-[#148cc6] transition;
+}
+.fade-scale-enter-active, .fade-scale-leave-active {
+  transition: all 0.3s ease;
+}
+.fade-scale-enter-from {
+  opacity: 0;
+  transform: scale(0.95);
+}
+.fade-scale-leave-to {
+  opacity: 0;
+  transform: scale(0.95);
+}
+</style>
