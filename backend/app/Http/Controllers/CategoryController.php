@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Category;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Validator;
+use Intervention\Image\Facades\Image; 
 
 class CategoryController extends Controller
 {
@@ -36,17 +38,21 @@ class CategoryController extends Controller
         ], 200);
     }
 
-    public function store(Request $request)
+public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'parent_id' => 'nullable|exists:categories,id',
             'slug' => 'nullable|unique:categories,slug',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
         ], [
             'name.required' => 'Tên danh mục là bắt buộc.',
             'name.max' => 'Tên danh mục không được vượt quá 255 ký tự.',
             'parent_id.exists' => 'Danh mục cha không tồn tại.',
             'slug.unique' => 'Slug đã tồn tại.',
+            'image.image' => 'Tệp phải là hình ảnh.',
+            'image.mimes' => 'Hình ảnh phải có định dạng jpeg, png, jpg, gif, svg hoặc webp.',
+            'image.max' => 'Hình ảnh không được vượt quá 2MB.',
         ]);
 
         if ($validator->fails()) {
@@ -64,17 +70,26 @@ class CategoryController extends Controller
                 'message' => 'Slug đã tồn tại.',
             ], 422);
         }
-        if ($request->hasFile(key: 'image')) {
-                $path = $request->file('image')->store('images', options: 's3');
-                $data['image'] = "/passion/{$path}";
-            }
-        
+
+        $imagePath = null;
+        if ($request->hasFile('image')) {
+            $file = $request->file('image');
+            $filename = 'categories/' . time() . '_' . Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) . '.' . $file->getClientOriginalExtension();
+
+            // Upload trực tiếp file lên R2
+            Storage::disk('r2')->put($filename, file_get_contents($file));
+
+            $imagePath = $filename;
+        }
+
         $category = Category::create([
             'name' => $request->name,
             'slug' => $slug,
             'parent_id' => $request->parent_id,
-            'image' => $data['image'] ?? null,
+            'image' => $imagePath,
         ]);
+
+        $category->image_url = $imagePath ? Storage::disk('r2')->url($imagePath) : null;
 
         return response()->json([
             'success' => true,
@@ -82,7 +97,6 @@ class CategoryController extends Controller
             'data' => $category,
         ], 201);
     }
-
     public function update(Request $request, $id)
     {
         $category = Category::find($id);

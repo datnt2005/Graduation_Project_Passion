@@ -1,5 +1,7 @@
 <template>
-  <div class="overflow-hidden rounded shadow-sm relative w-full">
+  <div
+    class="overflow-hidden rounded shadow-sm relative w-full group"
+  >
     <div
       class="flex transition-transform duration-500 ease-in-out"
       ref="slider"
@@ -23,18 +25,19 @@
     <!-- Controls -->
     <button
       @click="prevSlide"
-      class="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white p-2 rounded-full shadow hover:bg-gray-100 z-10"
+      class="absolute left-1 top-1/2 transform -translate-y-1/2 w-5 h-5 sm:w-7 sm:h-7 bg-white flex items-center justify-center text-base rounded-full shadow hover:bg-gray-100 z-10 opacity-0 group-hover:opacity-80 transition-opacity duration-300"
     >
       ❮
     </button>
     <button
       @click="nextSlide"
-      class="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white p-2 rounded-full shadow hover:bg-gray-100 z-10"
+      class="absolute right-1 top-1/2 transform -translate-y-1/2 w-5 h-5 sm:w-7 sm:h-7 bg-white flex items-center justify-center text-base rounded-full shadow hover:bg-gray-100 z-10 opacity-0 group-hover:opacity-80 transition-opacity duration-300"
     >
       ❯
     </button>
   </div>
 </template>
+
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 
