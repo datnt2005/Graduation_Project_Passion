@@ -273,7 +273,6 @@ public function me(Request $request)
     return response()->json(['data' => new UserResource($user)]);
 }
 
-
 // Gửi lại mã OTP
 public function resendOtp(Request $request)
     {
@@ -359,6 +358,73 @@ public function resendOtpByEmail(Request $request)
 
     return response()->json(['message' => 'Mã xác minh đã được gửi lại.']);
 }
+
+public function sendForgotPassword(Request $request)
+{
+     $request->validate([
+        'email' => 'required|email|exists:users,email',
+    ], [
+        'email.required' => 'Vui lòng nhập email.',
+        'email.email' => 'Email không đúng định dạng.',
+        'email.exists' => 'Email không tồn tại trong hệ thống.',
+    ]);
+
+
+    $user = User::where('email', $request->email)->first();
+
+    // Tạo mã OTP
+    $otp = rand(100000, 999999);
+    $user->otp = $otp;
+    $user->otp_expired_at = now()->addMinutes(10);
+    $user->save();
+
+    // Gửi email
+    Mail::to($user->email)->send(new OtpMail($otp));
+
+    return response()->json(['message' => 'OTP đã được gửi đến email.'], 200);
+}
+
+// POST /api/reset-password
+public function resetPassword(Request $request)
+{
+    $request->validate([
+        'email' => 'required|email|exists:users,email',
+        'otp' => 'required|digits:6',
+        'password' => [
+            'required',
+            'string',
+            'min:6',
+            'confirmed'
+        ],
+    ], [
+        'email.required' => 'Vui lòng nhập email.',
+        'email.email' => 'Email không đúng định dạng.',
+        'email.exists' => 'Email không tồn tại trong hệ thống.',
+        'otp.required' => 'Vui lòng nhập mã OTP.',
+        'otp.digits' => 'Mã OTP phải gồm 6 chữ số.',
+        'password.required' => 'Vui lòng nhập mật khẩu mới.',
+        'password.min' => 'Mật khẩu phải có ít nhất 6 ký tự.',
+        'password.confirmed' => 'Xác nhận mật khẩu không khớp.',
+    ]);
+
+    $user = User::where('email', $request->email)->first();
+
+    if (!$user || $user->otp != $request->otp) {
+        return response()->json(['message' => 'Mã OTP không hợp lệ.'], 422);
+    }
+
+    if (now()->gt($user->otp_expired_at)) {
+        return response()->json(['message' => 'Mã OTP đã hết hạn.'], 422);
+    }
+
+    $user->password = Hash::make($request->password);
+    $user->otp = null;
+    $user->otp_expired_at = null;
+    $user->save();
+
+    return response()->json(['message' => 'Đặt lại mật khẩu thành công.'], 200);
+}
+
 
 // logout
  public function logout(Request $request)

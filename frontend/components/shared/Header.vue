@@ -70,7 +70,7 @@
           <div class="w-full md:w-1/2 p-6 sm:p-8 relative">
             <button @click="closeModal"
               class="absolute top-4 right-4 text-gray-400 hover:text-red-500 text-2xl transition-transform duration-300 hover:scale-125">
-              ×
+              <i class="fas fa-times"></i>
             </button>
 
             <div class="flex justify-between items-center mb-6">
@@ -83,7 +83,8 @@
               </button>
             </div>
 
-            <form v-if="!showOtp && !showVerifyEmailForm" @submit.prevent="submitForm" class="space-y-4">
+            <form v-if="!showOtp && !showVerifyEmailForm && !showResetPassword && !isForgotMode && !isResetMode "
+              @submit.prevent="submitForm" class="space-y-4">
               <div v-if="!isLogin" class="relative">
                 <i
                   class="fas fa-user absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 transition-all duration-300 peer-focus:text-[#1BA0E2] peer-focus:scale-110"></i>
@@ -118,12 +119,12 @@
                 <input v-model="form.phone" type="text" placeholder="Số điện thoại"
                   class="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#1BA0E2] focus:bg-white transition-all duration-300 font-inter text-sm peer" />
               </div>
-
-              <button style="margin-left: 140px;" v-if="isLogin" type="button" @click="openForgotForm"
-                      class="w-full text-sm text-gray-600 hover:text-[#1BA0E2] transition-colors duration-200 font-inter">
-                      Quên mật khẩu?
-                    </button>
-
+              <div v-if="isLogin" class="flex justify-end">
+                <button type="button" @click="isForgotMode = true"
+                  class="text-sm text-[#1BA0E2] hover:text-[#1591cc] font-inter font-medium transition-colors duration-200 mb-1">
+                  Quên mật khẩu?
+                </button>
+              </div>
               <button type="submit"
                 class="w-full bg-gradient-to-r from-[#1BA0E2] to-[#1591cc] text-white py-3 rounded-xl font-semibold hover:from-[#1591cc] hover:to-[#127aa3] transition-all duration-300 hover:scale-[1.02] focus:ring-2 focus:ring-[#1BA0E2] focus:ring-opacity-50 font-inter disabled:opacity-50"
                 :disabled="isSubmitting">
@@ -133,36 +134,7 @@
                   </svg>Đang xử lý...</span>
                 <span v-else>{{ isLogin ? 'Đăng nhập' : 'Đăng ký' }}</span>
               </button>
-           
-        </form>
-
-        <form v-if="showForgotForm" @submit.prevent="sendResetRequest" class="space-y-4 border-t pt-5 mt-6">
-          <p class="text-sm text-gray-600">Nhập email để nhận mã đặt lại mật khẩu:</p>
-          <div class="relative">
-            <i class="fas fa-envelope absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
-            <input v-model="resetEmail" type="email" placeholder="Email" class="input-field" />
-          </div>
-
-          <button type="submit" class="btn-primary w-full" :disabled="isSubmitting">
-            <span v-if="isSubmitting"><i class="fas fa-spinner fa-spin mr-2"></i>Đang gửi...</span>
-            <span v-else>Gửi mã xác minh</span>
-          </button>
-          <button type="button" class="text-sm w-full text-gray-600 hover:text-[#1BA0E2]" @click="cancelOtp">Quay lại</button>
-        </form>
-
-        <form v-if="showResetForm" @submit.prevent="resetPassword" class="space-y-4 border-t pt-5 mt-6">
-          <h2 class="text-lg font-bold text-[#1BA0E2]">Đặt lại mật khẩu</h2>
-          <input v-model="otp" type="text" placeholder="Mã OTP" class="input-field" />
-          <input v-model="resetPasswordData.password" type="password" placeholder="Mật khẩu mới" class="input-field" />
-          <input v-model="resetPasswordData.confirmPassword" type="password" placeholder="Xác nhận mật khẩu" class="input-field" />
-
-          <button type="submit" class="btn-primary w-full" :disabled="isVerifying">
-            <span v-if="isVerifying"><i class="fas fa-spinner fa-spin mr-2"></i>Đang đặt lại...</span>
-            <span v-else>Đặt lại mật khẩu</span>
-          </button>
-          <button type="button" class="text-sm w-full text-gray-600 hover:text-[#1BA0E2]" @click="cancelOtp">Quay lại</button>
-        </form>
-
+            </form>
 
             <!-- FORM 2: XÁC MINH EMAIL -->
             <form v-if="showVerifyEmailForm && !showOtp" @submit.prevent="sendVerificationRequest"
@@ -224,6 +196,74 @@
                 class="w-full text-sm text-gray-600 hover:text-[#1BA0E2] transition-colors duration-200 font-inter"
                 @click="cancelOtp">
                 Quay lại đăng nhập
+              </button>
+            </form>
+            <!-- FORM 4: QUÊN MẬT KHẨU -->
+            <form v-if="isForgotMode" @submit.prevent="sendForgotEmail" class="space-y-5 border-t pt-5 mt-6">
+              <h2 class="text-xl font-bold text-[#1BA0E2] font-inter">Quên mật khẩu</h2>
+              <p class="text-sm text-gray-600">Nhập email để nhận hướng dẫn đặt lại mật khẩu.</p>
+
+              <div class="relative">
+                <i class="fas fa-envelope absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                <input v-model="forgotEmail" type="email" placeholder="Nhập email"
+                  class="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#1BA0E2] focus:bg-white transition-all duration-300 font-inter text-sm peer" />
+              </div>
+
+              <button type="submit"
+                class="w-full bg-gradient-to-r from-[#1BA0E2] to-[#1591cc] text-white py-3 rounded-xl font-semibold hover:from-[#1591cc] hover:to-[#127aa3] transition-all duration-300 hover:scale-[1.02]"
+                :disabled="isSending">
+                <span v-if="isSending"><i class="fas fa-spinner fa-spin mr-2"></i>Đang gửi...</span>
+                <span v-else>Gửi hướng dẫn</span>
+              </button>
+
+              <button type="button"
+                class="w-full text-sm text-gray-600 hover:text-[#1BA0E2] transition-colors duration-200 font-inter"
+                @click="isForgotMode = false">
+                Quay lại đăng nhập
+              </button>
+            </form>
+
+            <form v-if="isResetMode" @submit.prevent="submitResetPassword" class="space-y-5 border-t pt-5 mt-6">
+              <h2 class="text-xl font-bold text-[#1BA0E2] font-inter">Đặt lại mật khẩu</h2>
+              <p class="text-sm text-gray-600">Vui lòng nhập mã OTP và mật khẩu mới.</p>
+
+              <!-- OTP -->
+              <div class="relative">
+                <i class="fas fa-key absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                <input v-model="resetForm.otp" type="text" placeholder="Mã OTP" maxlength="6"
+                  class="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#1BA0E2] focus:bg-white transition-all duration-300 font-inter text-sm peer" />
+              </div>
+
+              <!-- Mật khẩu mới -->
+              <div class="relative">
+                <i class="fas fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                <input v-model="resetForm.password" type="password" placeholder="Mật khẩu mới"
+                  class="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#1BA0E2] focus:bg-white transition-all duration-300 font-inter text-sm peer" />
+              </div>
+
+              <!-- Xác nhận -->
+              <div class="relative">
+                <i class="fas fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                <input v-model="resetForm.password_confirmation" type="password" placeholder="Xác nhận mật khẩu mới"
+                  class="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#1BA0E2] focus:bg-white transition-all duration-300 font-inter text-sm peer" />
+              </div>
+
+              <!-- Gửi -->
+              <button type="submit"
+                class="w-full bg-gradient-to-r from-[#1BA0E2] to-[#1591cc] text-white py-3 rounded-xl font-semibold hover:from-[#1591cc] hover:to-[#127aa3] transition-all duration-300 hover:scale-[1.02]"
+                :disabled="isResetting">
+                <span v-if="isResetting"><i class="fas fa-spinner fa-spin mr-2"></i>Đang đặt lại...</span>
+                <span v-else>Đặt lại mật khẩu</span>
+              </button>
+
+              <!-- Quay lại -->
+              <button type="button"
+                class="w-full text-sm text-gray-600 hover:text-[#1BA0E2] transition-colors duration-200 font-inter"
+                @click="() => {
+                   isResetMode = false;
+                   isLogin = true;
+                }">
+Quay lại trang đăng nhập
               </button>
             </form>
           </div>
@@ -458,14 +498,14 @@ const isSubmitting = ref(false)
 const isVerifying = ref(false)
 const resendCountdown = ref(0)
 const isLoggedIn = ref(false)
-const showForgotForm = ref(false)
-const showResetForm = ref(false)
-const forgotEmail = ref('')
-const resetOtp = ref('')
-const resetPassword = ref('')
-const resetConfirmPassword = ref('')
+const showForgotPassword = ref(false)
+const showResetPassword = ref(false)
+const isForgotMode = ref(false)
+const isResetMode = ref(false) 
+ 
 const isResetting = ref(false)
 const userName = ref('')
+
 let resendTimer = null
 
 const form = ref({
@@ -475,6 +515,13 @@ const form = ref({
   confirmPassword: '',
   phone: '',
 })
+const openForgotPassword = () => {
+  openLogin.value = false
+  showForgotPassword.value = true
+  showResetPassword.value = false
+  showVerifyEmailForm.value = false
+  showOtp.value = false
+}
 
 const cancelOtp = () => {
   showOtp.value = false
@@ -513,8 +560,6 @@ const openLogin = () => {
   showModal.value = true
   showOtp.value = false
 }
-
-  
 
 const openRegister = () => {
   isLogin.value = false
@@ -695,61 +740,53 @@ const updateLoginState = async () => {
   await fetchUserProfile()
 }
 
-const sendResetRequest = async () => {
-  isSubmitting.value = true
+const forgotEmail = ref('')
+const isSending = ref(false)
+
+const resetForm = ref({
+  email: '',
+  otp: '',
+  password: '',
+  password_confirmation: ''
+})
+
+ 
+
+const sendForgotEmail = async () => {
+  isSending.value = true
   try {
-    await axios.post(`${api}/send-forgot-password`, {
-      email: forgotEmail.value,
-    })
-    toast('success', 'Mã OTP đã được gửi tới email. Vui lòng kiểm tra!')
-    showForgotForm.value = false
-    showResetForm.value = true
-    verificationEmail.value = forgotEmail.value // Lưu email để dùng sau
+    const res = await axios.post(`${api}/send-forgot-password`, { email: forgotEmail.value })
+
+    toast('success', 'Email đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra hộp thư đến của bạn.')
+
+    resetForm.value.email = forgotEmail.value
+    showOtp.value = false
+    showVerifyEmailForm.value = false
+    isLogin.value = false
+    isResetMode.value = true        
+    isForgotMode.value = false     
   } catch (err) {
-    toast('error', err.response?.data?.message || 'Không thể gửi yêu cầu khôi phục.')
+    toast('error', err.response?.data?.message || 'Không thể gửi email đặt lại mật khẩu.')
   } finally {
-    isSubmitting.value = false
+    isSending.value = false
   }
 }
 
-// Xác minh OTP và đổi mật khẩu mới
-const resetPasswordWithOtp = async () => {
+
+const submitResetPassword = async () => {
   isResetting.value = true
   try {
-    if (!/^\d{6}$/.test(resetOtp.value)) {
-      toast('warning', 'Mã OTP phải gồm 6 chữ số.')
-      return
-    }
-
-    if (resetPassword.value !== resetConfirmPassword.value) {
-      toast('warning', 'Mật khẩu xác nhận không khớp.')
-      return
-    }
-
-    await axios.post(`${api}/reset-password`, {
-      email: verificationEmail.value,
-      otp: resetOtp.value,
-      password: resetPassword.value,
-      password_confirmation: resetConfirmPassword.value,
-    })
-
-    toast('success', 'Mật khẩu đã được đặt lại thành công. Bạn có thể đăng nhập!')
-    // Reset lại form
-    showResetForm.value = false
-    showModal.value = true
+    await axios.post(`${api}/reset-password`, resetForm.value)
+    toast('success', 'Mật khẩu đã được đặt lại thành công!')
+    showResetPassword.value = false
+    isResetMode.value = false
     isLogin.value = true
-    forgotEmail.value = ''
-    resetOtp.value = ''
-    resetPassword.value = ''
-    resetConfirmPassword.value = ''
   } catch (err) {
-    toast('error', err.response?.data?.message || 'Không thể đặt lại mật khẩu.')
+toast ('error', err.response?.data?.message || 'Không thể đặt lại mật khẩu.') 
   } finally {
     isResetting.value = false
   }
 }
-
- 
 
 onMounted(() => {
   updateLoginState()
