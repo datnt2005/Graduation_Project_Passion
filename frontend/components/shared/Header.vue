@@ -373,24 +373,24 @@ const showVerifyEmailForm = ref(false)
 const verifyEmailInput = ref('')
 const userName = ref('')
 
-const updateLoginState = () => {
+const updateLoginState = async () => {
   const token = localStorage.getItem('access_token')
-  const user = localStorage.getItem('user')
-  if (token && user) {
-    isLoggedIn.value = true
-    userName.value = JSON.parse(user).name
-  } else {
-    isLoggedIn.value = false
+  if (!token) {
+    isLoggedIn.value = false  
     userName.value = ''
+    return
   }
+
+  await fetchUserProfile()
 }
+
 
 
 onMounted(() => {
   updateLoginState()
 
   window.addEventListener('storage', (event) => {
-    if (event.key === 'access_token' || event.key === 'user') {
+    if (event.key === 'access_token' ){
       updateLoginState()
     }
   })
@@ -475,7 +475,7 @@ const toast = (icon, title) => {
       })
 
       localStorage.setItem('access_token', res.data.token)
-      localStorage.setItem('user', JSON.stringify(res.data.user))
+      await fetchUserProfile()
       updateLoginState()
 
       toast('success', 'Đăng nhập thành công!')
@@ -596,7 +596,7 @@ const resendVerificationEmail = async () => {
 
     toast('success', 'Email xác minh đã được gửi lại!')
     verificationPending.value = false
-    startResendCountdown() // ⏱ bắt đầu đếm ngược lại
+    startResendCountdown() 
   } catch (err) {
     toast('error', err.response?.data?.message || 'Không thể gửi lại email.')
   }
@@ -629,6 +629,26 @@ const logout = async () => {
     console.error('[Logout Error]', err)
   }
 }
+
+const fetchUserProfile = async () => {
+  const token = localStorage.getItem('access_token')
+  if (!token) return
+
+  try {
+    const res = await axios.get(`${api}/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+
+    const userData = res.data.data
+    userName.value = userData.name
+    isLoggedIn.value = true
+  } catch (err) {
+    isLoggedIn.value = false
+    userName.value = ''
+    localStorage.removeItem('access_token')
+  }
+}
+
 
 const isMobileMenuOpen = ref(false)
 import Features from '~/components/shared/Features.vue'

@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Redis;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use App\Http\Resources\UserResource;
 use Illuminate\Support\Facades\Session;
 
 class AuthController extends Controller
@@ -265,6 +266,14 @@ public function login(Request $request)
     }
 }
 
+public function me(Request $request)
+{
+    $user = $request->user();
+
+    return response()->json(['data' => new UserResource($user)]);
+}
+
+
 // Gửi lại mã OTP
 public function resendOtp(Request $request)
     {
@@ -329,7 +338,7 @@ public function resendOtp(Request $request)
         }
     }
 
-    public function resendOtpByEmail(Request $request)
+public function resendOtpByEmail(Request $request)
 {
     $request->validate([
         'email' => ['required', 'email', 'exists:users,email'],
@@ -350,7 +359,6 @@ public function resendOtp(Request $request)
 
     return response()->json(['message' => 'Mã xác minh đã được gửi lại.']);
 }
-
 
 // logout
  public function logout(Request $request)
