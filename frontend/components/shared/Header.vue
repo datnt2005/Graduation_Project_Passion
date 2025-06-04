@@ -53,94 +53,104 @@
 
       </div>
     </header>
+ <transition name="fade-scale">
+  <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 sm:p-8 relative">
 
-    <!-- MODAL -->
-   <transition name="fade-scale">
-    <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div class="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 sm:p-8 relative">
+      <!-- Nút đóng -->
+      <button @click="closeModal" class="absolute top-3 right-4 text-gray-400 hover:text-red-500 text-2xl">
+        &times;
+      </button>
 
-        <!-- Nút đóng -->
-        <button @click="closeModal" class="absolute top-3 right-4 text-gray-400 hover:text-red-500 text-2xl">
-          &times;
+      <!-- Tiêu đề + nút chuyển đổi -->
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-semibold text-[#1BA0E2]">
+          {{ isLogin ? 'Đăng nhập' : 'Đăng ký' }}
+        </h2>
+        <button @click="isLogin = !isLogin" class="text-sm text-blue-500 hover:underline">
+          {{ isLogin ? 'Chưa có tài khoản?' : 'Đã có tài khoản?' }}
+        </button>
+      </div>
+
+      <!-- FORM 1: ĐĂNG KÝ / ĐĂNG NHẬP -->
+      <form v-if="!showOtp && !showVerifyEmailForm" @submit.prevent="submitForm" class="space-y-3">
+        <div v-if="!isLogin" class="input-group">
+          <i class="fas fa-user input-icon"></i>
+          <input v-model="form.name" type="text" placeholder="Họ và tên" class="input-field" />
+        </div>
+
+        <div class="input-group">
+          <i class="fas fa-envelope input-icon"></i>
+          <input v-model="form.email" type="email" placeholder="Email" class="input-field" />
+        </div>
+
+        <div class="input-group">
+          <i class="fas fa-lock input-icon"></i>
+          <input v-model="form.password" type="password" placeholder="Mật khẩu" class="input-field" />
+        </div>
+
+        <div v-if="!isLogin" class="input-group">
+          <i class="fas fa-shield-alt input-icon"></i>
+          <input v-model="form.confirmPassword" type="password" placeholder="Xác nhận mật khẩu" class="input-field" />
+        </div>
+
+        <div v-if="!isLogin" class="input-group">
+          <i class="fas fa-phone input-icon"></i>
+          <input v-model="form.phone" type="text" placeholder="Số điện thoại" class="input-field" />
+        </div>
+
+        <button type="submit" class="btn-primary w-full" :disabled="isSubmitting">
+          <span v-if="isSubmitting">
+            <i class="fas fa-spinner fa-spin mr-2"></i>Đang xử lý...
+          </span>
+          <span v-else>
+            {{ isLogin ? 'Đăng nhập' : 'Đăng ký' }}
+          </span>
+        </button>
+      </form>
+
+      <!-- FORM 2: NHẬP EMAIL GỬI LẠI MÃ -->
+      <form v-if="showVerifyEmailForm && !showOtp" @submit.prevent="sendVerificationRequest" class="space-y-3 border-t pt-4 mt-4">
+        <p class="text-sm text-gray-600">Bạn cần xác minh email để tiếp tục. Nhập email của bạn:</p>
+        <div class="input-group">
+          <i class="fas fa-envelope input-icon"></i>
+          <input v-model="verifyEmailInput" type="email" placeholder="Email" class="input-field" />
+        </div>
+        <button type="submit" class="btn-primary w-full">
+          Gửi mã xác minh
+        </button>
+      </form>
+
+      <!-- FORM 3: NHẬP MÃ OTP -->
+      <form v-if="showOtp" @submit.prevent="verifyOtp" class="space-y-3">
+        <h2 class="text-xl font-semibold text-[#1BA0E2]">Xác minh OTP</h2>
+        <p class="text-gray-600 text-sm">Vui lòng kiểm tra email và nhập mã OTP để xác minh tài khoản.</p>
+
+        <div class="input-group">
+          <i class="fas fa-key input-icon"></i>
+          <input v-model="otp" type="text" placeholder="Nhập mã OTP" class="input-field" />
+        </div>
+
+        <button type="submit" class="btn-primary w-full" :disabled="isVerifying">
+          <span v-if="isVerifying">
+            <i class="fas fa-spinner fa-spin mr-2"></i>Đang xác minh...
+          </span>
+          <span v-else>Xác minh</span>
         </button>
 
-        <!-- Tiêu đề -->
-        <div class="flex justify-between items-center mb-6">
-          <h2 class="text-2xl font-semibold text-[#1BA0E2]">
-            {{ isLogin ? 'Đăng nhập' : 'Đăng ký' }}
-          </h2>
-          <button @click="isLogin = !isLogin" class="text-sm text-blue-500 hover:underline">
-            {{ isLogin ? 'Chưa có tài khoản?' : 'Đã có tài khoản?' }}
+        <!-- Gửi lại mã OTP có countdown -->
+        <p class="text-sm text-gray-500 text-center">
+          <span v-if="resendCountdown > 0">Gửi lại mã sau {{ resendCountdown }} giây</span>
+          <button v-else @click="resendVerificationEmail" class="text-blue-500 hover:underline text-sm">
+            Gửi lại mã OTP
           </button>
-        </div>
+        </p>
+      </form>
 
-        <!-- Form chính -->
-        <div v-if="!showOtp" class="space-y-4">
-          <form @submit.prevent="submitForm" class="space-y-3">
-            <!-- Họ tên -->
-            <div v-if="!isLogin" class="input-group">
-              <i class="fas fa-user input-icon"></i>
-              <input v-model="form.name" type="text" placeholder="Họ và tên" class="input-field" />
-            </div>
-
-            <!-- Email -->
-            <div class="input-group">
-              <i class="fas fa-envelope input-icon"></i>
-              <input v-model="form.email" type="email" placeholder="Email" class="input-field" />
-            </div>
-
-            <!-- Mật khẩu -->
-            <div class="input-group">
-              <i class="fas fa-lock input-icon"></i>
-              <input v-model="form.password" type="password" placeholder="Mật khẩu" class="input-field" />
-            </div>
-
-            <!-- Xác nhận mật khẩu -->
-            <div v-if="!isLogin" class="input-group">
-              <i class="fas fa-shield-alt input-icon"></i>
-              <input v-model="form.confirmPassword" type="password" placeholder="Xác nhận mật khẩu" class="input-field" />
-            </div>
-
-            <!-- Số điện thoại -->
-            <div v-if="!isLogin" class="input-group">
-              <i class="fas fa-phone input-icon"></i>
-              <input v-model="form.phone" type="text" placeholder="Số điện thoại" class="input-field" />
-            </div>
-
-            <!-- Nút gửi -->
-            <button type="submit" class="btn-primary w-full" :disabled="isSubmitting">
-              <span v-if="isSubmitting">
-                <i class="fas fa-spinner fa-spin mr-2"></i>Đang xử lý...
-              </span>
-              <span v-else>
-                {{ isLogin ? 'Đăng nhập' : 'Đăng ký' }}
-              </span>
-            </button>
-          </form>
-        </div>
-
-        <!-- Form OTP -->
-        <div v-else class="space-y-4">
-          <h2 class="text-xl font-semibold text-[#1BA0E2]">Xác minh OTP</h2>
-          <p class="text-gray-600 text-sm">Vui lòng kiểm tra email và nhập mã OTP để xác minh tài khoản.</p>
-
-          <form @submit.prevent="verifyOtp" class="space-y-3">
-            <div class="input-group">
-              <i class="fas fa-key input-icon"></i>
-              <input v-model="otp" type="text" placeholder="Nhập mã OTP" class="input-field" />
-            </div>
-
-            <button type="submit" class="btn-primary w-full" :disabled="isVerifying">
-              <span v-if="isVerifying">
-                <i class="fas fa-spinner fa-spin mr-2"></i>Đang xác minh...
-              </span>
-              <span v-else>Xác minh</span>
-            </button>
-          </form>
-        </div>
-      </div>
     </div>
-  </transition>
+  </div>
+</transition>
+
 
 
     <!-- Thanh giữa -->
@@ -355,6 +365,12 @@ import Swal from 'sweetalert2'
 const isSubmitting = ref(false)
 const isVerifying = ref(false)
 const isLoggedIn = ref(false)
+const canResend = ref(false)
+const verificationPending = ref(false)
+const verificationEmail = ref('')
+const verifyUserId = ref(null)  
+const showVerifyEmailForm = ref(false)
+const verifyEmailInput = ref('')
 const userName = ref('')
 
 const updateLoginState = () => {
@@ -379,7 +395,6 @@ onMounted(() => {
     }
   })
 })
-
 
 const showModal = ref(false)
 const isLogin = ref(true)
@@ -449,10 +464,8 @@ const toast = (icon, title) => {
   })
 }
 
-
-
 // login register
-const submitForm = async () => {
+ const submitForm = async () => {
   isSubmitting.value = true
   try {
     if (isLogin.value) {
@@ -475,29 +488,65 @@ const submitForm = async () => {
         password_confirmation: form.value.confirmPassword,
         phone: form.value.phone,
       })
+
       tempUserId.value = res.data.user_id
       showOtp.value = true
+      startResendCountdown()
       toast('success', 'Đăng ký thành công. Kiểm tra email để lấy mã OTP.')
     }
-  } catch (err) {
-    const msg = err.response?.data?.errors
-      ? Object.values(err.response.data.errors)[0][0]
-      : err.response?.data?.message || 'Đã xảy ra lỗi.'
-    toast('error', msg)
+  }catch (err) {
+    if (
+      isLogin.value &&
+      err.response?.status === 403 &&
+      err.response?.data?.message?.includes('chưa được xác minh')
+    ) {
+      verificationEmail.value = form.value.email
+      verificationPending.value = true
+
+      toast('warning', 'Tài khoản chưa được xác minh, Vui lòng xác minh trước khi đăng nhập');
+        showVerifyEmailForm.value = true
+
+    } else {
+      const msg = err.response?.data?.errors
+        ? Object.values(err.response.data.errors)[0][0]
+        : err.response?.data?.message || 'Đã xảy ra lỗi.'
+      toast('error', msg)
+    }
   } finally {
     isSubmitting.value = false
   }
 }
 
-const verifyOtp = async () => {
+ const verifyOtp = async () => {
   isVerifying.value = true
   try {
+    if (!/^\d{6}$/.test(otp.value)) {
+      toast('warning', 'Mã OTP phải gồm 6 chữ số.')
+      isVerifying.value = false
+      return
+    }
+
     await axios.post(`${api}/verify-otp`, {
-      user_id: tempUserId.value,
+      email: form.value.email,  
       otp: otp.value,
     })
+
     toast('success', 'Xác minh thành công! Bạn có thể đăng nhập.')
-    closeModal()
+
+    form.value = {
+      name: '',
+      email: '',
+      password: '',
+      confirmPassword: '',
+      phone: '',
+    }
+    otp.value = ''
+    verificationEmail.value = ''
+    verificationPending.value = false
+    showOtp.value = false
+    showVerifyEmailForm.value = false
+    isLogin.value = true
+
   } catch (err) {
     const msg = err.response?.data?.message || 'Mã OTP không hợp lệ hoặc đã hết hạn.'
     toast('error', msg)
@@ -505,6 +554,55 @@ const verifyOtp = async () => {
     isVerifying.value = false
   }
 }
+
+
+const sendVerificationRequest = async () => {
+  try {
+    const res = await axios.post(`${api}/resend-otp-by-email`, {
+      email: verifyEmailInput.value,
+    })
+
+    verifyUserId.value = res.data.user_id
+    tempUserId.value = res.data.user_id
+    showVerifyEmailForm.value = false
+    showOtp.value = true
+    startResendCountdown()
+    toast('success', 'Mã xác minh đã được gửi. Vui lòng kiểm tra email!')
+  } catch (err) {
+    toast('error', err.response?.data?.message || 'Không thể gửi mã xác minh.')
+  }
+}
+
+
+// resend
+const resendCountdown = ref(0)
+let resendTimer = null
+
+const startResendCountdown = () => {
+  resendCountdown.value = 60
+  resendTimer = setInterval(() => {
+    resendCountdown.value--
+    if (resendCountdown.value <= 0) {
+      clearInterval(resendTimer)
+    }
+  }, 1000)
+}
+
+const resendVerificationEmail = async () => {
+  try {
+    await axios.post(`${api}/resend-otp-by-email`, {
+      email: verificationEmail.value
+    })
+
+    toast('success', 'Email xác minh đã được gửi lại!')
+    verificationPending.value = false
+    startResendCountdown() // ⏱ bắt đầu đếm ngược lại
+  } catch (err) {
+    toast('error', err.response?.data?.message || 'Không thể gửi lại email.')
+  }
+}
+
+
 
 const logout = async () => {
   try {
@@ -531,7 +629,6 @@ const logout = async () => {
     console.error('[Logout Error]', err)
   }
 }
-
 
 const isMobileMenuOpen = ref(false)
 import Features from '~/components/shared/Features.vue'

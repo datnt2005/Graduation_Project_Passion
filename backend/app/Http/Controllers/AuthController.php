@@ -53,7 +53,7 @@ class AuthController extends Controller
                 'password.confirmed' => 'Mật khẩu xác nhận không khớp.',
                 'password.min' => 'Mật khẩu phải có ít nhất 8 ký tự.',
                 'password.numbers' => 'Mật khẩu phải chứa ít nhất một số.',
-                'password.uncompromised' => 'Mật khẩu đã bị rò rỉ, vui lòng chọn mật khẩu khác.',
+                'password.uncompromised' => 'Mật khẩu quá yếu, vui lòng chọn mật khẩu khác.',
                 'phone.required' => 'Trường số điện thoại là bắt buộc.',
                 'phone.unique' => 'Số điện thoại đã được đăng ký.',
                 'phone.regex' => 'Số điện thoại không hợp lệ.',
@@ -113,18 +113,18 @@ class AuthController extends Controller
     public function verifyOtp(Request $request)
     {
         try {
-            $validated = $request->validate([
-                'user_id' => ['required', 'numeric', 'exists:users,id'],
-                'otp' => ['required', 'digits:6'],
-            ], [
-                'user_id.required' => 'User ID là bắt buộc.',
-                'user_id.numeric' => 'User ID phải là số.',
-                'user_id.exists' => 'Người dùng không tồn tại.',
-                'otp.required' => 'Mã OTP là bắt buộc.',
-                'otp.digits' => 'Mã OTP phải gồm 6 chữ số.',
-            ]);
+           $validated = $request->validate([
+            'email' => ['required', 'email', 'exists:users,email'],
+            'otp' => ['required', 'digits:6'],
+        ], [
+            'email.required' => 'Email là bắt buộc.',
+            'email.email' => 'Email không đúng định dạng.',
+            'email.exists' => 'Email không tồn tại trong hệ thống.',
+            'otp.required' => 'Mã OTP là bắt buộc.',
+            'otp.digits' => 'Mã OTP phải gồm 6 chữ số.',
+        ]);
 
-            $user = User::findOrFail($validated['user_id']);
+        $user = User::where('email', $validated['email'])->firstOrFail();
 
             if ($user->is_verified) {
                 return response()->json([
@@ -265,8 +265,8 @@ public function login(Request $request)
     }
 }
 
-    // Gửi lại mã OTP
-    public function resendOtp(Request $request)
+// Gửi lại mã OTP
+public function resendOtp(Request $request)
     {
         try {
             $validated = $request->validate([
@@ -329,6 +329,29 @@ public function login(Request $request)
         }
     }
 
+    public function resendOtpByEmail(Request $request)
+{
+    $request->validate([
+        'email' => ['required', 'email', 'exists:users,email'],
+    ]);
+
+    $user = User::where('email', $request->email)->first();
+
+    if ($user->is_verified) {
+        return response()->json(['message' => 'Tài khoản đã được xác minh.'], 400);
+    }
+
+    $otp = rand(100000, 999999);
+    $user->otp = $otp;
+    $user->otp_expired_at = now()->addMinutes(10);
+    $user->save();
+
+    Mail::to($user->email)->send(new OtpMail($otp));
+
+    return response()->json(['message' => 'Mã xác minh đã được gửi lại.']);
+}
+
+
 // logout
  public function logout(Request $request)
 {
@@ -380,6 +403,5 @@ public function login(Request $request)
         ], 500);
     }
 }
-
 
 }
