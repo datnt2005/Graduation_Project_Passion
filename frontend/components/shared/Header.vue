@@ -53,105 +53,183 @@
 
       </div>
     </header>
- <transition name="fade-scale">
-  <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 sm:p-8 relative">
 
-      <!-- Nút đóng -->
-      <button @click="closeModal" class="absolute top-3 right-4 text-gray-400 hover:text-red-500 text-2xl">
-        &times;
-      </button>
+    <transition name="fade-slide">
+      <div v-if="showModal"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm">
+        <div
+          class="bg-white rounded-3xl shadow-2xl w-full max-w-4xl flex relative overflow-hidden border border-gray-100">
+          <div
+            class="hidden md:flex w-1/2 flex-col items-center justify-center bg-gradient-to-br from-[#1BA0E2] to-[#1591cc] text-white p-8">
+            <h2 class="text-3xl font-bold mb-4">Chào mừng bạn!</h2>
+            <p class="text-sm text-center opacity-80">Tham gia ngay để trải nghiệm những tính năng tuyệt vời.</p>
+            <img src="/images/img-form-removebg-preview.png" alt="Welcome Image"
+              class="mt-6 w-3/4 max-w-[300px] object-contain" />
+          </div>
 
-      <!-- Tiêu đề + nút chuyển đổi -->
-      <div class="flex justify-between items-center mb-6">
-        <h2 class="text-2xl font-semibold text-[#1BA0E2]">
-          {{ isLogin ? 'Đăng nhập' : 'Đăng ký' }}
-        </h2>
-        <button @click="isLogin = !isLogin" class="text-sm text-blue-500 hover:underline">
-          {{ isLogin ? 'Chưa có tài khoản?' : 'Đã có tài khoản?' }}
-        </button>
-      </div>
+          <div class="w-full md:w-1/2 p-6 sm:p-8 relative">
+            <button @click="closeModal"
+              class="absolute top-4 right-4 text-gray-400 hover:text-red-500 text-2xl transition-transform duration-300 hover:scale-125">
+              ×
+            </button>
 
-      <!-- FORM 1: ĐĂNG KÝ / ĐĂNG NHẬP -->
-      <form v-if="!showOtp && !showVerifyEmailForm" @submit.prevent="submitForm" class="space-y-3">
-        <div v-if="!isLogin" class="input-group">
-          <i class="fas fa-user input-icon"></i>
-          <input v-model="form.name" type="text" placeholder="Họ và tên" class="input-field" />
-        </div>
+            <div class="flex justify-between items-center mb-6">
+              <h2 class="text-2xl font-bold text-[#1BA0E2] font-inter tracking-tight">
+                {{ isLogin ? 'Đăng nhập' : 'Đăng ký' }}
+              </h2>
+              <button @click="isLogin = !isLogin"
+                class="text-sm text-[#1BA0E2] hover:text-[#1591cc] transition-colors duration-200 font-medium">
+                {{ isLogin ? 'Chưa có tài khoản?' : 'Đã có tài khoản?' }}
+              </button>
+            </div>
 
-        <div class="input-group">
-          <i class="fas fa-envelope input-icon"></i>
-          <input v-model="form.email" type="email" placeholder="Email" class="input-field" />
-        </div>
+            <form v-if="!showOtp && !showVerifyEmailForm" @submit.prevent="submitForm" class="space-y-4">
+              <div v-if="!isLogin" class="relative">
+                <i
+                  class="fas fa-user absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 transition-all duration-300 peer-focus:text-[#1BA0E2] peer-focus:scale-110"></i>
+                <input v-model="form.name" type="text" placeholder="Họ và tên"
+                  class="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#1BA0E2] focus:bg-white transition-all duration-300 font-inter text-sm peer" />
+              </div>
 
-        <div class="input-group">
-          <i class="fas fa-lock input-icon"></i>
-          <input v-model="form.password" type="password" placeholder="Mật khẩu" class="input-field" />
-        </div>
+              <div class="relative">
+                <i
+                  class="fas fa-envelope absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 transition-all duration-300 peer-focus:text-[#1BA0E2] peer-focus:scale-110"></i>
+                <input v-model="form.email" type="email" placeholder="Email"
+                  class="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#1BA0E2] focus:bg-white transition-all duration-300 font-inter text-sm peer" />
+              </div>
 
-        <div v-if="!isLogin" class="input-group">
-          <i class="fas fa-shield-alt input-icon"></i>
-          <input v-model="form.confirmPassword" type="password" placeholder="Xác nhận mật khẩu" class="input-field" />
-        </div>
+              <div class="relative">
+                <i
+                  class="fas fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 transition-all duration-300 peer-focus:text-[#1BA0E2] peer-focus:scale-110"></i>
+                <input v-model="form.password" type="password" placeholder="Mật khẩu"
+                  class="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#1BA0E2] focus:bg-white transition-all duration-300 font-inter text-sm peer" />
+              </div>
 
-        <div v-if="!isLogin" class="input-group">
-          <i class="fas fa-phone input-icon"></i>
-          <input v-model="form.phone" type="text" placeholder="Số điện thoại" class="input-field" />
-        </div>
+              <div v-if="!isLogin" class="relative">
+                <i
+                  class="fas fa-shield-alt absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 transition-all duration-300 peer-focus:text-[#1BA0E2] peer-focus:scale-110"></i>
+                <input v-model="form.confirmPassword" type="password" placeholder="Xác nhận mật khẩu"
+                  class="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#1BA0E2] focus:bg-white transition-all duration-300 font-inter text-sm peer" />
+              </div>
 
-        <button type="submit" class="btn-primary w-full" :disabled="isSubmitting">
-          <span v-if="isSubmitting">
-            <i class="fas fa-spinner fa-spin mr-2"></i>Đang xử lý...
-          </span>
-          <span v-else>
-            {{ isLogin ? 'Đăng nhập' : 'Đăng ký' }}
-          </span>
-        </button>
-      </form>
+              <div v-if="!isLogin" class="relative">
+                <i
+                  class="fas fa-phone absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 transition-all duration-300 peer-focus:text-[#1BA0E2] peer-focus:scale-110"></i>
+                <input v-model="form.phone" type="text" placeholder="Số điện thoại"
+                  class="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#1BA0E2] focus:bg-white transition-all duration-300 font-inter text-sm peer" />
+              </div>
 
-      <!-- FORM 2: NHẬP EMAIL GỬI LẠI MÃ -->
-      <form v-if="showVerifyEmailForm && !showOtp" @submit.prevent="sendVerificationRequest" class="space-y-3 border-t pt-4 mt-4">
-        <p class="text-sm text-gray-600">Bạn cần xác minh email để tiếp tục. Nhập email của bạn:</p>
-        <div class="input-group">
-          <i class="fas fa-envelope input-icon"></i>
-          <input v-model="verifyEmailInput" type="email" placeholder="Email" class="input-field" />
-        </div>
-        <button type="submit" class="btn-primary w-full">
-          Gửi mã xác minh
-        </button>
-      </form>
+              <button style="margin-left: 140px;" v-if="isLogin" type="button" @click="openForgotForm"
+                      class="w-full text-sm text-gray-600 hover:text-[#1BA0E2] transition-colors duration-200 font-inter">
+                      Quên mật khẩu?
+                    </button>
 
-      <!-- FORM 3: NHẬP MÃ OTP -->
-      <form v-if="showOtp" @submit.prevent="verifyOtp" class="space-y-3">
-        <h2 class="text-xl font-semibold text-[#1BA0E2]">Xác minh OTP</h2>
-        <p class="text-gray-600 text-sm">Vui lòng kiểm tra email và nhập mã OTP để xác minh tài khoản.</p>
+              <button type="submit"
+                class="w-full bg-gradient-to-r from-[#1BA0E2] to-[#1591cc] text-white py-3 rounded-xl font-semibold hover:from-[#1591cc] hover:to-[#127aa3] transition-all duration-300 hover:scale-[1.02] focus:ring-2 focus:ring-[#1BA0E2] focus:ring-opacity-50 font-inter disabled:opacity-50"
+                :disabled="isSubmitting">
+                <span v-if="isSubmitting"><svg class="animate-spin h-5 w-5 mr-2 inline-block" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+                  </svg>Đang xử lý...</span>
+                <span v-else>{{ isLogin ? 'Đăng nhập' : 'Đăng ký' }}</span>
+              </button>
+           
+        </form>
 
-        <div class="input-group">
-          <i class="fas fa-key input-icon"></i>
-          <input v-model="otp" type="text" placeholder="Nhập mã OTP" class="input-field" />
-        </div>
+        <form v-if="showForgotForm" @submit.prevent="sendResetRequest" class="space-y-4 border-t pt-5 mt-6">
+          <p class="text-sm text-gray-600">Nhập email để nhận mã đặt lại mật khẩu:</p>
+          <div class="relative">
+            <i class="fas fa-envelope absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+            <input v-model="resetEmail" type="email" placeholder="Email" class="input-field" />
+          </div>
 
-        <button type="submit" class="btn-primary w-full" :disabled="isVerifying">
-          <span v-if="isVerifying">
-            <i class="fas fa-spinner fa-spin mr-2"></i>Đang xác minh...
-          </span>
-          <span v-else>Xác minh</span>
-        </button>
-
-        <!-- Gửi lại mã OTP có countdown -->
-        <p class="text-sm text-gray-500 text-center">
-          <span v-if="resendCountdown > 0">Gửi lại mã sau {{ resendCountdown }} giây</span>
-          <button v-else @click="resendVerificationEmail" class="text-blue-500 hover:underline text-sm">
-            Gửi lại mã OTP
+          <button type="submit" class="btn-primary w-full" :disabled="isSubmitting">
+            <span v-if="isSubmitting"><i class="fas fa-spinner fa-spin mr-2"></i>Đang gửi...</span>
+            <span v-else>Gửi mã xác minh</span>
           </button>
-        </p>
-      </form>
+          <button type="button" class="text-sm w-full text-gray-600 hover:text-[#1BA0E2]" @click="cancelOtp">Quay lại</button>
+        </form>
 
-    </div>
-  </div>
-</transition>
+        <form v-if="showResetForm" @submit.prevent="resetPassword" class="space-y-4 border-t pt-5 mt-6">
+          <h2 class="text-lg font-bold text-[#1BA0E2]">Đặt lại mật khẩu</h2>
+          <input v-model="otp" type="text" placeholder="Mã OTP" class="input-field" />
+          <input v-model="resetPasswordData.password" type="password" placeholder="Mật khẩu mới" class="input-field" />
+          <input v-model="resetPasswordData.confirmPassword" type="password" placeholder="Xác nhận mật khẩu" class="input-field" />
+
+          <button type="submit" class="btn-primary w-full" :disabled="isVerifying">
+            <span v-if="isVerifying"><i class="fas fa-spinner fa-spin mr-2"></i>Đang đặt lại...</span>
+            <span v-else>Đặt lại mật khẩu</span>
+          </button>
+          <button type="button" class="text-sm w-full text-gray-600 hover:text-[#1BA0E2]" @click="cancelOtp">Quay lại</button>
+        </form>
 
 
+            <!-- FORM 2: XÁC MINH EMAIL -->
+            <form v-if="showVerifyEmailForm && !showOtp" @submit.prevent="sendVerificationRequest"
+              class="space-y-4 border-t pt-5 mt-6">
+              <p class="text-sm text-gray-600">Bạn cần xác minh email để tiếp tục. Nhập email của bạn:</p>
+              <div class="relative">
+                <i
+                  class="fas fa-envelope absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 transition-all duration-300 peer-focus:text-[#1BA0E2] peer-focus:scale-110"></i>
+                <input v-model="verifyEmailInput" type="email" placeholder="Email"
+                  class="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#1BA0E2] focus:bg-white transition-all duration-300 font-inter text-sm peer" />
+              </div>
+
+              <button type="submit"
+                class="w-full bg-gradient-to-r from-[#1BA0E2] to-[#1591cc] text-white py-3 rounded-xl font-semibold hover:from-[#1591cc] hover:to-[#127aa3] transition-all duration-300 hover:scale-[1.02] focus:ring-2 focus:ring-[#1BA0E2] focus:ring-opacity-50 font-inter disabled:opacity-50"
+                :disabled="isSubmitting">
+                <span v-if="isSubmitting"><svg class="animate-spin h-5 w-5 mr-2 inline-block" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+                  </svg>Đang gửi...</span>
+                <span v-else>Gửi mã xác minh</span>
+              </button>
+              <button type="button"
+                class="w-full text-sm text-gray-600 hover:text-[#1BA0E2] transition-colors duration-200 font-inter"
+                @click="cancelOtp">
+                Quay lại đăng nhập
+              </button>
+            </form>
+
+            <!-- FORM 3: NHẬP OTP -->
+            <form v-if="showOtp" @submit.prevent="verifyOtp" class="space-y-5 border-t pt-5 mt-6">
+              <h2 class="text-xl font-bold text-[#1BA0E2] font-inter">Xác minh OTP</h2>
+              <p class="text-sm text-gray-600">Vui lòng kiểm tra email và nhập mã OTP để xác minh tài khoản.</p>
+
+              <div class="relative">
+                <i
+                  class="fas fa-key absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 transition-all duration-300 peer-focus:text-[#1BA0E2] peer-focus:scale-110"></i>
+                <input v-model="otp" type="text" placeholder="Nhập mã OTP"
+                  class="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#1BA0E2] focus:bg-white transition-all duration-300 font-inter text-sm peer" />
+              </div>
+
+              <button type="submit"
+                class="w-full bg-gradient-to-r from-[#1BA0E2] to-[#1591cc] text-white py-3 rounded-xl font-semibold hover:from-[#1591cc] hover:to-[#127aa3] transition-all duration-300 hover:scale-[1.02] focus:ring-2 focus:ring-[#1BA0E2] focus:ring-opacity-50 font-inter disabled:opacity-50"
+                :disabled="isVerifying">
+                <span v-if="isVerifying"><svg class="animate-spin h-5 w-5 mr-2 inline-block" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+                  </svg>Đang xác minh...</span>
+                <span v-else>Xác minh</span>
+              </button>
+
+              <button type="button" @click="resendVerificationEmail"
+                class="w-full border border-[#1BA0E2] text-[#1BA0E2] py-3 rounded-xl font-semibold hover:bg-[#1BA0E2] hover:text-white transition-all duration-300 font-inter disabled:opacity-50"
+                :disabled="resendCountdown > 0">
+                <template v-if="resendCountdown > 0">Gửi lại mã sau {{ resendCountdown }} giây</template>
+                <template v-else>Gửi lại mã OTP</template>
+              </button>
+
+              <button type="button"
+                class="w-full text-sm text-gray-600 hover:text-[#1BA0E2] transition-colors duration-200 font-inter"
+                @click="cancelOtp">
+                Quay lại đăng nhập
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </transition>
 
     <!-- Thanh giữa -->
     <div class="bg-white shadow-sm">
@@ -362,45 +440,33 @@
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
 import Swal from 'sweetalert2'
-const isSubmitting = ref(false)
-const isVerifying = ref(false)
-const isLoggedIn = ref(false)
-const canResend = ref(false)
-const verificationPending = ref(false)
-const verificationEmail = ref('')
-const verifyUserId = ref(null)  
-const showVerifyEmailForm = ref(false)
-const verifyEmailInput = ref('')
-const userName = ref('')
+import Features from '~/components/shared/Features.vue'
 
-const updateLoginState = async () => {
-  const token = localStorage.getItem('access_token')
-  if (!token) {
-    isLoggedIn.value = false  
-    userName.value = ''
-    return
-  }
-
-  await fetchUserProfile()
-}
-
-
-
-onMounted(() => {
-  updateLoginState()
-
-  window.addEventListener('storage', (event) => {
-    if (event.key === 'access_token' ){
-      updateLoginState()
-    }
-  })
-})
+const config = useRuntimeConfig()
+const api = config.public.apiBaseUrl
 
 const showModal = ref(false)
 const isLogin = ref(true)
 const showOtp = ref(false)
 const otp = ref('')
 const tempUserId = ref(null)
+const verifyUserId = ref(null)
+const verificationEmail = ref('')
+const verifyEmailInput = ref('')
+const verificationPending = ref(false)
+const isSubmitting = ref(false)
+const isVerifying = ref(false)
+const resendCountdown = ref(0)
+const isLoggedIn = ref(false)
+const showForgotForm = ref(false)
+const showResetForm = ref(false)
+const forgotEmail = ref('')
+const resetOtp = ref('')
+const resetPassword = ref('')
+const resetConfirmPassword = ref('')
+const isResetting = ref(false)
+const userName = ref('')
+let resendTimer = null
 
 const form = ref({
   name: '',
@@ -410,11 +476,45 @@ const form = ref({
   phone: '',
 })
 
+const cancelOtp = () => {
+  showOtp.value = false
+  showVerifyEmailForm.value = false
+  otp.value = ''
+  verifyEmailInput.value = ''
+  form.value = {
+    name: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    phone: '',
+  }
+}
+const toast = (icon, title) => {
+  Swal.fire({
+    toast: true,
+    position: 'top-end',
+    icon,
+    title,
+    width: '350px',
+    padding: '10px 20px',
+    customClass: { popup: 'text-sm rounded-md shadow-md' },
+    showConfirmButton: false,
+    timer: 1500,
+    timerProgressBar: true,
+    didOpen: (toastEl) => {
+      toastEl.addEventListener('mouseenter', () => Swal.stopTimer())
+      toastEl.addEventListener('mouseleave', () => Swal.resumeTimer())
+    }
+  })
+}
+
 const openLogin = () => {
   isLogin.value = true
   showModal.value = true
   showOtp.value = false
 }
+
+  
 
 const openRegister = () => {
   isLogin.value = false
@@ -426,46 +526,13 @@ const closeModal = () => {
   showModal.value = false
   showOtp.value = false
   otp.value = ''
+  verifyEmailInput.value = ''
   form.value = {
-    name: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-    phone: '',
+    name: '', email: '', password: '', confirmPassword: '', phone: '',
   }
 }
 
-const config = useRuntimeConfig()
-const api = config.public.apiBaseUrl
-
-// toast
-const toast = (icon, title) => {
-  let toastInstance = null
-
-  Swal.fire({
-    toast: true,
-    position: 'top-end',
-    icon,
-    title,
-    width: '350px',
-    height: '50px',
-    padding: '10px 20px',
-    customClass: {
-      popup: 'text-sm rounded-md shadow-md'
-    },
-    showConfirmButton: false,
-    timer: 1500,
-    timerProgressBar: true,
-    didOpen: (toastEl) => {
-      toastInstance = Swal.getTimerLeft()
-      toastEl.addEventListener('mouseenter', () => Swal.stopTimer())
-      toastEl.addEventListener('mouseleave', () => Swal.resumeTimer())
-    }
-  })
-}
-
-// login register
- const submitForm = async () => {
+const submitForm = async () => {
   isSubmitting.value = true
   try {
     if (isLogin.value) {
@@ -477,7 +544,6 @@ const toast = (icon, title) => {
       localStorage.setItem('access_token', res.data.token)
       await fetchUserProfile()
       updateLoginState()
-
       toast('success', 'Đăng nhập thành công!')
       closeModal()
     } else {
@@ -494,7 +560,7 @@ const toast = (icon, title) => {
       startResendCountdown()
       toast('success', 'Đăng ký thành công. Kiểm tra email để lấy mã OTP.')
     }
-  }catch (err) {
+  } catch (err) {
     if (
       isLogin.value &&
       err.response?.status === 403 &&
@@ -502,10 +568,8 @@ const toast = (icon, title) => {
     ) {
       verificationEmail.value = form.value.email
       verificationPending.value = true
-
-      toast('warning', 'Tài khoản chưa được xác minh, Vui lòng xác minh trước khi đăng nhập');
-        showVerifyEmailForm.value = true
-
+      toast('warning', 'Tài khoản chưa được xác minh, vui lòng xác minh trước khi đăng nhập')
+      showVerifyEmailForm.value = true
     } else {
       const msg = err.response?.data?.errors
         ? Object.values(err.response.data.errors)[0][0]
@@ -517,130 +581,102 @@ const toast = (icon, title) => {
   }
 }
 
- const verifyOtp = async () => {
+const verifyOtp = async () => {
   isVerifying.value = true
   try {
-    if (!/^\d{6}$/.test(otp.value)) {
+    if (!/^[0-9]{6}$/.test(otp.value)) {
       toast('warning', 'Mã OTP phải gồm 6 chữ số.')
-      isVerifying.value = false
       return
     }
 
     await axios.post(`${api}/verify-otp`, {
-      email: form.value.email,  
+      email: form.value.email,
       otp: otp.value,
     })
 
     toast('success', 'Xác minh thành công! Bạn có thể đăng nhập.')
-
-    form.value = {
-      name: '',
-      email: '',
-      password: '',
-      confirmPassword: '',
-      phone: '',
-    }
-    otp.value = ''
-    verificationEmail.value = ''
-    verificationPending.value = false
     showOtp.value = false
-    showVerifyEmailForm.value = false
     isLogin.value = true
-
   } catch (err) {
-    const msg = err.response?.data?.message || 'Mã OTP không hợp lệ hoặc đã hết hạn.'
-    toast('error', msg)
+    toast('error', err.response?.data?.message || 'Mã OTP không hợp lệ hoặc đã hết hạn.')
   } finally {
     isVerifying.value = false
   }
 }
 
-
 const sendVerificationRequest = async () => {
+  isSubmitting.value = true
   try {
     const res = await axios.post(`${api}/resend-otp-by-email`, {
       email: verifyEmailInput.value,
     })
 
+    verificationEmail.value = verifyEmailInput.value
     verifyUserId.value = res.data.user_id
     tempUserId.value = res.data.user_id
-    showVerifyEmailForm.value = false
     showOtp.value = true
+    showVerifyEmailForm.value = false
     startResendCountdown()
     toast('success', 'Mã xác minh đã được gửi. Vui lòng kiểm tra email!')
   } catch (err) {
     toast('error', err.response?.data?.message || 'Không thể gửi mã xác minh.')
+  } finally {
+    isSubmitting.value = false
   }
 }
 
-
-// resend
-const resendCountdown = ref(0)
-let resendTimer = null
-
 const startResendCountdown = () => {
   resendCountdown.value = 60
+  clearInterval(resendTimer)
   resendTimer = setInterval(() => {
     resendCountdown.value--
-    if (resendCountdown.value <= 0) {
-      clearInterval(resendTimer)
-    }
+    if (resendCountdown.value <= 0) clearInterval(resendTimer)
   }, 1000)
 }
 
 const resendVerificationEmail = async () => {
+  if (!verificationEmail.value) {
+    toast('warning', 'Không tìm thấy email xác minh trước đó.')
+    return
+  }
+
   try {
     await axios.post(`${api}/resend-otp-by-email`, {
-      email: verificationEmail.value
+      email: verificationEmail.value,
     })
-
     toast('success', 'Email xác minh đã được gửi lại!')
-    verificationPending.value = false
-    startResendCountdown() 
+    startResendCountdown()
   } catch (err) {
     toast('error', err.response?.data?.message || 'Không thể gửi lại email.')
   }
 }
 
-
-
 const logout = async () => {
   try {
     const token = localStorage.getItem('access_token')
-
     if (!token) {
-      toast('warning', 'Bạn chưa đăng nhập để đăng xuất.')
+      toast('warning', 'Bạn chưa đăng nhập.')
       return
     }
-
     await axios.post(`${api}/logout`, {}, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { Authorization: `Bearer ${token}` },
     })
-
     localStorage.removeItem('access_token')
-    localStorage.removeItem('user')
     updateLoginState()
-
     toast('success', 'Đăng xuất thành công!')
   } catch (err) {
-    toast('error', 'Không thể đăng xuất. Vui lòng thử lại.')
-    console.error('[Logout Error]', err)
+    toast('error', 'Không thể đăng xuất.')
   }
 }
 
 const fetchUserProfile = async () => {
   const token = localStorage.getItem('access_token')
   if (!token) return
-
   try {
     const res = await axios.get(`${api}/me`, {
       headers: { Authorization: `Bearer ${token}` },
     })
-
-    const userData = res.data.data
-    userName.value = userData.name
+    userName.value = res.data.data.name
     isLoggedIn.value = true
   } catch (err) {
     isLoggedIn.value = false
@@ -649,44 +685,107 @@ const fetchUserProfile = async () => {
   }
 }
 
+const updateLoginState = async () => {
+  const token = localStorage.getItem('access_token')
+  if (!token) {
+    isLoggedIn.value = false
+    userName.value = ''
+    return
+  }
+  await fetchUserProfile()
+}
+
+const sendResetRequest = async () => {
+  isSubmitting.value = true
+  try {
+    await axios.post(`${api}/send-forgot-password`, {
+      email: forgotEmail.value,
+    })
+    toast('success', 'Mã OTP đã được gửi tới email. Vui lòng kiểm tra!')
+    showForgotForm.value = false
+    showResetForm.value = true
+    verificationEmail.value = forgotEmail.value // Lưu email để dùng sau
+  } catch (err) {
+    toast('error', err.response?.data?.message || 'Không thể gửi yêu cầu khôi phục.')
+  } finally {
+    isSubmitting.value = false
+  }
+}
+
+// Xác minh OTP và đổi mật khẩu mới
+const resetPasswordWithOtp = async () => {
+  isResetting.value = true
+  try {
+    if (!/^\d{6}$/.test(resetOtp.value)) {
+      toast('warning', 'Mã OTP phải gồm 6 chữ số.')
+      return
+    }
+
+    if (resetPassword.value !== resetConfirmPassword.value) {
+      toast('warning', 'Mật khẩu xác nhận không khớp.')
+      return
+    }
+
+    await axios.post(`${api}/reset-password`, {
+      email: verificationEmail.value,
+      otp: resetOtp.value,
+      password: resetPassword.value,
+      password_confirmation: resetConfirmPassword.value,
+    })
+
+    toast('success', 'Mật khẩu đã được đặt lại thành công. Bạn có thể đăng nhập!')
+    // Reset lại form
+    showResetForm.value = false
+    showModal.value = true
+    isLogin.value = true
+    forgotEmail.value = ''
+    resetOtp.value = ''
+    resetPassword.value = ''
+    resetConfirmPassword.value = ''
+  } catch (err) {
+    toast('error', err.response?.data?.message || 'Không thể đặt lại mật khẩu.')
+  } finally {
+    isResetting.value = false
+  }
+}
+
+ 
+
+onMounted(() => {
+  updateLoginState()
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'access_token') updateLoginState()
+  })
+})
 
 const isMobileMenuOpen = ref(false)
-import Features from '~/components/shared/Features.vue'
+const showVerifyEmailForm = ref(false)
 </script>
 
+
 <style scoped>
-.input-style {
-  @apply w-full border rounded-xl px-4 py-2 focus:ring-2 focus:ring-[#1BA0E2] outline-none;
+.fade-slide-enter-active,
+.fade-slide-leave-active {
+  transition: all 0.2s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 }
 
-.btn-style {
-  @apply w-full bg-[#1BA0E2] text-white py-2 rounded-xl hover:bg-[#148cc6] transition;
-}
-
-.fade-scale-enter-active,
-.fade-scale-leave-active {
-  transition: all 0.3s ease;
-}
-
-.fade-scale-enter-from {
+.fade-slide-enter-from,
+.fade-slide-leave-to {
   opacity: 0;
-  transform: scale(0.95);
+  transform: translateY(50px) scale(0.95);
 }
 
-.fade-scale-leave-to {
-  opacity: 0;
-  transform: scale(0.95);
+.animate-spin {
+  animation: spin 1s linear infinite;
 }
-.input-group {
-  @apply relative;
-}
-.input-icon {
-  @apply absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400;
-}
-.input-field {
-  @apply w-full pl-10 pr-4 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400;
-}
-.btn-primary {
-  @apply bg-[#1BA0E2] text-white py-2 rounded-md font-semibold hover:bg-[#1591cc] transition;
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>
