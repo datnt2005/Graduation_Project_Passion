@@ -7,6 +7,7 @@ use App\Http\Controllers\AttributeController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\TagController;
+use App\Http\Controllers\GoogleAuthController;
 use Illuminate\Support\Facades\Storage;
 
 
@@ -64,6 +65,11 @@ Route::middleware('auth:sanctum')->post('/logout', [AuthController::class, 'logo
 Route::middleware('auth:sanctum')->get('/me', [AuthController::class, 'me']);
 Route::post('/send-forgot-password', [AuthController::class, 'sendForgotPassword']);
 Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+
+// google
+// routes/api.php
+Route::get('auth/google/redirect', [GoogleAuthController::class, 'redirectToGoogle']);
+Route::get('auth/google/callback', [GoogleAuthController::class, 'handleGoogleCallback']);
 
 
 
