@@ -50,6 +50,7 @@ Route::prefix('products')->group(function () {
     Route::post('/import', [ProductController::class, 'import']);
     Route::put('/{id}', [ProductController::class, 'update']);
     Route::delete('/{id}', [ProductController::class, 'destroy']);
+    Route::get('/slug/{slug}', [ProductController::class, 'showBySlug']);
 });
 
 

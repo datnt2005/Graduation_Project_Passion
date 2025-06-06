@@ -66,6 +66,7 @@ class ProductController extends Controller
         ], 200);
     }
 
+
 public function store(Request $request)
 {
     $validator = Validator::make($request->all(), [
@@ -73,11 +74,11 @@ public function store(Request $request)
         'slug' => 'nullable|string|max:255|unique:products,slug',
         'description' => 'required|string',
         'status' => 'nullable|in:active,inactive',
-        'categories' => 'required|array',
+        'categories' => 'nullable|array',
         'categories.*' => 'exists:categories,id',
         'tags' => 'nullable|array',
         'tags.*' => 'exists:tags,id',
-        'variants' => 'required|array',
+        'variants' => 'required|array|min:1',
         'variants.*.price' => 'required|numeric|min:0',
         'variants.*.sale_price' => 'nullable|numeric|min:0',
         'variants.*.cost_price' => 'required|numeric|min:0',
@@ -88,16 +89,19 @@ public function store(Request $request)
         'variants.*.inventory.*.quantity' => 'required|integer|min:0',
         'variants.*.inventory.*.location' => 'nullable|string|max:255',
         'variants.*.thumbnail' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:4048',
-        'image.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:4048',
+        'images' => 'nullable|array',
+        'images.*' => 'image|mimes:jpeg,png,jpg,gif,svg,webp|max:4048',
     ], [
         'name.required' => 'Tên sản phẩm là bắt buộc.',
         'name.max' => 'Tên sản phẩm không được vượt quá 255 ký tự.',
         'slug.unique' => 'Slug đã tồn tại.',
         'description.required' => 'Mô tả sản phẩm là bắt buộc.',
-        'categories.required' => 'Danh mục là bắt buộc.',
+        'categories.array' => 'Danh mục phải là một mảng.',
         'categories.*.exists' => 'Danh mục không hợp lệ.',
+        'tags.array' => 'Thẻ phải là một mảng.',
         'tags.*.exists' => 'Thẻ không hợp lệ.',
         'variants.required' => 'Phải có ít nhất một biến thể.',
+        'variants.min' => 'Phải có ít nhất một biến thể.',
         'variants.*.price.required' => 'Giá sản phẩm là bắt buộc.',
         'variants.*.price.numeric' => 'Giá phải là số.',
         'variants.*.price.min' => 'Giá không được nhỏ hơn 0.',
@@ -116,8 +120,13 @@ public function store(Request $request)
         'variants.*.inventory.*.quantity.integer' => 'Số lượng kho phải là số nguyên.',
         'variants.*.inventory.*.quantity.min' => 'Số lượng kho không được nhỏ hơn 0.',
         'variants.*.inventory.*.location.max' => 'Vị trí kho không được vượt quá 255 ký tự.',
-        'variants.*.thumbnail' => 'Hình ảnh thumbnail không hợp lệ.',
-        'image.*' => 'Hình ảnh sản phẩm không hợp lệ.',
+        'variants.*.thumbnail.image' => 'Thumbnail phải là hình ảnh.',
+        'variants.*.thumbnail.mimes' => 'Thumbnail phải có định dạng jpeg, png, jpg, gif, svg hoặc webp.',
+        'variants.*.thumbnail.max' => 'Thumbnail không được vượt quá 4MB.',
+        'images.*' => 'Hình ảnh sản phẩm không hợp lệ.',
+        'images.*.image' => 'Tệp phải là hình ảnh.',
+        'images.*.mimes' => 'Hình ảnh phải có định dạng jpeg, png, jpg, gif, svg hoặc webp.',
+        'images.*.max' => 'Hình ảnh không được vượt quá 4MB.',
     ]);
 
     if ($validator->fails()) {
@@ -169,18 +178,28 @@ public function store(Request $request)
             'status' => $request->status ?? 'active',
         ]);
 
-        $product->categories()->sync($request->categories);
+        // Sync categories if provided, otherwise sync empty array
+        $product->categories()->sync($request->categories ?? []);
 
         if ($request->has('tags')) {
-            $product->tags()->sync($request->tags);
+            $product->tags()->sync($request->tags ?? []);
+        }
+
+        // Xử lý hình ảnh sản phẩm
+        if ($request->hasFile('images')) {
+            foreach ($request->file('images') as $image) {
+                $path = $image->store('products/images', 'r2');
+                $product->productPic()->create(['imagePath' => $path]);
+            }
         }
 
         foreach ($request->variants as $index => $variant) {
-            $sku = $this->generateSKU($request->name, $request->categories[0], $variant['attributes'], $product->id);
+            $sku = $this->generateSKU($request->name, $request->categories[0] ?? null, $variant['attributes'], $product->id);
 
+            // Xử lý single thumbnail
             $thumbnailPath = null;
             if ($request->hasFile("variants.$index.thumbnail")) {
-                $thumbnailPath = $request->file("variants.$index.thumbnail")->store('products/variants', 'minio');
+                $thumbnailPath = $request->file("variants.$index.thumbnail")->store('products/variants/thumbnails', 'r2');
             }
 
             // Tính tổng số lượng từ tất cả kho
@@ -219,15 +238,6 @@ public function store(Request $request)
             $productVariant->attributes()->attach($attributes);
         }
 
-        if ($request->hasFile('image')) {
-            foreach ($request->file('image') as $image) {
-                $path = $image->store('products', 'minio');
-                $product->productPic()->create([
-                    'imagePath' => $path,
-                ]);
-            }
-        }
-
         DB::commit();
 
         return response()->json([
@@ -243,7 +253,6 @@ public function store(Request $request)
         ], 201);
     } catch (\Exception $e) {
         DB::rollBack();
-        \Log::error('Tạo sản phẩm thất bại: ' . $e->getMessage(), ['exception' => $e]);
         return response()->json([
             'success' => false,
             'message' => 'Tạo sản phẩm thất bại: ' . $e->getMessage(),
@@ -251,6 +260,7 @@ public function store(Request $request)
         ], 500);
     }
 }
+
 public function update(Request $request, $id)
 {
     $product = Product::find($id);
@@ -266,11 +276,11 @@ public function update(Request $request, $id)
         'slug' => 'nullable|string|max:255|unique:products,slug,' . $id,
         'description' => 'required|string',
         'status' => 'nullable|in:active,inactive',
-        'categories' => 'required|array',
+        'categories' => 'nullable|array',
         'categories.*' => 'exists:categories,id',
         'tags' => 'nullable|array',
         'tags.*' => 'exists:tags,id',
-        'variants' => 'required|array',
+        'variants' => 'required|array|min:1',
         'variants.*.id' => 'nullable|exists:product_variants,id',
         'variants.*.price' => 'required|numeric|min:0',
         'variants.*.sale_price' => 'nullable|numeric|min:0',
@@ -282,7 +292,8 @@ public function update(Request $request, $id)
         'variants.*.inventory.*.quantity' => 'required|integer|min:0',
         'variants.*.inventory.*.location' => 'nullable|string|max:255',
         'variants.*.thumbnail' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:4048',
-        'image.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:4048',
+        'images' => 'nullable|array',
+        'images.*' => 'image|mimes:jpeg,png,jpg,gif,svg,webp|max:4048',
         'removed_images' => 'nullable|array',
         'removed_images.*' => 'exists:product_pics,id',
     ], [
@@ -291,10 +302,12 @@ public function update(Request $request, $id)
         'name.unique' => 'Tên sản phẩm đã tồn tại.',
         'slug.unique' => 'Slug đã tồn tại.',
         'description.required' => 'Mô tả sản phẩm là bắt buộc.',
-        'categories.required' => 'Danh mục là bắt buộc.',
+        'categories.array' => 'Danh mục phải là một mảng.',
         'categories.*.exists' => 'Danh mục không hợp lệ.',
+        'tags.array' => 'Thẻ phải là một mảng.',
         'tags.*.exists' => 'Thẻ không hợp lệ.',
         'variants.required' => 'Phải có ít nhất một biến thể.',
+        'variants.min' => 'Phải có ít nhất một biến thể.',
         'variants.*.id.exists' => 'ID biến thể không hợp lệ.',
         'variants.*.price.required' => 'Giá sản phẩm là bắt buộc.',
         'variants.*.price.numeric' => 'Giá phải là số.',
@@ -313,10 +326,15 @@ public function update(Request $request, $id)
         'variants.*.inventory.*.quantity.required' => 'Số lượng kho là bắt buộc.',
         'variants.*.inventory.*.quantity.integer' => 'Số lượng kho phải là số nguyên.',
         'variants.*.inventory.*.quantity.min' => 'Số lượng kho không được nhỏ hơn 0.',
-        'variants.*.inventory.*.location.max' => 'Vị trí kho không được vượt quá 255 ký tự.',
-        'variants.*.thumbnail' => 'Hình ảnh thumbnail không hợp lệ.',
-        'image.*' => 'Hình ảnh sản phẩm không hợp lệ.',
-        'removed_images.*.exists' => 'Hình ảnh cần xóa không hợp lệ.',
+        'variants.*.thumbnail.image' => 'Thumbnail phải là một hình ảnh.',
+        'variants.*.thumbnail.mimes' => 'Thumbnail phải có định dạng jpeg, png, jpg, gif, svg hoặc webp.',
+        'variants.*.thumbnail.max' => 'Thumbnail không được vượt quá 4MB.',
+        'images.*' => 'Hình ảnh sản phẩm không hợp lệ.',
+        'images.*.image' => 'Tệp phải là hình ảnh.',
+        'images.*.mimes' => 'Hình ảnh sản phẩm phải có định dạng jpeg, png, jpg, gif, svg hoặc webp.',
+        'images.*.max' => 'Hình ảnh sản phẩm không được vượt quá 4MB.',
+        'removed_images' => 'Hình ảnh cần xóa không hợp lệ.',
+        'removed_images.*.exists' => 'Hình ảnh cần xóa không tồn tại.',
     ]);
 
     if ($validator->fails()) {
@@ -360,10 +378,11 @@ public function update(Request $request, $id)
             'status' => $request->status ?? 'active',
         ]);
 
-        $product->categories()->sync($request->categories);
+        // Sync categories if provided, otherwise sync empty array
+        $product->categories()->sync($request->categories ?? []);
 
         if ($request->has('tags')) {
-            $product->tags()->sync($request->tags);
+            $product->tags()->sync($request->tags ?? []);
         }
 
         // Xóa hình ảnh cũ nếu có
@@ -371,16 +390,16 @@ public function update(Request $request, $id)
             foreach ($request->removed_images as $imageId) {
                 $image = ProductPic::find($imageId);
                 if ($image) {
-                    Storage::disk('minio')->delete($image->imagePath);
+                    Storage::disk('r2')->delete($image->imagePath);
                     $image->delete();
                 }
             }
         }
 
-        // Thêm hình ảnh mới
-        if ($request->hasFile('image')) {
-            foreach ($request->file('image') as $image) {
-                $path = $image->store('products', 'minio');
+        // Thêm hình ảnh sản phẩm mới
+        if ($request->hasFile('images')) {
+            foreach ($request->file('images') as $image) {
+                $path = $image->store('products/images', 'r2');
                 $product->productPic()->create(['imagePath' => $path]);
             }
         }
@@ -390,11 +409,19 @@ public function update(Request $request, $id)
         $product->productVariants()->whereNotIn('id', $variantIdsFromRequest)->delete();
 
         foreach ($request->variants as $index => $variant) {
-            $sku = $this->generateSKU($request->name, $request->categories[0], $variant['attributes'], $product->id);
+            $sku = $this->generateSKU($request->name, $request->categories[0] ?? null, $variant['attributes'], $product->id);
 
+            // Xử lý single thumbnail
             $thumbnailPath = null;
             if ($request->hasFile("variants.$index.thumbnail")) {
-                $thumbnailPath = $request->file("variants.$index.thumbnail")->store('products/variants', 'minio');
+                // Xóa thumbnail cũ nếu có
+                if (isset($variant['id'])) {
+                    $existingVariant = $product->productVariants()->find($variant['id']);
+                    if ($existingVariant && $existingVariant->thumbnail) {
+                        Storage::disk('r2')->delete($existingVariant->thumbnail);
+                    }
+                }
+                $thumbnailPath = $request->file("variants.$index.thumbnail")->store('products/variants/thumbnails', 'r2');
             }
 
             // Tính tổng số lượng từ inventory
@@ -413,14 +440,17 @@ public function update(Request $request, $id)
                 ]);
 
             if (isset($variant['id'])) {
-                $productVariant->update([
+                $updateData = [
                     'sku' => $sku,
                     'price' => $variant['price'],
                     'sale_price' => $variant['sale_price'] ?? null,
                     'cost_price' => $variant['cost_price'],
                     'quantity' => $totalQuantity,
-                    'thumbnail' => $thumbnailPath ?: $productVariant->thumbnail,
-                ]);
+                ];
+                if ($thumbnailPath) {
+                    $updateData['thumbnail'] = $thumbnailPath;
+                }
+                $productVariant->update($updateData);
             }
 
             // Xóa inventory cũ và thêm inventory mới
@@ -458,7 +488,6 @@ public function update(Request $request, $id)
         ], 200);
     } catch (\Exception $e) {
         DB::rollBack();
-        \Log::error('Cập nhật sản phẩm thất bại: ' . $e->getMessage(), ['exception' => $e]);
         return response()->json([
             'success' => false,
             'message' => 'Cập nhật sản phẩm thất bại: ' . $e->getMessage(),
@@ -479,17 +508,20 @@ public function update(Request $request, $id)
 
         DB::beginTransaction();
         try {
-            // Xóa ảnh sản phẩm
+            // Xóa hình ảnh sản phẩm
             foreach ($product->productPic as $pic) {
-                Storage::disk('minio')->delete($pic->imagePath);
+                Storage::disk('r2')->delete($pic->imagePath);
                 $pic->delete();
             }
 
             // Xóa ảnh biến thể
             foreach ($product->productVariants as $variant) {
                 if ($variant->thumbnail) {
-                    Storage::disk('minio')->delete($variant->thumbnail);
+                    Storage::disk('r2')->delete($variant->thumbnail);
                 }
+                $variant->inventories()->delete();
+                $variant->attributes()->detach();
+                $variant->delete();
             }
 
             $product->delete();
@@ -553,5 +585,23 @@ public function update(Request $request, $id)
             $counter++;
         }
         return $sku;
+    }
+
+    public function showBySlug($slug)
+    {
+        $product = Product::where('slug', $slug)->with(['categories', 'productVariants', 'productPic', 'tags'])->first();
+
+        if (!$product) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không tìm thấy sản phẩm.',
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Lấy thông tin sản phẩm thành công.',
+            'data' => $product
+        ], 200);
     }
 }
