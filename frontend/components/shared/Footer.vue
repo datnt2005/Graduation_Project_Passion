@@ -18,6 +18,7 @@
   <div>
     <h2 class="text-lg font-semibold mb-4">Hỗ Trợ Khách Hàng</h2>
     <ul class="space-y-1 text-sm">
+    
       <li><a href="#" class="hover:underline inline-flex items-center gap-1">Trung tâm trợ giúp</a></li>
      <li>
   <NuxtLink to="/contact" class="hover:underline inline-flex items-center gap-1">
@@ -27,6 +28,7 @@
 
       <li><NuxtLink to="/support" class="hover:underline inline-flex items-center gap-1">Hỗ trợ khách hàng</NuxtLink></li>
       <li><a href="#" class="hover:underline inline-flex items-center gap-1">An toàn mua bán</a></li>
+      
     </ul>
   </div>
 
@@ -34,6 +36,7 @@
   <div>
     <h2 class="text-lg font-semibold mb-4">Về Chúng Tôi</h2>
     <ul class="space-y-1 text-sm">
+        <li><NuxtLink to="/post" href="#" class="hover:underline inline-flex items-center gap-1">Bài viết</NuxtLink></li>
       <li><NuxtLink to="/introduce" class="hover:underline inline-flex items-center gap-1">Giới Thiệu</NuxtLink></li>
 
       <li><a href="#" class="hover:underline inline-flex items-center gap-1">Quy chế hoạt động</a></li>

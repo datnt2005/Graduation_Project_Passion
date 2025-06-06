@@ -1,7 +1,7 @@
 <template>
-  <main class="bg-[#F5F5FA] py-6">
+  <main class="container mx-auto bg-[#F5F5FA] py-6">
     <!-- Store Header -->
-    <div class="bg-[#175199] rounded-t-md px-8 py-5 flex flex-col md:flex-row md:items-center md:justify-between max-w-6xl mx-auto shadow">
+    <div class="bg-[#1BA0E2] rounded-t-md px-8 py-5 flex flex-col md:flex-row md:items-center md:justify-between mx-auto shadow">
       <div class="flex items-center gap-4">
         <img src="https://salt.tikicdn.com/ts/upload/30/08/9a/6c6e3b8e6e7e7c7b7e7e7c7b7e7e7c7b.png" alt="Tiki Trading" class="w-16 h-16 rounded-full bg-white border" />
         <div>
@@ -19,18 +19,23 @@
             <span class="text-white text-sm">Người theo dõi: 509.6k+</span>
           </div>
         </div>
-        <button class="ml-6 bg-blue-500 hover:bg-blue-600 text-white font-semibold px-5 py-2 rounded-lg transition text-sm shadow">+ Theo Dõi</button>
+      <button class="ml-6 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-semibold px-5 py-2 rounded-lg transition text-sm shadow">
+        + Theo Dõi
+      </button>
+
       </div>
       <div class="mt-4 md:mt-0 flex-1 flex justify-end">
         <input
           type="text"
+          v-model="input"
+          @input="handleSearch"
           placeholder="🔍 Tìm sản phẩm tại cửa hàng"
           class="w-full md:w-[350px] px-4 py-2 rounded border border-gray-200 focus:outline-none text-gray-700 shadow-sm"
         />
       </div>
     </div>
     <!-- Store Nav Tabs -->
-    <div class="bg-[#175199] max-w-6xl mx-auto px-8 pt-2 pb-0 flex items-center gap-8 text-white font-medium text-base mt-1 rounded-b-md shadow">
+    <div class="bg-[#1BA0E2]  px-8 pt-2 pb-0 flex items-center gap-8 text-white font-medium text-base mt-1 rounded-b-md shadow">
       <button
         class="bg-transparent border-none py-3 px-0 focus:outline-none transition"
         :class="tab === 'store' ? 'font-bold underline underline-offset-8 text-white' : 'hover:text-blue-200'"
@@ -53,15 +58,13 @@
       <button class="bg-transparent border-none py-3 px-0 focus:outline-none hover:text-blue-200 transition">Hồ Sơ Cửa Hàng</button>
     </div>
     <!-- Main Content -->
-    <div class="max-w-6xl mx-auto flex gap-4 px-4 mt-6">
+    <div class=" flex gap-4 px-4 mt-6">
       <!-- Sidebar -->
       <Sidebar />
       <!-- Main content -->
       <section class="flex-1 space-y-6">
         <!-- Banner -->
-        <Banner />
-        <!-- Features -->
-        <Features />
+   
         <!-- Products -->
         <Products v-if="tab === 'all'" />
         <ProductsShock v-else-if="tab === 'shock'" />
@@ -85,9 +88,17 @@
 <script setup>
 import { ref } from 'vue'
 import Sidebar from '~/components/shared/Sidebar.vue'
-import Features from '~/components/shared/Features.vue'
 import Products from '~/components/shared/Products.vue'
 import ProductsShock from '~/components/shared/ProductsShock.vue'
+// search 
+import { useSearchStore } from '~/stores/search'; 
+
+const input = ref('');
+const searchStore = useSearchStore();
+
+const handleSearch = () => {
+  searchStore.updateSearch(input.value)
+}
 
 const tab = ref('all')
 </script>
