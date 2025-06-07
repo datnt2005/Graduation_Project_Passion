@@ -57,7 +57,8 @@ Route::middleware('auth:sanctum')->post('/logout', [AuthController::class, 'logo
 
 // Reviews
 
-Route::get('/reviews', [ReviewController::class, 'index']);            // ?product_id=...
+   
+Route::get('/reviews', [ReviewController::class, 'index']);        // ?product_id=...
 Route::post('/reviews', [ReviewController::class, 'store']);           // Gửi đánh giá
 Route::put('/reviews/{id}', [ReviewController::class, 'update']);     // Cập nhật đánh giá
 Route::post('/reviews/{id}/like', [ReviewController::class, 'like']);  // Like đánh giá

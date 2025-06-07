@@ -17,9 +17,13 @@ class Review extends Model
     ];
 
     public function replies()
+    {
+        return $this->hasMany(Review::class, 'parent_id');
+    }
+   // app/Models/Review.php
+public function user()
 {
-    return $this->hasMany(Review::class, 'parent_id');
+    return $this->belongsTo(User::class, 'user_id');
 }
 
 }
-

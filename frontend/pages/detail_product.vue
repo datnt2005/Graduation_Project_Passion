@@ -243,80 +243,39 @@
                 <h3 class="text-sm font-semibold mb-4">
                     Khách hàng đánh giá
                 </h3>
-                <form action="/api/ratings" method="POST" class="flex flex-col sm:flex-row gap-4 mb-4" id="ratingForm">
-                    <!-- Nếu dùng Laravel Blade -->
-                    <!-- @csrf -->
-
+                <form @submit.prevent="submitReview" class="flex flex-col sm:flex-row gap-4 mb-4" id="ratingForm">
                     <div class="flex-1 text-xs">
                         <p class="font-semibold mb-1">Tổng quan</p>
                         <div class="flex items-center gap-1 mb-1">
-                            <span class="text-yellow-400 font-bold text-lg">4.5</span>
+                            <span class="text-yellow-400 font-bold text-lg">{{ averageRating.toFixed(1) }}</span>
                             <span class="text-yellow-400 text-lg">★★★★★</span>
                         </div>
-                        <p class="text-gray-500 mb-2">(5 đánh giá)</p>
-                        <div class="space-y-1">
-                            <div class="flex items-center gap-2"><span>5</span>
-                                <div class="w-full bg-gray-200 rounded h-2">
-                                    <div class="bg-yellow-400 h-2 rounded" style="width: 20%"></div>
-                                </div><span>1</span>
-                            </div>
-                            <div class="flex items-center gap-2"><span>4</span>
-                                <div class="w-full bg-gray-200 rounded h-2">
-                                    <div class="bg-yellow-400 h-2 rounded" style="width: 15%"></div>
-                                </div><span>1</span>
-                            </div>
-                            <div class="flex items-center gap-2"><span>3</span>
-                                <div class="w-full bg-gray-200 rounded h-2">
-                                    <div class="bg-yellow-400 h-2 rounded" style="width: 10%"></div>
-                                </div><span>1</span>
-                            </div>
-                            <div class="flex items-center gap-2"><span>2</span>
-                                <div class="w-full bg-gray-200 rounded h-2">
-                                    <div class="bg-yellow-400 h-2 rounded" style="width: 5%"></div>
-                                </div><span>0</span>
-                            </div>
-                            <div class="flex items-center gap-2"><span>1</span>
-                                <div class="w-full bg-gray-200 rounded h-2">
-                                    <div class="bg-yellow-400 h-2 rounded" style="width: 0%"></div>
-                                </div><span>0</span>
-                            </div>
-                        </div>
+                        <p class="text-gray-500 mb-2">({{ reviews.length }} đánh giá)</p>
                     </div>
 
                     <div class="flex-1 text-xs">
                         <p class="font-semibold mb-1">Bình luận - xem đánh giá ★★★★★</p>
 
-                        <!-- Chọn sao bằng icon -->
                         <div class="flex items-center gap-1 mb-2">
                             <label class="text-gray-700 font-medium">Chọn sao:</label>
-                            <div id="starRating" class="flex cursor-pointer text-xl text-gray-300">
-                                <!-- Các sao -->
-                                <span data-value="1" class="star">★</span>
-                                <span data-value="2" class="star">★</span>
-                                <span data-value="3" class="star">★</span>
-                                <span data-value="4" class="star">★</span>
-                                <span data-value="5" class="star">★</span>
+                            <div class="flex cursor-pointer text-xl text-gray-300">
+                                <span v-for="star in 5" :key="star"
+                                    :class="{ 'text-yellow-400': star <= (hoverRating || review.rating) }"
+                                    @click="review.rating = star" @mouseover="hoverRating = star"
+                                    @mouseleave="hoverRating = 0">★</span>
                             </div>
                         </div>
 
-                        <!-- Input ẩn lưu số sao -->
-                        <input type="hidden" name="rating" id="ratingInput" required>
-
-                        <!-- Nội dung bình luận -->
-                        <textarea name="comment" class="w-full border border-gray-300 rounded p-2 resize-none" rows="6"
-                            placeholder="Nhập nội dung đánh giá..." required></textarea>
-
-                        <!-- Input ẩn để truyền product_id và user_id -->
-                        <input type="hidden" name="product_id" value="123">
-                        <input type="hidden" name="user_id" value="456">
+                        <textarea v-model="review.content" class="w-full border border-gray-300 rounded p-2 resize-none"
+                            rows="6" placeholder="Nhập nội dung đánh giá..." required></textarea>
 
                         <button type="submit"
                             class="mt-2 px-3 py-1 text-xs border border-gray-300 rounded hover:bg-gray-100 transition">
-                            Gửi
+                            {{ review.id ? 'Cập nhật' : 'Gửi' }}
                         </button>
                     </div>
                 </form>
-                
+
                 <!-- Filter buttons -->
                 <div class="flex flex-wrap gap-2 mb-4 text-xs">
                     <button class="border border-gray-300 rounded px-3 py-1 hover:bg-gray-100 transition">
@@ -333,204 +292,46 @@
                     </button>
                 </div>
                 <!-- Reviews list -->
-                <div class="space-y-4 text-xs text-gray-700">
-                    <!-- Review 1 -->
-                    <div class="bg-gray-100 rounded p-3">
-                        <div class="flex items-center gap-3 mb-2">
-                            <img alt="Avatar of Nguyen Anh Tuan" class="w-10 h-10 rounded-full" height="40"
-                                src="https://storage.googleapis.com/a1aa/image/34160c1a-ddaa-4f95-98ff-c2598c702304.jpg"
-                                width="40" />
-                            <div>
-                                <p class="font-semibold">
-                                    Nguyen Anh Tuan
-                                </p>
-                                <p>
-                                    Đã viết 9 đánh giá
-                                </p>
+                <div class="reviews-list">
+                    <div v-for="r in reviews" :key="r.id"
+                        class="review-item border p-3 rounded mb-3 flex items-start gap-3 relative">
+                        <!-- Avatar cố định -->
+                        <img src="https://jbagy.me/wp-content/uploads/2025/03/hinh-anh-cute-avatar-vo-tri-3.jpg"
+                            alt="avatar" class="w-10 h-10 rounded-full object-cover border border-gray-300">
+
+                        <div class="flex-1">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <strong>{{ r.user?.name || 'Người dùng ẩn danh' }}</strong>
+                                    <div class="text-sm">
+                                        <template v-for="star in 5" :key="star">
+                                            <span
+                                                :class="star <= r.rating ? 'text-yellow-400' : 'text-gray-300'">★</span>
+                                        </template>
+                                        ({{ r.rating }})
+                                    </div>
+                                </div>
+
+                                <!-- Dropdown 3 chấm -->
+                                <div class="relative" @click="r.showMenu = !r.showMenu">
+                                    <button class="text-gray-500 hover:text-gray-700">⋮</button>
+                                    <div v-if="r.showMenu"
+                                        class="absolute right-0 top-6 bg-white border rounded shadow-md z-10 text-sm w-24">
+                                        <button @click="editReview(r); r.showMenu = false"
+                                            class="block w-full text-left px-3 py-2 hover:bg-gray-100 text-blue-600">Sửa</button>
+                                        <button @click="deleteReview(r.id); r.showMenu = false"
+                                            class="block w-full text-left px-3 py-2 hover:bg-gray-100 text-red-600">Xóa</button>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="ml-auto flex items-center gap-1 text-yellow-400">
-                                <i class="fas fa-star">
-                                </i>
-                                <i class="fas fa-star">
-                                </i>
-                                <i class="fas fa-star">
-                                </i>
-                                <i class="fas fa-star">
-                                </i>
-                                <i class="fas fa-star">
-                                </i>
-                            </div>
-                        </div>
-                        <p class="mb-1 font-semibold">
-                            Hài lòng
-                        </p>
-                        <p class="mb-1 text-green-600 font-semibold">
-                            Đã mua hàng
-                        </p>
-                        <p class="mb-1">
-                            Giao hàng rất nhanh, sản phẩm đúng mô tả
-                        </p>
-                        <div class="flex items-center gap-4 text-gray-500 text-xs">
-                            <span>
-                                <i class="fas fa-thumbs-up">
-                                </i>
-                                5 Đã nhận
-                            </span>
-                            <span>
-                                <i class="fas fa-heart">
-                                </i>
-                                1 Lượt cảm ơn
-                            </span>
-                        </div>
-                    </div>
-                    <!-- Review 2 -->
-                    <div class="bg-gray-100 rounded p-3">
-                        <div class="flex items-center gap-3 mb-2">
-                            <img alt="Avatar of Nguyen Anh Tuan" class="w-10 h-10 rounded-full" height="40"
-                                src="https://storage.googleapis.com/a1aa/image/34160c1a-ddaa-4f95-98ff-c2598c702304.jpg"
-                                width="40" />
-                            <div>
-                                <p class="font-semibold">
-                                    Nguyen Anh Tuan
-                                </p>
-                                <p>
-                                    Đã viết 9 đánh giá
-                                </p>
-                            </div>
-                            <div class="ml-auto flex items-center gap-1 text-yellow-400">
-                                <i class="fas fa-star">
-                                </i>
-                                <i class="fas fa-star">
-                                </i>
-                                <i class="fas fa-star">
-                                </i>
-                                <i class="fas fa-star">
-                                </i>
-                                <i class="fas fa-star">
-                                </i>
-                            </div>
-                        </div>
-                        <p class="mb-1 font-semibold">
-                            Hài lòng
-                        </p>
-                        <p class="mb-1 text-green-600 font-semibold">
-                            Đã mua hàng
-                        </p>
-                        <p class="mb-1">
-                            Giao hàng rất nhanh, sản phẩm đúng mô tả
-                        </p>
-                        <div class="flex items-center gap-4 text-gray-500 text-xs">
-                            <span>
-                                <i class="fas fa-thumbs-up">
-                                </i>
-                                5 Đã nhận
-                            </span>
-                            <span>
-                                <i class="fas fa-heart">
-                                </i>
-                                1 Lượt cảm ơn
-                            </span>
-                        </div>
-                    </div>
-                    <!-- Review 3 -->
-                    <div class="bg-gray-100 rounded p-3">
-                        <div class="flex items-center gap-3 mb-2">
-                            <img alt="Avatar of Nguyen Anh Tuan" class="w-10 h-10 rounded-full" height="40"
-                                src="https://storage.googleapis.com/a1aa/image/34160c1a-ddaa-4f95-98ff-c2598c702304.jpg"
-                                width="40" />
-                            <div>
-                                <p class="font-semibold">
-                                    Nguyen Anh Tuan
-                                </p>
-                                <p>
-                                    Đã viết 9 đánh giá
-                                </p>
-                            </div>
-                            <div class="ml-auto flex items-center gap-1 text-yellow-400">
-                                <i class="fas fa-star">
-                                </i>
-                                <i class="fas fa-star">
-                                </i>
-                                <i class="fas fa-star">
-                                </i>
-                                <i class="fas fa-star">
-                                </i>
-                                <i class="fas fa-star">
-                                </i>
-                            </div>
-                        </div>
-                        <p class="mb-1 font-semibold">
-                            Hài lòng
-                        </p>
-                        <p class="mb-1 text-green-600 font-semibold">
-                            Đã mua hàng
-                        </p>
-                        <p class="mb-1">
-                            Giao hàng rất nhanh, sản phẩm đúng mô tả
-                        </p>
-                        <div class="flex items-center gap-4 text-gray-500 text-xs">
-                            <span>
-                                <i class="fas fa-thumbs-up">
-                                </i>
-                                5 Đã nhận
-                            </span>
-                            <span>
-                                <i class="fas fa-heart">
-                                </i>
-                                1 Lượt cảm ơn
-                            </span>
-                        </div>
-                    </div>
-                    <!-- Review 4 -->
-                    <div class="bg-gray-100 rounded p-3">
-                        <div class="flex items-center gap-3 mb-2">
-                            <img alt="Avatar of Nguyen Anh Tuan" class="w-10 h-10 rounded-full" height="40"
-                                src="https://storage.googleapis.com/a1aa/image/34160c1a-ddaa-4f95-98ff-c2598c702304.jpg"
-                                width="40" />
-                            <div>
-                                <p class="font-semibold">
-                                    Nguyen Anh Tuan
-                                </p>
-                                <p>
-                                    Đã viết 9 đánh giá
-                                </p>
-                            </div>
-                            <div class="ml-auto flex items-center gap-1 text-yellow-400">
-                                <i class="fas fa-star">
-                                </i>
-                                <i class="fas fa-star">
-                                </i>
-                                <i class="fas fa-star">
-                                </i>
-                                <i class="fas fa-star">
-                                </i>
-                                <i class="fas fa-star">
-                                </i>
-                            </div>
-                        </div>
-                        <p class="mb-1 font-semibold">
-                            Hài lòng
-                        </p>
-                        <p class="mb-1 text-green-600 font-semibold">
-                            Đã mua hàng
-                        </p>
-                        <p class="mb-1">
-                            Giao hàng rất nhanh, sản phẩm đúng mô tả
-                        </p>
-                        <div class="flex items-center gap-4 text-gray-500 text-xs">
-                            <span>
-                                <i class="fas fa-thumbs-up">
-                                </i>
-                                5 Đã nhận
-                            </span>
-                            <span>
-                                <i class="fas fa-heart">
-                                </i>
-                                1 Lượt cảm ơn
-                            </span>
+
+                            <!-- Nội dung đánh giá -->
+                            <p class="mt-2 text-gray-700">{{ r.content }}</p>
                         </div>
                     </div>
                 </div>
+
+
                 <!-- Pagination -->
                 <nav aria-label="Pagination"
                     class="mt-6 flex justify-center items-center gap-3 text-xs text-gray-700 select-none">
@@ -601,7 +402,139 @@ onMounted(() => {
 onBeforeUnmount(() => {
     clearInterval(intervalId)
 })
+
+
+// Xử lý đánh giá 
+const productId = 1
+const currentUserId = 3
+
+const hoverRating = ref(0)
+
+const reviews = ref([])
+const averageRating = ref(0)
+
+const review = ref({
+    id: null,
+    product_id: productId,
+    user_id: currentUserId,
+    rating: 0,
+    content: '',
+})
+
+function loadReviews() {
+    fetch(`http://127.0.0.1:8000/api/reviews?product_id=${productId}`)
+        .then(res => res.json())
+        .then(data => {
+            reviews.value = data
+            if (data.length > 0) {
+                const total = data.reduce((acc, cur) => acc + cur.rating, 0)
+                averageRating.value = total / data.length
+            } else {
+                averageRating.value = 0
+            }
+        })
+}
+
+function submitReview() {
+    if (review.value.rating === 0) {
+        alert('Vui lòng chọn số sao đánh giá');
+        return;
+    }
+
+    const isEdit = !!review.value.id;
+    const method = isEdit ? 'PUT' : 'POST';
+    const url = isEdit
+        ? `http://127.0.0.1:8000/api/reviews/${review.value.id}`
+        : `http://127.0.0.1:8000/api/reviews`;
+
+    fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(review.value),
+    })
+        .then(res => {
+            if (!res.ok) {
+                return res.json().then(err => { throw err });
+            }
+            return res.json();
+        })
+        .then(() => {
+            loadReviews();
+            resetForm();
+            alert(isEdit ? 'Cập nhật đánh giá thành công' : 'Gửi đánh giá thành công');
+        })
+        .catch(err => {
+            let errorMessage = 'Lỗi khi gửi đánh giá';
+            if (err.errors) {
+                errorMessage = Object.values(err.errors).flat().join('\n');
+            } else if (err.message) {
+                errorMessage = err.message;
+            }
+            alert(errorMessage);
+        });
+}
+
+
+
+function editReview(r) {
+    review.value = { ...r } // gán lại để hiển thị lên form
+}
+
+reviews.value = reviews.value.map(r => ({
+    ...r,
+    showMenu: false
+}));
+
+
+function deleteReview(id) {
+    if (!confirm('Bạn có chắc chắn muốn xóa đánh giá này?')) return;
+
+    fetch(`http://127.0.0.1:8000/api/reviews/${id}`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ user_id: currentUserId })
+    })
+        .then(res => {
+            if (!res.ok) {
+                return res.json().then(err => { throw err });
+            }
+            return res.json();
+        })
+        .then(() => {
+            loadReviews();
+            alert('Xóa đánh giá thành công');
+        })
+        .catch(err => {
+            let errorMessage = err?.message || 'Xóa thất bại';
+            if (err?.errors) {
+                errorMessage = Object.values(err.errors).flat().join('\n');
+            }
+            alert(errorMessage);
+        });
+}
+
+
+
+
+function resetForm() {
+    review.value = {
+        id: null,
+        product_id: productId,
+        user_id: currentUserId,
+        rating: 0,
+        content: '',
+    }
+}
+
+onMounted(() => {
+    loadReviews()
+})
+
 </script>
+
+
 
 <style scoped>
 .line-clamp-2 {
@@ -612,26 +545,27 @@ onBeforeUnmount(() => {
 }
 </style>
 <script>
-    const stars = document.querySelectorAll("#starRating .star");
-    const ratingInput = document.getElementById("ratingInput");
+const stars = document.querySelectorAll("#starRating .star");
+const ratingInput = document.getElementById("ratingInput");
 
-    stars.forEach(star => {
-        star.addEventListener("click", () => {
-            const rating = parseInt(star.dataset.value);
-            ratingInput.value = rating;
+stars.forEach(star => {
+    star.addEventListener("click", () => {
+        const rating = parseInt(star.dataset.value);
+        ratingInput.value = rating;
 
-            // Tô màu các sao đã chọn
-            stars.forEach(s => {
-                s.classList.toggle("text-yellow-400", parseInt(s.dataset.value) <= rating);
-                s.classList.toggle("text-gray-300", parseInt(s.dataset.value) > rating);
-            });
+        // Tô màu các sao đã chọn
+        stars.forEach(s => {
+            s.classList.toggle("text-yellow-400", parseInt(s.dataset.value) <= rating);
+            s.classList.toggle("text-gray-300", parseInt(s.dataset.value) > rating);
         });
     });
+});
 </script>
 <style>
-    #starRating .star:hover,
-    #starRating .star:hover ~ .star {
-        color: #facc15; /* màu vàng nhạt khi hover */
-    }
+#starRating .star:hover,
+#starRating .star:hover~.star {
+    color: #facc15;
+    /* màu vàng nhạt khi hover */
+}
 </style>
-
+git checkout -b tpaatne

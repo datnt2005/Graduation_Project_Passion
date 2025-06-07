@@ -15,10 +15,20 @@ class ReviewController extends Controller
     public function index(Request $request)
     {
         $productId = $request->query('product_id');
-        $reviews = Review::where('product_id', $productId)->whereNull('parent_id')->with(['replies.user'])->where('status', 'approved')->latest()->get();
+        if (!$productId) {
+            return response()->json(['message' => 'Thiếu product_id'], 400);
+        }
+
+        $reviews = Review::with('user:id,name') // nếu muốn lấy tên user đánh giá
+            ->where('product_id', $productId)
+            ->where('status', 'approved')
+            ->orderByDesc('created_at')
+            ->get();
+
         return response()->json($reviews);
     }
 
+    // Thêm đánh giá mới
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -44,11 +54,11 @@ class ReviewController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        // Kiểm tra người dùng đã mua sản phẩm này hay chưa
+        // Kiểm tra người dùng đã mua sản phẩm này chưa (đơn hàng đã thanh toán)
         $hasPurchased = DB::table('orders')
             ->join('order_items', 'orders.id', '=', 'order_items.order_id')
             ->where('orders.user_id', $request->user_id)
-            ->where('orders.status', '!=', 'completed') // chỉ tính đơn hàng đã xác nhận/trả tiền
+            ->where('orders.status', 'completed')
             ->where('order_items.product_id', $request->product_id)
             ->exists();
 
@@ -58,14 +68,14 @@ class ReviewController extends Controller
             ], 403);
         }
 
-        // Nếu đã mua rồi, tạo đánh giá
+        // Tạo đánh giá mới
         $review = Review::create([
             'product_id' => $request->product_id,
             'user_id' => $request->user_id,
             'content' => $request->content,
             'rating' => $request->rating,
             'parent_id' => null,
-            'status' => 'approved',
+            'status' => 'approved', // hoặc để chờ duyệt nếu cần
         ]);
 
         return response()->json([
@@ -74,37 +84,32 @@ class ReviewController extends Controller
         ], 201);
     }
 
+    // Cập nhật đánh giá
     public function update(Request $request, $id)
     {
         $review = Review::findOrFail($id);
 
-        // Validate đầu vào
         $request->validate([
             'user_id' => 'required|exists:users,id',
             'content' => 'required|string|min:10|max:1000',
             'rating' => 'required|integer|min:1|max:5',
         ]);
 
-        $userId = $request->user_id;
-
-        // Kiểm tra quyền sở hữu đánh giá
-        if ($review->user_id != $userId) {
+        if ($review->user_id != $request->user_id) {
             return response()->json(['message' => 'Bạn không có quyền sửa đánh giá này.'], 403);
         }
 
-        // Kiểm tra đã mua hàng chưa
         $hasPurchased = DB::table('orders')
             ->join('order_items', 'orders.id', '=', 'order_items.order_id')
-            ->where('orders.user_id', $userId)
+            ->where('orders.user_id', $request->user_id)
+            ->where('orders.status', 'completed')
             ->where('order_items.product_id', $review->product_id)
-            ->whereNotIn('orders.status', ['completed']) // Đảm bảo đã thanh toán
             ->exists();
 
         if (!$hasPurchased) {
             return response()->json(['message' => 'Bạn cần mua sản phẩm này mới có thể sửa đánh giá.'], 403);
         }
 
-        // Cập nhật đánh giá
         $review->update([
             'content' => $request->content,
             'rating' => $request->rating,
@@ -113,8 +118,7 @@ class ReviewController extends Controller
         return response()->json(['message' => 'Cập nhật đánh giá thành công', 'review' => $review]);
     }
 
-
-
+    // Xóa đánh giá
     public function destroy(Request $request, $id)
     {
         $review = Review::findOrFail($id);
@@ -125,11 +129,13 @@ class ReviewController extends Controller
 
         $user = \App\Models\User::find($request->user_id);
 
+        // Chỉ admin hoặc chủ đánh giá mới được xóa
         if ($user->id !== $review->user_id && $user->role !== 'admin') {
             return response()->json(['message' => 'Bạn không có quyền xóa đánh giá này.'], 403);
         }
 
         $review->delete();
+
         return response()->json(['message' => 'Xóa đánh giá thành công.']);
     }
 
