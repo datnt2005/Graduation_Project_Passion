@@ -1,6 +1,5 @@
 <?php
-use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Facades\Facade;
+
 return [
 
     /*
@@ -66,7 +65,7 @@ return [
     |
     */
 
-'timezone' => 'Asia/Ho_Chi_Minh',
+    'timezone' => 'Asia/Ho_Chi_Minh',
 
 
     /*
@@ -125,7 +124,7 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
-
+    
     /*
     |--------------------------------------------------------------------------
     | Application Providers
@@ -136,5 +135,7 @@ return [
     | this array to grant expanded functionality to your applications.
     |--------------------------------------------------------------------------
     */
-
+    'aliases' => [
+        'image' => Intervention\Image\Facades\Image::class,
+    ]
 ];

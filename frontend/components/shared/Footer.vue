@@ -7,30 +7,31 @@
     <p class="text-sm text-gray-600 mt-2">Nền tảng thương mại điện tử kết nối đam mê và chất lượng đến từng khách hàng.</p>
   </div>
 
-  <!-- 5 cột nội dung -->
-  <div class="container mx-auto px-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-8">
 
-    <!-- VỀ PASSION -->
-    <div>
-      <h3 class="font-semibold text-base mb-3">VỀ PASSION</h3>
-      <ul class="space-y-2">
-        <li><a href="#" class="hover:underline">Giới thiệu</a></li>
-        <li><a href="#" class="hover:underline">Tuyển dụng</a></li>
-        <li><a href="#" class="hover:underline">Điều khoản dịch vụ</a></li>
-        <li><a href="#" class="hover:underline">Chính sách bảo mật</a></li>
-      </ul>
-    </div>
+<!-- Cột 2 -->
+  <div>
+    <h2 class="text-lg font-semibold mb-4">Hỗ Trợ Khách Hàng</h2>
+    <ul class="space-y-1 text-sm">
+    
+      <li><a href="#" class="hover:underline inline-flex items-center gap-1">Trung tâm trợ giúp</a></li>
+     <li>
+  <NuxtLink to="/contact" class="hover:underline inline-flex items-center gap-1">
+    Liên hệ khách hàng
+  </NuxtLink>
+</li>
 
-    <!-- HỖ TRỢ KHÁCH HÀNG -->
-    <div>
-      <h3 class="font-semibold text-base mb-3">HỖ TRỢ KHÁCH HÀNG</h3>
-      <ul class="space-y-2">
-        <li><a href="#" class="hover:underline">Trung tâm trợ giúp</a></li>
-        <li><a href="#" class="hover:underline">Hướng dẫn mua hàng</a></li>
-        <li><a href="#" class="hover:underline">Thanh toán & Vận chuyển</a></li>
-        <li><a href="#" class="hover:underline">Chính sách đổi trả</a></li>
-      </ul>
-    </div>
+      <li><NuxtLink to="/support" class="hover:underline inline-flex items-center gap-1">Hỗ trợ khách hàng</NuxtLink></li>
+      <li><a href="#" class="hover:underline inline-flex items-center gap-1">An toàn mua bán</a></li>
+      
+    </ul>
+  </div>
+
+  <!-- Cột 3 -->
+  <div>
+    <h2 class="text-lg font-semibold mb-4">Về Chúng Tôi</h2>
+    <ul class="space-y-1 text-sm">
+        <li><NuxtLink to="/post" href="#" class="hover:underline inline-flex items-center gap-1">Bài viết</NuxtLink></li>
+      <li><NuxtLink to="/introduce" class="hover:underline inline-flex items-center gap-1">Giới Thiệu</NuxtLink></li>
 
     <!-- ĐỐI TÁC & BÁN HÀNG -->
     <div>
