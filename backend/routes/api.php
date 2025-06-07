@@ -11,6 +11,7 @@ use App\Http\Controllers\GoogleAuthController;
 use Illuminate\Support\Facades\Storage;
 
 
+
 // Category
 Route::prefix('categories')->group(function () {
 Route::get('/', [CategoryController::class, 'index']);
@@ -76,3 +77,8 @@ Route::get('auth/google/callback', [GoogleAuthController::class, 'handleGoogleCa
 
 // crud user
 Route::apiResource('users', UserController::class);
+Route::post('users/batch-delete', [UserController::class, 'batchDelete']);
+Route::post('users/batch-add-role', [UserController::class, 'batchAddRole']);
+Route::post('users/batch-remove-role', [UserController::class, 'batchRemoveRole']);
+
+ 
