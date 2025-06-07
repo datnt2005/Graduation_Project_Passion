@@ -191,4 +191,22 @@ class AttributeController extends Controller
             ], 500);
         }
     }
+
+    public function showBySlug($slug)
+    {
+        $attribute = Attribute::with('values')->where('slug', $slug)->first();
+
+        if (!$attribute) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không tìm thấy thuộc tính.',                
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Lấy thông tin thuộc tính thành công.',
+            'data' => $attribute,
+        ], 200);
+    }
 }

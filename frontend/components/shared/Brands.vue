@@ -1,48 +1,30 @@
 <template>
   <div class="bg-white p-2 border-sm shadow relative overflow-hidden">
 
-
-    <!-- Responsive grid -->
-    <transition-group
-      name="fade"
-      tag="div"
-      class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 sm:gap-6"
+    <!-- Scrollable horizontal list -->
+    <div
+      class="flex gap-3 sm:gap-4 overflow-x-auto no-scrollbar px-1 py-2"
+      ref="scrollContainer"
     >
       <div
-        v-for="(item, index) in paginatedBrands"
+        v-for="(item, index) in brand"
         :key="item.id || index"
-        class="flex flex-col items-center bg-gray-50 p-3 rounded-md hover:shadow transition duration-300 ease-in-out hover:scale-105"
+        class="flex-none w-1/3 sm:w-1/4 md:w-1/6 p-3 rounded-md  transition duration-300 ease-in-out  flex flex-col items-center"
       >
         <img
           :src="item.image"
           alt="Logo thương hiệu"
-          class="w-16 h-16 sm:w-15 sm:h-15 object-contain"
+          class="w-16 h-16 sm:w-13 sm:h-13 object-contain"
         />
         <p class="text-xs sm:text-sm font-medium text-gray-700 text-center truncate w-full">
           {{ item.name }}
         </p>
       </div>
-    </transition-group>
-
-
-    <!-- Controls -->
-      <button
-        @click="prevBrand"
-        class="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white p-1.5 sm:p-2 rounded-full shadow hover:bg-gray-100 hover:scale-110 transition duration-200 ease-in-out z-10"
-        v-if="canNavigate"
-      >
-        ❮
-      </button>
-      <button
-        @click="nextBrand"
-        class="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white p-1.5 sm:p-2 rounded-full shadow hover:bg-gray-100 hover:scale-110 transition duration-200 ease-in-out z-10"
-        v-if="canNavigate"
-      >
-        ❯
-      </button>
+    </div>
 
   </div>
 </template>
+
 
 <script setup>
 import { ref, computed } from 'vue'
@@ -90,5 +72,13 @@ const canNavigate = computed(() => totalPages.value > 1)
 .fade-leave-to {
   opacity: 0;
 }
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none; /* IE và Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
 </style>
 
