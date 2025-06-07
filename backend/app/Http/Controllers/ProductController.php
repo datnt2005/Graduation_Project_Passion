@@ -171,7 +171,7 @@ public function store(Request $request)
         }
 
         $product = Product::create([
-            'seller_id' => auth()->id() ?? 1,
+            'seller_id' =>  1,
             'name' => $request->name,
             'slug' => $slug,
             'description' => $request->description,

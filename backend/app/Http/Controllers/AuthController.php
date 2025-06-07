@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\Session;
 class AuthController extends Controller
 {
     // Đăng ký
-    public function register(Request $request)
+public function register(Request $request)
     {
         try {
             $validated = $request->validate([
@@ -111,7 +111,7 @@ class AuthController extends Controller
     }
 
     // Xác minh OTP
-    public function verifyOtp(Request $request)
+public function verifyOtp(Request $request)
     {
         try {
            $validated = $request->validate([
@@ -220,7 +220,6 @@ public function login(Request $request)
             return response()->json([
                 'success' => false,
                 'message' => $messages,
-                // 'message' => 'Tài khoản hiện đang ' . $user->status . '. Vui lòng liên hệ quản trị viên.',
             ], 403);
         }
 
@@ -427,26 +426,27 @@ public function resetPassword(Request $request)
 
 
 // logout
- public function logout(Request $request)
+public function logout(Request $request)
 {
     try {
         $token = $request->bearerToken();
         $accessToken = \Laravel\Sanctum\PersonalAccessToken::findToken($token);
 
         if (!$accessToken) {
-            \Log::warning('Logout failed: Invalid token.', [
+            Log::warning('Logout failed: Invalid token.', [
                 'ip' => $request->ip(),
                 'authorization' => $token,
             ]);
             return response()->json([
                 'success' => false,
                 'message' => 'Không tìm thấy người dùng đang đăng nhập.',
+                'token' => $token
             ], 401);
         }
 
         $user = $accessToken->tokenable;
 
-        \Log::info('Attempting logout for user', [
+        Log::info('Attempting logout for user', [
             'user_id' => $user->id,
             'email' => $user->email,
         ]);
@@ -454,12 +454,10 @@ public function resetPassword(Request $request)
         $redisKey = 'user:session:' . $user->id;
         if (Redis::exists($redisKey)) {
             Redis::del($redisKey);
-            \Log::info('Deleted Redis key', ['key' => $redisKey]);
+            Log::info('Deleted Redis key', ['key' => $redisKey]);
         } else {
-            \Log::info('Redis key not found', ['key' => $redisKey]);
+            Log::info('Redis key not found', ['key' => $redisKey]);
         }
-
-        Session::forget(['user_id', 'user_role', 'user_name']);
 
         $accessToken->delete();
 
@@ -468,14 +466,16 @@ public function resetPassword(Request $request)
             'message' => 'Đăng xuất thành công.',
         ]);
     } catch (\Exception $e) {
-        \Log::error('Error during logout: ' . $e->getMessage(), [
+        Log::error('Error during logout: ' . $e->getMessage(), [
             'trace' => $e->getTraceAsString()
         ]);
         return response()->json([
             'success' => false,
-            'message' => 'Lỗi khi đăng xuất.',
+            'message' => config('app.debug') ? $e->getMessage() : 'Có lỗi xảy ra khi đăng xuất. Vui lòng thử lại!',
+            'trace'   => config('app.debug') ? $e->getTrace() : null, // Chỉ show khi debug, bình thường để null
         ], 500);
     }
 }
+
 
 }

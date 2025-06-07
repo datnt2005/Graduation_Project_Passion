@@ -109,17 +109,17 @@
             Xem trước
           </button>
           <div>
-            <span><font-awesome-icon icon="key" /> Trạng thái: </span>
+            <span><i class="fa-solid fa-key"></i> Trạng thái: </span>
             <span class="font-semibold">{{ productStatus }}</span>
             <a href="#" class="underline text-blue-700 hover:text-blue-900" @click.prevent="editStatus">Chỉnh sửa</a>
           </div>
           <div>
-            <span><font-awesome-icon icon="eye" /> Hiển thị: </span>
+            <span><i class="fa-solid fa-eye"></i> Hiển thị: </span>
             <span class="font-semibold">{{ visibility }}</span>
             <a href="#" class="underline text-blue-700 hover:text-blue-900" @click.prevent="editVisibility">Chỉnh sửa</a>
           </div>
           <div>
-            <span><font-awesome-icon icon="calendar-alt" /> Xuất bản ngay </span>
+            <span><i class="fa-solid fa-calendar-days"></i> Xuất bản ngay </span>
             <a href="#" class="underline text-blue-700 hover:text-blue-900" @click.prevent="editPublishDate">Chỉnh sửa</a>
           </div>
           <div>

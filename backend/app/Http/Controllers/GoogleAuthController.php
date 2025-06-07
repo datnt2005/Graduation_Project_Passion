@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use App\Http\Resources\UserResource;
+use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
@@ -29,7 +30,6 @@ class GoogleAuthController extends Controller
                 throw new \Exception('Dữ liệu người dùng Google không hợp lệ.');
             }
 
-            // Tìm user theo google_id hoặc email
             $user = User::where('google_id', $googleUser->getId())
                 ->orWhere('email', $googleUser->getEmail())
                 ->first();
@@ -73,6 +73,21 @@ class GoogleAuthController extends Controller
 
             // Token thành công
             $token = $user->createToken('api_token')->plainTextToken;
+
+            // luu vao redis
+            $redisKey = 'user:session:' . $user->id;
+                    $redisData = [
+                        'user_id' => $user->id,
+                        'email' => $user->email,
+                        'name' => $user->name,
+                        'role' => $user->role,
+                        'status' => $user->status,
+                        'avatar' => $user->avatar,
+                        'token' => $token,
+                        'logged_in_at' => now()->toDateTimeString(),
+                    ];
+                    Redis::setex($redisKey, 7200, json_encode($redisData));
+
 
             return response()->view('auth.google-callback', [
                 'token' => $token,
