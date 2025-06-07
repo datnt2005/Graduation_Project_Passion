@@ -78,7 +78,7 @@
         </li>
 
          <li class="pt-2 border-t border-gray-800">
-          <NuxtLink to="#" class="flex items-center px-4 py-2 hover:bg-gray-800 gap-3" @click="$emit('close')">
+          <NuxtLink to="/admin/orders/list-order" class="flex items-center px-4 py-2 hover:bg-gray-800 gap-3" @click="$emit('close')">
             <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2"
                 viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round"
@@ -87,13 +87,42 @@
             Đơn hàng
           </NuxtLink>
         </li>
-         <li class="pt-2 border-t border-gray-800">
-          <NuxtLink to="#" class="flex items-center px-4 py-2 hover:bg-gray-800 gap-3" @click="$emit('close')">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
-              <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-            </svg>
 
-           Bài viết
+        <li class="pt-2 border-t border-gray-800">
+          <NuxtLink to="/admin/coupons/list-coupon" class="flex items-center px-4 py-2 hover:bg-gray-800 gap-3" @click="$emit('close')">
+            <svg 
+              class="w-4 h-4 text-gray-400" 
+              fill="none" 
+              viewBox="0 0 24 24" 
+              stroke="currentColor" 
+              stroke-width="2"
+            >
+              <path 
+                stroke-linecap="round" 
+                stroke-linejoin="round" 
+                d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"
+              />
+            </svg>
+            Coupon
+          </NuxtLink>
+        </li>
+        
+        <li class="pt-2 border-t border-gray-800">
+          <NuxtLink to="#" class="flex items-center px-4 py-2 hover:bg-gray-800 gap-3" @click="$emit('close')">
+            <svg 
+              class="w-4 h-4 text-gray-400" 
+              fill="none" 
+              viewBox="0 0 24 24" 
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path 
+                stroke-linecap="round" 
+                stroke-linejoin="round" 
+                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+              />
+            </svg>
+            Bài viết
           </NuxtLink>
         </li>
 
