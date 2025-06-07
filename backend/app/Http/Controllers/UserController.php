@@ -9,7 +9,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Intervention\Image\Facades\Image;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
 
 class UserController extends Controller
 {
@@ -17,6 +19,29 @@ class UserController extends Controller
     {
         $users = User::all();
         return UserResource::collection($users);
+    }
+
+    public function batchDelete(Request $request)
+    {
+        $ids = $request->input('ids', []);
+        User::whereIn('id', $ids)->delete();
+        return response()->json(['success' => true]);
+    }
+
+    public function batchAddRole(Request $request)
+    {
+        $ids = $request->input('ids', []);
+        $role = $request->input('role');
+        User::whereIn('id', $ids)->update(['role' => $role]);
+        return response()->json(['success' => true]);
+    }
+
+    public function batchRemoveRole(Request $request)
+    {
+        $ids = $request->input('ids', []);
+        $role = $request->input('role');
+        User::whereIn('id', $ids)->where('role', $role)->update(['role' => null]);
+        return response()->json(['success' => true]);
     }
 
 public function store(Request $request)
@@ -72,21 +97,49 @@ public function store(Request $request)
         $data['password'] = Hash::make($data['password']);
 
         $avatarPath = null;
-        if ($request->hasFile('avatar')) {
+
+        // Chỉ upload nếu thực sự có file, còn không thì bỏ qua (cho phép để trống)
+        if ($request->hasFile('avatar') && $request->file('avatar')->isValid()) {
             $file = $request->file('avatar');
             $filename = 'avatars/' . time() . '_' . Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) . '.' . $file->getClientOriginalExtension();
 
-            // Upload avatar lên R2
-            Storage::disk('r2')->put($filename, file_get_contents($file));
+            logger()->info('Attempting to upload file to R2', [
+                'filename' => $filename,
+                'file_size' => $file->getSize(),
+                'file_type' => $file->getMimeType(),
+            ]);
 
-            $avatarPath = $filename;
-            $data['avatar'] = $avatarPath;
+            try {
+                $uploadResult = Storage::disk('r2')->put($filename, file_get_contents($file));
+                logger()->info('R2 upload result', ['success' => $uploadResult, 'filename' => $filename]);
+
+                if ($uploadResult) {
+                    $avatarPath = $filename;
+                    $data['avatar'] = $avatarPath;
+                } else {
+                    logger()->error('Failed to upload file to R2', ['filename' => $filename]);
+                    throw new \Exception('Không thể upload file lên R2: Upload result false');
+                }
+            } catch (\Aws\S3\Exception\S3Exception $e) {
+                logger()->error('S3 Exception during R2 upload', [
+                    'error' => $e->getMessage(),
+                    'aws_error' => $e->getAwsErrorCode(),
+                    'aws_request_id' => $e->getAwsRequestId(),
+                    'filename' => $filename,
+                ]);
+                throw new \Exception('Lỗi R2: ' . $e->getMessage());
+            }
+        } else {
+            // Không có file, remove avatar field nếu có
+            unset($data['avatar']);
         }
 
         $user = User::create($data);
 
-        // Gắn thêm URL ảnh
+        // Gắn thêm URL ảnh (nếu có, còn không là null)
         $user->avatar_url = $avatarPath ? Storage::disk('r2')->url($avatarPath) : null;
+
+        logger()->info('User created successfully', ['user_id' => $user->id, 'avatar_path' => $avatarPath]);
 
         return response()->json([
             'success' => true,
@@ -95,6 +148,11 @@ public function store(Request $request)
         ], 201);
 
     } catch (\Exception $e) {
+        logger()->error('Error in UserController::store', [
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString(),
+        ]);
+
         return response()->json([
             'error' => $e->getMessage(),
             'trace' => $e->getTraceAsString(),
@@ -103,16 +161,16 @@ public function store(Request $request)
 }
 
 
-
     public function show(User $user)
     {
         return new UserResource($user);
     }
 
-    public function update(Request $request, User $user)
-    {
+public function update(Request $request, User $user)
+{
+    try {
         $validator = Validator::make($request->all(), [
-            'name' => 'sometimes|required|string|max:255',
+            'name'     => 'sometimes|required|string|max:255',
             'password' => [
                 'sometimes',
                 'required',
@@ -120,20 +178,22 @@ public function store(Request $request)
                 'min:6',
                 'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).+$/'
             ],
-            'avatar' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
-            'role' => 'sometimes|required|in:user,seller,admin',
-            'status' => 'sometimes|required|in:active,inactive,banned',
+            'old_password' => 'required_with:password|string',
+            'avatar'  => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
+            'role'    => 'sometimes|required|in:user,seller,admin',
+            'status'  => 'sometimes|required|in:active,inactive,banned',
         ], [
             'password.regex' => 'Mật khẩu phải chứa ít nhất 1 chữ hoa, 1 chữ thường, 1 số và 1 ký tự đặc biệt.',
             'name.required' => 'Tên không được để trống.',
             'name.max' => 'Tên không được vượt quá 255 ký tự.',
             'avatar.image' => 'Ảnh đại diện phải là file ảnh.',
-            'avatar.mimes' => 'Ảnh đại diện phải có định dạng jpeg, png hoặc jpg.',
+            'avatar.mimes' => 'Ảnh đại diện phải có định dạng jpeg, png, jpg, gif, svg hoặc webp.',
             'avatar.max' => 'Ảnh đại diện không được vượt quá 2MB.',
             'role.required' => 'Vai trò không được để trống.',
             'role.in' => 'Vai trò không hợp lệ.',
             'status.required' => 'Trạng thái không được để trống.',
             'status.in' => 'Trạng thái không hợp lệ.',
+            'old_password.required_with' => 'Vui lòng nhập mật khẩu cũ để đổi mật khẩu.'
         ]);
 
         if ($validator->fails()) {
@@ -142,30 +202,93 @@ public function store(Request $request)
 
         $data = $validator->validated();
 
+        // Xử lý đổi mật khẩu, bắt buộc phải có old_password check đúng
         if (isset($data['password'])) {
+            if (!isset($data['old_password']) || !Hash::check($data['old_password'], $user->password)) {
+                return response()->json(['error' => 'Mật khẩu cũ không đúng.'], 403);
+            }
             $data['password'] = Hash::make($data['password']);
         }
+        unset($data['old_password']);
 
-        if ($request->hasFile('avatar')) {
+        // Xử lý upload và resize avatar (nếu có)
+        if ($request->hasFile('avatar') && $request->file('avatar')->isValid()) {
+            // Xóa ảnh cũ nếu có
             if ($user->avatar) {
-                Storage::disk('s3')->delete($user->avatar);
+                Storage::disk('r2')->delete($user->avatar);
             }
-            $path = $request->file('avatar')->store('avatars', 's3');
-            $data['avatar'] = "/passion/{$path}";
+            $file = $request->file('avatar');
+            $filename = 'avatars/' . $user->id . '_' . time() . '_' . Str::random(6) . '.' . $file->getClientOriginalExtension();
+
+            // Resize ảnh trước khi upload lên R2
+            $img = Image::make($file)
+                ->resize(512, 512, function ($constraint) {
+                    $constraint->aspectRatio();
+                    $constraint->upsize();
+                })
+                ->encode($file->getClientOriginalExtension());
+
+            $uploadResult = Storage::disk('r2')->put($filename, (string) $img);
+
+            Log::info('R2 upload result in update', [
+                'success' => $uploadResult,
+                'filename' => $filename,
+            ]);
+
+            if ($uploadResult) {
+                $data['avatar'] = $filename;
+            } else {
+                Log::error('Failed to upload file to R2 in update', ['filename' => $filename]);
+                throw new \Exception('Không thể upload file lên R2.');
+            }
+        } else {
+            unset($data['avatar']);
         }
 
         $user->update($data);
 
+        Log::info('User updated successfully', [
+            'user_id'    => $user->id,
+            'avatar_path'=> $user->avatar,
+        ]);
+
         return new UserResource($user);
+
+    } catch (\Exception $e) {
+        // Log lỗi đơn giản, không log trace ở prod
+        Log::error('Error in UserController::update', [
+            'error' => $e->getMessage(),
+        ]);
+
+        return response()->json([
+            'error' => 'Có lỗi xảy ra: ' . $e->getMessage(),
+        ], 500);
     }
+}
+
 
     public function destroy(User $user)
     {
-        if ($user->avatar) {
-            Storage::disk('s3')->delete($user->avatar);
-        }
-        $user->delete();
+        try {
+            if ($user->avatar) {
+                Storage::disk('r2')->delete($user->avatar);
+            }
+            $user->delete();
 
-        return response()->json(null, 204);
+            Log::info('User deleted successfully', ['user_id' => $user->id]);
+
+            return response()->json(null, 204);
+
+        } catch (\Exception $e) {
+            Log::error('Error in UserController::destroy', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ], 500);
+        }
     }
 }
