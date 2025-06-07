@@ -125,7 +125,7 @@
             </div>
         </div>
 
-        <div class="flex justify-center items-center mt-10 space-x-2">
+        <!-- <div class="flex justify-center items-center mt-10 space-x-2">
             <button class="px-3 py-1 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100">&laquo;</button>
             <button class="px-3 py-1 border border-blue-500 bg-blue-500 text-white rounded-md">1</button>
             <button class="px-3 py-1 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100">2</button>
@@ -133,7 +133,7 @@
             <button class="px-3 py-1 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100">4</button>
             <button class="px-3 py-1 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100">5</button>
             <button class="px-3 py-1 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100">&raquo;</button>
-        </div>
+        </div> -->
     </main>
 </template>
 

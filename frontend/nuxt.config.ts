@@ -3,6 +3,7 @@ export default defineNuxtConfig({
   css: ['@/assets/css/tailwind.css',
      '@fortawesome/fontawesome-free/css/all.min.css'
   ],
+   modules: ['@pinia/nuxt'],
   plugins: ['~/plugins/fontawesome'],
   devtools: { enabled: true },
    postcss: {
