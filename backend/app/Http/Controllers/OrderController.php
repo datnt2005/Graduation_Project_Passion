@@ -21,48 +21,69 @@ class OrderController extends Controller
             $query = Order::with(['orderItems.product', 'orderItems.productVariant', 'user', 'address', 'payments']);
 
             // Lọc theo trạng thái
-            if ($request->has('status')) {
+            if ($request->has('status') && !empty($request->status)) {
                 $query->where('status', $request->status);
             }
 
             // Lọc theo khoảng thời gian
-            if ($request->has('from_date')) {
+            if ($request->has('from_date') && !empty($request->from_date)) {
                 $query->whereDate('created_at', '>=', $request->from_date);
             }
-            if ($request->has('to_date')) {
+            if ($request->has('to_date') && !empty($request->to_date)) {
                 $query->whereDate('created_at', '<=', $request->to_date);
             }
 
             // Tìm kiếm theo ID đơn hàng
-            if ($request->has('order_id')) {
+            if ($request->has('order_id') && !empty($request->order_id)) {
                 $query->where('id', $request->order_id);
             }
 
             // Sắp xếp
             $sortBy = $request->input('sort_by', 'created_at');
             $sortOrder = $request->input('sort_order', 'desc');
+            
+            // Validate sort columns to prevent SQL injection
+            $allowedSortColumns = ['created_at', 'id', 'status', 'total_price'];
+            $sortBy = in_array($sortBy, $allowedSortColumns) ? $sortBy : 'created_at';
+            
             $query->orderBy($sortBy, $sortOrder);
 
             // Phân trang
-            $perPage = $request->input('per_page', 10);
+            $perPage = (int)$request->input('per_page', 10);
+            // Ensure perPage is between 1 and 100
+            $perPage = max(1, min(100, $perPage));
+            
             $orders = $query->paginate($perPage);
+
+            if ($orders->isEmpty()) {
+                return response()->json([
+                    'data' => [],
+                    'meta' => [
+                        'current_page' => 1,
+                        'last_page' => 1,
+                        'per_page' => $perPage,
+                        'total' => 0,
+                    ],
+                ]);
+            }
 
             return response()->json([
                 'data' => $orders->map(function ($order) {
                     return [
                         'id' => $order->id,
-                        'user' => [
+                        'user' => $order->user ? [
                             'id' => $order->user->id,
                             'name' => $order->user->name,
                             'email' => $order->user->email,
-                        ],
-                        'address' => [
+                        ] : null,
+                        'address' => $order->address ? [
                             'id' => $order->address->id,
                             'address' => $order->address->address,
                             'phone' => $order->address->phone,
-                        ],
+                        ] : null,
                         'note' => $order->note ?? '',
                         'status' => $order->status,
+                        'can_delete' => in_array($order->status, ['pending', 'cancelled']),
                         'total_price' => number_format($order->total_price, 0, ',', '.') . ' đ',
                         'discount_price' => number_format($order->discount_price, 0, ',', '.') . ' đ',
                         'final_price' => number_format($order->final_price, 0, ',', '.') . ' đ',
@@ -71,11 +92,11 @@ class OrderController extends Controller
                         'order_items' => $order->orderItems->map(function ($item) {
                             return [
                                 'id' => $item->id,
-                                'product' => [
+                                'product' => $item->product ? [
                                     'id' => $item->product->id,
                                     'name' => $item->product->name,
                                     'thumbnail' => $item->product->thumbnail,
-                                ],
+                                ] : null,
                                 'variant' => $item->productVariant ? [
                                     'id' => $item->productVariant->id,
                                     'name' => $item->productVariant->name,
@@ -88,7 +109,7 @@ class OrderController extends Controller
                         'payments' => $order->payments->map(function ($payment) {
                             return [
                                 'id' => $payment->id,
-                                'method' => $payment->paymentMethod->name,
+                                'method' => $payment->paymentMethod ? $payment->paymentMethod->name : null,
                                 'amount' => number_format($payment->amount, 0, ',', '.') . ' đ',
                                 'status' => $payment->status,
                                 'created_at' => $payment->created_at->format('d/m/Y H:i:s'),
@@ -105,8 +126,10 @@ class OrderController extends Controller
             ]);
 
         } catch (\Exception $e) {
+            \Log::error('Order index error: ' . $e->getMessage());
             return response()->json([
-                'message' => 'Có lỗi xảy ra khi lấy danh sách đơn hàng: ' . $e->getMessage()
+                'message' => 'Có lỗi xảy ra khi lấy danh sách đơn hàng',
+                'error' => $e->getMessage()
             ], 500);
         }
     }
@@ -248,77 +271,119 @@ class OrderController extends Controller
     public function update(Request $request, $id)
     {
         try {
-            // Xử lý ID - loại bỏ dấu ngoặc nhọn nếu có
-            $orderId = trim($id, '{}');
-            
-            // Tìm đơn hàng
-            $order = Order::find($orderId);
-            
-            // Kiểm tra nếu đơn hàng không tồn tại
-            if (!$order) {
-                return response()->json([
-                    'message' => 'Không tìm thấy đơn hàng với ID: ' . $orderId
-                ], 404);
-            }
+            \Log::info('Updating order', [
+                'order_id' => $id,
+                'request_data' => $request->all()
+            ]);
 
             // Validate dữ liệu đầu vào
             $validator = Validator::make($request->all(), [
-                'status' => 'required|in:pending,processing,shipping,completed,cancelled',
+                'status' => 'required|string|in:pending,processing,shipped,delivered,cancelled',
                 'note' => 'nullable|string|max:500'
             ], [
                 'status.required' => 'Trạng thái đơn hàng là bắt buộc',
+                'status.string' => 'Trạng thái đơn hàng phải là chuỗi',
                 'status.in' => 'Trạng thái đơn hàng không hợp lệ',
                 'note.string' => 'Ghi chú phải là chuỗi ký tự',
                 'note.max' => 'Ghi chú không được vượt quá 500 ký tự'
             ]);
 
             if ($validator->fails()) {
+                \Log::warning('Validation failed', [
+                    'errors' => $validator->errors()->toArray()
+                ]);
                 return response()->json([
+                    'success' => false,
                     'message' => 'Dữ liệu không hợp lệ',
                     'errors' => $validator->errors()
                 ], 422);
+            }
+
+            // Tìm đơn hàng
+            $order = Order::find($id);
+            
+            // Kiểm tra nếu đơn hàng không tồn tại
+            if (!$order) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không tìm thấy đơn hàng với ID: ' . $id
+                ], 404);
             }
 
             // Kiểm tra logic chuyển trạng thái
             $currentStatus = $order->status;
             $newStatus = $request->status;
 
+            \Log::info('Status transition check', [
+                'current_status' => $currentStatus,
+                'new_status' => $newStatus
+            ]);
+
             // Kiểm tra các quy tắc chuyển trạng thái
             $validTransitions = [
                 'pending' => ['processing', 'cancelled'],
-                'processing' => ['shipping', 'cancelled'],
-                'shipping' => ['completed', 'cancelled'],
-                'completed' => [],
+                'processing' => ['shipped', 'cancelled'],
+                'shipped' => ['delivered', 'cancelled'],
+                'delivered' => [],
                 'cancelled' => []
             ];
 
+            if (!isset($validTransitions[$currentStatus])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Trạng thái hiện tại không hợp lệ: '$currentStatus'"
+                ], 422);
+            }
+
             if (!in_array($newStatus, $validTransitions[$currentStatus])) {
                 return response()->json([
+                    'success' => false,
                     'message' => "Không thể chuyển trạng thái từ '$currentStatus' sang '$newStatus'"
                 ], 422);
             }
 
             // Cập nhật đơn hàng
-            $order->status = $request->status;
+            $order->status = $newStatus;
             if ($request->has('note')) {
                 $order->note = $request->note;
             }
             $order->save();
 
-            // Trả về response thành công
-            return response()->json([
+            // Tạo thông báo dựa trên trạng thái mới
+            $statusMessages = [
+                'processing' => 'Đơn hàng đã được xác nhận và đang được xử lý',
+                'shipped' => 'Đơn hàng đang được giao đến bạn',
+                'delivered' => 'Đơn hàng đã được giao thành công',
+                'cancelled' => 'Đơn hàng đã bị hủy'
+            ];
+
+            $responseData = [
+                'success' => true,
                 'message' => 'Cập nhật đơn hàng thành công',
+                'status_message' => $statusMessages[$newStatus] ?? 'Trạng thái đơn hàng đã được cập nhật',
                 'data' => [
                     'id' => $order->id,
                     'status' => $order->status,
                     'note' => $order->note,
+                    'can_delete' => in_array($order->status, ['pending', 'cancelled']),
                     'updated_at' => $order->updated_at->format('d/m/Y H:i:s')
                 ]
-            ]);
+            ];
+
+            \Log::info('Order updated successfully', $responseData);
+            return response()->json($responseData);
 
         } catch (\Exception $e) {
+            \Log::error('Order update error', [
+                'order_id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
             return response()->json([
-                'message' => 'Có lỗi xảy ra khi cập nhật đơn hàng: ' . $e->getMessage()
+                'success' => false,
+                'message' => 'Có lỗi xảy ra khi cập nhật đơn hàng',
+                'error' => $e->getMessage()
             ], 500);
         }
     }
@@ -420,9 +485,9 @@ class OrderController extends Controller
     {
         $allowedTransitions = [
             'pending' => ['processing', 'cancelled'],
-            'processing' => ['shipping', 'cancelled'],
-            'shipping' => ['completed', 'cancelled'],
-            'completed' => [],
+            'processing' => ['shipped', 'cancelled'],
+            'shipped' => ['delivered', 'cancelled'],
+            'delivered' => [],
             'cancelled' => []
         ];
 
