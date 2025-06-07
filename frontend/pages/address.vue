@@ -8,10 +8,13 @@
         <span v-if="address.is_default"
           class="absolute top-0 right-0 bg-green-500 text-white text-xs px-2 py-1 rounded-bl-lg">Mặc định</span>
         <h3 class="font-semibold text-lg mb-2">{{ address.name }}</h3>
-        <p>Địa chỉ: {{ address.detail }},
-          {{ getWardName(address.ward_code, address.district_id, address.province_id) }},
-          {{ getDistrictName(address.district_id, address.province_id) }},
-          {{ getProvinceName(address.province_id) }}</p>
+        <p>
+          Địa chỉ: {{ address.detail }},
+          {{ getWardName(address.ward_code, address.district_id) }},
+          {{ getDistrictName(address.district_id) }},
+          {{ getProvinceName(address.province_id) }}
+        </p>
+
         <p>Điện thoại: {{ address.phone }}</p>
         <p>Loại địa chi: {{ address.address_type }}</p>
         <div class="mt-4 flex space-x-2">
@@ -264,21 +267,20 @@ const getProvinceName = (province_id) => {
   const p = provinces.value.find(item => item.ProvinceID == province_id)
   return p ? p.ProvinceName : ''
 }
-const getDistrictName = (district_id, province_id) => {
-  const d = districts.value.find(item =>
-    item.DistrictID == district_id && item.ProvinceID == province_id
-  )
+const getDistrictName = (district_id) => {
+  const d = districts.value.find(item => item.DistrictID == district_id)
   return d ? d.DistrictName : ''
 }
 
-const getWardName = (ward_code, district_id, province_id) => {
+const getWardName = (ward_code, district_id) => {
   const w = wards.value.find(item =>
-    item.WardCode == ward_code &&
-    item.DistrictID == district_id &&
-    item.ProvinceID == province_id
+    item.WardCode == ward_code && item.DistrictID == district_id
   )
   return w ? w.WardName : ''
 }
+console.log('wards', wards.value)
+console.log('districts', districts.value)
+
 
 
 // Mảng địa chỉ
@@ -290,25 +292,39 @@ const loadAddresses = async () => {
     const res = await axios.get(`http://127.0.0.1:8000/api/address?user_id=3`)
     addresses.value = res.data.data || []
 
-    // Sau khi load addresses, load districts và wards đầy đủ để hiển thị tên
     const provinceIds = [...new Set(addresses.value.map(a => a.province_id))]
     const districtIds = [...new Set(addresses.value.map(a => a.district_id))]
 
-    // Tải districts theo tỉnh đã có
+    // Load districts
     for (const pid of provinceIds) {
-      const resDistricts = await axios.post('http://127.0.0.1:8000/api/ghn/districts', { province_id: pid })
-      districts.value.push(...resDistricts.data.data)
+      const resDistricts = await axios.post('http://127.0.0.1:8000/api/ghn/districts', {
+        province_id: pid
+      })
+
+      if (Array.isArray(resDistricts.data.data)) {
+        districts.value.push(...resDistricts.data.data)
+      } else {
+        console.warn(`Không tải được districts cho province_id=${pid}`)
+      }
     }
 
-    // Tải wards theo từng district
+    // Load wards
     for (const did of districtIds) {
-      const resWards = await axios.post('http://127.0.0.1:8000/api/ghn/wards', { district_id: did })
-      wards.value.push(...resWards.data.data)
+      const resWards = await axios.post('http://127.0.0.1:8000/api/ghn/wards', {
+        district_id: did
+      })
+
+      if (Array.isArray(resWards.data.data)) {
+        wards.value.push(...resWards.data.data)
+      } else {
+        console.warn(`Không tải được wards cho district_id=${did}`)
+      }
     }
   } catch (err) {
     console.error('Lỗi tải địa chỉ:', err)
   }
 }
+
 
 const deleteAddress = async (id) => {
   if (!confirm('Bạn có chắc chắn muốn xóa địa chỉ này không?')) return
