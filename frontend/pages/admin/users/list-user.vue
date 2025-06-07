@@ -78,9 +78,9 @@
           class="rounded-md border border-gray-300 py-1.5 pl-3 pr-8 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
         >
           <option value="">Tất cả vai trò</option>
-          <option value="administrator">Quản trị viên</option>
+          <option value="admin">Quản trị viên</option>
           <option value="editor">Biên tập viên</option>
-          <option value="shop_manager">Quản lý cửa hàng</option>
+          <option value="seller">Quản lý cửa hàng</option>
           <option value="user">Người dùng</option>
         </select>
         <div class="ml-auto text-sm text-gray-600">
@@ -424,7 +424,6 @@ const convertRole = (role) => {
   if (!role) return 'Người dùng'
   switch (role.toLowerCase()) {
     case 'admin': return 'Quản trị viên'
-    // case 'editor': return 'Biên tập viên'
     case 'seller': return 'Quản lý cửa hàng'
     case 'user': return 'Người dùng'
     default: return 'Người dùng'

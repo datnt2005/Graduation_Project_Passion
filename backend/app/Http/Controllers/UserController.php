@@ -169,7 +169,6 @@ public function store(Request $request)
 public function update(Request $request, User $user)
 {
     try {
-
         $validator = Validator::make($request->all(), [
             'name'     => 'sometimes|required|string|max:255',
             'password' => [

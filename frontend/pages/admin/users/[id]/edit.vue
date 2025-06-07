@@ -195,7 +195,8 @@ const formData = reactive({
   role: '',
   status: 'active',
   avatar: null,
-  avatar_url: null
+  avatar_url: null,
+  _method: 'PUT',
 })
 
 const fetchUser = async () => {
@@ -235,40 +236,52 @@ const handleImageUpload = (event) => {
 }
 
 const handleSubmit = async () => {
-  Object.keys(errors).forEach((k) => errors[k] = '')
-  errorMsg.value = ''
-  success.value = false
-  loading.value = true
+  Object.keys(errors).forEach((k) => errors[k] = '');
+  errorMsg.value = '';
+  success.value = false;
+  loading.value = true;
   try {
-    const payload = new FormData()
-    Object.keys(formData).forEach((key) => {
-      if (key === 'avatar_url') return
-      if (key === 'avatar' && !formData.avatar) return
-      if (key === 'password' && !formData.password) return
-      payload.append(key, formData[key] ?? '')
-    })
+    const payload = new FormData();
+    const fieldsToSend = ['name', 'password', 'phone', 'role', 'status', 'avatar'];
+    fieldsToSend.forEach((key) => {
+      if (key === 'avatar' && !formData.avatar) return;
+      if (key === 'password' && !formData.password) return;
+      if (formData[key] === undefined || formData[key] === null) return;
+      payload.append(key, formData[key]);
+    });
+
+    payload.append('_method', 'PATCH');
+
+    for (const pair of payload.entries()) {
+      console.log('FormData gửi lên:', pair[0], pair[1]);
+    }
+
     const res = await fetch(`${apiBase}/users/${userId}`, {
-      method: 'PATCH',
+      method: 'POST',  
       body: payload,
-      headers: { 'Accept': 'application/json' }
-    })
-    const data = await res.json()
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
+    const data = await res.json();
     if ((res.ok && data.data) || data.success) {
-      success.value = true
-      showSuccessNotification('Cập nhật người dùng thành công!')
-      setTimeout(() => router.push('/admin/users/list-user'), 1000)
+      success.value = true;
+      showSuccessNotification('Cập nhật người dùng thành công!');
+      setTimeout(() => router.push('/admin/users/list-user'), 1000);
     } else if (data.errors) {
-      Object.assign(errors, data.errors)
-      errorMsg.value = data.message || 'Dữ liệu không hợp lệ.'
+      Object.assign(errors, data.errors);
+      errorMsg.value = data.message || 'Dữ liệu không hợp lệ.';
     } else {
-      errorMsg.value = data.error || 'Cập nhật thất bại!'
+      errorMsg.value = data.error || 'Cập nhật thất bại!';
     }
   } catch (e) {
-    errorMsg.value = 'Lỗi kết nối máy chủ!'
+    errorMsg.value = 'Lỗi kết nối máy chủ!';
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
+};
+
 
 
 const showSuccessNotification = (message) => {
