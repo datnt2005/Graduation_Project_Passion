@@ -18,15 +18,19 @@ class ProductVariant extends Model
         'quantity',
         'thumbnail',
     ];
-    public function attributes(){
-        return $this->hasMany(VariantAttribute::class, 'product_variant_id', 'id');
-    }
-    
-    public function product(){
-        return $this->belongsTo(Product::class, 'product_id', 'id');
-    }   
-    public function inventories()
+    public function attributes()
     {
-        return $this->hasMany(Inventory::class, 'product_variant_id', 'id');
+        return $this->belongsToMany(Attribute::class, 'variant_attributes')
+                    ->withPivot('value_id')
+                    ->withTimestamps();
     }
+
+    public function product()
+    {
+        return $this->belongsTo(Product::class, 'product_id', 'id');
+    }
+    public function inventories()
+        {
+            return $this->hasMany(Inventory::class, 'product_variant_id')->from('inventory');
+        }
 }

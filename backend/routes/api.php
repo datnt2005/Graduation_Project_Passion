@@ -12,30 +12,41 @@ use App\Http\Controllers\OrderItemController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PaymentMethodController;
 use App\Http\Controllers\DiscountController;
+use App\Http\Controllers\GoogleAuthController;
+use Illuminate\Support\Facades\Storage;
+
 
 // Category
-Route::get('/categories', [CategoryController::class, 'index']);
-Route::get('/categories/{id}', [CategoryController::class, 'show']);
-Route::get('/categories/{id}/children', [CategoryController::class, 'children']);
-Route::get('/categories/{id}/parents', [CategoryController::class, 'parents']);
-Route::post('/categories', [CategoryController::class, 'store']);
-Route::put('/categories/{id}', [CategoryController::class, 'update']);
-Route::delete('/categories/{id}', [CategoryController::class, 'destroy']);
+Route::prefix('categories')->group(function () {
+Route::get('/', [CategoryController::class, 'index']);
+Route::get('/{id}', [CategoryController::class, 'show']);
+Route::get('/{id}/children', [CategoryController::class, 'children']);
+Route::get('/{id}/parents', [CategoryController::class, 'parents']);
+Route::post('/', [CategoryController::class, 'store']);
+Route::put('/{id}', [CategoryController::class, 'update']);
+Route::delete('/{id}', [CategoryController::class, 'destroy']);
+});
+
 
 //tags
-Route::get('/tags', [TagController::class, 'index']);
-Route::get('/tags/{id}', [TagController::class, 'show']);
-Route::post('/tags', [TagController::class, 'store']);
-Route::put('/tags/{id}', [TagController::class, 'update']);
-Route::patch('/tags/{id}', [TagController::class, 'update']);
-Route::delete('/tags/{id}', [TagController::class, 'destroy']);
+Route::prefix('tags')->group(function () {
+    Route::get('/', [TagController::class, 'index']);
+    Route::get('/{id}', [TagController::class, 'show']);
+    Route::post('/', [TagController::class, 'store']);
+    Route::put('/{id}', [TagController::class, 'update']);
+    Route::patch('/{id}', [TagController::class, 'update']);
+    Route::delete('/{id}', [TagController::class, 'destroy']);
+});
 
 //attributes
-Route::get('/attributes', [AttributeController::class, 'index']);
-Route::get('/attributes/{id}', [AttributeController::class, 'show']);
-Route::post('/attributes', [AttributeController::class, 'store']);
-Route::put('/attributes/{id}', [AttributeController::class, 'update']);
-Route::delete('/attributes/{id}', [AttributeController::class, 'destroy']);
+Route::prefix('attributes')->group(function () {
+    Route::get('/', [AttributeController::class, 'index']);
+    Route::get('/{id}', [AttributeController::class, 'show']);
+    Route::post('/', [AttributeController::class, 'store']);
+    Route::put('/{id}', [AttributeController::class, 'update']);
+    Route::delete('/{id}', [AttributeController::class, 'destroy']);
+    Route::get('/slug/{slug}', [AttributeController::class, 'showBySlug']);
+});
 
 // Products
 Route::prefix('products')->group(function () {
@@ -45,6 +56,7 @@ Route::prefix('products')->group(function () {
     Route::post('/import', [ProductController::class, 'import']);
     Route::put('/{id}', [ProductController::class, 'update']);
     Route::delete('/{id}', [ProductController::class, 'destroy']);
+    Route::get('/slug/{slug}', [ProductController::class, 'showBySlug']);
 });
 
 // Orders
@@ -122,11 +134,21 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::post('/verify-otp', [AuthController::class, 'verifyOtp']);
 Route::post('login', [AuthController::class, 'login']);
 Route::post('/resend-otp', [AuthController::class, 'resendOtp']);
+Route::post('/resend-otp-by-email', [AuthController::class, 'resendOtpByEmail']);
 Route::middleware('auth:sanctum')->post('/logout', [AuthController::class, 'logout']);
+Route::middleware('auth:sanctum')->get('/me', [AuthController::class, 'me']);
+Route::post('/send-forgot-password', [AuthController::class, 'sendForgotPassword']);
+Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 
 // crud user
 Route::apiResource('users', UserController::class);
 
+// google
+// routes/api.php
+Route::get('auth/google/redirect', [GoogleAuthController::class, 'redirectToGoogle']);
+Route::get('auth/google/callback', [GoogleAuthController::class, 'handleGoogleCallback']);
 
 
 
+// crud user
+Route::apiResource('users', UserController::class);
