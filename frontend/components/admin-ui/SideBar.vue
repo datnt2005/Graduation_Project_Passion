@@ -70,7 +70,7 @@
             <li><NuxtLink to="/admin/products/list-products" class="block py-1 hover:text-white" @click="$emit('close')">Tất cả sản phẩm</NuxtLink></li>
             <li><NuxtLink to="#" class="block py-1 font-semibold text-white" @click="$emit('close')">Thêm sản phẩm</NuxtLink></li>
             <li><NuxtLink to="#" class="block py-1 hover:text-white" @click="$emit('close')">Thương hiệu</NuxtLink></li>
-            <li><NuxtLink to="#" class="block py-1 hover:text-white" @click="$emit('close')">Danh mục</NuxtLink></li>
+            <li><NuxtLink to="/admin/categories/list-category" class="block py-1 hover:text-white" @click="$emit('close')">Danh mục</NuxtLink></li>
             <li><NuxtLink to="#" class="block py-1 hover:text-white" @click="$emit('close')">Tags</NuxtLink></li>
             <li><NuxtLink to="#" class="block py-1 hover:text-white" @click="$emit('close')">Biến thể</NuxtLink></li>
             <li><NuxtLink to="#" class="block py-1 hover:text-white" @click="$emit('close')">Đánh giá</NuxtLink></li>
@@ -78,13 +78,51 @@
         </li>
 
          <li class="pt-2 border-t border-gray-800">
-          <NuxtLink to="#" class="flex items-center px-4 py-2 hover:bg-gray-800 gap-3" @click="$emit('close')">
+          <NuxtLink to="/admin/orders/list-order" class="flex items-center px-4 py-2 hover:bg-gray-800 gap-3" @click="$emit('close')">
             <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2"
                 viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round"
                     d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2 9m13-9l2 9m-5-9v5m-4-5v5"/>
             </svg>
             Đơn hàng
+          </NuxtLink>
+        </li>
+
+        <li class="pt-2 border-t border-gray-800">
+          <NuxtLink to="/admin/coupons/list-coupon" class="flex items-center px-4 py-2 hover:bg-gray-800 gap-3" @click="$emit('close')">
+            <svg 
+              class="w-4 h-4 text-gray-400" 
+              fill="none" 
+              viewBox="0 0 24 24" 
+              stroke="currentColor" 
+              stroke-width="2"
+            >
+              <path 
+                stroke-linecap="round" 
+                stroke-linejoin="round" 
+                d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"
+              />
+            </svg>
+            Mã giảm giá
+          </NuxtLink>
+        </li>
+        
+        <li class="pt-2 border-t border-gray-800">
+          <NuxtLink to="#" class="flex items-center px-4 py-2 hover:bg-gray-800 gap-3" @click="$emit('close')">
+            <svg 
+              class="w-4 h-4 text-gray-400" 
+              fill="none" 
+              viewBox="0 0 24 24" 
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path 
+                stroke-linecap="round" 
+                stroke-linejoin="round" 
+                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+              />
+            </svg>
+            Bài viết
           </NuxtLink>
         </li>
 

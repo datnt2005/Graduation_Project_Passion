@@ -21,7 +21,7 @@ class Inventory extends Model
     /**
      * Mối quan hệ với product_variant
      */
-    public function variant()
+    public function productVariant()
     {
         return $this->belongsTo(ProductVariant::class, 'product_variant_id');
     }

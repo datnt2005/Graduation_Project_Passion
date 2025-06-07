@@ -1,30 +1,53 @@
 <template>
   <div class="bg-white p-2 rounded shadow-sm">
-    <!-- Heading -->
     <h2 class="text-lg font-semibold mb-4">Tất cả sản phẩm</h2>
 
-    <!-- Filters -->
-    <Filters />
+    <!-- Bộ lọc -->
+    <Filters @update:filters="handleBrandFilter" />
 
-    <!-- Products -->
-    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-      <div v-for="(item, index) in products" :key="index"
-        class="overflow-hidden p-2 bg-white shadow transition transform hover:scale-105 hover:-translate-y-1 hover:shadow-lg duration-300 text-left">
-        <nuxt-link to="/detail_product" class="block">
-          <img :src="item.image" alt="Hình sản phẩm" class="w-full h-40 object-cover rounded" />
-          <p class="text-sm mt-2 font-medium text-gray-700 line-clamp-2">
+    <!-- Danh sách sản phẩm -->
+   <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+      <div
+        v-for="(item, index) in filteredProducts"
+        :key="item.id"
+        class="overflow-hidden p-2 bg-white rounded shadow transition transform hover:scale-[1.03] hover:-translate-y-1 hover:shadow-lg duration-300 text-left"
+      >
+        <!-- <nuxt-link :to="`/detail_product/${item.id}`" class="block group"> -->
+        <nuxt-link :to="`/detail_product`" class="block group">
+          <!-- Hình ảnh sản phẩm -->
+          <img
+            :src="item.image"
+            :alt="item.name"
+            class="w-full h-40 object-cover rounded group-hover:brightness-95 transition duration-300"
+            loading="lazy"
+          />
+
+          <!-- Tên sản phẩm -->
+          <p
+            class="text-sm mt-2 font-medium text-gray-700 line-clamp-2"
+            :title="item.name"
+          >
             {{ item.name }}
           </p>
-          <div class="text-red-500 font-semibold mt-1">{{ item.price }}</div>
-          <div class="line-through text-gray-400 text-sm">{{ item.discount }}</div>
-          <div class="flex items-center text-sm text-gray-400 space-x-2">
+
+          <!-- Giá -->
+          <div class="text-red-500 font-semibold mt-1">
+            {{ item.price }}₫
+          </div>
+
+          <!-- Giá gạch ngang nếu có giảm -->
+          <div v-if="item.discount" class="line-through text-gray-400 text-sm">
+            {{ item.discount }}₫
+          </div>
+
+          <!-- Đánh giá & đã bán -->
+          <div class="flex items-center text-[12px] text-gray-400 space-x-2 mt-1">
             <div class="text-yellow-400">{{ item.rating }}</div>
-            <div>| {{ item.sold }} đã bán</div>
+            <div>| {{ item.sold.toLocaleString() }} đã bán</div>
           </div>
         </nuxt-link>
       </div>
     </div>
-
   </div>
 </template>
 
@@ -33,16 +56,21 @@
 
 
 <script setup>
-import Filters from '~/components/shared/Filters.vue'
+import { ref, computed } from 'vue';
+import Filters from '~/components/shared/Filters.vue';
+import { useSearchStore } from '~/stores/search';
 
-const products = [
+const searchStore = useSearchStore();
+
+const products = ref([
   {
     name: 'Điện thoại việt nam, tại việt nam. ',
     image: 'https://salt.tikicdn.com/cache/750x750/ts/product/b5/6e/93/026f3f64e6718eb644b5911bca06583f.jpg.webp',
     price: '$199.000',
     discount: '$299.000',
     rating: '★★★★★',
-    sold: '1.000'
+    sold: '1.000',
+    brand: 'Samsung'
   },
   {
     name: 'Gậy Bẻ Lò Xo Ti Tan Lực Bẻ Từ 20KG Tập Tay,Vai,Xô,Ngực Body Tại Nhà. ',
@@ -50,7 +78,8 @@ const products = [
     price: '$129.000',
     discount: '$299.000',
     rating: '★★★★★',
-    sold: '2.000'
+    sold: '2.000',
+    brand: 'Thể thao'
   },
   {
     name: 'MacBook Air M2. ',
@@ -58,7 +87,8 @@ const products = [
     price: '$1999.000',
     discount: '$2999.000',
     rating: '★★★★★',
-    sold: '3.000'
+    sold: '3.000',
+    brand: 'Apple'
   },
   {
     name: 'Apple Watch Series 9 GPS Sport Loop (Viền Nhôm, Dây vải). ',
@@ -66,7 +96,8 @@ const products = [
     price: '$239.000',
     discount: '$299.000',
     rating: '★★★★★',
-    sold: '4.000'
+    sold: '4.000',
+    brand: 'Apple'
   },
   {
     name: 'Ấm Điện Thủy Tinh Siêu Tốc Có Điều Chỉnh Nhiệt Độ Lock&Lock EJK341 (1.8L) - Hàng chính hãng. ',
@@ -74,7 +105,8 @@ const products = [
     price: '$99.000',
     discount: '$299.000',
     rating: '★★★★★',
-    sold: '5.000'
+    sold: '5.000',
+    brand: 'Gia dụng'
   },
   {
     name: 'Máy Đánh Trứng, Đánh Sữa Và Tạo Bọt Cafe Cầm Tay Di Động 3 Tốc Độ Sử Dụng Pin Sạc Cao Cấp - Hàng chính hãng. ',
@@ -82,7 +114,8 @@ const products = [
     price: '$39.000',
     discount: '$299.000',
     rating: '★★★★★',
-    sold: '6.000'
+    sold: '6.000',
+    brand: 'Gia dụng'
   },
   {
     name: '[Mẫu mới] Combo 2 Tã quần SunMate siêu mềm mại G1 mới size M-18+2 miếng. ',
@@ -90,7 +123,8 @@ const products = [
     price: '$99.000',
     discount: '$299.000',
     rating: '★★★★★',
-    sold: '2.300'
+    sold: '2.300',
+    brand: 'Thể thao'
   },
   {
     name: 'Xe Scooter Umoo vận động ngoài trời, tăng cường phát triển thể chất cho Bé. ',
@@ -98,11 +132,44 @@ const products = [
     price: '$199.000',
     discount: '$299.000',
     rating: '★★★★★',
-    sold: '1.000'
+    sold: '1.000',
+    brand: 'Thể thao'
   }
 
 
-]
+]);
+
+// const filteredProducts = computed(() => {
+//   if (!searchStore.query) return products.value;
+//   return products.value.filter(p =>
+//     p.name.toLowerCase().includes(searchStore.query.toLowerCase())
+//   );
+// });
+
+const filteredProducts = computed(() => {
+  return products.value.filter(p => {
+    const matchQuery = searchStore.query
+      ? p.name.toLowerCase().includes(searchStore.query.toLowerCase())
+      : true;
+    
+    const matchBrand = filters.value.brand.length > 0
+      ? filters.value.brand.includes(p.brand)
+      : true;
+
+    return matchQuery && matchBrand;
+  });
+});
+
+
+const filters = ref({ brand: [] });
+
+// khi nhận sự kiện từ Filters
+const handleBrandFilter = (filterData) => {
+  filters.value.brand = filterData.brand;
+};
+
+
+
 </script>
 
 

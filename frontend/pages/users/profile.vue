@@ -1,78 +1,134 @@
 <template>
-  <div class="flex min-h-screen bg-gray-100 justify-center py-8">
-    <div class="flex bg-white rounded-lg shadow-md max-w-5xl w-full">
-      <SidebarProfile class="flex-shrink-0" />
+  <div class="bg-[#f5f7fa] font-sans text-[#1a1a1a] min-h-screen">
+    <div class="flex flex-col md:flex-row max-w-[1200px] mx-auto p-4 md:p-6">
+      <!-- Sidebar -->
+      <SidebarProfile />
 
-      <main class="flex-1 p-8 overflow-y-auto">
-        <div class="min-h-full">
-          <h2 class="text-2xl font-bold text-center mb-2">Hồ sơ của tôi</h2>
-          <p class="text-gray-600 text-center mb-8">Quản lí hồ sơ để thông tin tài khoản của bạn được bảo mật</p>
-
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
-            <div class="md:col-span-2 space-y-5">
-              <div class="flex items-center">
-                <label for="username" class="w-32 text-right text-gray-700 text-sm mr-4">Tên đăng nhập</label>
-                <input
-                  type="text"
-                  id="username"
-                  value="Trần Tiến Phát"
-                  class="flex-1 border border-gray-300 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+      <!-- Main Content -->
+      <main class="flex-grow mt-6 md:mt-0 md:ml-6">
+        <h1 class="text-xl font-bold mb-6">Thông tin tài khoản</h1>
+        <div class="bg-white rounded-lg p-4 md:p-8 flex flex-col md:flex-row md:space-x-8 shadow border border-gray-100">
+          <!-- Thông tin cá nhân -->
+          <section class="flex-grow border-b md:border-b-0 md:border-r border-[#e2e7f7] pr-0 md:pr-8 mb-8 md:mb-0">
+            <h2 class="text-[#7f8fa4] mb-5 text-base font-semibold">Thông tin cá nhân</h2>
+            <div class="flex flex-col sm:flex-row items-center mb-7 gap-6">
+              <div class="relative flex justify-center items-center w-24 h-24 rounded-full border-4 border-[#c7defa] bg-white">
+                <img
+                  id="avatarPreview"
+                  :src="avatarUrl"
+                  alt="Avatar"
+                  class="w-16 h-16 rounded-full object-cover"
+                />
+                <label
+                  for="avatarInput"
+                  class="absolute bottom-0 right-0 bg-[#2a6adf] rounded-full w-7 h-7 flex justify-center items-center text-white text-xs border-2 border-white cursor-pointer hover:bg-[#095cd9] transition-colors"
+                  aria-label="Change avatar"
+                  title="Đổi ảnh đại diện"
                 >
-              </div>
-              <div class="flex items-center">
-                <label for="email" class="w-32 text-right text-gray-700 text-sm mr-4">Email</label>
+                  <font-awesome-icon :icon="['fas', 'pencil']" />
+                </label>
                 <input
-                  type="email"
+                  type="file"
+                  id="avatarInput"
+                  accept="image/*"
+                  class="hidden"
+                  @change="previewAvatar"
+                />
+              </div>
+              <div class="flex flex-col space-y-3 w-full max-w-md">
+                <label class="text-sm font-medium mb-1" for="fullname">Họ & Tên</label>
+                <input
+                  class="border border-[#d1d5db] rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2a6adf]"
+                  id="fullname"
+                  type="text"
+                  v-model="fullname"
+                />
+              </div>
+            </div>
+            <form class="space-y-5 max-w-md" @submit.prevent="savePersonalInfo">
+              <div>
+                <label class="text-sm font-medium mb-1" for="email">Địa chỉ Email</label>
+                <input
+                  class="border border-[#d1d5db] rounded-md px-3 py-2 text-sm w-full focus:outline-none focus:ring-2 focus:ring-[#2a6adf]"
                   id="email"
-                  value="phatttpk03754@gmail.com"
-                  class="flex-1 border border-gray-300 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                >
+                  type="email"
+                  v-model="email"
+                  required
+                />
               </div>
-              <div class="flex items-center">
-                <label for="phone" class="w-32 text-right text-gray-700 text-sm mr-4">Số điện thoại</label>
+              <div>
+                <label class="text-sm font-medium mb-1" for="phone">Số điện thoại</label>
                 <input
-                  type="text"
+                  class="border border-[#d1d5db] rounded-md px-3 py-2 text-sm w-full focus:outline-none focus:ring-2 focus:ring-[#2a6adf]"
                   id="phone"
-                  value="094****548"
-                  class="flex-1 border border-gray-300 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                >
+                  type="tel"
+                  v-model="phone"
+                  required
+                />
               </div>
-              <div class="flex items-center">
-                <span class="w-32 text-right text-gray-700 text-sm mr-4">Giới tính</span>
-                <div class="flex items-center space-x-6">
-                  <label class="inline-flex items-center">
-                    <input type="radio" name="gender" value="Nam" class="form-radio text-blue-600 w-4 h-4">
-                    <span class="ml-2 text-gray-700 text-sm">Nam</span>
-                  </label>
-                  <label class="inline-flex items-center">
-                    <input type="radio" name="gender" value="Nữ" class="form-radio text-blue-600 w-4 h-4">
-                    <span class="ml-2 text-gray-700 text-sm">Nữ</span>
-                  </label>
-                  <label class="inline-flex items-center">
-                    <input type="radio" name="gender" value="Khác" class="form-radio text-blue-600 w-4 h-4">
-                    <span class="ml-2 text-gray-700 text-sm">Khác</span>
-                  </label>
+              <div class="flex justify-center">
+                <button
+                  class="bg-[#0a6efd] text-white rounded-md px-6 py-2 text-sm font-semibold hover:bg-[#095cd9] focus:outline-none focus:ring-2 focus:ring-[#0a6efd] transition-colors"
+                  type="submit"
+                >
+                  Lưu thay đổi
+                </button>
+              </div>
+            </form>
+          </section>
+
+          <!-- Thông tin phụ + Đổi mật khẩu -->
+          <section class="flex-shrink-0 w-full md:w-80 pl-0 md:pl-8 pt-8 md:pt-0">
+            <div class="space-y-6 text-base">
+              <div class="p-4 border rounded-lg shadow bg-gray-50 mb-8">
+                <h3 class="text-[#7f8fa4] font-semibold text-lg mb-2">Thông tin hệ thống</h3>
+                <div class="flex items-center mb-2">
+                  <span class="w-28 text-[#7f8fa4] font-normal">Vai trò:</span>
+                  <span class="font-medium capitalize">{{ role }}</span>
+                </div>
+                <div class="flex items-center mb-2">
+                  <span class="w-28 text-[#7f8fa4] font-normal">Trạng thái:</span>
+                  <span class="font-medium capitalize">{{ status }}</span>
+                </div>
+                <div class="flex items-center">
+                  <span class="w-28 text-[#7f8fa4] font-normal">Đăng nhập lúc:</span>
+                  <span class="font-medium">{{ loggedInAt }}</span>
                 </div>
               </div>
+              <!-- Form đổi mật khẩu -->
+              <form class="space-y-4 p-4 border rounded-lg shadow bg-gray-50" @submit.prevent="changePassword">
+                <h3 class="text-[#7f8fa4] font-semibold text-lg mb-2">Đổi mật khẩu</h3>
+                <div>
+                  <label class="block text-sm font-medium mb-1" for="newPassword">Mật khẩu mới</label>
+                  <input
+                    class="border border-[#d1d5db] rounded-md px-3 py-2 text-sm w-full focus:outline-none focus:ring-2 focus:ring-[#2a6adf]"
+                    id="newPassword"
+                    type="password"
+                    v-model="newPassword"
+                    required
+                  />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium mb-1" for="confirmPassword">Xác nhận mật khẩu</label>
+                  <input
+                    class="border border-[#d1d5db] rounded-md px-3 py-2 text-sm w-full focus:outline-none focus:ring-2 focus:ring-[#2a6adf]"
+                    id="confirmPassword"
+                    type="password"
+                    v-model="confirmPassword"
+                    required
+                  />
+                </div>
+                <div class="flex justify-center">
+                  <button
+                    class="bg-[#2a6adf] text-white rounded-md px-6 py-2 text-sm font-semibold hover:bg-[#095cd9] focus:outline-none focus:ring-2 focus:ring-[#2a6adf] transition-colors"
+                    type="submit"
+                  >
+                    Đổi mật khẩu
+                  </button>
+                </div>
+              </form>
             </div>
-
-            <div class="md:col-span-1 flex flex-col items-center justify-center border-l border-gray-200 pl-8">
-              <div class="w-32 h-32 rounded-full overflow-hidden mb-4 border border-gray-300 flex-shrink-0">
-                <img src="https://scontent.fsgn2-7.fna.fbcdn.net/v/t39.30808-6/488853217_1403799304327811_4217198369891756285_n.jpg?_nc_cat=108&ccb=1-7&_nc_sid=6ee11a&_nc_eui2=AeHciyMx1dL8MLFQhCIgylsfLsjRN7AdrpsuyNE3sB2um3iQlFa9SsqBaHB5uBw24uXcaOfsSIYtmOsZuVdYivAC&_nc_ohc=MjCpNL29a28Q7kNvwGK-rkI&_nc_oc=Adl69t3p2kGP4bUs-mBcf2eki-o5rEmpb2AcvTLXr8MPn1JvuC_dLtVX9iU4IKwNQ5G84TZs_4VyYp_-jMmXlzm7&_nc_zt=23&_nc_ht=scontent.fsgn2-7.fna&_nc_gid=BsWXbAqMV2-h8kuJHig4Fw&oh=00_AfLvGZqvCnOkh-YfiDqxSd2yCMcvyyFQuUgixksjgcaAcA&oe=683D14D2" alt="Avatar" class="w-full h-full object-cover">
-              </div>
-              <button class="px-5 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 text-sm">
-                Chọn ảnh
-              </button>
-              <p class="text-xs text-gray-500 mt-2 text-center">Dung lượng file tối đa 1 MB</p>
-              <p class="text-xs text-gray-500 text-center">Định dạng: JPEG, PNG</p>
-            </div>
-          </div>
-
-          <div class="mt-8 text-center">
-            <button class="px-10 py-3 bg-blue-500 text-white font-semibold rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 text-lg">
-              LƯU
-            </button>
-          </div>
+          </section>
         </div>
       </main>
     </div>
@@ -80,14 +136,62 @@
 </template>
 
 <script setup>
-import SidebarProfile from '~/components/shared/Sidebar-profile.vue';
-// Lấy ID người dùng từ route params
-const route = useRoute();
-const userId = route.params.id;
+import { ref, onMounted } from 'vue'
+import SidebarProfile from '~/components/shared/Sidebar-profile.vue'
 
-// Dữ liệu và hàm của form sẽ ở đây
+// Thông tin cá nhân
+const avatarUrl = ref('https://www.pngmart.com/files/22/User-Avatar-Profile-PNG.png')
+const fullname = ref('')
+const email = ref('')
+const phone = ref('')
+const role = ref('')
+const status = ref('')
+const loggedInAt = ref('')
+
+// Đổi mật khẩu
+const newPassword = ref('')
+const confirmPassword = ref('')
+
+// Tải thông tin user khi vào trang
+onMounted(async () => {
+  const token = localStorage.getItem('access_token')
+  if (!token) return
+  const res = await fetch('http://localhost:8000/api/me', {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+  const json = await res.json()
+  if (json && json.data) {
+    avatarUrl.value = json.data.avatar || 'https://www.pngmart.com/files/22/User-Avatar-Profile-PNG.png'
+    fullname.value = json.data.name || ''
+    email.value = json.data.email || ''
+    phone.value = json.data.phone || ''
+    role.value = json.data.role || ''
+    status.value = json.data.status || ''
+    loggedInAt.value = json.data.logged_in_at || ''
+  }
+})
+
+// Preview avatar (tuỳ logic của Daddy)
+const previewAvatar = (e) => {
+  const file = e.target.files[0]
+  if (file) {
+    avatarUrl.value = URL.createObjectURL(file)
+    // Gọi hàm uploadAvatar nếu cần
+  }
+}
+
+// Lưu thông tin cá nhân
+const savePersonalInfo = () => {
+  // Gọi API cập nhật user, truyền token
+  // Xử lý logic cập nhật tên, email, phone ở đây
+}
+
+// Đổi mật khẩu
+const changePassword = async () => {
+  if (newPassword.value !== confirmPassword.value) {
+    alert('Mật khẩu xác nhận không khớp!')
+    return
+  }
+ 
+}
 </script>
-
-<style scoped>
-/* Scoped styles specific to this page */
-</style>

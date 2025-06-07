@@ -1,82 +1,103 @@
 <template>
-  <footer class="bg-[#1BA0E2] text-white py-10 px-4">
-    <div class="max-w-7xl mx-auto">
-      <!-- Hàng 1: các cột -->
-     <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-6 text-white">
-  <!-- Cột 1 -->
-  <div>
-    <h2 class="text-lg font-semibold mb-4">Liên Hệ Passion</h2>
-    <ul class="space-y-1 text-sm">
-      <li><a href="tel:0333678333" class="hover:underline inline-flex items-center gap-1">Hotline: 0333678333</a></li>
-      <li >Cửa hàng: Phan Chu Trinh, TP Buôn Ma Thuột, DakLak</li>
-      <li><a href="mailto:Pasion@gmail.com" class="hover:underline inline-flex items-center gap-1">Email: Pasion@gmail.com</a></li>
-      <li >Mở cửa: 8h - 17h từ T2 - T7</li>
-    </ul>
-  </div>
-
-  <!-- Cột 2 -->
-  <div>
-    <h2 class="text-lg font-semibold mb-4">Hỗ Trợ Khách Hàng</h2>
-    <ul class="space-y-1 text-sm">
-      <li><a href="#" class="hover:underline inline-flex items-center gap-1">Trung tâm trợ giúp</a></li>
-     <li>
-  <NuxtLink to="/contact" class="hover:underline inline-flex items-center gap-1">
-    Liên hệ khách hàng
-  </NuxtLink>
-</li>
-
-      <li><NuxtLink to="/support" class="hover:underline inline-flex items-center gap-1">Hỗ trợ khách hàng</NuxtLink></li>
-      <li><a href="#" class="hover:underline inline-flex items-center gap-1">An toàn mua bán</a></li>
-    </ul>
-  </div>
-
-  <!-- Cột 3 -->
-  <div>
-    <h2 class="text-lg font-semibold mb-4">Về Chúng Tôi</h2>
-    <ul class="space-y-1 text-sm">
-      <li><NuxtLink to="/introduce" class="hover:underline inline-flex items-center gap-1">Giới Thiệu</NuxtLink></li>
-
-      <li><a href="#" class="hover:underline inline-flex items-center gap-1">Quy chế hoạt động</a></li>
-      <li><a href="#" class="hover:underline inline-flex items-center gap-1">Chính sách bảo mật</a></li>
-      <li><a href="#" class="hover:underline inline-flex items-center gap-1">Giải quyết tranh chấp</a></li>
-      <li><a href="#" class="hover:underline inline-flex items-center gap-1">Tuyển dụng</a></li>
-    </ul>
-  </div>
-
-  <!-- Cột 4 -->
-  <div>
-    <h2 class="text-lg font-semibold mb-4">Liên Kết</h2>
-    <div class="flex space-x-4 text-xl">
-      <a href="https://facebook.com" target="_blank" class="hover:underline inline-flex items-center gap-1">
-        <font-awesome-icon :icon="['fab', 'facebook']" />
-      </a>
-      <a href="https://instagram.com" target="_blank" class="hover:underline inline-flex items-center gap-1"> 
-        <font-awesome-icon :icon="['fab', 'instagram']" />
-      </a>
-      <a href="https://tiktok.com" target="_blank" class="hover:underline inline-flex items-center gap-1">
-        <font-awesome-icon :icon="['fab', 'tiktok']" />
-      </a>
+<footer class="bg-white text-gray-700 pt-10 pb-6 border-t border-gray-200">
+  <!-- Thương hiệu -->
+  <div class="max-w-6xl mx-auto px-4">
+    <div class="text-center mb-10">
+      <h2 class="text-3xl font-bold text-gray-800 tracking-widest">PASSION</h2>
+      <p class="text-sm text-gray-600 mt-2">Nền tảng thương mại điện tử kết nối đam mê và chất lượng đến từng khách hàng.</p>
     </div>
-
-    <h2 class="text-lg font-semibold mb-4 mt-4">Chứng nhận</h2>
-    <div class="flex space-x-4 text-sm">
-      <a href="https://bocongthuong.gov.vn" target="_blank" class="hover:underline inline-flex items-center gap-1">Đã đăng ký bộ công thương</a>
-    </div>
-  </div>
-</div>
-
-  <hr>
-      <!-- Hàng 2: thông tin công ty -->
-      <div class="text-xs text-white leading-relaxed">
-        <p>
-          CÔNG TY TNHH Pasion - Người đại diện theo pháp luật: Nguyễn Trọng Tấn; GPDKKD:
-          0312120782 do sở KH & ĐT TP.HCM cấp ngày 11/01/2013;
-          GPMXH: 185/GP-BTTTT do Bộ Thông tin và Truyền thông cấp ngày 09/07/2024 -
-          Chịu trách nhiệm nội dung: Trần Hoàng Ly. Chính sách sử dụng.
-          Địa chỉ: Tầng 18, Toà nhà UOA, Số 6 đường Tân Trào, Phường Tân Phú, Quận 7, Thành phố Hồ Chí Minh, Việt Nam;
-          Email: trogiup@chotot.vn - Tổng đài CSKH: 19003003 (1.000đ/phút)
-        </p>
+    <!-- Footer main -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 text-sm">
+      <!-- Hỗ trợ khách hàng -->
+      <div>
+        <h2 class="text-lg font-semibold mb-4">Hỗ Trợ Khách Hàng</h2>
+        <ul class="space-y-2">
+          <li>
+            <a href="#" class="hover:underline flex items-center gap-1">
+              <span>Trung tâm trợ giúp</span>
+            </a>
+          </li>
+          <li>
+            <NuxtLink to="/contact" class="hover:underline flex items-center gap-1">
+              <span>Liên hệ khách hàng</span>
+            </NuxtLink>
+          </li>
+          <li>
+            <NuxtLink to="/support" class="hover:underline flex items-center gap-1">
+              <span>Hỗ trợ khách hàng</span>
+            </NuxtLink>
+          </li>
+          <li>
+            <a href="#" class="hover:underline flex items-center gap-1">
+              <span>An toàn mua bán</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+      <!-- Về chúng tôi -->
+      <div>
+        <h2 class="text-lg font-semibold mb-4">Về Chúng Tôi</h2>
+        <ul class="space-y-2">
+          <li>
+            <NuxtLink to="/post" class="hover:underline flex items-center gap-1">
+              <span>Bài viết</span>
+            </NuxtLink>
+          </li>
+          <li>
+            <NuxtLink to="/introduce" class="hover:underline flex items-center gap-1">
+              <span>Giới Thiệu</span>
+            </NuxtLink>
+          </li>
+        </ul>
+        <h3 class="font-semibold text-base mt-6 mb-2">Đối Tác &amp; Bán Hàng</h3>
+        <ul class="space-y-1">
+          <li><a href="#" class="hover:underline">Đăng ký bán hàng</a></li>
+          <li><a href="#" class="hover:underline">Quy định bán hàng</a></li>
+          <li><a href="#" class="hover:underline">Hỗ trợ vận hành</a></li>
+          <li><a href="#" class="hover:underline">Chính sách thanh toán</a></li>
+        </ul>
+      </div>
+      <!-- Tài nguyên & tin tức -->
+      <div>
+        <h2 class="text-lg font-semibold mb-4">Tài Nguyên & Tin Tức</h2>
+        <ul class="space-y-2">
+          <li><a href="#" class="hover:underline">Blog</a></li>
+          <li><a href="#" class="hover:underline">Tin khuyến mãi</a></li>
+          <li><a href="#" class="hover:underline">Cẩm nang mua sắm</a></li>
+          <li><a href="#" class="hover:underline">Tải app Passion</a></li>
+        </ul>
+      </div>
+      <!-- Kết nối với chúng tôi -->
+      <div>
+        <h2 class="text-lg font-semibold mb-4">Kết Nối Với Chúng Tôi</h2>
+        <ul class="space-y-2">
+          <li>
+            <a href="#" class="hover:underline flex items-center">
+              <i class="fab fa-facebook mr-2 text-blue-600"></i> Facebook Passion
+            </a>
+          </li>
+          <li>
+            <a href="#" class="hover:underline flex items-center">
+              <i class="fab fa-instagram mr-2 text-pink-500"></i> Instagram
+            </a>
+          </li>
+          <li>
+            <a href="mailto:hotro@passion.vn" class="hover:underline flex items-center">
+              <i class="fas fa-envelope mr-2 text-gray-500"></i> hotro@passion.vn
+            </a>
+          </li>
+          <li>
+            <span class="flex items-center">
+              <i class="fas fa-phone mr-2 text-green-600"></i> Hotline: 1900 1234
+            </span>
+          </li>
+        </ul>
       </div>
     </div>
-  </footer>
+    <!-- Copyright -->
+    <div class="mt-10 border-t pt-4 text-center text-xs text-gray-500">
+      © 2025 Passion. All rights reserved.
+    </div>
+  </div>
+</footer>
 </template>

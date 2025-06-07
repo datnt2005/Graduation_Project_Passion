@@ -29,4 +29,9 @@ class User extends Authenticatable
         'status' => 'string',
     ];
 
+
+public function getAvatarUrlAttribute()
+    {
+        return $this->avatar ? Storage::disk('r2')->url($this->avatar) : null;
+    }
 }

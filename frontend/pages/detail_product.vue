@@ -1,4 +1,10 @@
 <template>
+  <main class="max-w-7xl mx-auto p-4 sm:p-6 md:p-8">
+    <!-- Top product section -->
+    <section class="bg-white border border-gray-200 rounded-md p-4 md:p-6 mb-8">
+      <div class="flex flex-col md:flex-row gap-6">
+        <!-- Product Image Gallery -->
+        <ProductImageGallery :images="productImages" :alts="productImagesAlt" v-model:current-image="currentImage" />
 
     <head>
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
@@ -359,21 +365,58 @@
             </section>
         </main>
     </body>
+
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
+import ProductImageGallery from '../components/shared/ProductImageGallery.vue';
+import ProductOptions from '../components/shared/ProductOptions.vue';
+import RelatedProductItem from '../components/shared/RelatedProductItem.vue';
+import ReviewItem from '../components/shared/ReviewItem.vue';
 
-const ramOptions = ['8GB', '12GB', '16GB']
-const romOptions = ['128GB', '256GB', '512GB']
-const colorOptions = ['Đen', 'Bạc', 'Vàng']
-const warrantyOptions = ['12 tháng', '18 tháng']
+// Product Data
+const product = {
+  name: 'Samsung Note20 Ultra 5G',
+  description: 'Galaxy Note 20 Ultra 256 GB 1 tháng',
+  price: '5.500.000',
+  location: 'Phường 9, Quận 3, Tp Hồ Chí Minh',
+  updatedAt: '5 giờ trước',
+  phone: '0374********',
+  fullDescription: `
+    Samsung note20 ultra 5G ram 12G ổ cứng 256 G. Máy đầy đủ tính năng. Ngoại hình đẹp 99%. Màn chính kim. Giá chỉ 5tr6, với các trạng thái như mới, chưa trầy xước, chưa tróc sơn, vân tay.
+    Xem máy tại 55 D1 Tô Quang Bửu, Phường 15, Quận 8, Hồ Chí Minh.
+    Có ship COD toàn quốc, được kiểm tra, trả nghiệm trước khi nhận hàng.
+    Máy được test, bảo hành theo quy định.
+    Thanh toán: tiền mặt, chuyển khoản, trả góp lãi suất 0%.
+  `,
+};
 
-const selectedRam = ref(null)
-const selectedRom = ref(null)
-const selectedColor = ref(null)
-const selectedWarranty = ref(null)
+// Seller Data
+const seller = {
+  name: 'Phan Minh Tuấn',
+  stats: 'Đã đăng bán 6 sản phẩm - Đánh giá 4.8/5',
+  rating: 4.8,
+  avatar: 'https://storage.googleapis.com/a1aa/image/bbe47371-7ae2-4341-d2fb-d02436f6367e.jpg',
+  alt: 'Avatar of user Phan Minh Tuấn',
+};
 
+// Options
+const options = {
+  ram: ['8GB', '12GB', '16GB'],
+  rom: ['128GB', '256GB', '512GB'],
+  color: ['Đen', 'Bạc', 'Vàng'],
+  warranty: ['12 tháng', '18 tháng'],
+};
+
+const selectedOptions = ref({
+  ram: null,
+  rom: null,
+  color: null,
+  warranty: null,
+});
+
+// Images
 const productImages = [
     'https://storage.googleapis.com/a1aa/image/7ad18199-6b36-4171-e823-9cec3d8bde9f.jpg',
     'https://storage.googleapis.com/a1aa/image/c63c6593-7a16-4b2b-b1ea-ec7d1b11003e.jpg',
@@ -391,8 +434,156 @@ const productImagesAlt = [
 const currentImage = ref(0)
 let intervalId = null
 
-const isCollapsed = ref(true)
+const currentImage = ref(0);
+const isCollapsed = ref(true);
 
+// Related Products
+const relatedProducts = [
+  { id: 1, name: 'Sony Xperia 5 Mini 64gb 2n đẹp - Hỗ trợ 0đ', price: '3.700.000', image: 'https://storage.googleapis.com/a1aa/image/9610552e-6c3d-49fd-7ecc-045dcdc2a920.jpg' },
+  { id: 2, name: 'Sony Xperia 5 Mini 64gb 2n đẹp - Hỗ trợ 0đ', price: '2.700.000', image: 'https://storage.googleapis.com/a1aa/image/9610552e-6c3d-49fd-7ecc-045dcdc2a920.jpg' },
+  { id: 3, name: 'Sony Xperia 5 Mini 64gb 2n đẹp - Hỗ trợ 0đ', price: '2.700.000', image: 'https://storage.googleapis.com/a1aa/image/9610552e-6c3d-49fd-7ecc-045dcdc2a920.jpg' },
+  { id: 4, name: 'Sony Xperia 5 Mini 64gb 2n đẹp - Hỗ trợ 0đ', price: '2.700.000', image: 'https://storage.googleapis.com/a1aa/image/9610552e-6c3d-49fd-7ecc-045dcdc2a920.jpg' },
+  { id: 5, name: 'Sony Xperia 5 Mini 64gb 2n đẹp - Hỗ trợ 0đ', price: '2.700.000', image: 'https://storage.googleapis.com/a1aa/image/9610552e-6c3d-49fd-7ecc-045dcdc2a920.jpg' },
+  { id: 6, name: 'Sony Xperia 5 Mini 64gb 2n đẹp - Hỗ trợ 0đ', price: '2.700.000', image: 'https://storage.googleapis.com/a1aa/image/9610552e-6c3d-49fd-7ecc-045dcdc2a920.jpg' },
+  { id: 7, name: 'Sony Xperia 5 Mini 64gb 2n đẹp - Hỗ trợ 0đ', price: '2.700.000', image: 'https://storage.googleapis.com/a1aa/image/9610552e-6c3d-49fd-7ecc-045dcdc2a920.jpg' },
+  { id: 8, name: 'Sony Xperia 5 Mini 64gb 2n đẹp - Hỗ trợ 0đ', price: '2.700.000', image: 'https://storage.googleapis.com/a1aa/image/9610552e-6c3d-49fd-7ecc-045dcdc2a920.jpg' },
+];
+
+const showAll = ref(false);
+const displayProducts = computed(() => {
+  return showAll.value ? relatedProducts : relatedProducts.slice(0, 4);
+});
+
+const reviews = {
+  summary: {
+    rating: 4.5,
+    count: 4,
+    ratings: [
+      { stars: 5, percentage: 80, count: 3 },
+      { stars: 4, percentage: 20, count: 1 },
+      { stars: 3, percentage: 0, count: 0 },
+      { stars: 2, percentage: 0, count: 0 },
+      { stars: 1, percentage: 0, count: 0 },
+    ],
+  },
+  list: [
+    {
+      id: 1,
+      user: 'Nguyen Anh Tuan',
+      avatar: 'https://storage.googleapis.com/a1aa/image/34160c1a-ddaa-4f95-98ff-c2598c702304.jpg',
+      rating: 5,
+      comment: 'Giao hàng rất nhanh, sản phẩm đúng mô tả',
+      reply: "Cảm ơn bạn đã mua sản phẩm",
+      purchased: true,
+      likes: 5,
+      images: [
+        'https://storage.googleapis.com/a1aa/image/9610552e-6c3d-49fd-7ecc-045dcdc2a920.jpg',
+        'https://storage.googleapis.com/a1aa/image/9610552e-6c3d-49fd-7ecc-045dcdc2a920.jpg'
+      ],
+      color: 'Đỏ',
+      usageTime: '2 tuần',
+      date: '05/06/2025',
+      joined: '01/2024',
+      totalReviews: 3
+    },
+    {
+      id: 2,
+      user: 'Le Thi Hoa',
+      avatar: 'https://storage.googleapis.com/a1aa/image/9610552e-6c3d-49fd-7ecc-045dcdc2a920.jpg',
+      rating: 4,
+      comment: 'Ổn áp nhưng giao hàng hơi chậm.',
+      purchased: true,
+      likes: 3,
+      images: [],
+      color: 'Xanh',
+      usageTime: '1 tháng',
+      date: '03/06/2025',
+      joined: '09/2023',
+      totalReviews: 5
+    },
+    {
+      id: 3,
+      user: 'Tran Van B',
+      avatar: 'https://storage.googleapis.com/a1aa/image/9610552e-6c3d-49fd-7ecc-045dcdc2a920.jpg',
+      rating: 5,
+      comment: 'Rất ưng ý, sẽ ủng hộ thêm!',
+      purchased: true,
+      likes: 7,
+      images: ['https://storage.googleapis.com/a1aa/image/9610552e-6c3d-49fd-7ecc-045dcdc2a920.jpg'],
+      color: 'Vàng',
+      usageTime: '3 ngày',
+      date: '01/06/2025',
+      joined: '05/2024',
+      totalReviews: 1
+    },
+    {
+      id: 4,
+      user: 'Pham Minh Chau',
+      avatar: 'https://storage.googleapis.com/a1aa/image/9610552e-6c3d-49fd-7ecc-045dcdc2a920.jpg',
+      rating: 5,
+      comment: 'Shop đóng gói cẩn thận, hàng đẹp.',
+      purchased: true,
+      likes: 6,
+      images: [],
+      color: 'Trắng',
+      usageTime: '5 ngày',
+      date: '31/05/2025',
+      joined: '02/2024',
+      totalReviews: 2
+    }
+  ]
+};
+
+// Pagination for Reviews
+const currentPage = ref(1);
+const itemsPerPage = 3;
+const totalPages = computed(() =>
+  Math.ceil(reviews.list.length / itemsPerPage)
+);
+
+const paginatedReviews = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage;
+  const end = start + itemsPerPage;
+  return reviews.list.slice(start, end);
+});
+
+const reviewSection = ref(null);
+
+// Scroll mượt tới vùng đánh giá
+const scrollToReview = () => {
+  reviewSection.value?.scrollIntoView({ behavior: 'smooth' });
+};
+
+// Khi đổi trang, vừa đổi số trang vừa scroll lên
+const goToPage = (page) => {
+  if (page >= 1 && page <= totalPages.value) {
+    currentPage.value = page;
+    scrollToReview();
+  }
+};
+
+const isFavorite = ref(false);
+
+function toggleFavorite() {
+  isFavorite.value = !isFavorite.value;
+  const favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
+  if (isFavorite.value) {
+    // Thêm vào danh sách nếu chưa có
+    if (!favorites.find(p => p.id === product.id)) {
+      favorites.push(product);
+    }
+  } else {
+    // Gỡ bỏ
+    const index = favorites.findIndex(p => p.id === product.id);
+    if (index > -1) {
+      favorites.splice(index, 1);
+    }
+  }
+  localStorage.setItem('favorites', JSON.stringify(favorites));
+}
+
+// Image Carousel
+let intervalId = null;
 onMounted(() => {
     intervalId = setInterval(() => {
         currentImage.value = (currentImage.value + 1) % productImages.length
@@ -531,7 +722,6 @@ function resetForm() {
 onMounted(() => {
     loadReviews()
 })
-
 </script>
 
 
@@ -568,4 +758,15 @@ stars.forEach(star => {
     /* màu vàng nhạt khi hover */
 }
 </style>
-git checkout -b tpaatne
+
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+</style>
