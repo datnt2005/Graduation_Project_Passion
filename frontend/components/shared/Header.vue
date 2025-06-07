@@ -134,6 +134,11 @@
                   </svg>Đang xử lý...</span>
                 <span v-else>{{ isLogin ? 'Đăng nhập' : 'Đăng ký' }}</span>
               </button>
+
+              <!-- google -->
+                <button @click="loginWithGoogle" type="button" class="btn-google">
+             <i class="fab fa-google"></i> Đăng nhập bằng Google
+                 </button>
             </form>
 
             <!-- FORM 2: XÁC MINH EMAIL -->
@@ -702,7 +707,8 @@ const showForgotPassword = ref(false)
 const showResetPassword = ref(false)
 const isForgotMode = ref(false)
 const isResetMode = ref(false) 
- 
+ const emit = defineEmits(['loginSuccess'])
+
 const isResetting = ref(false)
 const userName = ref('')
 
@@ -722,6 +728,72 @@ const openForgotPassword = () => {
   showVerifyEmailForm.value = false
   showOtp.value = false
 }
+
+// google login
+function loginWithGoogle() {
+  const width = 500;
+  const height = 600;
+  const left = window.screen.width / 2 - width / 2;
+  const top = window.screen.height / 2 - height / 2;
+
+  const googleAuthUrl = 'http://localhost:8000/api/auth/google/redirect';
+  const expectedOrigin = 'http://localhost:8000';
+  const popup = window.open(
+    googleAuthUrl,
+    'Google Login',
+    `width=${width},height=${height},top=${top},left=${left}`
+  );
+
+  // Hàm xử lý nhận thông báo từ popup
+  const messageHandler = async (event) => {
+    if (event.origin !== expectedOrigin) {
+      console.warn('Invalid origin:', event.origin);
+      return;
+    }
+
+    console.log('Received message from:', event.origin, event.data);
+
+    if (event.data?.token) {
+      localStorage.setItem('access_token', event.data.token);
+
+      try {
+        const res = await fetch('http://localhost:8000/api/me', {
+          headers: {
+            Authorization: `Bearer ${event.data.token}`,
+          },
+        });
+
+        const data = await res.json();
+
+        if (res.ok && data.data) {
+          window.dispatchEvent(new CustomEvent('loginSuccess', { detail: data.data }));
+          toast('success', 'Đăng nhập Google thành công!');
+          showModal.value = false;
+          fetchUserProfile();
+          updateLoginState();
+        } else {
+          throw new Error(data.message || 'Không lấy được thông tin tài khoản!');
+        }
+      } catch (error) {
+        console.error('Login verification failed:', error);
+        toast('error', 'Xác thực đăng nhập thất bại.');
+        localStorage.removeItem('access_token');
+      } finally {
+        popup?.close();
+        window.removeEventListener('message', messageHandler);
+      }
+    }
+    else if (event.data?.error) {
+      toast('error', event.data.error);
+      popup?.close();
+      window.removeEventListener('message', messageHandler);
+    }
+  };
+
+  window.addEventListener('message', messageHandler, { once: true });
+}
+
+
 
 const cancelOtp = () => {
   showOtp.value = false
