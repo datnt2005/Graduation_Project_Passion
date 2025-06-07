@@ -68,25 +68,33 @@
                                 <div class="space-y-4">
                                     <label class="flex items-center space-x-3 cursor-pointer">
                                         <input type="radio" name="payment-method"
-                                            class="form-radio text-blue-600 h-5 w-5" 
-                                            :checked="selectedPaymentMethod === 'COD'"
-                                            @change="selectPaymentMethod('COD')">
+                                            class="form-radio text-blue-600 h-5 w-5" checked>
                                         <span class="text-gray-900">Thanh toán tiền mặt</span>
                                     </label>
                                     <label class="flex items-center space-x-3 cursor-pointer">
                                         <input type="radio" name="payment-method"
-                                            class="form-radio text-blue-600 h-5 w-5"
-                                            :checked="selectedPaymentMethod === 'MOMO'"
-                                            @change="selectPaymentMethod('MOMO')">
+                                            class="form-radio text-blue-600 h-5 w-5">
+                                        <img src="https://upload.wikimedia.org/wikipedia/vi/f/f6/Logo_Viettel_Money.png"
+                                            alt="Viettel Money" class="h-6 w-auto">
+                                        <span class="text-gray-900">Viettel Money</span>
+                                    </label>
+                                    <label class="flex items-center space-x-3 cursor-pointer">
+                                        <input type="radio" name="payment-method"
+                                            class="form-radio text-blue-600 h-5 w-5">
                                         <img src="https://img.mservice.io/image/cc8f4a38dfc6f1a8e100f13c690234a9"
                                             alt="MoMo" class="h-6 w-auto">
                                         <span class="text-gray-900">Ví MoMo</span>
                                     </label>
                                     <label class="flex items-center space-x-3 cursor-pointer">
                                         <input type="radio" name="payment-method"
-                                            class="form-radio text-blue-600 h-5 w-5"
-                                            :checked="selectedPaymentMethod === 'VNPAY'"
-                                            @change="selectPaymentMethod('VNPAY')">
+                                            class="form-radio text-blue-600 h-5 w-5">
+                                        <img src="https://cdn.zalopay.com.vn/zlp/images/logo/logo-square_256px.png"
+                                            alt="ZaloPay" class="h-6 w-auto">
+                                        <span class="text-gray-900">Ví ZaloPay</span>
+                                    </label>
+                                    <label class="flex items-center space-x-3 cursor-pointer">
+                                        <input type="radio" name="payment-method"
+                                            class="form-radio text-blue-600 h-5 w-5">
                                         <img src="https://static.vnpay.vn/vnpay_logo.svg" alt="VNPAY"
                                             class="h-6 w-auto">
                                         <span class="text-gray-900">VNPAY - Quét mã QR từ ứng dụng ngân hàng</span>
@@ -461,10 +469,8 @@
 
                                 <div class="mt-6">
                                     <button
-                                        @click="handlePayment"
-                                        :disabled="loading"
-                                        class="w-full bg-red-500 text-white py-3 rounded-lg font-bold text-lg hover:bg-red-700 transition duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed">
-                                        {{ loading ? 'Đang xử lý...' : 'Đặt hàng' }}
+                                        class="w-full bg-red-500 text-white py-3 rounded-lg font-bold text-lg hover:bg-red-700 transition duration-200">
+                                        Đặt hàng
                                     </button>
                                 </div>
                             </section>
@@ -491,88 +497,8 @@
 </template>
 
 <script>
-import axios from 'axios';
-
 export default {
-    name: "checkout",
-    data() {
-        return {
-            selectedPaymentMethod: 'COD',
-            loading: false,
-            order: {
-                shipping_method: 'giao-tiet-kiem',
-                user_id: null, // Will be set from auth
-                address_id: null, // Will be set from selected address
-                items: [], // Will be populated from cart
-                note: '',
-                payment_method: 'COD'
-            }
-        }
-    },
-    methods: {
-        async handlePayment() {
-            try {
-                this.loading = true;
-                
-                // First create the order
-                const orderResponse = await axios.post('http://localhost:8000/api/orders', this.order);
-                const orderId = orderResponse.data.data.id;
-
-                // Handle different payment methods
-                switch(this.selectedPaymentMethod) {
-                    case 'VNPAY':
-                        const vnpayResponse = await axios.post('http://localhost:8000/api/payments/vnpay/create', {
-                            order_id: orderId
-                        });
-                        // Redirect to VNPAY payment URL
-                        window.location.href = vnpayResponse.data.data.payment_url;
-                        break;
-
-                    case 'MOMO':
-                        const momoResponse = await axios.post('http://localhost:8000/api/payments/momo/create', {
-                            order_id: orderId
-                        });
-                        // Redirect to MOMO payment URL
-                        window.location.href = momoResponse.data.data.payment_url;
-                        break;
-
-                    case 'COD':
-                        // For COD, just redirect to success page
-                        this.$router.push('/order-success');
-                        break;
-
-                    default:
-                        throw new Error('Phương thức thanh toán không hợp lệ');
-                }
-            } catch (error) {
-                console.error('Payment error:', error);
-                alert(error.response?.data?.message || 'Có lỗi xảy ra khi xử lý thanh toán');
-            } finally {
-                this.loading = false;
-            }
-        },
-
-        selectPaymentMethod(method) {
-            this.selectedPaymentMethod = method;
-            this.order.payment_method = method;
-        }
-    },
-    async created() {
-        // Here you would typically:
-        // 1. Get user info from auth
-        // 2. Get cart items
-        // 3. Get shipping address
-        // This is just an example:
-        this.order.user_id = 1; // Replace with actual user ID
-        this.order.address_id = 1; // Replace with selected address ID
-        this.order.items = [
-            {
-                product_id: 1,
-                quantity: 1,
-                price: 299000
-            }
-        ];
-    }
+    name: "checkout"
 }
 </script>
 
