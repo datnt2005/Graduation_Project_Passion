@@ -32,7 +32,7 @@
     <ul class="space-y-1 text-sm">
         <li><NuxtLink to="/post" href="#" class="hover:underline inline-flex items-center gap-1">Bài viết</NuxtLink></li>
       <li><NuxtLink to="/introduce" class="hover:underline inline-flex items-center gap-1">Giới Thiệu</NuxtLink></li>
-
+    </ul>
     <!-- ĐỐI TÁC & BÁN HÀNG -->
     <div>
       <h3 class="font-semibold text-base mb-3">ĐỐI TÁC & BÁN HÀNG</h3>

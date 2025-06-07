@@ -664,6 +664,7 @@ Quay lại trang đăng nhập
       </div>
     </div>
   </div>
+  </div>
   <Features />
 </template>
 
@@ -1067,7 +1068,7 @@ onMounted(() => {
   })
 })
 
-const isMobileMenuOpen = ref(false)
+
 const showVerifyEmailForm = ref(false)
 </script>
 

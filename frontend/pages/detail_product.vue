@@ -4,11 +4,7 @@
     <section class="bg-white border border-gray-200 rounded-md p-4 md:p-6 mb-8">
       <div class="flex flex-col md:flex-row gap-6">
         <!-- Product Image Gallery -->
-        <ProductImageGallery
-          :images="productImages"
-          :alts="productImagesAlt"
-          v-model:current-image="currentImage"
-        />
+        <ProductImageGallery :images="productImages" :alts="productImagesAlt" v-model:current-image="currentImage" />
 
         <!-- Product Info -->
         <div class="flex-1 flex flex-col justify-between">
@@ -20,34 +16,24 @@
             <p class="text-xs text-gray-500 mb-2">Rẻ hơn - Có trả góp</p>
 
             <!-- Product Options -->
-            <ProductOptions
-              :options="options"
-              v-model:selected="selectedOptions"
-            />
+            <ProductOptions :options="options" v-model:selected="selectedOptions" />
 
             <!-- Action Buttons -->
             <div class="flex gap-4 mb-2">
               <!-- Changed text-red-600 to text-blue-600 for buttons -->
               <button
                 class="text-xs font-semibold text-blue-600 border border-blue-600 rounded px-4 py-1 bg-white transition hover:bg-blue-600 hover:text-white"
-                type="button"
-                aria-label="Mua ngay sản phẩm"
-              >
+                type="button" aria-label="Mua ngay sản phẩm">
                 Mua ngay
               </button>
               <NuxtLink to="/cart"
                 class="text-xs font-semibold text-blue-600 border border-blue-600 rounded px-4 py-1 bg-white transition hover:bg-blue-600 hover:text-white"
-                type="button"
-                aria-label="Thêm sản phẩm vào giỏ hàng"
-              >
+                type="button" aria-label="Thêm sản phẩm vào giỏ hàng">
                 Thêm vào giỏ hàng
               </NuxtLink>
               <button
                 class="text-xs font-semibold text-pink-600 border border-pink-600 rounded px-4 py-1 bg-white transition hover:bg-pink-600 hover:text-white flex items-center gap-1"
-                type="button"
-                aria-label="Yêu thích sản phẩm"
-                @click="toggleFavorite"
-              >
+                type="button" aria-label="Yêu thích sản phẩm" @click="toggleFavorite">
                 <i :class="isFavorite ? 'fas fa-heart' : 'far fa-heart'"></i>
                 <span>{{ isFavorite ? 'Đã yêu thích' : 'Yêu thích' }}</span>
               </button>
@@ -68,14 +54,8 @@
 
           <!-- Seller Info -->
           <div class="flex items-center gap-3 bg-gray-100 p-3 rounded-md">
-            <img
-              :alt="seller.alt"
-              :src="seller.avatar"
-              class="w-10 h-10 rounded-full"
-              height="40"
-              width="40"
-              loading="lazy"
-            />
+            <img :alt="seller.alt" :src="seller.avatar" class="w-10 h-10 rounded-full" height="40" width="40"
+              loading="lazy" />
             <div class="flex-1">
               <p class="text-sm font-semibold text-gray-900">{{ seller.name }}</p>
               <p class="text-xs text-gray-600">{{ seller.stats }}</p>
@@ -89,18 +69,11 @@
     <!-- Description -->
     <section class="mb-8">
       <h2 class="text-[20px] font-semibold mb-2">Mô tả chi tiết</h2>
-      <p
-        class="text-[16px] text-gray-700 mb-4 leading-relaxed"
-        :class="{ 'line-clamp-2': isCollapsed }"
-      >
+      <p class="text-[16px] text-gray-700 mb-4 leading-relaxed" :class="{ 'line-clamp-2': isCollapsed }">
         {{ product.fullDescription }}
       </p>
-      <button
-        class="text-xs text-gray-700 border border-gray-300 rounded px-3 py-1 hover:bg-gray-100 transition"
-        type="button"
-        @click="isCollapsed = !isCollapsed"
-        :aria-expanded="!isCollapsed"
-      >
+      <button class="text-xs text-gray-700 border border-gray-300 rounded px-3 py-1 hover:bg-gray-100 transition"
+        type="button" @click="isCollapsed = !isCollapsed" :aria-expanded="!isCollapsed">
         {{ isCollapsed ? 'Xem thêm' : 'Thu gọn' }}
       </button>
     </section>
@@ -118,25 +91,19 @@
         Sản Phẩm Liên Quan
       </h3>
       <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6 max-w-6xl mx-auto px-4">
-        <RelatedProductItem
-          v-for="item in displayProducts"
-          :key="item.id"
-          :product="item"
-        />
+        <RelatedProductItem v-for="item in displayProducts" :key="item.id" :product="item" />
       </div>
       <div v-if="relatedProducts.length > 4" class="max-w-6xl mx-auto px-4 mt-6 flex justify-end">
         <button
           class="text-sm text-blue-600 cursor-pointer hover:underline hover:text-blue-800 transition-colors duration-300"
-          @click="showAll = !showAll"
-          :aria-expanded="showAll"
-        >
+          @click="showAll = !showAll" :aria-expanded="showAll">
           {{ showAll ? 'Thu gọn' : 'Xem Tất Cả' }}
         </button>
       </div>
     </section>
 
     <!-- Customer Reviews -->
-    <section class="w-full mb-12 py-6 bg-gray-50">
+    <section ref="reviewSection" class="w-full mb-12 py-6 bg-gray-50">
       <h3 class="text-sm font-semibold mb-4">Khách hàng đánh giá</h3>
       <div class="flex flex-col sm:flex-row gap-4 mb-4">
         <!-- Review Summary -->
@@ -148,17 +115,10 @@
           </div>
           <p class="text-gray-500 mb-2">({{ reviews.summary.count }} đánh giá)</p>
           <div class="space-y-1">
-            <div
-              v-for="rating in reviews.summary.ratings"
-              :key="rating.stars"
-              class="flex items-center gap-2"
-            >
+            <div v-for="rating in reviews.summary.ratings" :key="rating.stars" class="flex items-center gap-2">
               <span>{{ rating.stars }}</span>
               <div class="w-full bg-gray-200 rounded h-2">
-                <div
-                  class="bg-yellow-400 h-2 rounded"
-                  :style="{ width: rating.percentage + '%' }"
-                ></div>
+                <div class="bg-yellow-400 h-2 rounded" :style="{ width: rating.percentage + '%' }"></div>
               </div>
               <span>{{ rating.count }}</span>
             </div>
@@ -168,60 +128,44 @@
         <!-- Comment Form -->
         <div class="flex-1 text-xs">
           <p class="font-semibold mb-1">Bình luận - xem đánh giá ★★★★★</p>
-          <textarea
-            class="w-full border border-gray-300 rounded p-2 resize-none"
-            rows="6"
-            aria-label="Viết bình luận của bạn"
-          ></textarea>
-          <button
-            class="mt-2 px-3 py-1 text-xs border border-gray-300 rounded hover:bg-gray-100 transition"
-            type="button"
-            aria-label="Gửi bình luận"
-          >
+          <textarea class="w-full border border-gray-300 rounded p-2 resize-none" rows="6"
+            aria-label="Viết bình luận của bạn"></textarea>
+          <button class="mt-2 px-3 py-1 text-xs border border-gray-300 rounded hover:bg-gray-100 transition"
+            type="button" aria-label="Gửi bình luận">
             Gửi
           </button>
         </div>
       </div>
 
+  
       <!-- Review List -->
-      <div class="space-y-4">
-       <ReviewItem
-          v-for="review in paginatedReviews"
-          :key="review.id"
-          :review="review"
-        />
-      </div>
+    <transition-group name="fade" tag="div" class="space-y-4">
+      <ReviewItem
+        v-for="review in paginatedReviews"
+        :key="review.id"
+        :review="review"
+      />
+    </transition-group>
 
       <!-- Pagination -->
-      <nav
-        aria-label="Phân trang đánh giá"
-        class="mt-6 flex justify-center items-center gap-3 text-xs text-gray-700 select-none"
-      >
-        <button
-          aria-label="Trang trước"
-          class="p-1 rounded hover:bg-gray-200 transition"
-          type="button"
-          :disabled="currentPage === 1"
-        >
+      <nav aria-label="Phân trang đánh giá"
+        class="mt-6 flex justify-center items-center gap-3 text-xs text-gray-700 select-none">
+        <button aria-label="Trang trước" class="p-1 rounded hover:bg-gray-200 transition" type="button"
+          :disabled="currentPage === 1" @click="goToPage(currentPage - 1)">
           <i class="fas fa-chevron-left"></i>
         </button>
-        <button
-          v-for="page in totalPages"
-          :key="page"
-          :aria-current="page === currentPage ? 'page' : undefined"
+
+        <!-- Các nút số trang -->
+        <button v-for="page in totalPages" :key="page" :aria-current="page === currentPage ? 'page' : undefined"
           class="w-7 h-7 rounded hover:bg-gray-200 transition"
-          :class="{ 'bg-gray-200 text-gray-900 font-semibold': page === currentPage }"
-          type="button"
-          @click="currentPage = page"
-        >
+          :class="{ 'bg-gray-200 text-gray-900 font-semibold': page === currentPage }" type="button"
+          @click="goToPage(page)">
           {{ page }}
         </button>
-        <button
-          aria-label="Trang sau"
-          class="p-1 rounded hover:bg-gray-200 transition"
-          type="button"
-          :disabled="currentPage === totalPages"
-        >
+
+        <!-- Nút "Trang sau" -->
+        <button aria-label="Trang sau" class="p-1 rounded hover:bg-gray-200 transition" type="button"
+          :disabled="currentPage === totalPages" @click="goToPage(currentPage + 1)">
           <i class="fas fa-chevron-right"></i>
         </button>
       </nav>
@@ -314,16 +258,15 @@ const displayProducts = computed(() => {
   return showAll.value ? relatedProducts : relatedProducts.slice(0, 4);
 });
 
-// Reviews
 const reviews = {
   summary: {
     rating: 4.5,
-    count: 5,
+    count: 4,
     ratings: [
-      { stars: 5, percentage: 20, count: 1 },
-      { stars: 4, percentage: 15, count: 1 },
-      { stars: 3, percentage: 10, count: 1 },
-      { stars: 2, percentage: 5, count: 0 },
+      { stars: 5, percentage: 80, count: 3 },
+      { stars: 4, percentage: 20, count: 1 },
+      { stars: 3, percentage: 0, count: 0 },
+      { stars: 2, percentage: 0, count: 0 },
       { stars: 1, percentage: 0, count: 0 },
     ],
   },
@@ -334,52 +277,94 @@ const reviews = {
       avatar: 'https://storage.googleapis.com/a1aa/image/34160c1a-ddaa-4f95-98ff-c2598c702304.jpg',
       rating: 5,
       comment: 'Giao hàng rất nhanh, sản phẩm đúng mô tả',
+      reply: "Cảm ơn bạn đã mua sản phẩm",
       purchased: true,
       likes: 5,
-      thanks: 1,
+      images: [
+        'https://storage.googleapis.com/a1aa/image/9610552e-6c3d-49fd-7ecc-045dcdc2a920.jpg',
+        'https://storage.googleapis.com/a1aa/image/9610552e-6c3d-49fd-7ecc-045dcdc2a920.jpg'
+      ],
+      color: 'Đỏ',
+      usageTime: '2 tuần',
+      date: '05/06/2025',
+      joined: '01/2024',
+      totalReviews: 3
     },
     {
       id: 2,
-      user: 'Nguyen Anh Tuan',
-      avatar: 'https://storage.googleapis.com/a1aa/image/34160c1a-ddaa-4f95-98ff-c2598c702304.jpg',
-      rating: 5,
-      comment: 'Giao hàng rất nhanh, sản phẩm đúng mô tả',
+      user: 'Le Thi Hoa',
+      avatar: 'https://storage.googleapis.com/a1aa/image/9610552e-6c3d-49fd-7ecc-045dcdc2a920.jpg',
+      rating: 4,
+      comment: 'Ổn áp nhưng giao hàng hơi chậm.',
       purchased: true,
-      likes: 5,
-      thanks: 1,
+      likes: 3,
+      images: [],
+      color: 'Xanh',
+      usageTime: '1 tháng',
+      date: '03/06/2025',
+      joined: '09/2023',
+      totalReviews: 5
     },
     {
       id: 3,
-      user: 'Nguyen Anh Tuan',
-      avatar: 'https://storage.googleapis.com/a1aa/image/34160c1a-ddaa-4f95-98ff-c2598c702304.jpg',
+      user: 'Tran Van B',
+      avatar: 'https://storage.googleapis.com/a1aa/image/9610552e-6c3d-49fd-7ecc-045dcdc2a920.jpg',
       rating: 5,
-      comment: 'Giao hàng rất nhanh, sản phẩm đúng mô tả',
+      comment: 'Rất ưng ý, sẽ ủng hộ thêm!',
       purchased: true,
-      likes: 5,
-      thanks: 1,
+      likes: 7,
+      images: ['https://storage.googleapis.com/a1aa/image/9610552e-6c3d-49fd-7ecc-045dcdc2a920.jpg'],
+      color: 'Vàng',
+      usageTime: '3 ngày',
+      date: '01/06/2025',
+      joined: '05/2024',
+      totalReviews: 1
     },
     {
       id: 4,
-      user: 'Nguyen Anh Tuan',
-      avatar: 'https://storage.googleapis.com/a1aa/image/34160c1a-ddaa-4f95-98ff-c2598c702304.jpg',
+      user: 'Pham Minh Chau',
+      avatar: 'https://storage.googleapis.com/a1aa/image/9610552e-6c3d-49fd-7ecc-045dcdc2a920.jpg',
       rating: 5,
-      comment: 'Giao hàng rất nhanh, sản phẩm đúng mô tả',
+      comment: 'Shop đóng gói cẩn thận, hàng đẹp.',
       purchased: true,
-      likes: 5,
-      thanks: 1,
-    },
-  ],
+      likes: 6,
+      images: [],
+      color: 'Trắng',
+      usageTime: '5 ngày',
+      date: '31/05/2025',
+      joined: '02/2024',
+      totalReviews: 2
+    }
+  ]
 };
 
 // Pagination for Reviews
 const currentPage = ref(1);
 const itemsPerPage = 3;
-const totalPages = computed(() => Math.ceil(reviews.list.length / itemsPerPage));
+const totalPages = computed(() =>
+  Math.ceil(reviews.list.length / itemsPerPage)
+);
+
 const paginatedReviews = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage;
   const end = start + itemsPerPage;
   return reviews.list.slice(start, end);
 });
+
+const reviewSection = ref(null);
+
+// Scroll mượt tới vùng đánh giá
+const scrollToReview = () => {
+  reviewSection.value?.scrollIntoView({ behavior: 'smooth' });
+};
+
+// Khi đổi trang, vừa đổi số trang vừa scroll lên
+const goToPage = (page) => {
+  if (page >= 1 && page <= totalPages.value) {
+    currentPage.value = page;
+    scrollToReview();
+  }
+};
 
 const isFavorite = ref(false);
 
@@ -421,4 +406,14 @@ onBeforeUnmount(() => {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
 </style>
