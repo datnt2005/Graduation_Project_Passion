@@ -40,4 +40,11 @@ return [
     'redirect' => env('GOOGLE_REDIRECT_URI', 'http://localhost:8000/api/auth/google/callback'),
 ],
 
+    'ghn' => [
+        'token' => env('GHN_TOKEN'),
+        'shop_id' => env('GHN_SHOP_ID'),
+        'base_url' => env('GHN_API_URL'),
+    ],
+
+
 ];
