@@ -7,6 +7,9 @@ use App\Http\Controllers\AttributeController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\TagController;
+use App\Http\Controllers\ReviewController;
+use App\Http\Controllers\AddressController;
+use App\Http\Controllers\GHNController;
 
 // Category
 Route::get('/categories', [CategoryController::class, 'index']);
@@ -52,9 +55,32 @@ Route::post('/resend-otp', [AuthController::class, 'resendOtp']);
 Route::middleware('auth:sanctum')->post('/logout', [AuthController::class, 'logout']);
 
 
+// Reviews
+
+Route::get('/reviews', [ReviewController::class, 'index']);            // ?product_id=...
+Route::post('/reviews', [ReviewController::class, 'store']);           // Gửi đánh giá
+Route::put('/reviews/{id}', [ReviewController::class, 'update']);     // Cập nhật đánh giá
+Route::post('/reviews/{id}/like', [ReviewController::class, 'like']);  // Like đánh giá
+Route::post('/reviews/{id}/reply', [ReviewController::class, 'reply']); // Trả lời đánh giá
+Route::delete('/reviews/{id}', [ReviewController::class, 'destroy']);   // Xóa đánh giá
+
+
+
+Route::get('/address', [AddressController::class, 'index']);
+Route::post('/address', [AddressController::class, 'store']);
+Route::put('/address/{id}', [AddressController::class, 'update']);
+Route::delete('/address/{id}', [AddressController::class, 'destroy']);
+
+Route::get('/ghn/provinces', [GHNController::class, 'getProvinces']);
+Route::get('/ghn/districts', [GHNController::class, 'getDistricts']);
+Route::get('/ghn/wards', [GHNController::class, 'getWards']);
+Route::post('/ghn/districts', [GHNController::class, 'getDistricts']);
+Route::post('/ghn/wards', [GHNController::class, 'getWards']);
+Route::post('/ghn/fee', [GHNController::class, 'calculateFee']);
+
+
+
+
+
 // crud user
 Route::apiResource('users', UserController::class);
-
-
-
-

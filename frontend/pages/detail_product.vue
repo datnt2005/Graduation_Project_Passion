@@ -13,25 +13,12 @@
                 <div class="flex flex-col md:flex-row gap-6">
                     <!-- Left images -->
                     <div class="flex flex-col items-center md:items-start gap-3 md:w-1/3">
-                        <img
-                            :src="productImages[currentImage]"
-                            :alt="productImagesAlt[currentImage]"
-                            class="w-full max-w-[300px] rounded-md border border-gray-300"
-                            height="400"
-                            width="300"
-                        />
+                        <img :src="productImages[currentImage]" :alt="productImagesAlt[currentImage]"
+                            class="w-full max-w-[300px] rounded-md border border-gray-300" height="400" width="300" />
                         <div class="flex gap-2 w-full max-w-[300px] overflow-x-auto">
-                            <img
-                                v-for="(img, idx) in productImages"
-                                :key="idx"
-                                :src="img"
-                                :alt="productImagesAlt[idx]"
-                                class="rounded-md border border-gray-300 cursor-pointer"
-                                height="60"
-                                width="60"
-                                :class="{'ring-2 ring-red-400': idx === currentImage}"
-                                @click="currentImage = idx"
-                            />
+                            <img v-for="(img, idx) in productImages" :key="idx" :src="img" :alt="productImagesAlt[idx]"
+                                class="rounded-md border border-gray-300 cursor-pointer" height="60" width="60"
+                                :class="{ 'ring-2 ring-red-400': idx === currentImage }" @click="currentImage = idx" />
                         </div>
                     </div>
                     <!-- Right product info -->
@@ -54,57 +41,41 @@
                                 <!-- Ram -->
                                 <div>
                                     <span class="font-semibold">Ram:</span>
-                                    <button
-                                      v-for="ram in ramOptions"
-                                      :key="ram"
-                                      class="border border-gray-300 rounded px-2 py-0.5 text-gray-700 mr-2"
-                                      :class="selectedRam === ram ? 'bg-blue-500 text-white border-blue-500' : ''"
-                                      @click="selectedRam = ram"
-                                      type="button"
-                                    >
-                                      {{ ram }}
+                                    <button v-for="ram in ramOptions" :key="ram"
+                                        class="border border-gray-300 rounded px-2 py-0.5 text-gray-700 mr-2"
+                                        :class="selectedRam === ram ? 'bg-blue-500 text-white border-blue-500' : ''"
+                                        @click="selectedRam = ram" type="button">
+                                        {{ ram }}
                                     </button>
                                 </div>
                                 <!-- Rom -->
                                 <div>
                                     <span class="font-semibold">Rom:</span>
-                                    <button
-                                      v-for="rom in romOptions"
-                                      :key="rom"
-                                      class="border border-gray-300 rounded px-2 py-0.5 text-gray-700 mr-2"
-                                      :class="selectedRom === rom ? 'bg-blue-500 text-white border-blue-500' : ''"
-                                      @click="selectedRom = rom"
-                                      type="button"
-                                    >
-                                      {{ rom }}
+                                    <button v-for="rom in romOptions" :key="rom"
+                                        class="border border-gray-300 rounded px-2 py-0.5 text-gray-700 mr-2"
+                                        :class="selectedRom === rom ? 'bg-blue-500 text-white border-blue-500' : ''"
+                                        @click="selectedRom = rom" type="button">
+                                        {{ rom }}
                                     </button>
                                 </div>
                                 <!-- Color -->
                                 <div>
                                     <span class="font-semibold">Color:</span>
-                                    <button
-                                      v-for="color in colorOptions"
-                                      :key="color"
-                                      class="border border-gray-300 rounded px-2 py-0.5 text-gray-700 mr-2"
-                                      :class="selectedColor === color ? 'bg-blue-500 text-white border-blue-500' : ''"
-                                      @click="selectedColor = color"
-                                      type="button"
-                                    >
-                                      {{ color }}
+                                    <button v-for="color in colorOptions" :key="color"
+                                        class="border border-gray-300 rounded px-2 py-0.5 text-gray-700 mr-2"
+                                        :class="selectedColor === color ? 'bg-blue-500 text-white border-blue-500' : ''"
+                                        @click="selectedColor = color" type="button">
+                                        {{ color }}
                                     </button>
                                 </div>
                                 <!-- Bảo hành -->
                                 <div>
                                     <span class="font-semibold">Bảo hành:</span>
-                                    <button
-                                      v-for="warranty in warrantyOptions"
-                                      :key="warranty"
-                                      class="border border-gray-300 rounded px-2 py-0.5 text-gray-700 mr-2"
-                                      :class="selectedWarranty === warranty ? 'bg-blue-500 text-white border-blue-500' : ''"
-                                      @click="selectedWarranty = warranty"
-                                      type="button"
-                                    >
-                                      {{ warranty }}
+                                    <button v-for="warranty in warrantyOptions" :key="warranty"
+                                        class="border border-gray-300 rounded px-2 py-0.5 text-gray-700 mr-2"
+                                        :class="selectedWarranty === warranty ? 'bg-blue-500 text-white border-blue-500' : ''"
+                                        @click="selectedWarranty = warranty" type="button">
+                                        {{ warranty }}
                                     </button>
                                 </div>
                             </div>
@@ -138,7 +109,7 @@
                                     </span>
                                 </label>
                             </div>
-                            
+
                         </div>
                         <div class="flex items-center gap-3 bg-gray-100 p-3 rounded-md">
                             <img alt="Avatar of user Phan Minh Tuấn" class="w-10 h-10 rounded-full" height="40"
@@ -164,11 +135,8 @@
                 <h2 class="text-sm font-semibold mb-2">
                     Mô tả chi tiết
                 </h2>
-                <p
-                  class="text-xs text-gray-700 mb-4 leading-relaxed"
-                  :class="{ 'line-clamp-2': isCollapsed }"
-                  v-show="!isCollapsed || showFull"
-                >
+                <p class="text-xs text-gray-700 mb-4 leading-relaxed" :class="{ 'line-clamp-2': isCollapsed }"
+                    v-show="!isCollapsed || showFull">
                     Samsung note20 ultra 5G ram 12G ổ cứng 256 G. Máy đầy đủ tính năng. Ngoại hình đẹp 99%. Màn chính
                     kim. Giá chỉ 5tr6, với các trạng thái như mới, chưa trầy xước, chưa tróc sơn, vân tay.
                     <br />
@@ -182,9 +150,7 @@
                 </p>
                 <button
                     class="text-xs text-gray-700 border border-gray-300 rounded px-3 py-1 hover:bg-gray-100 transition"
-                    type="button"
-                    @click="isCollapsed = !isCollapsed"
-                >
+                    type="button" @click="isCollapsed = !isCollapsed">
                     {{ isCollapsed ? 'Xem thêm' : 'Thu gọn' }}
                 </button>
             </section>
@@ -277,97 +243,80 @@
                 <h3 class="text-sm font-semibold mb-4">
                     Khách hàng đánh giá
                 </h3>
-                <div class="flex flex-col sm:flex-row gap-4 mb-4">
+                <form action="/api/ratings" method="POST" class="flex flex-col sm:flex-row gap-4 mb-4" id="ratingForm">
+                    <!-- Nếu dùng Laravel Blade -->
+                    <!-- @csrf -->
+
                     <div class="flex-1 text-xs">
-                        <p class="font-semibold mb-1">
-                            Tổng quan
-                        </p>
+                        <p class="font-semibold mb-1">Tổng quan</p>
                         <div class="flex items-center gap-1 mb-1">
-                            <span class="text-yellow-400 font-bold text-lg">
-                                4.5
-                            </span>
-                            <span class="text-yellow-400 text-lg">
-                                ★★★★★
-                            </span>
+                            <span class="text-yellow-400 font-bold text-lg">4.5</span>
+                            <span class="text-yellow-400 text-lg">★★★★★</span>
                         </div>
-                        <p class="text-gray-500 mb-2">
-                            (5 đánh giá)
-                        </p>
+                        <p class="text-gray-500 mb-2">(5 đánh giá)</p>
                         <div class="space-y-1">
-                            <div class="flex items-center gap-2">
-                                <span>
-                                    5
-                                </span>
+                            <div class="flex items-center gap-2"><span>5</span>
                                 <div class="w-full bg-gray-200 rounded h-2">
-                                    <div class="bg-yellow-400 h-2 rounded" style="width: 20%">
-                                    </div>
-                                </div>
-                                <span>
-                                    1
-                                </span>
+                                    <div class="bg-yellow-400 h-2 rounded" style="width: 20%"></div>
+                                </div><span>1</span>
                             </div>
-                            <div class="flex items-center gap-2">
-                                <span>
-                                    4
-                                </span>
+                            <div class="flex items-center gap-2"><span>4</span>
                                 <div class="w-full bg-gray-200 rounded h-2">
-                                    <div class="bg-yellow-400 h-2 rounded" style="width: 15%">
-                                    </div>
-                                </div>
-                                <span>
-                                    1
-                                </span>
+                                    <div class="bg-yellow-400 h-2 rounded" style="width: 15%"></div>
+                                </div><span>1</span>
                             </div>
-                            <div class="flex items-center gap-2">
-                                <span>
-                                    3
-                                </span>
+                            <div class="flex items-center gap-2"><span>3</span>
                                 <div class="w-full bg-gray-200 rounded h-2">
-                                    <div class="bg-yellow-400 h-2 rounded" style="width: 10%">
-                                    </div>
-                                </div>
-                                <span>
-                                    1
-                                </span>
+                                    <div class="bg-yellow-400 h-2 rounded" style="width: 10%"></div>
+                                </div><span>1</span>
                             </div>
-                            <div class="flex items-center gap-2">
-                                <span>
-                                    2
-                                </span>
+                            <div class="flex items-center gap-2"><span>2</span>
                                 <div class="w-full bg-gray-200 rounded h-2">
-                                    <div class="bg-yellow-400 h-2 rounded" style="width: 5%">
-                                    </div>
-                                </div>
-                                <span>
-                                    0
-                                </span>
+                                    <div class="bg-yellow-400 h-2 rounded" style="width: 5%"></div>
+                                </div><span>0</span>
                             </div>
-                            <div class="flex items-center gap-2">
-                                <span>
-                                    1
-                                </span>
+                            <div class="flex items-center gap-2"><span>1</span>
                                 <div class="w-full bg-gray-200 rounded h-2">
-                                    <div class="bg-yellow-400 h-2 rounded" style="width: 0%">
-                                    </div>
-                                </div>
-                                <span>
-                                    0
-                                </span>
+                                    <div class="bg-yellow-400 h-2 rounded" style="width: 0%"></div>
+                                </div><span>0</span>
                             </div>
                         </div>
                     </div>
+
                     <div class="flex-1 text-xs">
-                        <p class="font-semibold mb-1">
-                            Bình luận - xem đánh giá ★★★★★
-                        </p>
-                        <textarea class="w-full border border-gray-300 rounded p-2 resize-none" rows="6"></textarea>
-                        <button
-                            class="mt-2 px-3 py-1 text-xs border border-gray-300 rounded hover:bg-gray-100 transition"
-                            type="button">
+                        <p class="font-semibold mb-1">Bình luận - xem đánh giá ★★★★★</p>
+
+                        <!-- Chọn sao bằng icon -->
+                        <div class="flex items-center gap-1 mb-2">
+                            <label class="text-gray-700 font-medium">Chọn sao:</label>
+                            <div id="starRating" class="flex cursor-pointer text-xl text-gray-300">
+                                <!-- Các sao -->
+                                <span data-value="1" class="star">★</span>
+                                <span data-value="2" class="star">★</span>
+                                <span data-value="3" class="star">★</span>
+                                <span data-value="4" class="star">★</span>
+                                <span data-value="5" class="star">★</span>
+                            </div>
+                        </div>
+
+                        <!-- Input ẩn lưu số sao -->
+                        <input type="hidden" name="rating" id="ratingInput" required>
+
+                        <!-- Nội dung bình luận -->
+                        <textarea name="comment" class="w-full border border-gray-300 rounded p-2 resize-none" rows="6"
+                            placeholder="Nhập nội dung đánh giá..." required></textarea>
+
+                        <!-- Input ẩn để truyền product_id và user_id -->
+                        <input type="hidden" name="product_id" value="123">
+                        <input type="hidden" name="user_id" value="456">
+
+                        <button type="submit"
+                            class="mt-2 px-3 py-1 text-xs border border-gray-300 rounded hover:bg-gray-100 transition">
                             Gửi
                         </button>
                     </div>
-                </div>
+                </form>
+                
                 <!-- Filter buttons -->
                 <div class="flex flex-wrap gap-2 mb-4 text-xs">
                     <button class="border border-gray-300 rounded px-3 py-1 hover:bg-gray-100 transition">
@@ -625,18 +574,18 @@ const selectedColor = ref(null)
 const selectedWarranty = ref(null)
 
 const productImages = [
-  'https://storage.googleapis.com/a1aa/image/7ad18199-6b36-4171-e823-9cec3d8bde9f.jpg',
-  'https://storage.googleapis.com/a1aa/image/c63c6593-7a16-4b2b-b1ea-ec7d1b11003e.jpg',
-  'https://storage.googleapis.com/a1aa/image/8eaf1eab-cd53-4bff-45c8-c143d44e1c15.jpg',
-  'https://storage.googleapis.com/a1aa/image/3dbab879-76d8-4e84-9737-f049ded0520f.jpg',
-  'https://storage.googleapis.com/a1aa/image/4b9472fd-7cf0-4bc4-cb5b-57b24d34bf33.jpg'
+    'https://storage.googleapis.com/a1aa/image/7ad18199-6b36-4171-e823-9cec3d8bde9f.jpg',
+    'https://storage.googleapis.com/a1aa/image/c63c6593-7a16-4b2b-b1ea-ec7d1b11003e.jpg',
+    'https://storage.googleapis.com/a1aa/image/8eaf1eab-cd53-4bff-45c8-c143d44e1c15.jpg',
+    'https://storage.googleapis.com/a1aa/image/3dbab879-76d8-4e84-9737-f049ded0520f.jpg',
+    'https://storage.googleapis.com/a1aa/image/4b9472fd-7cf0-4bc4-cb5b-57b24d34bf33.jpg'
 ]
 const productImagesAlt = [
-  "Samsung Note20 Ultra 5G smartphone front view with rose gold color and stylus pen",
-  "Side view 1 of Samsung Note20 Ultra 5G smartphone in rose gold",
-  "Side view 2 of Samsung Note20 Ultra 5G smartphone in rose gold",
-  "Side view 3 of Samsung Note20 Ultra 5G smartphone in rose gold",
-  "Side view 4 of Samsung Note20 Ultra 5G smartphone in rose gold"
+    "Samsung Note20 Ultra 5G smartphone front view with rose gold color and stylus pen",
+    "Side view 1 of Samsung Note20 Ultra 5G smartphone in rose gold",
+    "Side view 2 of Samsung Note20 Ultra 5G smartphone in rose gold",
+    "Side view 3 of Samsung Note20 Ultra 5G smartphone in rose gold",
+    "Side view 4 of Samsung Note20 Ultra 5G smartphone in rose gold"
 ]
 const currentImage = ref(0)
 let intervalId = null
@@ -644,21 +593,45 @@ let intervalId = null
 const isCollapsed = ref(true)
 
 onMounted(() => {
-  intervalId = setInterval(() => {
-    currentImage.value = (currentImage.value + 1) % productImages.length
-  }, 3000)
+    intervalId = setInterval(() => {
+        currentImage.value = (currentImage.value + 1) % productImages.length
+    }, 3000)
 })
 
 onBeforeUnmount(() => {
-  clearInterval(intervalId)
+    clearInterval(intervalId)
 })
 </script>
 
 <style scoped>
 .line-clamp-2 {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 </style>
+<script>
+    const stars = document.querySelectorAll("#starRating .star");
+    const ratingInput = document.getElementById("ratingInput");
+
+    stars.forEach(star => {
+        star.addEventListener("click", () => {
+            const rating = parseInt(star.dataset.value);
+            ratingInput.value = rating;
+
+            // Tô màu các sao đã chọn
+            stars.forEach(s => {
+                s.classList.toggle("text-yellow-400", parseInt(s.dataset.value) <= rating);
+                s.classList.toggle("text-gray-300", parseInt(s.dataset.value) > rating);
+            });
+        });
+    });
+</script>
+<style>
+    #starRating .star:hover,
+    #starRating .star:hover ~ .star {
+        color: #facc15; /* màu vàng nhạt khi hover */
+    }
+</style>
+

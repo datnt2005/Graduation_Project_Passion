@@ -3,8 +3,6 @@
         <div class="flex bg-white rounded-lg shadow-xl max-w-6xl w-full overflow-hidden">
             <main class="flex-1 p-8 overflow-y-auto">
                 <div class="min-h-full max-w-6xl mx-auto">
-                    
-
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         <div class="lg:col-span-2 space-y-8">
                             <section class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
@@ -337,7 +335,7 @@
                             <section class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                                 <div class="flex items-center justify-between mb-4">
                                     <h3 class="text-xl font-bold text-gray-800">Giao tới</h3>
-                                    <a href="#" class="text-blue-600 text-sm font-medium">Thay đổi</a>
+                                    <NuxtLink href="/address" class="text-blue-600 text-sm font-medium">Thay đổi</NuxtLink>
                                 </div>
                                 <div class="space-y-1 text-sm text-gray-700">
                                     <p class="font-semibold">Trần tiến phát - 0969001733</p>
@@ -497,6 +495,8 @@
 </template>
 
 <script>
+import { NuxtLink } from '#components';
+
 export default {
     name: "checkout"
 }
