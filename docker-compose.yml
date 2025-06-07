@@ -1,18 +1,30 @@
 version: '3.8'
 
 services:
-  minio:
-    image: minio/minio
-    container_name: minio
+  redis:
+    image: redis:latest
+    container_name: redis
     ports:
+<<<<<<< HEAD
       - "9000:9000"
       - "9001:9001"
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
     command: server --console-address ":9001" /data
+=======
+      - "6379:6379"
+>>>>>>> f99571e3c2140aab9370ca3a6f66018264f0d6dd
     volumes:
-      - minio_data:/data
+      - redis_data:/data
+
+  redis:
+    image: redis:latest
+    container_name: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
 
   redis:
     image: redis:latest
@@ -23,5 +35,9 @@ services:
       - redis_data:/data
 
 volumes:
+<<<<<<< HEAD
   minio_data:
   redis_data:
+=======
+  redis_data:
+>>>>>>> f99571e3c2140aab9370ca3a6f66018264f0d6dd

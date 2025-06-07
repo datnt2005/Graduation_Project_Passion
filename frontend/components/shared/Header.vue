@@ -136,9 +136,23 @@
               </button>
 
               <!-- google -->
-                <button @click="loginWithGoogle" type="button" class="btn-google">
-             <i class="fab fa-google"></i> Đăng nhập bằng Google
-                 </button>
+                <button
+            @click="loginWithGoogle"
+            type="button"
+            class="flex justify-center w-full items-center gap-2 px-5 py-3 rounded-xl border border-gray-300 bg-white text-gray-800 font-semibold text-base shadow-sm hover:shadow-md hover:border-gray-500 transition-all duration-150 active:scale-95"
+          >
+            <svg class="w-6 h-6" viewBox="0 0 48 48">
+              <g>
+                <path fill="#4285F4" d="M24 9.5c3.8 0 7.2 1.34 9.81 3.55l7.27-7.27C36.66 2.05 30.71 0 24 0 14.8 0 6.4 4.96 1.44 12.44l8.58 6.67C12.21 13.45 17.61 9.5 24 9.5z"/>
+                <path fill="#34A853" d="M46.15 24.53c0-1.64-.16-3.22-.46-4.74H24v9h12.5c-.54 2.91-2.19 5.38-4.63 7.04l7.16 5.57C43.9 36.97 46.15 31.18 46.15 24.53z"/>
+                <path fill="#FBBC05" d="M9.42 28.9a14.2 14.2 0 0 1-.77-4.4c0-1.52.28-2.99.77-4.4l-8.58-6.67A24 24 0 0 0 0 24c0 3.81.93 7.41 2.58 10.56l8.84-6.66z"/>
+                <path fill="#EA4335" d="M24 48c6.71 0 12.33-2.2 16.44-5.98l-7.16-5.57c-2.01 1.35-4.62 2.16-9.28 2.16-6.39 0-11.79-3.95-13.98-9.61l-8.84 6.66C6.4 43.04 14.8 48 24 48z"/>
+                <path fill="none" d="M0 0h48v48H0z"/>
+              </g>
+            </svg>
+            Đăng nhập bằng Google
+          </button>
+
             </form>
 
             <!-- FORM 2: XÁC MINH EMAIL -->
@@ -664,12 +678,11 @@ Quay lại trang đăng nhập
       </div>
     </div>
   </div>
-  </div>
   <Features />
+  </div>
 </template>
 
 <script setup>
-const isMobileMenuOpen = ref(false);
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
 import Swal from 'sweetalert2'
@@ -793,7 +806,6 @@ function loginWithGoogle() {
 
   window.addEventListener('message', messageHandler, { once: true });
 }
-
 
 
 const cancelOtp = () => {
@@ -983,8 +995,16 @@ const logout = async () => {
     updateLoginState()
     toast('success', 'Đăng xuất thành công!')
   } catch (err) {
-    toast('error', 'Không thể đăng xuất.')
+  toast(
+    'error',
+    err?.response?.data?.message || 'Không thể đăng xuất.'
+  )
+  // Có thể log trace chi tiết cho dev:
+  if (err?.response?.data?.trace) {
+    console.error('Trace:', err.response.data.trace)
   }
+}
+
 }
 
 const fetchUserProfile = async () => {
@@ -1068,7 +1088,7 @@ onMounted(() => {
   })
 })
 
-
+const isMobileMenuOpen = ref(false)
 const showVerifyEmailForm = ref(false)
 </script>
 
