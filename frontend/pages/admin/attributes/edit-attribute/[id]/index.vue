@@ -1,11 +1,11 @@
 <template>
   <div class="bg-gray-100 text-gray-700 font-sans">
-    <h1 class="text-xl font-semibold text-gray-800 px-6 pt-6">Thêm danh mục</h1>
+    <h1 class="text-xl font-semibold text-gray-800 px-6 pt-6">Sửa thuộc tính</h1>
     <div class="px-6 pb-4">
-      <nuxt-link to="/admin/categories/list-category" class="text-gray-600 hover:underline text-sm">
-        Danh sách danh mục
+      <nuxt-link to="/admin/attributes/list-attribute" class="text-gray-600 hover:underline text-sm">
+        Danh sách thuộc tính
       </nuxt-link>
-      <span class="text-gray-600 text-sm"> / Thêm danh mục</span>
+      <span class="text-gray-600 text-sm"> / Sửa thuộc tính</span>
     </div>
 
     <div class="flex min-h-screen bg-gray-100">
@@ -29,99 +29,80 @@
       <!-- Main Content -->
       <main class="flex-1 p-6 bg-gray-100">
         <div class="max-w-[1200px] mx-auto">
-          <form @submit.prevent="createCategory">
+          <form @submit.prevent="updateAttribute">
             <div class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4">
               <section class="space-y-4">
                 <!-- Form Content -->
                 <div class="space-y-2">
                   <!-- Name input -->
                   <div>
-                    <label for="category-name" class="block text-sm text-gray-700 mb-1">Tên danh mục</label>
-                    <input id="category-name" v-model="formData.name" type="text"
+                    <label for="attribute-name" class="block text-sm text-gray-700 mb-1">Tên thuộc tính</label>
+                    <input id="attribute-name" v-model="formData.name" type="text"
                       class="w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-sm placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Nhập tên danh mục" />
+                      placeholder="Nhập tên thuộc tính" />
                     <span v-if="errors.name" class="text-red-500 text-xs mt-1">{{ errors.name }}</span>
                   </div>
 
                   <!-- Slug input -->
                   <div class="mt-4">
-                    <label for="category-slug" class="block text-sm text-gray-700 mb-1">Đường dẫn (Slug)</label>
-                    <input id="category-slug" v-model="formData.slug" type="text"
+                    <label for="attribute-slug" class="block text-sm text-gray-700 mb-1">Đường dẫn (Slug)</label>
+                    <input id="attribute-slug" v-model="formData.slug" type="text"
                       class="w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-sm placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="Nhập đường dẫn (tùy chọn)" />
                     <span v-if="errors.slug" class="text-red-500 text-xs mt-1">{{ errors.slug }}</span>
                   </div>
 
-                  <!-- Parent Category -->
+                  <!-- Values input -->
                   <div class="mt-4">
-                    <label for="parent-category" class="block text-sm text-gray-700 mb-1">Danh mục cha</label>
-                    <select id="parent-category" v-model="formData.parent_id"
-                      class="w-full rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
-                      <option :value="null">Không có</option>
-                      <option v-for="category in categories" :key="category.id" :value="category.id">
-                        {{ category.name }}
-                      </option>
-                    </select>
-                    <span v-if="errors.parent_id" class="text-red-500 text-xs mt-1">{{ errors.parent_id }}</span>
+                    <label for="attribute-value" class="block text-sm text-gray-700 mb-1">Giá trị thuộc tính</label>
+                    <div class="flex gap-2">
+                      <input id="attribute-value" v-model="currentValue" type="text"
+                        class="flex-1 rounded border border-gray-300 bg-white px-3 py-1.5 text-sm placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Nhập giá trị (ví dụ: đỏ)" @keyup.enter="addValue" />
+                      <button type="button" @click="addValue"
+                        class="px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        :disabled="!currentValue.trim()">
+                        Thêm
+                      </button>
+                    </div>
+                    <span v-if="errors.values" class="text-red-500 text-xs mt-1">{{ errors.values }}</span>
+                    <!-- Display added values -->
+                    <div v-if="formData.values.length" class="mt-2 space-y-1">
+                      <div v-for="(value, index) in formData.values" :key="index"
+                        class="flex items-center justify-between bg-gray-50 p-2 rounded border border-gray-200">
+                        <span class="text-sm text-gray-700">{{ value }}</span>
+                        <button type="button" @click="removeValue(index)"
+                          class="text-red-500 hover:text-red-700 focus:outline-none">
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </section>
 
-              <!-- Status and Image Aside -->
+              <!-- Aside -->
               <aside
                 class="bg-white rounded border border-gray-300 shadow-sm p-3 text-xs text-gray-700 space-y-3 max-w-[320px]">
                 <header class="flex items-center justify-between border-b border-gray-300 pb-1">
-                  <h2 class="font-semibold">Hình ảnh danh mục</h2>
+                  <h2 class="font-semibold">Thông tin thuộc tính</h2>
                 </header>
                 <div v-if="activeTab === 'overview'" class="space-y-3">
-                  <!-- Drag & Drop + Click Upload Box -->
-                  <div
-                    class="relative flex items-center justify-center w-full max-w-xs p-4 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 transition"
-                    @dragover.prevent @drop.prevent="handleDrop" @click="triggerFileInput">
-                    <input ref="fileInput" id="category-image" type="file" accept="image/*" class="hidden"
-                      @change="handleImageUpload" />
-                    <div class="flex flex-col items-center text-center text-gray-500">
-                      <svg class="w-8 h-8 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                        xmlns="http://www.w3.org/2000/svg">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                      <p class="text-sm">Kéo ảnh vào đây hoặc <span class="text-blue-500 underline">chọn từ máy</span>
-                      </p>
-                    </div>
-                  </div>
-                  <!-- Error -->
-                  <span v-if="errors.image" class="text-red-500 text-xs mt-1 block">{{ errors.image }}</span>
-                  <!-- Preview -->
-                  <div v-if="imagePreview" class="mt-3">
-                    <img :src="imagePreview" alt="Preview" class="w-32 h-32 object-cover rounded border" />
-                  </div>
+                  <p class="text-sm text-gray-500">
+                    Cập nhật tên thuộc tính và các giá trị tương ứng. Slug là tùy chọn và sẽ được tự động tạo nếu để
+                    trống.
+                  </p>
                 </div>
-
-                <!-- <header class="flex items-center justify-between border-b border-gray-300 pb-1 mt-4">
-                  <h2 class="font-semibold">Trạng thái</h2>
-                </header>
-                <div class="space-y-2">
-                  <div class="flex items-center gap-2">
-                    <label class="flex items-center space-x-2">
-                      <input type="radio" v-model="formData.status" value="active" class="form-radio text-blue-600" />
-                      <span>Kích hoạt</span>
-                    </label>
-                  </div>
-                  <div class="flex items-center gap-2">
-                    <label class="flex items-center space-x-2">
-                      <input type="radio" v-model="formData.status" value="inactive" class="form-radio text-blue-600" />
-                      <span>Không kích hoạt</span>
-                    </label>
-                  </div>
-                </div> -->
 
                 <!-- Submit Button -->
                 <div class="pt-4 mt-4 border-t border-gray-200">
                   <button type="submit"
                     class="w-full bg-blue-600 text-white text-sm font-semibold rounded px-4 py-2 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     :disabled="loading">
-                    {{ loading ? 'Đang xử lý...' : 'Tạo danh mục' }}
+                    {{ loading ? 'Đang xử lý...' : 'Cập nhật thuộc tính' }}
                   </button>
                 </div>
               </aside>
@@ -200,17 +181,19 @@
       </Transition>
     </Teleport>
   </div>
+
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
-import { useRouter, useRuntimeConfig } from '#app';
+import { useRouter, useRoute, useRuntimeConfig } from '#app';
 
 definePageMeta({
   layout: 'default-admin'
 });
 
 const router = useRouter();
+const route = useRoute();
 const config = useRuntimeConfig();
 const apiBase = config.public.apiBaseUrl;
 
@@ -219,64 +202,33 @@ const loading = ref(false);
 const errors = reactive({});
 const showNotification = ref(false);
 const notificationMessage = ref('');
-const notificationType = ref('success'); 
-const categories = ref([]);
-const imagePreview = ref(null);
-const fileInput = ref(null);
+const notificationType = ref('success');
+const currentValue = ref('');
 
 const formData = reactive({
   name: '',
   slug: '',
-  parent_id: null,
-  image: null,
-  status: 'active'
+  values: [],
 });
 
-// Fetch categories for parent category dropdown
-const fetchCategories = async () => {
-  try {
-    const response = await fetch(`${apiBase}/categories`);
-    const data = await response.json();
-    categories.value = data.categories;
-  } catch (error) {
-    console.error('Error fetching categories:', error);
-    showNotificationMessage('Có lỗi xảy ra khi lấy danh sách danh mục' , 'error');
+// Add value to the list
+const addValue = () => {
+  const value = currentValue.value.trim();
+  if (value && !formData.values.includes(value)) {
+    formData.values.push(value);
+    currentValue.value = '';
+    errors.values = '';
+  } else if (formData.values.includes(value)) {
+    errors.values = 'Giá trị này đã tồn tại.';
   }
 };
 
-// Trigger file input click
-const triggerFileInput = () => {
-  fileInput.value.click();
+// Remove value from the list
+const removeValue = (index) => {
+  formData.values.splice(index, 1);
 };
 
-// Handle drag-and-drop
-const handleDrop = (event) => {
-  const file = event.dataTransfer.files[0];
-  if (file) {
-    handleImageUpload({ target: { files: [file] } });
-  }
-};
-
-// Handle image upload
-const handleImageUpload = (event) => {
-  const file = event.target.files[0] || event.dataTransfer?.files[0];
-  if (file) {
-    formData.image = file;
-    errors.image = '';
-    // Generate image preview
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      imagePreview.value = e.target.result;
-    };
-    reader.readAsDataURL(file);
-  } else {
-    formData.image = null;
-    imagePreview.value = null;
-    errors.image = '';
-  }
-};
-
-// Show success notification
+// Show notification
 const showNotificationMessage = (message, type = 'success') => {
   notificationMessage.value = message;
   notificationType.value = type;
@@ -286,49 +238,99 @@ const showNotificationMessage = (message, type = 'success') => {
   }, 3000);
 };
 
-// Create category
-const createCategory = async () => {
-  const form = new FormData();
-  form.append('name', formData.name);
-  form.append('slug', formData.slug);
-  if (formData.parent_id) form.append('parent_id', formData.parent_id);
-  if (formData.image) form.append('image', formData.image);
-  form.append('status', formData.status);
-
+// Fetch attribute data
+const fetchAttribute = async () => {
+  const id = route.params.id;
   try {
     loading.value = true;
-    const response = await fetch(`${apiBase}/categories`, {
-      method: 'POST',
-      body: form
-    });
-
-    const data = await response.json();
-
-    if (data.success) {
-      showNotificationMessage('Tạo danh mục thành công!' , 'success');
-      setTimeout(() => {
-        router.push('/admin/categories/list-category');
-      }, 1000);
-    } else {
-      if (data.errors) {
-        Object.keys(data.errors).forEach(key => {
-          errors[key] = data.errors[key][0];
-        });
-      } else {
-        showNotificationMessage(data.message || 'Có lỗi xảy ra khi tạo danh mục' , 'error');
+    const response = await fetch(`${apiBase}/attributes/${id}`, {
+      headers: {
+        Accept: 'application/json'
       }
+    });
+    const data = await response.json();
+    console.log('Fetch attribute response:', data);
+
+    if (data.success && data.data) {
+      formData.name = data.data.name || '';
+      formData.slug = data.data.slug || '';
+      formData.values = data.data.values.map(v => v.value) || [];
+    } else {
+      showNotificationMessage('Không thể tải dữ liệu thuộc tính', 'error');
+      setTimeout(() => {
+        router.push('/admin/attributes/list-attribute');
+      }, 1000);
     }
   } catch (error) {
-    console.error('Error:', error);
-    showNotificationMessage('Có lỗi xảy ra khi tạo danh mục' , 'error');
+    console.error('Error fetching attribute:', error);
+    showNotificationMessage('Có lỗi xảy ra khi tải dữ liệu', 'error');
   } finally {
     loading.value = false;
   }
 };
 
-// Fetch categories on mount
+// Update attribute
+const updateAttribute = async () => {
+  // Clear previous errors
+  Object.keys(errors).forEach(key => delete errors[key]);
+
+  // Basic client-side validation
+  if (!formData.name.trim()) {
+    errors.name = 'Tên thuộc tính là bắt buộc.';
+    showNotificationMessage('Vui lòng kiểm tra lại dữ liệu.', 'error');
+    return;
+  }
+
+  const form = new FormData();
+  form.append('name', formData.name.trim());
+  if (formData.slug) form.append('slug', formData.slug.trim());
+  formData.values.forEach((value, index) => {
+    form.append(`values[${index}][value]`, value);
+  });
+  form.append('_method', 'PUT'); 
+
+  try {
+    loading.value = true;
+    const id = route.params.id;
+    const response = await fetch(`${apiBase}/attributes/${id}`, {
+      method: 'POST',
+      body: form,
+      headers: {
+        Accept: 'application/json'
+      }
+    });
+
+    const data = await response.json();
+    console.log('Update attribute response:', data);
+
+    if (data.success) {
+      showNotificationMessage('Cập nhật thuộc tính thành công!', 'success');
+      setTimeout(() => {
+        router.push('/admin/attributes/list-attribute');
+      }, 1000);
+    } else {
+      if (data.errors) {
+        Object.keys(data.errors).forEach(key => {
+          if (key.startsWith('values.')) {
+            errors.values = errors.values || data.errors[key][0];
+          } else {
+            errors[key] = data.errors[key][0];
+          }
+        });
+      }
+      showNotificationMessage(data.message || 'Có lỗi xảy ra khi cập nhật thuộc tính', 'error');
+    }
+  } catch (error) {
+    console.error('Error updating attribute:', error);
+    showNotificationMessage('Có lỗi xảy ra khi cập nhật thuộc tính', 'error');
+  } finally {
+    loading.value = false;
+  }
+};
+
+// Load attribute data on mount
 onMounted(() => {
-  fetchCategories();
+  fetchAttribute();
 });
 </script>
 
@@ -336,9 +338,35 @@ onMounted(() => {
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
-
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+button {
+  position: relative;
+  overflow: hidden;
+}
+
+button::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  background-image: radial-gradient(circle, #000 10%, transparent 10.01%);
+  background-repeat: no-repeat;
+  background-position: 50%;
+  transform: scale(10, 10);
+  opacity: 0;
+  transition: transform .5s, opacity 1s;
+}
+
+button:active::after {
+  transform: scale(0, 0);
+  opacity: .2;
+  transition: 0s;
 }
 </style>

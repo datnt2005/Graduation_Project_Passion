@@ -391,63 +391,72 @@
 
   <!-- Notification Popup -->
   <Teleport to="body">
-    <Transition
-      enter-active-class="transition ease-out duration-200"
-      enter-from-class="transform opacity-0 scale-95"
-      enter-to-class="transform opacity-100 scale-100"
-      leave-active-class="transition ease-in duration-100"
-      leave-from-class="transform opacity-100 scale-100"
-      leave-to-class="transform opacity-0 scale-95"
-    >
-      <div
-        v-if="showNotification"
-        class="fixed bottom-4 right-4 bg-white rounded-lg shadow-xl border border-gray-200 p-4 flex items-center space-x-3 z-50"
+      <Transition
+        enter-active-class="transition ease-out duration-200"
+        enter-from-class="transform opacity-0 scale-95"
+        enter-to-class="transform opacity-100 scale-100"
+        leave-active-class="transition ease-in duration-100"
+        leave-from-class="transform opacity-100 scale-100"
+        leave-to-class="transform opacity-0 scale-95"
       >
-        <div class="flex-shrink-0">
-          <svg
-            class="h-6 w-6 text-green-400"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
-        </div>
-        <div class="flex-1">
-          <p class="text-sm font-medium text-gray-900">
-            {{ notificationMessage }}
-          </p>
-        </div>
-        <div class="flex-shrink-0">
-          <button
-            @click="showNotification = false"
-            class="inline-flex text-gray-400 hover:text-gray-500 focus:outline-none"
-          >
+        <div
+          v-if="showNotification"
+          class="fixed bottom-4 right-4 bg-white rounded-lg shadow-xl border border-gray-200 p-4 flex items-center space-x-3 z-50"
+        >
+          <div class="flex-shrink-0">
             <svg
-              class="h-5 w-5"
+              class="h-6 w-6"
+              :class="notificationType === 'success' ? 'text-green-400' : 'text-red-500'"
               xmlns="http://www.w3.org/2000/svg"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
             >
               <path
+                v-if="notificationType === 'success'"
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 stroke-width="2"
-                d="M6 18L18 6M6 6l12 12"
+                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+              <path
+                v-if="notificationType === 'error'"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
               />
             </svg>
-          </button>
+          </div>
+          <div class="flex-1">
+            <p class="text-sm font-medium text-gray-900">
+              {{ notificationMessage }}
+            </p>
+          </div>
+          <div class="flex-shrink-0">
+            <button
+              @click="showNotification = false"
+              class="inline-flex text-gray-400 hover:text-gray-500 focus:outline-none"
+            >
+              <svg
+                class="h-5 w-5"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
-      </div>
-    </Transition>
-  </Teleport>
+      </Transition>
+    </Teleport>
 
   <!-- Confirmation Dialog -->
   <Teleport to="body">
@@ -552,6 +561,7 @@ const dropdownPosition = ref({ top: '0px', left: '0px', width: '192px' });
 const loading = ref(false);
 const showNotification = ref(false);
 const notificationMessage = ref('');
+const notificationType = ref('success');
 const showConfirmDialog = ref(false);
 const confirmDialogTitle = ref('');
 const confirmDialogMessage = ref('');
@@ -587,7 +597,7 @@ const fetchProductCounts = async () => {
     trashProducts.value = trashData.data?.total || trashProductsList.length || 0;
   } catch (error) {
     console.error('Error fetching product counts:', error);
-    showSuccessNotification('Có lỗi xảy ra khi tải số lượng sản phẩm');
+    showNotificationMessage('Có lỗi xảy ra khi tải số lượng sản phẩm' , 'error');
   }
 };
 
@@ -609,13 +619,13 @@ const fetchProducts = async () => {
     console.log('API Response:', data); // Debug API response
     products.value = data.data?.data || data.data || data || [];
     if (!products.value.length) {
-      showSuccessNotification(filterTrash.value === 'trash' ? 'Không có sản phẩm nào trong thùng rác' : 'Không có sản phẩm nào');
+      showNotificationMessage(filterTrash.value === 'trash' ? 'Không có sản phẩm nào trong thùng rác' : 'Không có sản phẩm nào' );
     }
     // Update counts after fetching products
     await fetchProductCounts();
   } catch (error) {
     console.error('Error fetching products:', error);
-    showSuccessNotification(`Có lỗi xảy ra khi tải sản phẩm: ${error.message}`);
+    showNotificationMessage(`Có lỗi xảy ra khi tải sản phẩm: ${error.message}` , 'error');
     products.value = [];
   } finally {
     loading.value = false;
@@ -635,7 +645,7 @@ const fetchCategories = async () => {
     categories.value = data.data || data.categories || [];
   } catch (error) {
     console.error('Error fetching categories:', error);
-    showSuccessNotification('Có lỗi xảy ra khi tải danh mục');
+    showNotificationMessage('Có lỗi xảy ra khi tải danh mục' , 'error');
   }
 };
 
@@ -652,7 +662,7 @@ const fetchBrands = async () => {
     brands.value = data.data || [];
   } catch (error) {
     console.error('Error fetching brands:', error);
-    showSuccessNotification('Có lỗi xảy ra khi tải thương hiệu');
+    showNotificationMessage('Có lỗi xảy ra khi tải thương hiệu' , 'error');
   }
 };
 
@@ -669,7 +679,7 @@ const fetchTags = async () => {
     tags.value = data.data || data.tags || [];
   } catch (error) {
     console.error('Error fetching tags:', error);
-    showSuccessNotification('Có lỗi xảy ra khi tải thẻ');
+    showNotificationMessage('Có lỗi xảy ra khi tải thẻ' , 'error');
   }
 };
 
@@ -704,7 +714,7 @@ const toggleSelectAll = () => {
 // Apply bulk action
 const applyBulkAction = async () => {
   if (!selectedAction.value || selectedProducts.value.length === 0) {
-    showSuccessNotification('Vui lòng chọn hành động và ít nhất một sản phẩm');
+    showNotificationMessage('Vui lòng chọn hành động và ít nhất một sản phẩm' , 'error');
     return;
   }
 
@@ -727,9 +737,9 @@ const applyBulkAction = async () => {
           const responses = await Promise.all(deletePromises);
           const failed = responses.some(res => !res.ok);
           if (failed) {
-            showSuccessNotification('Có lỗi xảy ra khi xóa một số sản phẩm');
+            showNotificationMessage('Có lỗi xảy ra khi xóa một số sản phẩm' , 'error');
           } else {
-            showSuccessNotification('Xóa vĩnh viễn các sản phẩm thành công!');
+            showNotificationMessage('Xóa vĩnh viễn các sản phẩm thành công!' , 'success');
           }
           selectedProducts.value = [];
           selectAll.value = false;
@@ -737,7 +747,7 @@ const applyBulkAction = async () => {
           await fetchProducts();
         } catch (error) {
           console.error('Error deleting products:', error);
-          showSuccessNotification('Có lỗi xảy ra khi xóa sản phẩm');
+          showNotificationMessage('Có lỗi xảy ra khi xóa sản phẩm' , 'error');
         } finally {
           loading.value = false;
         }
@@ -762,12 +772,12 @@ const applyBulkAction = async () => {
       const responses = await Promise.all(updatePromises);
       const failed = responses.some(res => !res.ok);
       if (failed) {
-        showSuccessNotification('Có lỗi xảy ra khi cập nhật trạng thái một số sản phẩm');
+        showNotificationMessage('Có lỗi xảy ra khi cập nhật trạng thái một số sản phẩm' , 'error');
       } else {
-        showSuccessNotification(
+        showNotificationMessage(
           selectedAction.value === 'trash' ? 'Đã chuyển các sản phẩm vào thùng rác!' :
           selectedAction.value === 'restore' ? 'Khôi phục các sản phẩm thành công!' :
-          'Cập nhật trạng thái thành công!'
+          'Cập nhật trạng thái thành công!' , 'success'
         );
       }
       selectedProducts.value = [];
@@ -776,7 +786,7 @@ const applyBulkAction = async () => {
       await fetchProducts();
     } catch (error) {
       console.error('Error updating status:', error);
-      showSuccessNotification('Có lỗi xảy ra khi cập nhật trạng thái');
+      showNotificationMessage('Có lỗi xảy ra khi cập nhật trạng thái' , 'error');
     } finally {
       loading.value = false;
     }
@@ -804,15 +814,15 @@ const moveToTrash = async (product) => {
         });
 
         if (response.ok) {
-          showSuccessNotification('Đã chuyển sản phẩm vào thùng rác!');
+          showNotificationMessage('Đã chuyển sản phẩm vào thùng rác!' , 'success');
           await fetchProducts();
         } else {
           const data = await response.json();
-          showSuccessNotification(data.message || 'Có lỗi xảy ra khi chuyển vào thùng rác');
+          showNotificationMessage(data.message || 'Có lỗi xảy ra khi chuyển vào thùng rác' , 'error');
         }
       } catch (error) {
         console.error('Error moving to trash:', error);
-        showSuccessNotification('Có lỗi xảy ra khi chuyển vào thùng rác');
+        showNotificationMessage('Có lỗi xảy ra khi chuyển vào thùng rác' , 'error');
       }
     }
   );
@@ -834,15 +844,15 @@ const restoreProduct = async (product) => {
         });
 
         if (response.ok) {
-          showSuccessNotification('Khôi phục sản phẩm thành công!');
+          showNotificationMessage('Khôi phục sản phẩm thành công!' , 'success');
           await fetchProducts();
         } else {
           const data = await response.json();
-          showSuccessNotification(data.message || 'Có lỗi xảy ra khi khôi phục sản phẩm');
+          showNotificationMessage(data.message || 'Có lỗi xảy ra khi khôi phục sản phẩm' , 'error');
         }
       } catch (error) {
         console.error('Error restoring product:', error);
-        showSuccessNotification('Có lỗi xảy ra khi khôi phục sản phẩm');
+        showNotificationMessage('Có lỗi xảy ra khi khôi phục sản phẩm' , 'error');
       }
     }
   );
@@ -863,15 +873,15 @@ const confirmDelete = async (product) => {
         });
 
         if (response.ok) {
-          showSuccessNotification('Xóa vĩnh viễn sản phẩm thành công!');
+          showNotificationMessage('Xóa vĩnh viễn sản phẩm thành công!' , 'success');
           await fetchProducts();
         } else {
           const data = await response.json();
-          showSuccessNotification(data.message || 'Có lỗi xảy ra khi xóa sản phẩm');
+          showNotificationMessage(data.message || 'Có lỗi xảy ra khi xóa sản phẩm' , 'error');
         }
       } catch (error) {
         console.error('Error deleting product:', error);
-        showSuccessNotification('Có lỗi xảy ra khi xóa sản phẩm');
+        showNotificationMessage('Có lỗi xảy ra khi xóa sản phẩm' , 'error');
       }
     }
   );
@@ -972,8 +982,9 @@ const filteredProducts = computed(() => {
 });
 
 // Show notification
-const showSuccessNotification = (message) => {
+const showNotificationMessage = (message, type = 'success') => {
   notificationMessage.value = message;
+  notificationType.value = type;
   showNotification.value = true;
   setTimeout(() => {
     showNotification.value = false;

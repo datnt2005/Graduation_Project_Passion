@@ -68,11 +68,10 @@
           </button>
           <ul v-show="isOpen" class="pl-11 mt-1 space-y-0.5 text-gray-300 text-[13px]">
             <li><NuxtLink to="/admin/products/list-product" class="block py-1 hover:text-white" @click="$emit('close')">Tất cả sản phẩm</NuxtLink></li>
-            <li><NuxtLink to="#" class="block py-1 font-semibold text-white" @click="$emit('close')">Thêm sản phẩm</NuxtLink></li>
-            <li><NuxtLink to="#" class="block py-1 hover:text-white" @click="$emit('close')">Thương hiệu</NuxtLink></li>
+            <li><NuxtLink to="/admin/products/create-product" class="block py-1 font-semibold text-white" @click="$emit('close')">Thêm sản phẩm</NuxtLink></li>
+            <li><NuxtLink to="/admin/attributes/list-attribute" class="block py-1 hover:text-white" @click="$emit('close')">Thuộc tính</NuxtLink></li>
             <li><NuxtLink to="/admin/categories/list-category" class="block py-1 hover:text-white" @click="$emit('close')">Danh mục</NuxtLink></li>
             <li><NuxtLink to="/admin/tags/list-tag" class="block py-1 hover:text-white" @click="$emit('close')">Thẻ sản phẩm</NuxtLink></li>
-            <li><NuxtLink to="#" class="block py-1 hover:text-white" @click="$emit('close')">Biến thể</NuxtLink></li>
             <li><NuxtLink to="#" class="block py-1 hover:text-white" @click="$emit('close')">Đánh giá</NuxtLink></li>
           </ul>
         </li>

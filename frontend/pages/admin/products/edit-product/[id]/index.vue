@@ -71,8 +71,16 @@
 
                 <!-- Description -->
                 <label for="description" class="block text-sm text-gray-700 mb-1">Mô tả</label>
-                <textarea id="description" v-model="formData.description" rows="4" placeholder="Mô tả sản phẩm"
-                  class="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"></textarea>
+                <Editor
+                    v-model="formData.description"
+                    api-key="rlas5j7eqa6dogiwnt1ld8iilzj3q074o4rw75lsxcygu1zd" 
+                    :init="{
+                      height: 300,
+                      menubar: false,
+                      plugins: 'lists link image preview code help table',
+                      toolbar: 'undo redo | formatselect | bold italic underline |alignjustify alignleft aligncenter alignright | bullist numlist |  | removeformat | preview | link image | code  | h1 h2 h3 h4 h5 h6  ',
+                    }"
+                  />
                 <span v-if="errors.description" class="text-red-500 text-xs mt-1">{{ errors.description }}</span>
 
                 <!-- Tabbed Content -->
@@ -511,6 +519,7 @@ import { useRouter, useRoute } from 'vue-router';
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
 import { library } from '@fortawesome/fontawesome-svg-core';
 import { faChevronUp, faChevronDown } from '@fortawesome/free-solid-svg-icons';
+import Editor from '@tinymce/tinymce-vue';
 
 library.add(faChevronUp, faChevronDown);
 
@@ -900,7 +909,8 @@ const triggerFileInput = () => {
 
 const removeProductImage = (index, id) => {
   if (id) {
-    removeImages.value.push(id);
+    removedImages.value.push(id);
+    console.log('Removed Images:', removedImages.value); // Debug
   }
   formData.images.splice(index, 1);
   if (!formData.images.length) delete errors.images;
@@ -1074,17 +1084,14 @@ const updateProduct = async () => {
   formDataToSend.append('description', formData.description.trim());
   formDataToSend.append('status', formData.status);
 
-  // Append categories
   formData.categories.forEach(categoryId => {
     formDataToSend.append('categories[]', categoryId);
   });
 
-  // Append tags
   formData.tags.forEach(tagId => {
     formDataToSend.append('tags[]', tagId);
   });
 
-  // Append variants
   formData.variants.forEach((variant, index) => {
     if (variant.id) {
       formDataToSend.append(`variants[${index}][id]`, variant.id);
@@ -1110,22 +1117,23 @@ const updateProduct = async () => {
     }
   });
 
-
-  // Append new images
   formData.images.forEach((img, index) => {
     if (img.file) {
-      formDataToSend.append(`images[${index}]`, img.file);
+      formDataToSend.append(`images[]`, img.file);
     }
   });
 
-  // Append removed images
   removedImages.value.forEach((imageId, index) => {
     formDataToSend.append('removed_images[]', imageId);
   });
+
+  // Debug FormData
+  console.log('FormData entries:', Array.from(formDataToSend.entries()));
+
   formDataToSend.append('_method', 'PUT');
+
   try {
     loading.value = true;
-    console.log('Sending product update request...');
     const response = await fetch(`${apiBase}/products/${formData.id}`, {
       method: 'POST',
       body: formDataToSend,
@@ -1144,10 +1152,17 @@ const updateProduct = async () => {
         });
       }
       showNotificationMessage(data.message || 'Có lỗi xảy ra khi cập nhật sản phẩm.', 'error');
+      // Reset removedImages if deletion fails
+      if (data.errors && Object.keys(data.errors).some(key => key.startsWith('removed_images'))) {
+        removedImages.value = [];
+        fetchProduct(); // Reload images
+      }
     }
   } catch (error) {
     console.error('Error updating product:', error);
     showNotificationMessage('Có lỗi kết nối khi cập nhật sản phẩm.', 'error');
+    removedImages.value = [];
+    fetchProduct(); // Reload images
   } finally {
     loading.value = false;
   }

@@ -72,7 +72,6 @@ class AttributeController extends Controller
                 'name' => $request->name,
                 'slug' => $slug,
             ]);
-
             if (!empty($request->values) && is_array($request->values)) {
                 foreach ($request->values as $valueData) {
                     $attribute->values()->create([

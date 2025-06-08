@@ -120,16 +120,41 @@
 
     <!-- Notification Popup -->
     <Teleport to="body">
-      <Transition enter-active-class="transition ease-out duration-200" enter-from-class="transform opacity-0 scale-95"
-        enter-to-class="transform opacity-100 scale-100" leave-active-class="transition ease-in duration-100"
-        leave-from-class="transform opacity-100 scale-100" leave-to-class="transform opacity-0 scale-95">
-        <div v-if="showNotification"
-          class="fixed bottom-4 right-4 bg-white rounded-lg shadow-xl border border-gray-200 p-4 flex items-center space-x-3 z-50">
+      <Transition
+        enter-active-class="transition ease-out duration-200"
+        enter-from-class="transform opacity-0 scale-95"
+        enter-to-class="transform opacity-100 scale-100"
+        leave-active-class="transition ease-in duration-100"
+        leave-from-class="transform opacity-100 scale-100"
+        leave-to-class="transform opacity-0 scale-95"
+      >
+        <div
+          v-if="showNotification"
+          class="fixed bottom-4 right-4 bg-white rounded-lg shadow-xl border border-gray-200 p-4 flex items-center space-x-3 z-50"
+        >
           <div class="flex-shrink-0">
-            <svg class="h-6 w-6 text-green-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-              stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <svg
+              class="h-6 w-6"
+              :class="notificationType === 'success' ? 'text-green-400' : 'text-red-500'"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                v-if="notificationType === 'success'"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+              <path
+                v-if="notificationType === 'error'"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              />
             </svg>
           </div>
           <div class="flex-1">
@@ -138,11 +163,23 @@
             </p>
           </div>
           <div class="flex-shrink-0">
-            <button @click="showNotification = false"
-              class="inline-flex text-gray-400 hover:text-gray-500 focus:outline-none">
-              <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            <button
+              @click="showNotification = false"
+              class="inline-flex text-gray-400 hover:text-gray-500 focus:outline-none"
+            >
+              <svg
+                class="h-5 w-5"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
           </div>
@@ -169,6 +206,7 @@ const loading = ref(false);
 const errors = reactive({});
 const showNotification = ref(false);
 const notificationMessage = ref('');
+const notificationType = ref('success'); 
 const categories = ref([]);
 const imagePreview = ref(null);
 const fileInput = ref(null);
@@ -212,8 +250,9 @@ const handleImageUpload = (event) => {
 };
 
 // Show success notification
-const showSuccessNotification = (message) => {
+const showNotificationMessage = (message) => {
   notificationMessage.value = message;
+  notificationType.value = 'success';
   showNotification.value = true;
   setTimeout(() => {
     showNotification.value = false;
@@ -237,7 +276,7 @@ const createTag = async () => {
     const data = await response.json();
 
     if (data.success) {
-      showSuccessNotification('Tạo thẻ thành công!');
+      showNotificationMessage('Tạo thẻ thành công!' , 'success');
       setTimeout(() => {
         router.push('/admin/tags/list-tag');
       }, 1000);
@@ -247,12 +286,12 @@ const createTag = async () => {
           errors[key] = data.errors[key][0];
         });
       } else {
-        showSuccessNotification(data.message || 'Có lỗi xảy ra khi tạo thẻ');
+        showNotificationMessage(data.message || 'Có lỗi xảy ra khi tạo thẻ' , 'error');
       }
     }
   } catch (error) {
     console.error('Error:', error);
-    showSuccessNotification('Có lỗi xảy ra khi tạo thẻ');
+    showNotificationMessage('Có lỗi xảy ra khi tạo thẻ' , 'error');
   } finally {
     loading.value = false;
   }
