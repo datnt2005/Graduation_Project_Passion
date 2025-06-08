@@ -51,12 +51,15 @@ Route::prefix('attributes')->group(function () {
 // Products
 Route::prefix('products')->group(function () {
     Route::get('/', [ProductController::class, 'index']);
+    Route::get('/trash', [ProductController::class, 'getTrash']);
     Route::get('/{id}', [ProductController::class, 'show']);
     Route::post('/', [ProductController::class, 'store']);
     Route::post('/import', [ProductController::class, 'import']);
     Route::put('/{id}', [ProductController::class, 'update']);
     Route::delete('/{id}', [ProductController::class, 'destroy']);
     Route::get('/slug/{slug}', [ProductController::class, 'showBySlug']);
+    Route::post('/change-status/{id}', [ProductController::class, 'changeStatus']);
+    
 });
 
 // Orders

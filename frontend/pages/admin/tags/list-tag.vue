@@ -3,9 +3,9 @@
     <div class="max-w-full overflow-x-auto">
       <!-- Header with Create Button -->
       <div class="bg-white px-4 py-4 flex items-center justify-between border-b border-gray-200">
-        <h1 class="text-xl font-semibold text-gray-800">Quản lý danh mục</h1>
+        <h1 class="text-xl font-semibold text-gray-800">Quản lý thẻ sản phẩm</h1>
         <button
-          @click="router.push('/admin/categories/create-category')"
+          @click="router.push('/admin/tags/create-tag')"
           class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-150"
         >
           <svg 
@@ -22,7 +22,7 @@
               d="M12 4v16m8-8H4"
             />
           </svg>
-          Thêm danh mục
+          Thêm thẻ mới
         </button>
       </div>
 
@@ -30,14 +30,14 @@
       <div class="bg-gray-200 px-4 py-3 flex flex-wrap items-center gap-3 text-sm text-gray-700">
         <div class="flex items-center gap-2">
           <span class="font-bold">Tất cả</span>
-          <span>({{ totalCategories }})</span>
+          <span>({{ totalTags }})</span>
         </div>
         <div class="ml-auto flex flex-wrap gap-2 items-center">
           <div class="relative">
             <input
               v-model="searchQuery"
               type="text"
-              placeholder="Tìm kiếm danh mục..."
+              placeholder="Tìm kiếm thẻ..."
               class="pl-8 pr-3 py-1.5 rounded-md border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 w-64"
             />
             <svg 
@@ -62,10 +62,10 @@
         </select>
         <button
           @click="applyBulkAction"
-          :disabled="!selectedAction || selectedCategories.length === 0 || loading"
+          :disabled="!selectedAction || selectedTags.length === 0 || loading"
           :class="[
             'px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-150',
-            (!selectedAction || selectedCategories.length === 0 || loading) 
+            (!selectedAction || selectedTags.length === 0 || loading) 
               ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
               : 'bg-blue-600 text-white hover:bg-blue-700'
           ]"
@@ -73,7 +73,7 @@
           {{ loading ? 'Đang xử lý...' : 'Áp dụng' }}
         </button>
         <div class="ml-auto text-sm text-gray-600">
-          {{ selectedCategories.length }} được chọn / {{ filteredCategories.length }}
+          {{ selectedTags.length }} được chọn / {{ filteredTags.length }}
         </div>
       </div>
 
@@ -92,13 +92,10 @@
               Hình ảnh
             </th>
             <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">
-              Tên danh mục
+              Tên thẻ
             </th>
             <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">
               Đường dẫn
-            </th>
-            <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">
-              Danh mục cha
             </th>
             <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">
               Thao tác
@@ -106,32 +103,28 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="category in filteredCategories" :key="category.id" :class="{'bg-gray-50': category.id % 2 === 0}" class="border-b border-gray-300">
+          <tr v-for="tag in filteredTags" :key="tag.id" :class="{'bg-gray-50': tag.id % 2 === 0}" class="border-b border-gray-300">
             <td class="border border-gray-300 px-3 py-2 text-left w-10">
               <input 
                 type="checkbox" 
-                v-model="selectedCategories" 
-                :value="category.id"
+                v-model="selectedTags" 
+                :value="tag.id"
               />
             </td>
             <td class="border border-gray-300 px-3 py-2 text-left">
-              <img v-if="category.image" :src="`${mediaBase}${category.image}`" alt="Category Image" class="w-12 h-12 object-cover rounded" />
+              <img v-if="tag.image" :src="`${mediaBase}${tag.image}`" alt="Tag Image" class="w-12 h-12 object-cover rounded" />
               <span v-else class="text-gray-500">Không có hình</span>
             </td>
             <td class="border border-gray-300 px-3 py-2 text-left text-gray-500">
-              {{ category.name }}
+              {{ tag.name }}
             </td>
             <td class="border border-gray-300 px-3 py-2 text-left text-gray-500">
-              {{ category.slug }}
-            </td>
-            <td class="border border-gray-300 px-3 py-2 text-left">
-              <span v-if="category.parent" class="text-gray-600">{{ category.parent.name }}</span>
-              <span v-else class="text-gray-500">Không có</span>
+              {{ tag.slug }}
             </td>
             <td class="border border-gray-300 px-3 py-2 text-left">
               <div class="relative inline-block text-left">
                 <button 
-                  @click="toggleDropdown(category.id)"
+                  @click="toggleDropdown(tag.id)"
                   class="inline-flex items-center justify-center w-8 h-8 text-gray-600 hover:text-gray-800 focus:outline-none"
                 >
                   <svg 
@@ -173,9 +166,9 @@
         @click="closeDropdown"
       >
         <div 
-          v-for="category in categories" 
-          :key="category.id"
-          v-show="activeDropdown === category.id"
+          v-for="tag in tags" 
+          :key="tag.id"
+          v-show="activeDropdown === tag.id"
           class="absolute bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50 origin-top-right"
           :style="dropdownPosition"
         >
@@ -186,7 +179,7 @@
             aria-labelledby="options-menu"
           >
             <button
-              @click="editCategory(category.id)"
+              @click="editTag(tag.id)"
               class="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-150"
               role="menuitem"
             >
@@ -207,7 +200,7 @@
               Sửa
             </button>
             <button
-              @click="confirmDelete(category)"
+              @click="confirmDelete(tag)"
               class="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors duration-150"
               role="menuitem"
             >
@@ -377,12 +370,12 @@ const config = useRuntimeConfig();
 const apiBase = config.public.apiBaseUrl;
 const mediaBase = config.public.mediaBaseUrl;
 
-const categories = ref([]);
-const selectedCategories = ref([]);
+const tags = ref([]);
+const selectedTags = ref([]);
 const selectAll = ref(false);
 const searchQuery = ref('');
 const selectedAction = ref('');
-const totalCategories = ref(0);
+const totalTags = ref(0);
 const activeDropdown = ref(null);
 const dropdownPosition = ref({ top: '0px', left: '0px', width: '192px' });
 const loading = ref(false);
@@ -393,48 +386,50 @@ const confirmDialogTitle = ref('');
 const confirmDialogMessage = ref('');
 const confirmAction = ref(null);
 
-// Fetch categories from API
-const fetchCategories = async () => {
+// Fetch tags from API
+const fetchTags = async () => {
   try {
-    const response = await fetch(`${apiBase}/categories`);
+    console.log('Fetching tags from:', `${apiBase}/tags`);
+    const response = await fetch(`${apiBase}/tags`);
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
     const data = await response.json();
-    // Map categories to include parent name
-    categories.value = data.categories.map(category => ({
-      ...category,
-      parent: category.parent_id ? data.categories.find(c => c.id === category.parent_id) : null
-    }));
-    totalCategories.value = data.categories.length;
+    console.log('Tags API response:', data);
+    tags.value = data.tags || data.data || [];
+    totalTags.value = tags.value.length;
   } catch (error) {
-    console.error('Error fetching categories:', error);
-    showSuccessNotification('Có lỗi xảy ra khi lấy danh sách danh mục');
+    console.error('Error fetching tags:', error);
+    showSuccessNotification('Có lỗi xảy ra khi lấy danh sách thẻ');
+    tags.value = []; // Ensure tags is always an array
   }
 };
 
 // Toggle select all
 const toggleSelectAll = () => {
   if (selectAll.value) {
-    selectedCategories.value = categories.value.map(c => c.id);
+    selectedTags.value = tags.value.map(t => t.id);
   } else {
-    selectedCategories.value = [];
+    selectedTags.value = [];
   }
 };
 
 // Apply bulk action
 const applyBulkAction = async () => {
-  if (!selectedAction.value || selectedCategories.value.length === 0) {
-    showSuccessNotification('Vui lòng chọn hành động và ít nhất một danh mục');
+  if (!selectedAction.value || selectedTags.value.length === 0) {
+    showSuccessNotification('Vui lòng chọn hành động và ít nhất một thẻ');
     return;
   }
 
   if (selectedAction.value === 'delete') {
     showConfirmationDialog(
       'Xác nhận xóa hàng loạt',
-      `Bạn có chắc chắn muốn xóa ${selectedCategories.value.length} danh mục đã chọn?`,
+      `Bạn có chắc chắn muốn xóa ${selectedTags.value.length} thẻ đã chọn?`,
       async () => {
         try {
           loading.value = true;
-          const deletePromises = selectedCategories.value.map(id => 
-            fetch(`${apiBase}/categories/${id}`, {
+          const deletePromises = selectedTags.value.map(id => 
+            fetch(`${apiBase}/tags/${id}`, {
               method: 'DELETE',
               headers: {
                 'Content-Type': 'application/json'
@@ -442,15 +437,20 @@ const applyBulkAction = async () => {
             })
           );
 
-          await Promise.all(deletePromises);
-          showSuccessNotification('Xóa các danh mục thành công!');
-          selectedCategories.value = [];
-          selectAll.value = false;
-          selectedAction.value = '';
-          await fetchCategories();
+          const responses = await Promise.all(deletePromises);
+          const allSuccessful = responses.every(res => res.ok);
+          if (allSuccessful) {
+            showSuccessNotification('Xóa các thẻ thành công!');
+            selectedTags.value = [];
+            selectAll.value = false;
+            selectedAction.value = '';
+            await fetchTags();
+          } else {
+            showSuccessNotification('Có lỗi xảy ra khi xóa một số thẻ');
+          }
         } catch (error) {
-          console.error('Error:', error);
-          showSuccessNotification('Có lỗi xảy ra khi xóa danh mục');
+          console.error('Error deleting tags:', error);
+          showSuccessNotification('Có lỗi xảy ra khi xóa thẻ');
         } finally {
           loading.value = false;
         }
@@ -459,19 +459,19 @@ const applyBulkAction = async () => {
   }
 };
 
-// Edit category
-const editCategory = (id) => {
-  router.push(`/admin/categories/edit-category/${id}`);
+// Edit tag
+const editTag = (id) => {
+  router.push(`/admin/tags/edit-tag/${id}`);
 };
 
-// Delete category
-const confirmDelete = async (category) => {
+// Delete tag
+const confirmDelete = async (tag) => {
   showConfirmationDialog(
     'Xác nhận xóa',
-    `Bạn có chắc chắn muốn xóa danh mục "${category.name}" không?`,
+    `Bạn có chắc chắn muốn xóa thẻ "${tag.name}" không?`,
     async () => {
       try {
-        const response = await fetch(`${apiBase}/categories/${category.id}`, {
+        const response = await fetch(`${apiBase}/tags/${tag.id}`, {
           method: 'DELETE',
           headers: {
             'Content-Type': 'application/json'
@@ -479,15 +479,15 @@ const confirmDelete = async (category) => {
         });
 
         if (response.ok) {
-          showSuccessNotification('Xóa danh mục thành công!');
-          await fetchCategories();
+          showSuccessNotification('Xóa thẻ thành công!');
+          await fetchTags();
         } else {
           const data = await response.json();
-          showSuccessNotification(data.message || 'Có lỗi xảy ra khi xóa danh mục');
+          showSuccessNotification(data.message || 'Có lỗi xảy ra khi xóa thẻ');
         }
       } catch (error) {
-        console.error('Error:', error);
-        showSuccessNotification('Có lỗi xảy ra khi xóa danh mục');
+        console.error('Error deleting tag:', error);
+        showSuccessNotification('Có lỗi xảy ra khi xóa thẻ');
       }
     }
   );
@@ -501,12 +501,14 @@ const toggleDropdown = (id) => {
     activeDropdown.value = id;
     nextTick(() => {
       const button = event.target.closest('button');
-      const rect = button.getBoundingClientRect();
-      dropdownPosition.value = {
-        top: `${rect.bottom + window.scrollY + 8}px`,
-        left: `${rect.right + window.scrollX - 192}px`,
-        width: '192px'
-      };
+      if (button) {
+        const rect = button.getBoundingClientRect();
+        dropdownPosition.value = {
+          top: `${rect.bottom + window.scrollY + 8}px`,
+          left: `${rect.right + window.scrollX - 192}px`,
+          width: '192px'
+        };
+      }
     });
   }
 };
@@ -518,18 +520,16 @@ const closeDropdown = (event) => {
   }
 };
 
-// Filtered categories
-const filteredCategories = computed(() => {
-  let result = [...categories.value];
-
+// Filtered tags
+const filteredTags = computed(() => {
+  let result = tags.value || [];
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase();
-    result = result.filter(category => 
-      category.name.toLowerCase().includes(query) ||
-      category.slug.toLowerCase().includes(query)
+    result = result.filter(tag => 
+      (tag.name || '').toLowerCase().includes(query) ||
+      (tag.slug || '').toLowerCase().includes(query)
     );
   }
-
   return result;
 });
 
@@ -564,9 +564,9 @@ const showConfirmationDialog = (title, message, action) => {
   showConfirmDialog.value = true;
 };
 
-// Fetch categories on component mount
+// Fetch tags on component mount
 onMounted(() => {
-  fetchCategories();
+  fetchTags();
   document.addEventListener('click', closeDropdown);
 });
 
