@@ -7,7 +7,6 @@ composer require illuminate/filesystem
 php artisan migrate
 
 # Chạy queue worker (giúp gửi mail nhanh, xử lý job nền)
-```bash
 php artisan queue:work
 
 ---everyone--- 
