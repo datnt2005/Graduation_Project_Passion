@@ -5,6 +5,8 @@ Lệnh:
 comporse install
 composer require illuminate/filesystem
 php artisan migrate
+<!-- chạy server gửi mail nhanh -->
+php artisan queue:work
 
 ---everyone--- 
 1: Trước khi bắt đầu "LUÔN LUÔN CHECK GIT XEM CÓ CODE MỚI KHÔNG. LUÔN LUÔN PULL CODE MỚI TRƯỚC KHI BẮT ĐẦU CODE".

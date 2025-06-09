@@ -69,7 +69,6 @@ Route::post('/send-forgot-password', [AuthController::class, 'sendForgotPassword
 Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 
 // google
-// routes/api.php
 Route::get('auth/google/redirect', [GoogleAuthController::class, 'redirectToGoogle']);
 Route::get('auth/google/callback', [GoogleAuthController::class, 'handleGoogleCallback']);
 
@@ -81,4 +80,3 @@ Route::post('users/batch-delete', [UserController::class, 'batchDelete']);
 Route::post('users/batch-add-role', [UserController::class, 'batchAddRole']);
 Route::post('users/batch-remove-role', [UserController::class, 'batchRemoveRole']);
 
- 
