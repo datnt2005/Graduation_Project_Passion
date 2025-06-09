@@ -13,6 +13,9 @@ use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PaymentMethodController;
 use App\Http\Controllers\DiscountController;
 use App\Http\Controllers\GoogleAuthController;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Redis;
+
 use Illuminate\Support\Facades\Storage;
 
 
@@ -155,3 +158,8 @@ Route::get('auth/google/callback', [GoogleAuthController::class, 'handleGoogleCa
 
 // crud user
 Route::apiResource('users', UserController::class);
+
+Route::get('/redis-test', function () {
+    Redis::set('dat_key', 'Xin chào đại ca Đạt');
+    return Redis::get('dat_key');
+});

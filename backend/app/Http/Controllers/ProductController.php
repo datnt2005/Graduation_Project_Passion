@@ -22,52 +22,54 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Log;
+use Illuminate\Support\Facades\Cache;
 
 class ProductController extends Controller
 {
-    //     public function index(Request $request)
-    // {
-    //     try {
-    //         $search = $request->input('search');
-    //         $sortDirection = in_array($request->input('sort_direction', 'asc'), ['asc', 'desc']) ? $request->input('sort_direction') : 'asc';
-
-    //         $products = Product::when($search, function ($query, $search) {
-    //                 return $query->where('name', 'like', "%{$search}%");
-    //             })
-    //             ->with(['categories', 'productVariants', 'productPic'])
-    //             ->orderBy('created_at', $sortDirection)
-    //             ->paginate(10);
-
-    //         return response()->json([
-    //             'success' => true,
-    //             'message' => 'Lấy danh sách sản phẩm thành công.',
-    //             'data' => $products
-    //         ], 200);
-    //     } catch (\Exception $e) {
-    //         return response()->json([
-    //             'success' => false,
-    //             'message' => 'Lấy danh sách sản phẩm thất bại: ' . $e->getMessage(),
-    //             'error' => $e->getMessage()
-    //         ], 500);
-    //     }
-    // }
-
     public function index(Request $request)
     {
-        $products = Product::with(['seller', 'categories', 'productVariants', 'productPic', 'tags', 'productVariants.inventories', 'productVariants.attributes'])
-            ->when($request->has('search'), function ($query) use ($request) {
-                $query->where('name', 'like', '%' . $request->search . '%');
-            })
-            ->where('status', ['active', 'inactive'])
-            ->orderBy('created_at', 'desc')
-            ->paginate(10);
-        return response()->json([
-            'success' => true,
-            'message' => 'Lấy danh sách sản phẩm thành công.',
-            'data' => $products
-        ], 200);
-    }
+        try {
+            $page = $request->get('page', 1);
+            $search = trim($request->get('search', '')); 
+            $perPage = $request->get('per_page', 10); 
 
+            $cacheKey = 'products_page_' . $page . '_perpage_' . $perPage . '_search_' . md5($search);
+            $ttl = 3600;
+
+            // Use tags for cache
+            $products = Cache::store('redis')->tags(['products'])->remember($cacheKey, $ttl, function () use ($search, $perPage) {
+                return Product::with([
+                    'seller',
+                    'categories',
+                    'productVariants',
+                    'productVariants.inventories',
+                    'productVariants.attributes',
+                    'productPic',
+                    'tags'
+                ])
+                    ->whereIn('status', ['active', 'inactive'])
+                    ->when($search, function ($query) use ($search) {
+                        return $query->where('name', 'like', '%' . $search . '%');
+                    })
+                    ->orderBy('created_at', 'desc')
+                    ->paginate($perPage)
+                    ->toArray();
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Lấy danh sách sản phẩm thành công.',
+                'data' => $products
+            ], 200);
+        } catch (\Exception $e) {
+            Log::error('Lỗi khi lấy danh sách sản phẩm: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Đã xảy ra lỗi khi lấy danh sách sản phẩm.',
+                'error' => env('APP_DEBUG', false) ? $e->getMessage() : null
+            ], 500);
+        }
+    }
 
     public function store(Request $request)
     {
@@ -241,7 +243,7 @@ class ProductController extends Controller
             }
 
             DB::commit();
-
+            $this->clearProductCache();
             return response()->json([
                 'success' => true,
                 'message' => 'Tạo sản phẩm thành công.',
@@ -488,10 +490,10 @@ public function update(Request $request, $id)
             })->toArray();
             $productVariant->attributes()->attach($attributes);
         }
-
         DB::commit();
-
-        return response()->json([
+        $this->clearProductCache();
+        
+       return response()->json([
             'success' => true,
             'message' => 'Cập nhật sản phẩm thành công.',
             'data' => $product->load('categories', 'productVariants.attributes', 'productVariants.inventories', 'productPic', 'tags')
@@ -538,7 +540,7 @@ public function update(Request $request, $id)
             $product->delete();
 
             DB::commit();
-
+            $this->clearProductCache();
             return response()->json([
                 'success' => true,
                 'message' => 'Xóa sản phẩm thành công.',
@@ -553,6 +555,31 @@ public function update(Request $request, $id)
         }
     }
 
+    protected function clearProductCache()
+        {
+            try {
+                // Clear tagged caches
+                Cache::store('redis')->tags(['products'])->flush();
+
+                // Clear non-tagged cache keys with Laravel prefix
+                $redis = Cache::store('redis')->getRedis();
+                $prefix = config('cache.prefix', 'laravel_cache');
+                $cursor = 0;
+                do {
+                    $scan = $redis->scan($cursor, ['MATCH' => $prefix . 'products_page_*', 'COUNT' => 100]);
+                    $cursor = $scan[0];
+                    foreach ($scan[1] as $key) {
+                        // Remove the prefix from the key for Cache::forget
+                        $cacheKey = str_replace($prefix, '', $key);
+                        Cache::store('redis')->forget($cacheKey);
+                    }
+                } while ($cursor != 0);
+
+                \Log::info('Đã xóa cache sản phẩm thành công.');
+            } catch (\Exception $e) {
+                \Log::error('Lỗi khi xóa cache sản phẩm: ' . $e->getMessage());
+            }
+        }
     private function generateSKU($productName, $categories, $attributes, $productId = null)
     {
         // Lấy category đầu tiên
@@ -674,7 +701,8 @@ public function update(Request $request, $id)
             'productPic',
             'tags'
         ]);
-
+        // Xóa cache sản phẩm
+        $this->clearProductCache();
         return response()->json([
             'success' => true,
             'message' => 'Thay đổi trạng thái sản phẩm thành công!',
@@ -691,6 +719,7 @@ public function update(Request $request, $id)
             ->where('status', 'trash')
             ->orderBy('created_at', 'desc')
             ->paginate(10);
+            $this->clearProductCache();
         return response()->json([
             'success' => true,
             'message' => 'Lấy danh sách sản phẩm thành công.',
