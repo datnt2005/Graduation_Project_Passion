@@ -5,7 +5,8 @@ Lệnh:
 comporse install
 composer require illuminate/filesystem
 php artisan migrate
-<!-- chạy server gửi mail nhanh -->
+
+# Chạy queue worker (giúp gửi mail nhanh, xử lý job nền)
 php artisan queue:work
 
 ---everyone--- 
