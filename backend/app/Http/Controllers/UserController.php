@@ -98,7 +98,6 @@ public function store(Request $request)
 
         $avatarPath = null;
 
-        // Chỉ upload nếu thực sự có file, còn không thì bỏ qua (cho phép để trống)
         if ($request->hasFile('avatar') && $request->file('avatar')->isValid()) {
             $file = $request->file('avatar');
             $filename = 'avatars/' . time() . '_' . Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) . '.' . $file->getClientOriginalExtension();
@@ -160,7 +159,6 @@ public function store(Request $request)
     }
 }
 
-
     public function show(User $user)
     {
         return new UserResource($user);
@@ -199,8 +197,7 @@ public function update(Request $request, User $user)
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
-
-        $data = $validator->validated();
+            $data = $validator->validated();
 
         // Xử lý đổi mật khẩu, bắt buộc phải có old_password check đúng
         if (isset($data['password'])) {
@@ -245,7 +242,7 @@ public function update(Request $request, User $user)
             unset($data['avatar']);
         }
 
-        $user->update($data);
+            $user->update($data);
 
         Log::info('User updated successfully', [
             'user_id'    => $user->id,

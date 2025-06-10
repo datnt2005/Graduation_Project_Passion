@@ -3,7 +3,7 @@
 Dự án tốt nghiệp, xây dựng sàn thương mại điện tử Passion
 
 Lệnh:
-comporse install
+composer install
 composer require illuminate/filesystem
 php artisan migrate
 

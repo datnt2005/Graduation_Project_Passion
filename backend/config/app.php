@@ -135,7 +135,7 @@ return [
     | this array to grant expanded functionality to your applications.
     |--------------------------------------------------------------------------
     */
-    'aliases' => [
-        'image' => Intervention\Image\Facades\Image::class,
-    ]
+    // 'aliases' => [
+    //     'image' => Intervention\Image\Facades\Image::class,
+    // ]
 ];
