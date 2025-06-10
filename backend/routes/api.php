@@ -7,6 +7,9 @@ use App\Http\Controllers\AttributeController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\TagController;
+use App\Http\Controllers\ReviewController;
+use App\Http\Controllers\AddressController;
+use App\Http\Controllers\GHNController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\OrderItemController;
 use App\Http\Controllers\PaymentController;
@@ -17,6 +20,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Redis;
 
 use Illuminate\Support\Facades\Storage;
+
 
 
 // Category
@@ -146,20 +150,45 @@ Route::middleware('auth:sanctum')->get('/me', [AuthController::class, 'me']);
 Route::post('/send-forgot-password', [AuthController::class, 'sendForgotPassword']);
 Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 
-// crud user
-Route::apiResource('users', UserController::class);
+// Reviews
 
+   
+Route::get('/reviews', [ReviewController::class, 'index']); // Hiển thị đánh giá công khai
+
+// Các route yêu cầu đăng nhập
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/reviews', [ReviewController::class, 'store']);               // Gửi đánh giá
+    Route::put('/reviews/{id}', [ReviewController::class, 'update']);          // Cập nhật đánh giá
+    Route::post('/reviews/{id}/like', [ReviewController::class, 'like']);      // Like đánh giá
+    Route::post('/reviews/{id}/reply', [ReviewController::class, 'reply']);    // Trả lời đánh giá
+    Route::delete('/reviews/{id}', [ReviewController::class, 'destroy']);      // Xóa đánh giá
+});
+
+
+Route::get('/address', [AddressController::class, 'index']);
+Route::post('/address', [AddressController::class, 'store']);
+Route::put('/address/{id}', [AddressController::class, 'update']);
+Route::delete('/address/{id}', [AddressController::class, 'destroy']);
 // google
 // routes/api.php
 Route::get('auth/google/redirect', [GoogleAuthController::class, 'redirectToGoogle']);
 Route::get('auth/google/callback', [GoogleAuthController::class, 'handleGoogleCallback']);
 
 
+Route::get('/ghn/provinces', [GHNController::class, 'getProvinces']);
+Route::get('/ghn/districts', [GHNController::class, 'getDistricts']);
+Route::get('/ghn/wards', [GHNController::class, 'getWards']);
+Route::post('/ghn/districts', [GHNController::class, 'getDistricts']);
+Route::post('/ghn/wards', [GHNController::class, 'getWards']);
+Route::post('/ghn/fee', [GHNController::class, 'calculateFee']);
 
 // crud user
 Route::apiResource('users', UserController::class);
 
-Route::get('/redis-test', function () {
-    Redis::set('dat_key', 'Xin chào đại ca Đạt');
-    return Redis::get('dat_key');
-});
+Route::post('users/batch-delete', [UserController::class, 'batchDelete']);
+Route::post('users/batch-add-role', [UserController::class, 'batchAddRole']);
+Route::post('users/batch-remove-role', [UserController::class, 'batchRemoveRole']);
+
+// crud user
+Route::apiResource('users', UserController::class);
+
