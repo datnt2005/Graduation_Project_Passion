@@ -1,6 +1,6 @@
 <template>
   <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#eaf1fd] to-[#f4f7fd] px-2 py-6">
-    <div class="max-w-6xl w-full flex flex-col md:flex-row rounded-[28px] overflow-hidden shadow-[0_8px_40px_0_rgba(22,61,124,.10)] border border-gray-200 bg-white mx-auto">
+    <div class="max-w-9xl w-full flex flex-col md:flex-row rounded-[28px] overflow-hidden shadow-[0_8px_40px_0_rgba(22,61,124,.10)] border border-gray-200 bg-white mx-auto">
       <!-- Bên trái: Branding -->
       <div class="hidden md:flex flex-col justify-center items-center w-1/2 p-12 bg-transparent">
         <div class="mb-10 flex flex-col items-center">
@@ -13,8 +13,8 @@
       </div>
 
       <!-- Bên phải: Form -->
-      <div class="w-full md:w-1/2 flex flex-col justify-center p-6 sm:p-12 bg-white">
-        <div class="max-w-md mx-auto w-full">
+      <div class="w-full md:w-1/2 flex flex-col justify-center p-8 sm:p-16 bg-white">
+       <div class="mx-auto w-full md:w-[80%]">
           <div class="mb-6">
             <div class="text-3xl font-bold text-gray-900 mb-1">Đăng ký ngay</div>
             <div class="text-gray-500 text-base">Tạo tài khoản bán hàng của bạn</div>
@@ -261,3 +261,4 @@ body {
   font-family: 'Inter', sans-serif;
 }
 </style>
+

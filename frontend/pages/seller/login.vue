@@ -5,28 +5,29 @@
             <!-- Bên trái: Logo/brand -->
             <div class="hidden md:flex flex-col justify-center items-center w-1/2 p-8 bg-transparent">
                 <div class="mb-4 flex flex-col items-center">
+                    <img src="/images/SellerCenter2.png" alt="">
+
                     <h1 class="text-xl font-extrabold text-gray-900 mt-3 mb-0">Passion</h1>
                     <div class="text-blue-600 font-bold text-sm py-2">Seller Center</div>
-                    <img src="/images/SellerCenter2.png" alt="">
 
                 </div>
             </div>
             <!-- Bên phải: Form -->
-            <div class="w-full md:w-2/4 flex flex-col justify-center p-8 bg-white">
-                <div class="max-w-sm mx-auto w-full">
+      <div class="w-full md:w-1/2 flex flex-col justify-center p-8 sm:p-16 bg-white">
+       <div class="mx-auto w-full md:w-[80%]">
                     <div class="mb-8">
                         <div class="text-3xl font-bold text-gray-900 mb-1">Đăng nhập</div>
                         <div class="text-gray-500 text-base">Truy cập tài khoản bán hàng của bạn</div>
                     </div>
                     <form @submit.prevent="handleSubmit" class="space-y-5">
                         <div>
-                            <label class="block font-semibold text-sm mb-2 text-gray-700">Địa chỉ email</label>
+                            <label class="block font-semibold text-sm mb-2 text-gray-700"><i class="fa-regular fa-envelope"></i>  Địa chỉ email</label>
                             <input type="email" v-model="form.email"
                                 class="w-full border border-gray-200 rounded-[9px] px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base bg-white outline-none transition-all placeholder-gray-400"
                                 placeholder="Nhập địa chỉ email" autocomplete="username" required />
                         </div>
                         <div>
-                            <label class="block font-semibold text-sm mb-2 text-gray-700">Mật khẩu</label>
+                            <label class="block font-semibold text-sm mb-2 text-gray-700"><i class="fa-solid fa-lock"></i>  Mật khẩu</label>
                             <div class="relative">
                                 <input :type="showPassword ? 'text' : 'password'" v-model="form.password"
                                     class="w-full border border-gray-200 rounded-[9px] px-4 py-2.5 pr-12 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base bg-white outline-none transition-all placeholder-gray-400"
@@ -94,3 +95,4 @@ async function handleSubmit() {
     }, 1000)
 }
 </script>
+
