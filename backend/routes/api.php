@@ -147,13 +147,16 @@ Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 // Reviews
 
    
-Route::get('/reviews', [ReviewController::class, 'index']);        // ?product_id=...
-Route::post('/reviews', [ReviewController::class, 'store']);           // Gửi đánh giá
-Route::put('/reviews/{id}', [ReviewController::class, 'update']);     // Cập nhật đánh giá
-Route::post('/reviews/{id}/like', [ReviewController::class, 'like']);  // Like đánh giá
-Route::post('/reviews/{id}/reply', [ReviewController::class, 'reply']); // Trả lời đánh giá
-Route::delete('/reviews/{id}', [ReviewController::class, 'destroy']);   // Xóa đánh giá
+Route::get('/reviews', [ReviewController::class, 'index']); // Hiển thị đánh giá công khai
 
+// Các route yêu cầu đăng nhập
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/reviews', [ReviewController::class, 'store']);               // Gửi đánh giá
+    Route::put('/reviews/{id}', [ReviewController::class, 'update']);          // Cập nhật đánh giá
+    Route::post('/reviews/{id}/like', [ReviewController::class, 'like']);      // Like đánh giá
+    Route::post('/reviews/{id}/reply', [ReviewController::class, 'reply']);    // Trả lời đánh giá
+    Route::delete('/reviews/{id}', [ReviewController::class, 'destroy']);      // Xóa đánh giá
+});
 
 
 Route::get('/address', [AddressController::class, 'index']);
