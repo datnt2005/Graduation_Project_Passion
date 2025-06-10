@@ -1,11 +1,11 @@
 <template>
   <div class="bg-gray-100 text-gray-700 font-sans">
-    <h1 class="text-xl font-semibold text-gray-800 px-6 pt-6">Thêm danh mục</h1>
+    <h1 class="text-xl font-semibold text-gray-800 px-6 pt-6">Sửa thẻ sản phẩm</h1>
     <div class="px-6 pb-4">
-      <nuxt-link to="/admin/categories/list-category" class="text-gray-600 hover:underline text-sm">
-        Danh sách danh mục
+      <nuxt-link to="/admin/tags/list-tag" class="text-gray-600 hover:underline text-sm">
+        Thẻ
       </nuxt-link>
-      <span class="text-gray-600 text-sm"> / Thêm danh mục</span>
+      <span class="text-gray-600 text-sm"> / Sửa thẻ</span>
     </div>
 
     <div class="flex min-h-screen bg-gray-100">
@@ -29,40 +29,27 @@
       <!-- Main Content -->
       <main class="flex-1 p-6 bg-gray-100">
         <div class="max-w-[1200px] mx-auto">
-          <form @submit.prevent="createCategory">
+          <form @submit.prevent="updateTag">
             <div class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4">
               <section class="space-y-4">
                 <!-- Form Content -->
                 <div class="space-y-2">
                   <!-- Name input -->
                   <div>
-                    <label for="category-name" class="block text-sm text-gray-700 mb-1">Tên danh mục</label>
-                    <input id="category-name" v-model="formData.name" type="text"
+                    <label for="tag-name" class="block text-sm text-gray-700 mb-1">Tên thẻ</label>
+                    <input id="tag-name" v-model="formData.name" type="text"
                       class="w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-sm placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Nhập tên danh mục" />
+                      placeholder="Nhập tên thẻ" />
                     <span v-if="errors.name" class="text-red-500 text-xs mt-1">{{ errors.name }}</span>
                   </div>
 
                   <!-- Slug input -->
                   <div class="mt-4">
-                    <label for="category-slug" class="block text-sm text-gray-700 mb-1">Đường dẫn (Slug)</label>
-                    <input id="category-slug" v-model="formData.slug" type="text"
+                    <label for="tag-slug" class="block text-sm text-gray-700 mb-1">Đường dẫn (Slug)</label>
+                    <input id="tag-slug" v-model="formData.slug" type="text"
                       class="w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-sm placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="Nhập đường dẫn (tùy chọn)" />
                     <span v-if="errors.slug" class="text-red-500 text-xs mt-1">{{ errors.slug }}</span>
-                  </div>
-
-                  <!-- Parent Category -->
-                  <div class="mt-4">
-                    <label for="parent-category" class="block text-sm text-gray-700 mb-1">Danh mục cha</label>
-                    <select id="parent-category" v-model="formData.parent_id"
-                      class="w-full rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
-                      <option :value="null">Không có</option>
-                      <option v-for="category in categories" :key="category.id" :value="category.id">
-                        {{ category.name }}
-                      </option>
-                    </select>
-                    <span v-if="errors.parent_id" class="text-red-500 text-xs mt-1">{{ errors.parent_id }}</span>
                   </div>
                 </div>
               </section>
@@ -71,14 +58,14 @@
               <aside
                 class="bg-white rounded border border-gray-300 shadow-sm p-3 text-xs text-gray-700 space-y-3 max-w-[320px]">
                 <header class="flex items-center justify-between border-b border-gray-300 pb-1">
-                  <h2 class="font-semibold">Hình ảnh danh mục</h2>
+                  <h2 class="font-semibold">Hình ảnh thẻ</h2>
                 </header>
                 <div v-if="activeTab === 'overview'" class="space-y-3">
                   <!-- Drag & Drop + Click Upload Box -->
                   <div
                     class="relative flex items-center justify-center w-full max-w-xs p-4 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 transition"
                     @dragover.prevent @drop.prevent="handleDrop" @click="triggerFileInput">
-                    <input ref="fileInput" id="category-image" type="file" accept="image/*" class="hidden"
+                    <input ref="fileInput" id="tag-image" type="file" accept="image/*" class="hidden"
                       @change="handleImageUpload" />
                     <div class="flex flex-col items-center text-center text-gray-500">
                       <svg class="w-8 h-8 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"
@@ -121,7 +108,7 @@
                   <button type="submit"
                     class="w-full bg-blue-600 text-white text-sm font-semibold rounded px-4 py-2 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     :disabled="loading">
-                    {{ loading ? 'Đang xử lý...' : 'Tạo danh mục' }}
+                    {{ loading ? 'Đang xử lý...' : 'Cập nhật thẻ' }}
                   </button>
                 </div>
               </aside>
@@ -203,24 +190,26 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue';
-import { useRouter, useRuntimeConfig } from '#app';
+import { ref, reactive, computed, onMounted } from 'vue';
+import { useRouter, useRoute, useRuntimeConfig } from '#app';
 
 definePageMeta({
   layout: 'default-admin'
 });
 
 const router = useRouter();
+const route = useRoute();
 const config = useRuntimeConfig();
 const apiBase = config.public.apiBaseUrl;
+const mediaBase = config.public.mediaBaseUrl;
 
 const activeTab = ref('overview');
 const loading = ref(false);
 const errors = reactive({});
 const showNotification = ref(false);
 const notificationMessage = ref('');
-const notificationType = ref('success'); 
-const categories = ref([]);
+const notificationType = ref('success'); // 'success' or 'error'
+const tags = ref([]);
 const imagePreview = ref(null);
 const fileInput = ref(null);
 
@@ -232,17 +221,52 @@ const formData = reactive({
   status: 'active'
 });
 
-// Fetch categories for parent category dropdown
-const fetchCategories = async () => {
+
+
+// Fetch tag details
+const fetchTag = async () => {
+  if (!route.params.id) {
+    console.error('No tag ID provided in route params');
+    showNotificationMessage('Không tìm thấy ID thẻ' , 'error');
+    router.push('/admin/tags/list-tag');
+    return;
+  }
+
   try {
-    const response = await fetch(`${apiBase}/categories`);
+    console.log('Fetching tag with ID:', route.params.id);
+    const response = await fetch(`${apiBase}/tags/${route.params.id}`);
     const data = await response.json();
-    categories.value = data.categories;
+    console.log('tag API response:', data);
+
+    if (!response.ok) {
+      throw new Error(`Có lỗi xảy ra khi lấy thông tin thẻ`, 'error' );
+    }
+
+    // Handle different response formats
+    const tag = data.tag || data.data || data;
+    if (tag && tag.name) {
+      formData.name = tag.name;
+      formData.slug = tag.slug;
+      formData.status = tag.status || 'active';
+      if (tag.image) {
+        imagePreview.value = `${mediaBase}${tag.image}`;
+      }
+    } else {
+      console.error('tag data not found in response:', data);
+      showNotificationMessage('Không tìm thấy thẻ' , 'error');
+      router.push('/admin/tags/list-tag');
+    }
   } catch (error) {
-    console.error('Error fetching categories:', error);
-    showNotificationMessage('Có lỗi xảy ra khi lấy danh sách danh mục' , 'error');
+    console.error('Error fetching tag:', error.message);
+    showNotificationMessage(`Có lỗi xảy ra khi lấy thông tin thẻ` , 'error');
+
   }
 };
+
+// Filter out current tag from parent dropdown
+const filteredtags = computed(() => {
+  return tags.value.filter(tag => tag.id !== parseInt(route.params.id));
+});
 
 // Trigger file input click
 const triggerFileInput = () => {
@@ -259,10 +283,10 @@ const handleDrop = (event) => {
 
 // Handle image upload
 const handleImageUpload = (event) => {
-  const file = event.target.files[0] || event.dataTransfer?.files[0];
+  const file = event.target.files[0] || event.dataTransfer?.files?.[0];
   if (file) {
     formData.image = file;
-    errors.image = '';
+    errors.image = null;
     // Generate image preview
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -271,7 +295,6 @@ const handleImageUpload = (event) => {
     reader.readAsDataURL(file);
   } else {
     formData.image = null;
-    imagePreview.value = null;
     errors.image = '';
   }
 };
@@ -286,28 +309,28 @@ const showNotificationMessage = (message, type = 'success') => {
   }, 3000);
 };
 
-// Create category
-const createCategory = async () => {
+// Update tag
+const updateTag = async () => {
   const form = new FormData();
   form.append('name', formData.name);
-  form.append('slug', formData.slug);
-  if (formData.parent_id) form.append('parent_id', formData.parent_id);
+  form.append('slug', formData.slug );
   if (formData.image) form.append('image', formData.image);
-  form.append('status', formData.status);
+  form.append('_method', 'PUT');
 
   try {
     loading.value = true;
-    const response = await fetch(`${apiBase}/categories`, {
-      method: 'POST',
+    console.log('Updating tag with ID:', route.params.id);
+    const response = await fetch(`${apiBase}/tags/${route.params.id}`, {
+      method: 'POST', // Use POST with _method=PATCH for method spoofing
       body: form
     });
-
     const data = await response.json();
+    console.log('Update API response:', data);
 
     if (data.success) {
-      showNotificationMessage('Tạo danh mục thành công!' , 'success');
+      showNotificationMessage('Cập nhật thẻ thành công!' , 'success');
       setTimeout(() => {
-        router.push('/admin/categories/list-category');
+        router.push('/admin/tags/list-tag');
       }, 1000);
     } else {
       if (data.errors) {
@@ -315,20 +338,21 @@ const createCategory = async () => {
           errors[key] = data.errors[key][0];
         });
       } else {
-        showNotificationMessage(data.message || 'Có lỗi xảy ra khi tạo danh mục' , 'error');
+        showNotificationMessage(data.message || 'Có lỗi xảy ra khi cập nhật thẻ' , 'error');
       }
     }
   } catch (error) {
-    console.error('Error:', error);
-    showNotificationMessage('Có lỗi xảy ra khi tạo danh mục' , 'error');
+    console.error('Error updating tag:', error);
+    showNotificationMessage('Có lỗi xảy ra khi cập nhật thẻ' + error.message, 'error');
   } finally {
     loading.value = false;
   }
 };
 
-// Fetch categories on mount
+// Fetch data on mount
 onMounted(() => {
-  fetchCategories();
+  console.log('API Base URL:', apiBase);
+  fetchTag();
 });
 </script>
 
@@ -336,9 +360,35 @@ onMounted(() => {
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
-
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+button {
+  position: relative;
+  overflow: hidden;
+}
+
+button::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  background-image: radial-gradient(circle, #000 10%, transparent 10.01%);
+  background-repeat: no-repeat;
+  background-position: 50%;
+  transform: scale(10, 10);
+  opacity: 0;
+  transition: transform .5s, opacity 1s;
+}
+
+button:active::after {
+  transform: scale(0, 0);
+  opacity: .2;
+  transition: 0s;
 }
 </style>
