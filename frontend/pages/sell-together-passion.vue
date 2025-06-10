@@ -1,3 +1,8 @@
+<script setup lang="ts">
+import { NuxtLink } from '#components';
+
+</script>
+
 <template>
     <main class="bg-white p-8 rounded shadow max-w-7xl mx-auto mt-6">
   <!-- Banner -->
@@ -5,9 +10,9 @@
     <h1 class="text-3xl font-bold text-pink-600">Bán hàng cùng Passion</h1>
     <p class="mt-2 text-gray-600">Biến đam mê của bạn thành thu nhập ổn định với nền tảng thương mại điện tử Passion.</p>
     <img src="https://i.imgur.com/YejDExx.jpeg" alt="Bán hàng cùng Passion" class="mx-auto mt-6 rounded-lg shadow-md w-full max-w-3xl">
-    <a href="#dangky" class="inline-block mt-6 bg-pink-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-pink-700 transition">
+    <NuxtLink href="/seller/register" class="inline-block mt-6 bg-pink-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-pink-700 transition">
       Đăng ký ngay
-    </a>
+    </NuxtLink>
   </div>
 
   <!-- Lợi ích -->

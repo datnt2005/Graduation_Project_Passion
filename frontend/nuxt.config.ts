@@ -5,7 +5,7 @@ export default defineNuxtConfig({
   ],
    modules: ['@pinia/nuxt'],
   plugins: ['~/plugins/fontawesome'],
-  devtools: { enabled: true },
+  devtools: { enabled: false },
    postcss: {
     plugins: {
        tailwindcss: {},
