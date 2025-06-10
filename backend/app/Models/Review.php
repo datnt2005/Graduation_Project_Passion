@@ -16,14 +16,23 @@ class Review extends Model
         'status',
     ];
 
-    public function replies()
+    public function reply()
     {
-        return $this->hasMany(Review::class, 'parent_id');
+        return $this->hasOne(Review::class, 'parent_id');
     }
-   // app/Models/Review.php
-public function user()
-{
-    return $this->belongsTo(User::class, 'user_id');
-}
 
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function likes()
+    {
+        return $this->hasMany(ReviewLike::class, 'review_id');
+    }
+
+    public function likesCount()
+    {
+        return $this->likes()->count();
+    }
 }

@@ -12,10 +12,6 @@ class Address extends Model
         'province_id', 'district_id', 'ward_code', 'detail', 'address_type',
         'is_default',
     ];
-}
-    use HasFactory;
-
-
 
     // Relationships
     public function user()
@@ -27,4 +23,8 @@ class Address extends Model
     {
         return $this->hasMany(Order::class);
     }
-} 
+}
+    
+
+
+    // Relationships

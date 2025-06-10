@@ -3,44 +3,89 @@
 namespace App\Http\Controllers;
 
 use App\Models\Review;
+use App\Models\ReviewLike;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 
 
 class ReviewController extends Controller
 {
     public function index(Request $request)
-    {
-        $productId = $request->query('product_id');
-        if (!$productId) {
-            return response()->json(['message' => 'Thiếu product_id'], 400);
-        }
-
-        $reviews = Review::with('user:id,name') // nếu muốn lấy tên user đánh giá
-            ->where('product_id', $productId)
-            ->where('status', 'approved')
-            ->orderByDesc('created_at')
-            ->get();
-
-        return response()->json($reviews);
+{
+    $productId = $request->query('product_id');
+    if (!$productId) {
+        return response()->json(['message' => 'Thiếu product_id'], 400);
     }
+
+    $reviews = Review::where('product_id', $productId)
+        ->whereNull('parent_id')
+        ->where('status', 'approved')
+        ->orderByDesc('created_at')
+        ->with(['reply']) // Không cần with('likes')
+        ->withCount('likes') // Thêm lượt like theo dạng số
+        ->get();
+
+    // Tính tổng số lượt like của tất cả review
+    $totalLikes = $reviews->sum('likes_count');
+
+    // Tóm tắt
+    $summary = [
+        'rating' => round($reviews->avg('rating'), 1),
+        'count' => $reviews->count(),
+        'likes_count' => $totalLikes,
+        'ratings' => [
+            5 => $reviews->where('rating', 5)->count(),
+            4 => $reviews->where('rating', 4)->count(),
+            3 => $reviews->where('rating', 3)->count(),
+            2 => $reviews->where('rating', 2)->count(),
+            1 => $reviews->where('rating', 1)->count(),
+        ]
+    ];
+
+    // Danh sách đánh giá
+    $list = $reviews->map(function ($review) {
+        return [
+            'id' => $review->id,
+            'user' => 'Ẩn danh',
+            'joined' => 'Tháng 1, 2024',
+            'totalReviews' => 5,
+            'purchased' => true,
+            'rating' => $review->rating,
+            'content' => $review->content,
+            'reply' => $review->reply ? [
+                'id' => $review->reply->id,
+                'content' => $review->reply->content,
+                'created_at' => $review->reply->created_at->format('d/m/Y'),
+            ] : null,
+            'images' => [],
+            'color' => 'Không rõ',
+            'date' => Carbon::parse($review->created_at)->format('d/m/Y'),
+            'usageTime' => '1 tuần trước',
+            'likes_count' => $review->likes_count, // dùng đúng tên field from withCount()
+        ];
+    });
+
+    return response()->json([
+        'summary' => $summary,
+        'list' => $list,
+    ]);
+}
+
 
     // Thêm đánh giá mới
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'product_id' => 'required|exists:products,id',
-            'user_id' => 'required|exists:users,id',
             'content' => 'required|string|min:10|max:1000',
             'rating' => 'required|integer|min:1|max:5',
         ], [
             'product_id.required' => 'Thiếu mã sản phẩm.',
             'product_id.exists' => 'Sản phẩm không tồn tại.',
-            'user_id.required' => 'Thiếu người dùng.',
-            'user_id.exists' => 'Người dùng không tồn tại.',
             'content.required' => 'Vui lòng nhập nội dung đánh giá.',
             'content.min' => 'Nội dung đánh giá quá ngắn (ít nhất 10 ký tự).',
             'content.max' => 'Nội dung đánh giá quá dài (tối đa 1000 ký tự).',
@@ -54,10 +99,17 @@ class ReviewController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json(['message' => 'Bạn cần đăng nhập để đánh giá.'], 401);
+        }
+
+        $userId = $user->id;
+
         // Kiểm tra người dùng đã mua sản phẩm này chưa (đơn hàng đã thanh toán)
         $hasPurchased = DB::table('orders')
             ->join('order_items', 'orders.id', '=', 'order_items.order_id')
-            ->where('orders.user_id', $request->user_id)
+            ->where('orders.user_id', $userId)
             ->where('orders.status', 'completed')
             ->where('order_items.product_id', $request->product_id)
             ->exists();
@@ -71,11 +123,11 @@ class ReviewController extends Controller
         // Tạo đánh giá mới
         $review = Review::create([
             'product_id' => $request->product_id,
-            'user_id' => $request->user_id,
+            'user_id' => $userId,
             'content' => $request->content,
             'rating' => $request->rating,
             'parent_id' => null,
-            'status' => 'approved', // hoặc để chờ duyệt nếu cần
+            'status' => 'approved', // hoặc để 'pending' nếu cần duyệt
         ]);
 
         return response()->json([
@@ -90,18 +142,21 @@ class ReviewController extends Controller
         $review = Review::findOrFail($id);
 
         $request->validate([
-            'user_id' => 'required|exists:users,id',
             'content' => 'required|string|min:10|max:1000',
             'rating' => 'required|integer|min:1|max:5',
         ]);
 
-        if ($review->user_id != $request->user_id) {
+        $userId = $request->user()->id;
+
+        // Kiểm tra quyền chỉnh sửa
+        if ($review->user_id != $userId) {
             return response()->json(['message' => 'Bạn không có quyền sửa đánh giá này.'], 403);
         }
 
+        // Kiểm tra đã mua hàng hay chưa
         $hasPurchased = DB::table('orders')
             ->join('order_items', 'orders.id', '=', 'order_items.order_id')
-            ->where('orders.user_id', $request->user_id)
+            ->where('orders.user_id', $userId)
             ->where('orders.status', 'completed')
             ->where('order_items.product_id', $review->product_id)
             ->exists();
@@ -118,19 +173,16 @@ class ReviewController extends Controller
         return response()->json(['message' => 'Cập nhật đánh giá thành công', 'review' => $review]);
     }
 
+
     // Xóa đánh giá
     public function destroy(Request $request, $id)
     {
         $review = Review::findOrFail($id);
 
-        $request->validate([
-            'user_id' => 'required|exists:users,id',
-        ]);
+        $userId = $request->user()->id;
 
-        $user = \App\Models\User::find($request->user_id);
-
-        // Chỉ admin hoặc chủ đánh giá mới được xóa
-        if ($user->id !== $review->user_id && $user->role !== 'admin') {
+        // Chỉ chủ đánh giá mới được xóa
+        if ($userId !== $review->user_id) {
             return response()->json(['message' => 'Bạn không có quyền xóa đánh giá này.'], 403);
         }
 
@@ -139,98 +191,99 @@ class ReviewController extends Controller
         return response()->json(['message' => 'Xóa đánh giá thành công.']);
     }
 
-
-    // public function like($id)
-    // {
-    //     $user = Auth::user();
-    //     $review = Review::findOrFail($id);
-
-    //     $like = DB::table('review_likes')
-    //         ->where('user_id', $user->id)
-    //         ->where('review_id', $id)
-    //         ->first();
-
-    //     if ($like) {
-    //         // Hủy like
-    //         DB::table('review_likes')->where('id', $like->id)->delete();
-    //         $review->decrement('likes');
-
-    //         return response()->json(['message' => 'Đã hủy like.']);
-    //     } else {
-    //         // Like
-    //         DB::table('review_likes')->insert([
-    //             'user_id' => $user->id,
-    //             'review_id' => $id,
-    //             'created_at' => now(),
-    //             'updated_at' => now(),
-    //         ]);
-    //         $review->increment('likes');
-
-    //         return response()->json(['message' => 'Đã like.']);
-    //     }
-    // }
-
-
-    public function like(Request $request, $id)
+    public function reply(Request $request, $reviewId)
     {
-        $review = Review::findOrFail($id);
-
-        $userId = $request->input('user_id');
-        if (!$userId) {
-            return response()->json(['message' => 'Bạn cần đăng nhập để like đánh giá'], 400);
-        }
-
-        $existingLike = DB::table('review_likes')
-            ->where('user_id', $userId)
-            ->where('review_id', $id)
-            ->first();
-
-        if ($existingLike) {
-            // Hủy like
-            DB::table('review_likes')->where('id', $existingLike->id)->delete();
-            $review->decrement('likes');
-
-            return response()->json(['message' => 'Đã hủy like']);
-        } else {
-            // Thêm like
-            DB::table('review_likes')->insert([
-                'user_id' => $userId,
-                'review_id' => $id,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-            $review->increment('likes');
-
-            return response()->json(['message' => 'Đã like']);
-        }
-    }
-
-
-
-    public function reply(Request $request, $id)
-    {
-        $parent = Review::findOrFail($id);
-
         $request->validate([
-            'user_id' => 'required|exists:users,id',
-            'content' => 'required|string|min:3'
+            'content' => 'required|string|min:3',
         ]);
 
-        $user = \App\Models\User::find($request->user_id);
+        $user = Auth::user();
 
+        // ✅ Kiểm tra quyền người bán
         if (!$user || $user->role !== 'seller') {
             return response()->json(['message' => 'Chỉ người bán mới được trả lời đánh giá.'], 403);
         }
 
+        $parentReview = Review::with('reply')->findOrFail($reviewId);
+
+        // ✅ Nếu đã có phản hồi thì từ chối
+        if ($parentReview->reply) {
+            return response()->json(['message' => 'Đánh giá này đã được phản hồi.'], 400);
+        }
+
+        // ✅ Tạo phản hồi
         $reply = Review::create([
-            'product_id' => $parent->product_id,
-            'user_id' => $user->id,
-            'parent_id' => $parent->id,
-            'content' => $request->content,
-            'rating' => 0,
-            'status' => 'approved',
+            'product_id' => $parentReview->product_id,
+            'user_id'    => $user->id,
+            'parent_id'  => $parentReview->id,
+            'content'    => $request->content,
+            'rating'     => 0,
+            'status'     => 'approved',
         ]);
 
-        return response()->json(['message' => 'Trả lời thành công', 'reply' => $reply]);
+        return response()->json([
+            'message' => 'Phản hồi thành công.',
+            'reply'   => [
+                'id'         => $reply->id,
+                'content'    => $reply->content,
+                'created_at' => $reply->created_at->format('d/m/Y'),
+            ]
+        ]);
+    }
+
+
+    public function like($reviewId)
+    {
+        $user = Auth::user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Vui lòng đăng nhập để thích.'], 401);
+        }
+
+        $review = Review::findOrFail($reviewId);
+
+        // Kiểm tra đã like chưa
+        $liked = ReviewLike::where('user_id', $user->id)->where('review_id', $reviewId)->first();
+
+        if ($liked) {
+            return response()->json(['message' => 'Bạn đã thích đánh giá này.'], 400);
+        }
+
+        // Tạo like mới
+        ReviewLike::create([
+            'user_id' => $user->id,
+            'review_id' => $reviewId,
+        ]);
+
+        return response()->json([
+            'message' => 'Đã thích đánh giá.',
+            'likes' => $review->likes()->count()
+        ]);
+    }
+
+    public function unlike($reviewId)
+    {
+        $user = Auth::user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Vui lòng đăng nhập để thích.'], 401);
+        }
+
+        $review = Review::findOrFail($reviewId);
+
+        // Kiem tra da like chua
+        $liked = ReviewLike::where('user_id', $user->id)->where('review_id', $reviewId)->first();
+
+        if (!$liked) {
+            return response()->json(['message' => 'Bạn chua thích đánh giá này.'], 400);
+        }
+
+        // Xoa like
+        $liked->delete();
+
+        return response()->json([
+            'message' => 'Đã hủy thích đánh giá.',
+            'likes' => $review->likes()->count()
+        ]);
     }
 }
