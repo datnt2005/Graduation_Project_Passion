@@ -17,6 +17,8 @@ use App\Http\Controllers\PaymentMethodController;
 use App\Http\Controllers\DiscountController;
 use App\Http\Controllers\GoogleAuthController;
 use Illuminate\Support\Facades\Storage;
+use App\Http\Controllers\SellerController;
+use App\Http\Controllers\AdminSellerController;
 
 
 
@@ -70,7 +72,7 @@ Route::prefix('orders')->group(function () {
     Route::post('/', [OrderController::class, 'store']);
     Route::put('/{id}', [OrderController::class, 'update']);
     Route::delete('/{id}', [OrderController::class, 'destroy']);
-    
+
     // Thêm routes cho mã giảm giá
     Route::post('/{id}/apply-discount', [OrderController::class, 'applyDiscount']);
     Route::delete('/{id}/remove-discount', [OrderController::class, 'removeDiscount']);
@@ -92,7 +94,7 @@ Route::prefix('payments')->group(function () {
     Route::post('/', [PaymentController::class, 'store']);
     Route::put('/{id}', [PaymentController::class, 'update']);
     Route::delete('/{id}', [PaymentController::class, 'destroy']);
-    
+
     // VNPAY routes
     Route::post('/vnpay/create', [PaymentController::class, 'createVNPayPayment']);
     Route::get('/vnpay/return', [PaymentController::class, 'vnpayReturn']);
@@ -119,12 +121,12 @@ Route::prefix('discounts')->group(function () {
     Route::post('/', [DiscountController::class, 'store']);
     Route::put('/{id}', [DiscountController::class, 'update']);
     Route::delete('/{id}', [DiscountController::class, 'destroy']);
-    
+
     // Assign routes
     Route::post('/{discountId}/products', [DiscountController::class, 'assignProducts']);
     Route::post('/{discountId}/categories', [DiscountController::class, 'assignCategories']);
     Route::post('/{discountId}/users', [DiscountController::class, 'assignUsers']);
-    
+
     // Flash sale routes
     Route::get('/flash-sales', [DiscountController::class, 'indexFlashSales']);
     Route::get('/flash-sales/{id}', [DiscountController::class, 'showFlashSale']);
@@ -146,7 +148,7 @@ Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 
 // Reviews
 
-   
+
 Route::get('/reviews', [ReviewController::class, 'index']);        // ?product_id=...
 Route::post('/reviews', [ReviewController::class, 'store']);           // Gửi đánh giá
 Route::put('/reviews/{id}', [ReviewController::class, 'update']);     // Cập nhật đánh giá
@@ -181,4 +183,18 @@ Route::post('users/batch-remove-role', [UserController::class, 'batchRemoveRole'
 
 // crud user
 Route::apiResource('users', UserController::class);
+// api seller
+
+Route::prefix('sellers')->group(function () {
+    Route::get('/', [SellerController::class, 'index']);
+    Route::post('/resgister', [SellerController::class, 'register']);
+    Route::post('/login', [SellerController::class, 'login']);
+});
+
+Route::prefix('admin')->group(function () {
+   Route::get('/sellers', [AdminSellerController::class, 'index']);
+   Route::get('/sellers/{id}', [AdminSellerController::class, 'show']);
+   Route::post('/sellers/{id}/verify', [AdminSellerController::class, 'verify']);
+   Route::post('/sellers/{id}/reject', [AdminSellerController::class, 'reject']);
+});
 

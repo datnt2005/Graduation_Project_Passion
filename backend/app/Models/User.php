@@ -30,8 +30,14 @@ class User extends Authenticatable
     ];
 
 
-public function getAvatarUrlAttribute()
+    public function seller()
     {
-        return $this->avatar ? Storage::disk('r2')->url($this->avatar) : null;
+         return $this->hasOne(Seller::class);
     }
-}
+
+
+    public function getAvatarUrlAttribute()
+        {
+            return $this->avatar ? Storage::disk('r2')->url($this->avatar) : null;
+        }
+    }
