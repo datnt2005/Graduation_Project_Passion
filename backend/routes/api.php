@@ -16,6 +16,9 @@ use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PaymentMethodController;
 use App\Http\Controllers\DiscountController;
 use App\Http\Controllers\GoogleAuthController;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Redis;
+
 use Illuminate\Support\Facades\Storage;
 use App\Http\Controllers\SellerController;
 use App\Http\Controllers\AdminSellerController;
@@ -57,12 +60,15 @@ Route::prefix('attributes')->group(function () {
 // Products
 Route::prefix('products')->group(function () {
     Route::get('/', [ProductController::class, 'index']);
+    Route::get('/trash', [ProductController::class, 'getTrash']);
     Route::get('/{id}', [ProductController::class, 'show']);
     Route::post('/', [ProductController::class, 'store']);
     Route::post('/import', [ProductController::class, 'import']);
     Route::put('/{id}', [ProductController::class, 'update']);
     Route::delete('/{id}', [ProductController::class, 'destroy']);
     Route::get('/slug/{slug}', [ProductController::class, 'showBySlug']);
+    Route::post('/change-status/{id}', [ProductController::class, 'changeStatus']);
+
 });
 
 // Orders
@@ -148,7 +154,6 @@ Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 
 // Reviews
 
-
 Route::get('/reviews', [ReviewController::class, 'index']);        // ?product_id=...
 Route::post('/reviews', [ReviewController::class, 'store']);           // Gửi đánh giá
 Route::put('/reviews/{id}', [ReviewController::class, 'update']);     // Cập nhật đánh giá
@@ -156,6 +161,16 @@ Route::post('/reviews/{id}/like', [ReviewController::class, 'like']);  // Like �
 Route::post('/reviews/{id}/reply', [ReviewController::class, 'reply']); // Trả lời đánh giá
 Route::delete('/reviews/{id}', [ReviewController::class, 'destroy']);   // Xóa đánh giá
 
+Route::get('/reviews', [ReviewController::class, 'index']); // Hiển thị đánh giá công khai
+
+// Các route yêu cầu đăng nhập
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/reviews', [ReviewController::class, 'store']);               // Gửi đánh giá
+    Route::put('/reviews/{id}', [ReviewController::class, 'update']);          // Cập nhật đánh giá
+    Route::post('/reviews/{id}/like', [ReviewController::class, 'like']);      // Like đánh giá
+    Route::post('/reviews/{id}/reply', [ReviewController::class, 'reply']);    // Trả lời đánh giá
+    Route::delete('/reviews/{id}', [ReviewController::class, 'destroy']);      // Xóa đánh giá
+});
 
 
 Route::get('/address', [AddressController::class, 'index']);
@@ -163,7 +178,6 @@ Route::post('/address', [AddressController::class, 'store']);
 Route::put('/address/{id}', [AddressController::class, 'update']);
 Route::delete('/address/{id}', [AddressController::class, 'destroy']);
 // google
-// routes/api.php
 Route::get('auth/google/redirect', [GoogleAuthController::class, 'redirectToGoogle']);
 Route::get('auth/google/callback', [GoogleAuthController::class, 'handleGoogleCallback']);
 
@@ -177,9 +191,12 @@ Route::post('/ghn/fee', [GHNController::class, 'calculateFee']);
 
 // crud user
 Route::apiResource('users', UserController::class);
+
 Route::post('users/batch-delete', [UserController::class, 'batchDelete']);
 Route::post('users/batch-add-role', [UserController::class, 'batchAddRole']);
 Route::post('users/batch-remove-role', [UserController::class, 'batchRemoveRole']);
+
+Route::post('profile/update/{id}', [UserController::class, 'updateUser']);
 
 // crud user
 Route::apiResource('users', UserController::class);

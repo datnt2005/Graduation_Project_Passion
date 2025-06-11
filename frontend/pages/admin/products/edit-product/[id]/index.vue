@@ -1,10 +1,10 @@
 <template>
-  <h1 class="text-xl font-semibold text-gray-800 px-6 pt-6">Thêm sản phẩm</h1>
+  <h1 class="text-xl font-semibold text-gray-800 px-6 pt-6">Cập nhật sản phẩm</h1>
   <div class="px-6 pb-4">
     <nuxt-link to="/admin/products/list-product" class="text-gray-600 hover:underline text-sm">
       Danh sách sản phẩm
     </nuxt-link>
-    <span class="text-gray-600 text-sm"> / Thêm sản phẩm</span>
+    <span class="text-gray-600 text-sm"> / Cập nhật sản phẩm</span>
   </div>
   <div class="flex min-h-screen bg-gray-100">
     <!-- Sidebar -->
@@ -50,7 +50,7 @@
     <!-- Main Content -->
     <main class="flex-1 p-6 bg-gray-100">
       <div class="max-w-[1200px] mx-auto">
-        <form @submit.prevent="createProduct">
+        <form @submit.prevent="updateProduct">
           <div class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4">
             <section class="space-y-4">
               <!-- Form Content -->
@@ -77,7 +77,7 @@
                     :init="{
                       height: 300,
                       menubar: false,
-                      plugins: 'lists link image preview',
+                      plugins: 'lists link image preview code help table',
                       toolbar: 'undo redo | formatselect | bold italic underline |alignjustify alignleft aligncenter alignright | bullist numlist |  | removeformat | preview | link image | code  | h1 h2 h3 h4 h5 h6  ',
                     }"
                   />
@@ -101,6 +101,7 @@
                           class="w-full md:w-60 rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
                           <option value="active">Hoạt động</option>
                           <option value="inactive">Không hoạt động</option>
+                          <option value="trash">Thùng rác</option>
                         </select>
                         <span v-if="errors.status" class="text-red-500 text-xs mt-1">{{ errors.status }}</span>
                       </div>
@@ -290,7 +291,7 @@
                       <img :src="img.url" alt="Hình ảnh sản phẩm" class="w-full h-20 object-cover rounded" />
                       <button type="button"
                         class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
-                        @click="removeProductImage(index)">
+                        @click="removeProductImage(index, img.id)">
                         ×
                       </button>
                     </div>
@@ -300,8 +301,8 @@
               </section>
               <button type="submit"
                 class="bg-blue-700 text-white rounded px-4 py-2 text-sm font-semibold hover:bg-blue-800 transition-colors w-full"
-                :disabled="loading" aria-label="Thêm sản phẩm">
-                {{ loading ? 'Đang xử lý...' : 'Thêm sản phẩm' }}
+                :disabled="loading" aria-label="Cập nhật sản phẩm">
+                {{ loading ? 'Đang xử lý...' : 'Cập nhật sản phẩm' }}
               </button>
               <!-- Product Categories -->
               <section class="border border-gray-300 rounded-md shadow-sm bg-white">
@@ -310,7 +311,7 @@
                   @click="togglePanel('categories')" :aria-expanded="panels.categories"
                   aria-label="Toggle Product categories panel">
                   <span>Danh mục sản phẩm</span>
-                  <i class="fas" :class="panels.categories ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+                    <i class="fas" :class="panels.categories ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
                 </header>
                 <div v-if="panels.categories" class="p-4 text-xs">
                   <div v-if="apiErrors.categories" class="text-red-500 text-xs mb-2">
@@ -341,7 +342,9 @@
                   <div v-if="formData.categories.length" class="flex flex-wrap gap-1.5">
                     <div v-for="categoryId in formData.categories" :key="categoryId"
                       class="bg-gray-100 px-1.5 py-0.5 rounded flex items-center gap-1">
-                      <span class="text-xs">{{categories.find(c => c.id === categoryId)?.name || 'Danh mục không xác định' }}</span>
+                      <span class="text-xs">
+                        {{ categories.find(c => c.id === categoryId)?.name || 'Danh mục không xác định' }}
+                      </span>
                       <button @click="toggleCategory(categories.find(c => c.id === categoryId))"
                         class="text-gray-500 hover:text-gray-700 text-xs">
                         ×
@@ -462,52 +465,61 @@
 
     <!-- Notification Popup -->
     <Teleport to="body">
-      <Transition enter-active-class="transition ease-out duration-200" enter-from-class="transform opacity-0 scale-95"
-        enter-to-class="transform opacity-100 scale-100" leave-active-class="transition ease-in duration-100"
-        leave-from-class="transform opacity-100 scale-100" leave-to-class="transform opacity-0 scale-95">
-        <div v-if="showNotification"
-          class="fixed bottom-4 right-4 rounded-lg shadow-xl border p-4 flex items-center space-x-3 z-50"
-          :class="notificationType === 'success' ? 'bg-white border-gray-200' : 'bg-red-50 border-red-200'">
-          <div class="flex-shrink-0">
-            <svg v-if="notificationType === 'success'" class="h-6 w-6 text-green-400" xmlns="http://www.w3.org/2000/svg"
-              fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <svg v-else class="h-6 w-6 text-red-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-              stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <div class="flex-1">
-            <p class="text-sm font-medium" :class="notificationType === 'success' ? 'text-gray-900' : 'text-red-900'">
-              {{ notificationMessage }}
-            </p>
-          </div>
-          <div class="flex-shrink-0">
-            <button @click="showNotification = false"
-              class="inline-flex text-gray-400 hover:text-gray-500 focus:outline-none">
-              <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
-  </div>
+  <Transition
+    enter-active-class="transition ease-out duration-200"
+    enter-from-class="transform opacity-0 scale-95"
+    enter-to-class="transform opacity-100 scale-100"
+    leave-active-class="transition ease-in duration-200"
+    leave-from-class="transform opacity-100 scale-100"
+    leave-to-class="transform opacity-0 scale-95"
+  >
+    <div v-if="showNotification"
+      class="fixed bottom-4 right-4 rounded-lg shadow-xl border p-4 flex items-center space-x-3 z-50"
+      :class="notificationType === 'success' ? 'bg-white border-gray-200' : 'bg-red-50 border-red-200'"
+    >
+      <div class="flex-shrink-0">
+        <svg v-if="notificationType === 'success'" class="h-6 w-6 text-green-400" xmlns="http://www.w3.org/2000/svg"
+          fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9 12l2 2 4-4m6 2a9 9 0 0-18 0 9 9 0 0118 0z" />
+        </svg>
+        <svg v-else class="h-6 w-6 text-red-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+          stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      </div>
+
+      <div class="flex-1">
+        <p class="text-sm font-medium" :class="notificationType === 'success' ? 'text-gray-900' : 'text-red-900'">
+          {{ notificationMessage }}
+        </p>
+      </div>
+
+      <div class="flex-shrink-0">
+        <button @click="showNotification = false"
+          class="inline-flex text-gray-400 hover:text-gray-500 focus:outline-none">
+          <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+            stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </Transition>
+</Teleport>
+
+</div>
+
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
 import { library } from '@fortawesome/fontawesome-svg-core';
 import { faChevronUp, faChevronDown } from '@fortawesome/free-solid-svg-icons';
-import Editor from '@tinymce/tinymce-vue'
-
+import Editor from '@tinymce/tinymce-vue';
 
 library.add(faChevronUp, faChevronDown);
 
@@ -516,6 +528,7 @@ definePageMeta({
 });
 
 const router = useRouter();
+const route = useRoute();
 const activeTab = ref('general');
 const loading = ref(false);
 const showNotification = ref(false);
@@ -525,24 +538,26 @@ const activeDropdown = ref(null);
 const categorySearch = ref('');
 const tagSearch = ref('');
 const errors = reactive({});
-const fileInput = ref(null);
-const config = useRuntimeConfig();
-const apiBase = config.public.apiBaseUrl;
-const mediaBase = config.public.mediaBaseUrl ;
-
 const apiErrors = reactive({
+  products: null,
   categories: null,
   tags: null,
   attributes: null
 });
 const showAddAttributeModal = ref(false);
+const fileInput = ref(null);
+const removedImages = ref([]);
+const config = useRuntimeConfig();
+const apiBase = config.public.apiBaseUrl;
+const mediaBase = config.public.mediaBaseUrl ;
 const newAttribute = reactive({
   name: '',
-  values: ['']
+  values: [''],
 });
 const newAttributeErrors = reactive({});
 
 const formData = reactive({
+  id: '',
   name: '',
   slug: '',
   description: '',
@@ -551,6 +566,7 @@ const formData = reactive({
   tags: [],
   variants: [
     {
+      id: null,
       price: 0,
       sale_price: null,
       cost_price: 0,
@@ -560,7 +576,7 @@ const formData = reactive({
       thumbnailFile: null
     }
   ],
-  images: []
+  images: [],
 });
 
 const panels = ref({
@@ -579,6 +595,78 @@ const extractArray = (data, key) => {
   if (data.data && Array.isArray(data.data)) return data.data;
   if (data.data && data.data[key] && Array.isArray(data.data[key])) return data.data[key];
   return [];
+};
+
+// Fetch product data by ID
+const fetchProduct = async () => {
+  try {
+    loading.value = true;
+    const response = await fetch(`${apiBase}/products/${route.params.id}`, {
+      headers: { Accept: 'application/json' }
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.statusCode}: ${response.statusText}`);
+    }
+    const data = await response.json();
+    console.log('Product data:', data.data);
+    const product = data.data || data || {};
+
+    if (!product.id) {
+      throw new Error('Invalid product data');
+    }
+
+    // Populate formData
+    formData.id = product.id;
+    formData.name = product.name || '';
+    formData.slug = product.slug || '';
+    formData.description = product.description || '';
+    formData.status = product.status || 'active' || 'inactive' || 'trash';
+    formData.categories = product.categories?.map(c => c.id) || [];
+    formData.tags = product.tags?.map(t => t.id) || [];
+    formData.images = product.product_pic?.length ?
+      product.product_pic.map(img => ({
+        id: img.id,
+        url: `${mediaBase}${img.imagePath}`,
+        file: null
+      })) : [];
+    console.log('Processed images:', formData.images);
+    
+    formData.variants = product.product_variants?.length ?
+      product.product_variants.map(variant => ({
+        id: variant.id,
+        price: parseFloat(variant.price) || 0,
+        sale_price: variant.sale_price !== null ? parseFloat(variant.sale_price) : null,
+        cost_price: parseFloat(variant.cost_price) || 0,
+        thumbnail: variant.thumbnail ? `${mediaBase}${variant.thumbnail}` : null,
+        thumbnailFile: null,
+        attributes: variant.attributes?.map(attr => ({
+          attribute_id: attr.id,
+          value_id: attr.pivot.value_id,
+        })) || [{ attribute_id: '', value_id: '' }],
+        inventory: variant.inventories?.map(inv => ({
+          id: inv.id,
+          quantity: inv.quantity || 0,
+          location: inv.location || '',
+        })) || [{ quantity: 0, location: '' }],
+      })) : [
+        {
+          id: null,
+          price: 0,
+          sale_price: null,
+          cost_price: 0,
+          thumbnail: null,
+          thumbnailFile: null,
+          attributes: [{ attribute_id: '', value_id: '' }],
+          inventory: [{ quantity: 0, location: '' }],
+        }
+      ];
+  } catch (error) {
+    console.error('Error fetching product:', error);
+    showNotificationMessage('Không thể tải sản phẩm.', 'error');
+    router.push('/admin/products/list-product');
+  } finally {
+    loading.value = false;
+  }
 };
 
 // Fetch data with error handling
@@ -734,7 +822,7 @@ const createAttribute = async () => {
           newAttributeErrors[key] = Array.isArray(value) ? value[0] : value;
         });
       }
-    }
+    };
   } catch (error) {
     console.error('Error creating attribute:', error);
     showNotificationMessage('Có lỗi kết nối khi tạo thuộc tính.', 'error');
@@ -775,19 +863,19 @@ const getAttributeValues = (attributeId) => {
 
 // Vietnamese tone removal
 const removeVietnameseTones = (str) => {
-  str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ệ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, "a");
+  str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ệ|Ậ|Ẫ|ă|ă|ắ|ặ|ẳ|Ắ/g, "a");
   str = str.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g, "e");
   str = str.replace(/ì|í|ị|ỉ|ĩ/g, "i");
   str = str.replace(/ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ/g, "o");
   str = str.replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g, "u");
   str = str.replace(/ỳ|ý|ỵ|ỷ|ỹ/g, "y");
   str = str.replace(/đ/g, "d");
-  str = str.replace(/À|Á|Ạ|Ả|Ã|Â|Ầ|Ấ|Ậ|Ẩ|Ẫ|Ă|Ằ|Ắ|Ặ|Ẳ|Ẵ/g, "A");
+  str = str.replace(/À/ | Á | Ạ | Ả | Ã | Â | Ầ | Ẩ | Ẫ | Ă | Ằ | Ắ | Ặ | Ẳ | Ẵ / g, "A");
   str = str.replace(/È|É|Ẹ|Ẻ|Ẽ|Ê|Ề|Ế|Ệ|Ể|Ẽ/g, "E");
-  str = str.replace(/Ì|Í|Ị|Ĩ|Í/g, "I");
-  str = str.replace(/Ò|Ó|Ọ|Ỏ|Õ|Ô|Ồ|Ố|Ộ|Ổ|Ỗ|Ơ|Ờ|Ớ|Ợ|Ở|Ỡ/g, "O");
+  str = str.replace(/Ì|Í|Ị|Í|Ĩ/g, "I");
+  str = str.replace(/Ò|Ó|Ọ|Ỏ|Õ|Ô|Ồ|Ố|Ộ|Ổ|Ỗ|Ờ|Ớ|Ợ|Ở|Ợ/g, "O");
   str = str.replace(/Ù|Ú|Ụ|Ủ|Ũ|Ư|Ừ|Ứ|Ự|Ử|Ữ/g, "U");
-  str = str.replace(/Ý|Ỳ|ỵ|Ỷ|Ỹ/g, "Y");
+  str = str.replace(/Ỳ|Ý|Ỵ|Ỷ|Ỹ/g, "Y");
   str = str.replace(/Đ/g, "D");
   return str;
 };
@@ -807,7 +895,7 @@ const processFiles = (files) => {
   files.forEach((file) => {
     if (['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'image/svg+xml', 'image/webp'].includes(file.type) && file.size <= 4048 * 1024) {
       const url = URL.createObjectURL(file);
-      formData.images.push({ file, url });
+      formData.images.push({ file, url, id: '' });
       delete errors.images;
     } else {
       errors.images = 'Hình ảnh không hợp lệ hoặc vượt quá 4MB.';
@@ -819,7 +907,11 @@ const triggerFileInput = () => {
   fileInput.value.click();
 };
 
-const removeProductImage = (index) => {
+const removeProductImage = (index, id) => {
+  if (id) {
+    removedImages.value.push(id);
+    console.log('Removed Images:', removedImages.value); // Debug
+  }
   formData.images.splice(index, 1);
   if (!formData.images.length) delete errors.images;
 };
@@ -838,6 +930,7 @@ const handleVariantThumbnailUpload = (event, index) => {
 // Variant management
 const addVariant = () => {
   formData.variants.push({
+    id: null,
     price: 0,
     sale_price: null,
     cost_price: 0,
@@ -883,7 +976,7 @@ const validateFormData = () => {
   let isValid = true;
 
   if (!formData.name.trim()) {
-    errors.name = 'Tên sản phẩm phải là bắt buộc.';
+    errors.name = 'Tên sản phẩm là bắt buộc.';
     isValid = false;
   } else if (formData.name.length > 255) {
     errors.name = 'Tên sản phẩm không được vượt quá 255 ký tự.';
@@ -896,7 +989,12 @@ const validateFormData = () => {
   }
 
   if (!formData.description.trim()) {
-    errors.description = 'Mô tả sản phẩm phải là bắt buộc.';
+    errors.description = 'Mô tả sản phẩm là bắt buộc.';
+    isValid = false;
+  }
+
+  if (formData.status && !['active', 'inactive', 'trash'].includes(formData.status)) {
+    errors.status = 'Trạng thái không hợp lệ.';
     isValid = false;
   }
 
@@ -915,15 +1013,16 @@ const validateFormData = () => {
       variant.sale_price !== null &&
       (!Number.isFinite(variant.sale_price) || variant.sale_price < 0)
     ) {
-      errors[`variants.${index}.sale_price`] = 'Giá bán phải là số dương hoặc bằng 0.';
+      errors[`variants.${index}.sale_price`] = 'Giá khuyến mãi phải là số dương hoặc bằng 0.';
       isValid = false;
     } else if (
       variant.sale_price !== null &&
       variant.sale_price >= variant.price
     ) {
-      errors[`variants.${index}.sale_price`] = 'Giá bán phải nhỏ hơn giá gốc.';
+      errors[`variants.${index}.sale_price`] = 'Giá khuyến mãi phải nhỏ hơn giá gốc.';
       isValid = false;
     }
+
     if (!Number.isFinite(variant.cost_price) || variant.cost_price < 0) {
       errors[`variants.${index}.cost_price`] = 'Giá vốn phải là số dương hoặc bằng 0.';
       isValid = false;
@@ -933,26 +1032,38 @@ const validateFormData = () => {
       errors[`variants.${index}.attributes`] = 'Phải có ít nhất một thuộc tính hợp lệ.';
       isValid = false;
     }
-    if (!variant.inventory.length || variant.inventory.some(inv => !inv.location || !Number.isFinite(inv.quantity) || inv.quantity < 0)) {
-      errors[`variants.${index}.inventory`] = 'Phải có ít nhất một kho hàng hợp lệ với số lượng dương.';
+
+    if (!variant.inventory.length || variant.inventory.some(inv => (!inv.quantity && inv.quantity !== 0) || inv.quantity < 0)) {
+      errors[`variants.${index}.inventory`] = 'Phải có ít nhất một kho hàng hợp lệ với số lượng không âm.';
       isValid = false;
     }
+
+    variant.inventory.forEach((inv, i) => {
+      if (inv.location && inv.location.length > 255) {
+        errors[`variants.${index}.inventory.${i}.location`] = 'Vị trí không được vượt quá 255 ký tự.';
+        isValid = false;
+      }
+    });
   });
+
+  // Check for duplicate variant attributes
   const attributeSets = formData.variants.map((variant, index) => ({
-    index: index,
+    index,
     attributes: variant.attributes
       .sort((a, b) => a.attribute_id - b.attribute_id)
-      .map(attr => `${attr.attribute_id}:${attr.value_id}`)
+      .map(attr => `${attr.attribute_id}-${attr.value_id}`)
       .join(',')
   }));
+
   const duplicates = attributeSets.reduce((acc, curr, i, arr) => {
     if (arr.some((other, j) => i !== j && other.attributes === curr.attributes)) {
       acc.push(curr.index);
     }
     return acc;
   }, []);
+
   if (duplicates.length) {
-    errors.variants = `Các biến thể tại vị trí ${duplicates.map(i => i + 1).join(', ')} có thuộc tính trùng nhau.`;
+    errors.variants = `Các biến thể tại vị trí ${duplicates.map(i => i + 1).join(', ')} có thuộc tính trùng lặp. Vui lòng sửa đổi các thuộc tính để đảm bảo mỗi biến thể là duy nhất.`;
     isValid = false;
   }
 
@@ -960,10 +1071,10 @@ const validateFormData = () => {
 };
 
 // Form submission
-const createProduct = async () => {
+const updateProduct = async () => {
   if (!validateFormData()) {
     showNotificationMessage('Vui lòng kiểm tra lại dữ liệu.', 'error');
-    console.error('Form validation failed:', errors);
+    console.error('Form validation errors:', errors);
     return;
   }
 
@@ -973,17 +1084,18 @@ const createProduct = async () => {
   formDataToSend.append('description', formData.description.trim());
   formDataToSend.append('status', formData.status);
 
-  // Append categories as individual elements
   formData.categories.forEach(categoryId => {
     formDataToSend.append('categories[]', categoryId);
   });
 
-  // Append tags as individual elements
   formData.tags.forEach(tagId => {
     formDataToSend.append('tags[]', tagId);
   });
 
   formData.variants.forEach((variant, index) => {
+    if (variant.id) {
+      formDataToSend.append(`variants[${index}][id]`, variant.id);
+    }
     formDataToSend.append(`variants[${index}][price]`, variant.price.toFixed(2));
     if (variant.sale_price !== null) {
       formDataToSend.append(`variants[${index}][sale_price]`, variant.sale_price.toFixed(2));
@@ -993,33 +1105,45 @@ const createProduct = async () => {
       formDataToSend.append(`variants[${index}][attributes][${i}][attribute_id]`, attr.attribute_id);
       formDataToSend.append(`variants[${index}][attributes][${i}][value_id]`, attr.value_id);
     });
+
     variant.inventory.forEach((inv, i) => {
       formDataToSend.append(`variants[${index}][inventory][${i}][quantity]`, inv.quantity);
       if (inv.location.trim()) {
-        formDataToSend.append(`inv[${index}][inventory][${i}][location]`, inv.location.trim());
+        formDataToSend.append(`variants[${index}][inventory][${i}][location]`, inv.location.trim());
       }
     });
     if (variant.thumbnailFile) {
       formDataToSend.append(`variants[${index}][thumbnail]`, variant.thumbnailFile);
     }
   });
+
   formData.images.forEach((img, index) => {
-    formDataToSend.append(`images[${index}]`, img.file);
+    if (img.file) {
+      formDataToSend.append(`images[]`, img.file);
+    }
   });
+
+  removedImages.value.forEach((imageId, index) => {
+    formDataToSend.append('removed_images[]', imageId);
+  });
+
+  // Debug FormData
+  console.log('FormData entries:', Array.from(formDataToSend.entries()));
+
+  formDataToSend.append('_method', 'PUT');
 
   try {
     loading.value = true;
-    console.log('Sending product creation request...');
-    const response = await fetch(`${apiBase}/products`, {
+    const response = await fetch(`${apiBase}/products/${formData.id}`, {
       method: 'POST',
       body: formDataToSend,
       headers: { Accept: 'application/json' }
     });
     const data = await response.json();
-    console.log('Product creation response:', data);
+    console.log('Product update response:', data);
 
     if (response.ok && data.success) {
-      showNotificationMessage('Tạo sản phẩm thành công!', 'success');
+      showNotificationMessage('Cập nhật sản phẩm thành công!', 'success');
       setTimeout(() => router.push('/admin/products/list-product'), 1500);
     } else {
       if (data.errors) {
@@ -1027,11 +1151,18 @@ const createProduct = async () => {
           errors[key] = Array.isArray(value) ? value[0] : value;
         });
       }
-      showNotificationMessage(data.message || 'Có lỗi xảy ra khi tạo sản phẩm.', 'error');
+      showNotificationMessage(data.message || 'Có lỗi xảy ra khi cập nhật sản phẩm.', 'error');
+      // Reset removedImages if deletion fails
+      if (data.errors && Object.keys(data.errors).some(key => key.startsWith('removed_images'))) {
+        removedImages.value = [];
+        fetchProduct(); // Reload images
+      }
     }
   } catch (error) {
-    console.error('Error creating product:', error);
-    showNotificationMessage('Có lỗi kết nối khi tạo sản phẩm.', 'error');
+    console.error('Error updating product:', error);
+    showNotificationMessage('Có lỗi kết nối khi cập nhật sản phẩm.', 'error');
+    removedImages.value = [];
+    fetchProduct(); // Reload images
   } finally {
     loading.value = false;
   }
@@ -1061,17 +1192,17 @@ const showNotificationMessage = (message, type) => {
 
 // Lifecycle hooks
 onMounted(async () => {
-  try {
-    const config = await useRuntimeConfig();
-    if (config?.public?.apiBaseUrl) {
-      apiBase = config.public.apiBaseUrl;
-    }
-  } catch (e) {
-    console.warn('Runtime config not available, using fallback API base:', apiBase);
+  if (!route.params.id) {
+    showNotificationMessage('Không tìm thấy ID sản phẩm.', 'error');
+    router.push('/admin/products/list-product');
+    return;
   }
-  await Promise.allSettled([fetchCategories(), fetchTags(), fetchAttributes()]).then(([catResult, tagResult, attrResult]) => {
-    console.log('Fetch results:', { catResult, tagResult, attrResult });
-    console.log('API Errors after fetch:', apiErrors);
+  console.log('Fetching product with ID:', route.params.id);
+  formData.id = route.params.id;
+  await Promise.allSettled([fetchProduct(), fetchCategories(), fetchTags(), fetchAttributes()]).then(([prodResult, catResult, tagResult, attrResult]) => {
+    console.log('Fetch results:', { prodResult, catResult, tagResult, attrResult, });
+    console.log('API Errors:', apiErrors);
+    console.log('Product data:', formData);
     console.log('Categories:', categories.value.length);
     console.log('Tags:', tags.value.length);
     console.log('Attributes:', attributes.value.length);
@@ -1086,7 +1217,7 @@ onUnmounted(() => {
 
 <style scoped>
 .scrollbar-height {
-  -webkit-overflow-scrolling: auto touch;
+  -webkit-overflow-scrolling: touch;
   overflow-y: auto;
   -ms-overflow-style: none;
   scrollbar-width: none;

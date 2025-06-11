@@ -1,3 +1,4 @@
+```bash
 # Graduation_Project_Passion
 Dự án tốt nghiệp, xây dựng sàn thương mại điện tử Passion
 
@@ -5,6 +6,9 @@ Lệnh:
 composer install
 composer require illuminate/filesystem
 php artisan migrate
+
+# Chạy queue worker (giúp gửi mail nhanh, xử lý job nền)
+php artisan queue:work
 
 ---everyone--- 
 1: Trước khi bắt đầu "LUÔN LUÔN CHECK GIT XEM CÓ CODE MỚI KHÔNG. LUÔN LUÔN PULL CODE MỚI TRƯỚC KHI BẮT ĐẦU CODE".

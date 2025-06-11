@@ -1,11 +1,11 @@
 <template>
   <div class="bg-gray-100 text-gray-700 font-sans">
-    <h1 class="text-xl font-semibold text-gray-800 px-6 pt-6">Thêm danh mục</h1>
+    <h1 class="text-xl font-semibold text-gray-800 px-6 pt-6">Sửa danh mục</h1>
     <div class="px-6 pb-4">
       <nuxt-link to="/admin/categories/list-category" class="text-gray-600 hover:underline text-sm">
-        Danh sách danh mục
+        Danh mục
       </nuxt-link>
-      <span class="text-gray-600 text-sm"> / Thêm danh mục</span>
+      <span class="text-gray-600 text-sm"> / Sửa danh mục</span>
     </div>
 
     <div class="flex min-h-screen bg-gray-100">
@@ -29,7 +29,7 @@
       <!-- Main Content -->
       <main class="flex-1 p-6 bg-gray-100">
         <div class="max-w-[1200px] mx-auto">
-          <form @submit.prevent="createCategory">
+          <form @submit.prevent="updateCategory">
             <div class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4">
               <section class="space-y-4">
                 <!-- Form Content -->
@@ -58,7 +58,7 @@
                     <select id="parent-category" v-model="formData.parent_id"
                       class="w-full rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
                       <option :value="null">Không có</option>
-                      <option v-for="category in categories" :key="category.id" :value="category.id">
+                      <option v-for="category in filteredCategories" :key="category.id" :value="category.id">
                         {{ category.name }}
                       </option>
                     </select>
@@ -121,7 +121,7 @@
                   <button type="submit"
                     class="w-full bg-blue-600 text-white text-sm font-semibold rounded px-4 py-2 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     :disabled="loading">
-                    {{ loading ? 'Đang xử lý...' : 'Tạo danh mục' }}
+                    {{ loading ? 'Đang xử lý...' : 'Cập nhật danh mục' }}
                   </button>
                 </div>
               </aside>
@@ -203,23 +203,25 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue';
-import { useRouter, useRuntimeConfig } from '#app';
+import { ref, reactive, computed, onMounted } from 'vue';
+import { useRouter, useRoute, useRuntimeConfig } from '#app';
 
 definePageMeta({
   layout: 'default-admin'
 });
 
 const router = useRouter();
+const route = useRoute();
 const config = useRuntimeConfig();
 const apiBase = config.public.apiBaseUrl;
+const mediaBase = config.public.mediaBaseUrl;
 
 const activeTab = ref('overview');
 const loading = ref(false);
 const errors = reactive({});
 const showNotification = ref(false);
 const notificationMessage = ref('');
-const notificationType = ref('success'); 
+const notificationType = ref('success');
 const categories = ref([]);
 const imagePreview = ref(null);
 const fileInput = ref(null);
@@ -237,12 +239,60 @@ const fetchCategories = async () => {
   try {
     const response = await fetch(`${apiBase}/categories`);
     const data = await response.json();
-    categories.value = data.categories;
+    categories.value = data.categories || [];
+    console.log('Categories fetched:', data);
   } catch (error) {
     console.error('Error fetching categories:', error);
     showNotificationMessage('Có lỗi xảy ra khi lấy danh sách danh mục' , 'error');
   }
 };
+
+// Fetch category details
+const fetchCategory = async () => {
+  if (!route.params.id) {
+    console.error('No category ID provided in route params');
+    showNotificationMessage('Không tìm thấy ID danh mục' , 'error');
+    router.push('/admin/categories/list-category');
+    return;
+  }
+
+  try {
+    console.log('Fetching category with ID:', route.params.id);
+    const response = await fetch(`${apiBase}/categories/${route.params.id}`);
+    const data = await response.json();
+    console.log('Category API response:', data);
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+
+    // Handle different response formats
+    const category = data.category || data.data || data;
+    if (category && category.name) {
+      formData.name = category.name;
+      formData.slug = category.slug;
+      formData.parent_id = category.parent_id || null;
+      formData.status = category.status || 'active';
+      if (category.image) {
+        imagePreview.value = `${mediaBase}${category.image}`;
+      }
+    } else {
+      console.error('Category data not found in response:', data);
+      showNotificationMessage('Không tìm thấy danh mục' , 'error');
+      router.push('/admin/categories/list-category');
+    }
+  } catch (error) {
+    console.error('Error fetching category:', error.message);
+    showNotificationMessage(`Có lỗi xảy ra khi lấy thông tin danh mục: ${error.message}` , 'error');
+    // Comment out redirect to allow debugging
+    // router.push('/admin/categories/list-category');
+  }
+};
+
+// Filter out current category from parent dropdown
+const filteredCategories = computed(() => {
+  return categories.value.filter(category => category.id !== parseInt(route.params.id));
+});
 
 // Trigger file input click
 const triggerFileInput = () => {
@@ -259,10 +309,10 @@ const handleDrop = (event) => {
 
 // Handle image upload
 const handleImageUpload = (event) => {
-  const file = event.target.files[0] || event.dataTransfer?.files[0];
+  const file = event.target.files[0] || event.dataTransfer?.files?.[0];
   if (file) {
     formData.image = file;
-    errors.image = '';
+    errors.image = null;
     // Generate image preview
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -271,7 +321,6 @@ const handleImageUpload = (event) => {
     reader.readAsDataURL(file);
   } else {
     formData.image = null;
-    imagePreview.value = null;
     errors.image = '';
   }
 };
@@ -285,27 +334,28 @@ const showNotificationMessage = (message, type = 'success') => {
     showNotification.value = false;
   }, 3000);
 };
-
-// Create category
-const createCategory = async () => {
+// Update category
+const updateCategory = async () => {
   const form = new FormData();
   form.append('name', formData.name);
-  form.append('slug', formData.slug);
+  form.append('slug', formData.slug || formData.name.toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-'));
   if (formData.parent_id) form.append('parent_id', formData.parent_id);
   if (formData.image) form.append('image', formData.image);
   form.append('status', formData.status);
+  form.append('_method', 'PUT');
 
   try {
     loading.value = true;
-    const response = await fetch(`${apiBase}/categories`, {
-      method: 'POST',
+    console.log('Updating category with ID:', route.params.id);
+    const response = await fetch(`${apiBase}/categories/${route.params.id}`, {
+      method: 'POST', // Use POST with _method=PATCH for method spoofing
       body: form
     });
-
     const data = await response.json();
+    console.log('Update API response:', data);
 
     if (data.success) {
-      showNotificationMessage('Tạo danh mục thành công!' , 'success');
+      showNotificationMessage('Cập nhật danh mục thành công!' , 'success');
       setTimeout(() => {
         router.push('/admin/categories/list-category');
       }, 1000);
@@ -315,20 +365,22 @@ const createCategory = async () => {
           errors[key] = data.errors[key][0];
         });
       } else {
-        showNotificationMessage(data.message || 'Có lỗi xảy ra khi tạo danh mục' , 'error');
+        showNotificationMessage(data.message || 'Có lỗi xảy ra khi cập nhật danh mục' , 'error');
       }
     }
   } catch (error) {
-    console.error('Error:', error);
-    showNotificationMessage('Có lỗi xảy ra khi tạo danh mục' , 'error');
+    console.error('Error updating category:', error);
+    showNotificationMessage('Có lỗi xảy ra khi cập nhật danh mục' , 'error');
   } finally {
     loading.value = false;
   }
 };
 
-// Fetch categories on mount
+// Fetch data on mount
 onMounted(() => {
+  console.log('API Base URL:', apiBase);
   fetchCategories();
+  fetchCategory();
 });
 </script>
 
