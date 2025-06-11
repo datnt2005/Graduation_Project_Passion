@@ -188,4 +188,6 @@ Route::post('users/batch-delete', [UserController::class, 'batchDelete']);
 Route::post('users/batch-add-role', [UserController::class, 'batchAddRole']);
 Route::post('users/batch-remove-role', [UserController::class, 'batchRemoveRole']);
 
+Route::post('profile/update/{id}', [UserController::class, 'updateUser']);
+
 
