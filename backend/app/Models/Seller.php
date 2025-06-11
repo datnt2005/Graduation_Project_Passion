@@ -23,4 +23,9 @@ class Seller extends Model
     {
         return $this->hasOne(BusinessSeller::class);
     }
+
+     public function products()
+    {
+        return $this->hasMany(Product::class, 'seller_id');
+    }
 }
