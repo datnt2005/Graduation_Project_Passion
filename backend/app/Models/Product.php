@@ -32,11 +32,31 @@ class Product extends Model
         return $this->belongsToMany(Tag::class, 'product_tags', 'product_id', 'tag_id');
     }
 
-    // public function comments(){
-    //     return $this->hasMany(Comment::class);
-    // }
-    // public function reviews()
-    // {
-    //     return $this->hasMany(Review::class, 'product_id', 'id');
-    // }
+    public function reviews()
+    {
+        return $this->hasMany(Review::class, 'product_id', 'id');
+    }
+
+    public function scopeFilter($query, array $filters)
+    {
+        if ($filters['search'] ?? false) {
+            $query->where('name', 'like', '%' . request('search') . '%');
+        }
+        if ($filters['category'] ?? false) {
+            $query->whereHas('categories', function ($query) {
+                $query->where('slug', request('category'));
+            });
+        }
+        if ($filters['tag'] ?? false) {
+            $query->whereHas('tags', function ($query) {
+                $query->where('slug', request('tag'));
+            });
+        }
+    }
+
+    public function orderItems()
+    {
+        return $this->hasMany(OrderItem::class, 'product_id');
+    }
+
 }

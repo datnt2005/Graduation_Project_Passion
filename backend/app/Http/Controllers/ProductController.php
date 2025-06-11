@@ -12,7 +12,10 @@ use App\Models\Attribute;
 use App\Models\AttributeValue;
 use App\Models\Tag;
 use App\Models\Inventory;
+use App\Models\Review;
 use App\Models\Seller;
+use App\Models\Order;
+use App\Models\OrderItem;
 use App\Http\Requests\ProductRequest;
 use App\Imports\ProductsImport;
 use Maatwebsite\Excel\Facades\Excel;
@@ -726,4 +729,81 @@ public function update(Request $request, $id)
             'data' => $products
         ], 200);
     }
+
+    //hiện sản phẩm ra trang chủ, (có rating, sold, price, sale_price, thumbnail, categories, tags)
+public function getAllProducts(Request $request)
+{
+    try {
+        $page = $request->get('page', 1);
+        $search = trim($request->get('search', '')); 
+        $perPage = $request->get('per_page', 10); 
+
+        $cacheKey = 'shop_page_' . $page . '_perpage_' . $perPage . '_search_' . md5($search);
+        $ttl = 3600;
+
+        $products = Cache::store('redis')->tags(['products'])->remember($cacheKey, $ttl, function () use ($search, $perPage) {
+            return Product::with([
+                'categories',
+                'productPic',
+                'productVariants',
+                'productVariants.inventories',
+                'productVariants.orderItems', // Lấy sold từ order_items của variants
+                'reviews'
+            ])
+                ->where('status', 'active')
+                ->when($search, function ($query) use ($search) {
+                    return $query->where('name', 'like', '%' . $search . '%');
+                })
+                ->orderBy('created_at', 'desc')
+                ->paginate($perPage);
+        });
+
+        // Map lại format theo yêu cầu
+        $formatted = collect($products->items())->map(function ($product) {
+            $variant = $product->productVariants->first(); 
+            $price = $variant?->price ?? 0;
+            $discount = $variant?->sale_price ?? null;
+
+            // Rating trung bình
+            $rating = round($product->reviews->avg('rating') ?? 0);
+            $stars = str_repeat('★', $rating) . str_repeat('☆', 5 - $rating);
+
+            // Tổng đã bán
+            $sold = $variant?->orderItems->sum('quantity') ?? 0;
+            $percent = ($discount && $price > 0)
+                ? round((($price - $discount) / $price) * 100)
+                : 0;
+                return [
+                'name'     => $product->name,
+                'slug'      => $product->slug,
+                'image'    => $product->productPic?->first()?->imagePath  ?? $product->productVariants->first()?->thumbnail ?? null,
+                'price'    => number_format($discount ?? $price, 0, ',', '.') ,
+                'discount' => $discount ? number_format($price, 0, ',', '.')  : null,
+                'rating'   => $stars,
+                'sold'     => number_format($sold),
+                'brand'    => $product->seller->store_name ?? 'N/A',
+                'percent'  => $percent,
+                'categories' => $product->categories->pluck('name')->implode(', '),
+                'tags'     => $product->tags->pluck('name')->implode(', '),
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Lấy danh sách sản phẩm thành công.',
+            'data' => [
+                'products' => $formatted,
+                'total'    => $products->total(),
+                'current_page' => $products->currentPage(),
+                'last_page' => $products->lastPage(),
+            ]
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Đã xảy ra lỗi khi lấy danh sách sản phẩm.',
+            'error' => env('APP_DEBUG', false) ? $e->getMessage() : null
+        ], 500);
+    }
+}
 }
