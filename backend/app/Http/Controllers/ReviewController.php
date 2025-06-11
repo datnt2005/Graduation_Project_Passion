@@ -15,65 +15,65 @@ use Carbon\Carbon;
 class ReviewController extends Controller
 {
     public function index(Request $request)
-{
-    $productId = $request->query('product_id');
-    if (!$productId) {
-        return response()->json(['message' => 'Thiếu product_id'], 400);
-    }
+    {
+        $productId = $request->query('product_id');
+        if (!$productId) {
+            return response()->json(['message' => 'Thiếu product_id'], 400);
+        }
 
-    $reviews = Review::where('product_id', $productId)
-        ->whereNull('parent_id')
-        ->where('status', 'approved')
-        ->orderByDesc('created_at')
-        ->with(['reply']) // Không cần with('likes')
-        ->withCount('likes') // Thêm lượt like theo dạng số
-        ->get();
+        $reviews = Review::where('product_id', $productId)
+            ->whereNull('parent_id')
+            ->where('status', 'approved')
+            ->orderByDesc('created_at')
+            ->with(['reply']) // Không cần with('likes')
+            ->withCount('likes') // Thêm lượt like theo dạng số
+            ->get();
 
-    // Tính tổng số lượt like của tất cả review
-    $totalLikes = $reviews->sum('likes_count');
+        // Tính tổng số lượt like của tất cả review
+        $totalLikes = $reviews->sum('likes_count');
 
-    // Tóm tắt
-    $summary = [
-        'rating' => round($reviews->avg('rating'), 1),
-        'count' => $reviews->count(),
-        'likes_count' => $totalLikes,
-        'ratings' => [
-            5 => $reviews->where('rating', 5)->count(),
-            4 => $reviews->where('rating', 4)->count(),
-            3 => $reviews->where('rating', 3)->count(),
-            2 => $reviews->where('rating', 2)->count(),
-            1 => $reviews->where('rating', 1)->count(),
-        ]
-    ];
-
-    // Danh sách đánh giá
-    $list = $reviews->map(function ($review) {
-        return [
-            'id' => $review->id,
-            'user' => 'Ẩn danh',
-            'joined' => 'Tháng 1, 2024',
-            'totalReviews' => 5,
-            'purchased' => true,
-            'rating' => $review->rating,
-            'content' => $review->content,
-            'reply' => $review->reply ? [
-                'id' => $review->reply->id,
-                'content' => $review->reply->content,
-                'created_at' => $review->reply->created_at->format('d/m/Y'),
-            ] : null,
-            'images' => [],
-            'color' => 'Không rõ',
-            'date' => Carbon::parse($review->created_at)->format('d/m/Y'),
-            'usageTime' => '1 tuần trước',
-            'likes_count' => $review->likes_count, // dùng đúng tên field from withCount()
+        // Tóm tắt
+        $summary = [
+            'rating' => round($reviews->avg('rating'), 1),
+            'count' => $reviews->count(),
+            'likes_count' => $totalLikes,
+            'ratings' => [
+                5 => $reviews->where('rating', 5)->count(),
+                4 => $reviews->where('rating', 4)->count(),
+                3 => $reviews->where('rating', 3)->count(),
+                2 => $reviews->where('rating', 2)->count(),
+                1 => $reviews->where('rating', 1)->count(),
+            ]
         ];
-    });
 
-    return response()->json([
-        'summary' => $summary,
-        'list' => $list,
-    ]);
-}
+        // Danh sách đánh giá
+        $list = $reviews->map(function ($review) {
+            return [
+                'id' => $review->id,
+                'user' => 'Ẩn danh',
+                'joined' => 'Tháng 1, 2024',
+                'totalReviews' => 5,
+                'purchased' => true,
+                'rating' => $review->rating,
+                'content' => $review->content,
+                'reply' => $review->reply ? [
+                    'id' => $review->reply->id,
+                    'content' => $review->reply->content,
+                    'created_at' => $review->reply->created_at->format('d/m/Y'),
+                ] : null,
+                'images' => [],
+                'color' => 'Không rõ',
+                'date' => Carbon::parse($review->created_at)->format('d/m/Y'),
+                'usageTime' => '1 tuần trước',
+                'likes_count' => $review->likes_count, // dùng đúng tên field from withCount()
+            ];
+        });
+
+        return response()->json([
+            'summary' => $summary,
+            'list' => $list,
+        ]);
+    }
 
 
     // Thêm đánh giá mới
@@ -104,37 +104,44 @@ class ReviewController extends Controller
             return response()->json(['message' => 'Bạn cần đăng nhập để đánh giá.'], 401);
         }
 
-        $userId = $user->id;
+        $productId = $request->input('product_id');
 
-        // Kiểm tra người dùng đã mua sản phẩm này chưa (đơn hàng đã thanh toán)
+        // ✅ Kiểm tra người dùng đã mua sản phẩm chưa (và đơn hàng đã thanh toán)
         $hasPurchased = DB::table('orders')
             ->join('order_items', 'orders.id', '=', 'order_items.order_id')
-            ->where('orders.user_id', $userId)
-            ->where('orders.status', 'completed')
-            ->where('order_items.product_id', $request->product_id)
+            ->where('orders.user_id', $user->id)
+            ->where('orders.status', 'completed') // Chỉ đánh giá nếu đã thanh toán
+            ->where('order_items.product_id', $productId)
             ->exists();
 
         if (!$hasPurchased) {
-            return response()->json([
-                'message' => 'Bạn chỉ có thể đánh giá sản phẩm khi đã mua hàng.',
-            ], 403);
+            return response()->json(['message' => 'Bạn chỉ có thể đánh giá khi đã mua sản phẩm này.'], 403);
         }
 
-        // Tạo đánh giá mới
+        // ✅ Kiểm tra người dùng đã đánh giá sản phẩm này chưa
+        $existingReview = DB::table('reviews')
+            ->where('user_id', $user->id)
+            ->where('product_id', $productId)
+            ->first();
+
+        if ($existingReview) {
+            return response()->json(['message' => 'Bạn đã đánh giá sản phẩm này rồi.'], 409);
+        }
+
+        // ✅ Lưu đánh giá
         $review = Review::create([
-            'product_id' => $request->product_id,
-            'user_id' => $userId,
-            'content' => $request->content,
-            'rating' => $request->rating,
-            'parent_id' => null,
-            'status' => 'approved', // hoặc để 'pending' nếu cần duyệt
+            'user_id' => $user->id,
+            'product_id' => $productId,
+            'rating' => $request->input('rating'),
+            'content' => $request->input('content'),
         ]);
 
         return response()->json([
-            'message' => 'Gửi đánh giá thành công.',
-            'review' => $review
+            'message' => 'Đánh giá đã được gửi thành công.',
+            'data' => $review
         ], 201);
     }
+
 
     // Cập nhật đánh giá
     public function update(Request $request, $id)
