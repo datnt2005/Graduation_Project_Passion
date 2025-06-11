@@ -20,6 +20,8 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Redis;
 
 use Illuminate\Support\Facades\Storage;
+use App\Http\Controllers\SellerController;
+use App\Http\Controllers\AdminSellerController;
 
 
 
@@ -152,6 +154,12 @@ Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 
 // Reviews
 
+Route::get('/reviews', [ReviewController::class, 'index']);        // ?product_id=...
+Route::post('/reviews', [ReviewController::class, 'store']);           // Gửi đánh giá
+Route::put('/reviews/{id}', [ReviewController::class, 'update']);     // Cập nhật đánh giá
+Route::post('/reviews/{id}/like', [ReviewController::class, 'like']);  // Like đánh giá
+Route::post('/reviews/{id}/reply', [ReviewController::class, 'reply']); // Trả lời đánh giá
+Route::delete('/reviews/{id}', [ReviewController::class, 'destroy']);   // Xóa đánh giá
 
 Route::get('/reviews', [ReviewController::class, 'index']); // Hiển thị đánh giá công khai
 
@@ -190,4 +198,22 @@ Route::post('users/batch-remove-role', [UserController::class, 'batchRemoveRole'
 
 Route::post('profile/update/{id}', [UserController::class, 'updateUser']);
 
+// crud user
+Route::apiResource('users', UserController::class);
+// api seller
+
+Route::prefix('sellers')->group(function () {
+    Route::get('/', [SellerController::class, 'index']);
+    Route::get('/store/{slug}', [SellerController::class, 'showStore']);
+
+    Route::post('/resgister', [SellerController::class, 'register']);
+    Route::post('/login', [SellerController::class, 'login']);
+});
+
+Route::prefix('admin')->group(function () {
+   Route::get('/sellers', [AdminSellerController::class, 'index']);
+   Route::get('/sellers/{id}', [AdminSellerController::class, 'show']);
+   Route::post('/sellers/{id}/verify', [AdminSellerController::class, 'verify']);
+   Route::post('/sellers/{id}/reject', [AdminSellerController::class, 'reject']);
+});
 
