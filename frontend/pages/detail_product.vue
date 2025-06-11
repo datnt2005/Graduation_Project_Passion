@@ -196,6 +196,7 @@
                 </button>
             </nav>
         </section>
+        <ProductReviews />
     </main>
 </template>
 
@@ -204,7 +205,7 @@ import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
 import ProductImageGallery from '../components/shared/ProductImageGallery.vue';
 import ProductOptions from '../components/shared/ProductOptions.vue';
 import RelatedProductItem from '../components/shared/RelatedProductItem.vue';
-import ReviewItem from '../components/shared/ReviewItem.vue';
+import ProductReviews from '../components/shared/ProductReviews.vue';
 
 // Product Data
 const product = {
@@ -284,179 +285,7 @@ const displayProducts = computed(() => {
     return showAll.value ? relatedProducts : relatedProducts.slice(0, 4);
 });
 
-const reviews = ref({
-    summary: {
-        rating: 0,
-        count: 0,
-        ratings: [],
-    },
-    list: [],
-});
 
-
-// Khai báo biến reactive cho rating và comment
-const newReviewRating = ref(0);
-const newReviewComment = ref('');
-const editingReviewId = ref(null);
-
-const editReview = (review) => {
-    newReviewRating.value = review.rating;
-    newReviewComment.value = review.content;
-    editingReviewId.value = review.id;
-};
-
-const cancelEdit = () => {
-    editingReviewId.value = null;
-    newReviewRating.value = 0;
-    newReviewComment.value = '';
-};
-
-
-// Hàm submit đánh giá
-const submitReview = async () => {
-    const token = localStorage.getItem('access_token');
-    if (!token) {
-        alert("Bạn cần đăng nhập để gửi đánh giá");
-        return;
-    }
-
-    const payload = {
-        rating: newReviewRating.value,
-        content: newReviewComment.value
-    };
-
-    const url = editingReviewId.value
-        ? `http://127.0.0.1:8000/api/reviews/${editingReviewId.value}`
-        : `http://127.0.0.1:8000/api/reviews?product_id=1`;
-
-    const method = editingReviewId.value ? 'PUT' : 'POST';
-
-    try {
-        const res = await fetch(url, {
-            method,
-            headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${token}`
-            },
-            body: JSON.stringify(payload)
-        });
-
-        if (!res.ok) throw new Error('Lỗi khi gửi dữ liệu');
-
-        alert(editingReviewId.value ? 'Đã cập nhật đánh giá' : 'Đã gửi đánh giá');
-
-        // Reset form
-        newReviewRating.value = 0;
-        newReviewComment.value = '';
-        editingReviewId.value = null;
-
-        // Reload reviews
-        await fetchReviews();
-    } catch (err) {
-        alert("Không thể gửi đánh giá");
-        console.error(err);
-    }
-};
-
-const deleteReview = async (id) => {
-    if (!confirm("Bạn có chắc muốn xoá đánh giá này?")) return;
-
-    const token = localStorage.getItem('access_token');
-    try {
-        const res = await fetch(`http://127.0.0.1:8000/api/reviews/${id}`, {
-            method: 'DELETE',
-            headers: {
-                Authorization: `Bearer ${token}`
-            }
-        });
-
-        if (!res.ok) throw new Error();
-
-        alert("Đã xoá đánh giá");
-        await fetchReviews();
-    } catch (err) {
-        alert("Xoá không thành công");
-    }
-};
-
-
-
-const fetchReviews = async () => {
-    try {
-        const res = await fetch('http://127.0.0.1:8000/api/reviews?product_id=1');
-        if (!res.ok) throw new Error('Lỗi khi lấy đánh giá');
-
-        const data = await res.json();
-
-        // Giả sử backend trả về định dạng:
-        // {
-        //   summary: { rating: 4.5, count: 10, ratings: [...] },
-        //   list: [ { id, user, avatar, rating, comment, ... } ]
-        // }
-
-        reviews.value = data;
-    } catch (err) {
-        console.error('Lỗi lấy đánh giá:', err.message);
-    }
-};
-
-
-// Pagination for Reviews
-const currentPage = ref(1);
-const itemsPerPage = 3;
-const totalPages = computed(() =>
-    Math.ceil(reviews.value.list.length / itemsPerPage)
-);
-
-const paginatedReviews = computed(() => {
-    const start = (currentPage.value - 1) * itemsPerPage;
-    const end = start + itemsPerPage;
-    return reviews.value.list.slice(start, end);
-});
-
-const reviewSection = ref(null);
-
-// Scroll mượt tới vùng đánh giá
-const scrollToReview = () => {
-    reviewSection.value?.scrollIntoView({ behavior: 'smooth' });
-};
-
-// Khi đổi trang, vừa đổi số trang vừa scroll lên
-const goToPage = (page) => {
-    if (page >= 1 && page <= totalPages.value) {
-        currentPage.value = page;
-        scrollToReview();
-    }
-};
-
-const isFavorite = ref(false);
-
-function toggleFavorite() {
-    isFavorite.value = !isFavorite.value;
-    const favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
-    if (isFavorite.value) {
-        // Thêm vào danh sách nếu chưa có
-        if (!favorites.find(p => p.id === product.id)) {
-            favorites.push(product);
-        }
-    } else {
-        // Gỡ bỏ
-        const index = favorites.findIndex(p => p.id === product.id);
-        if (index > -1) {
-            favorites.splice(index, 1);
-        }
-    }
-    localStorage.setItem('favorites', JSON.stringify(favorites));
-}
-
-// Image Carousel
-let intervalId = null;
-onMounted(() => {
-    fetchReviews();
-    intervalId = setInterval(() => {
-        currentImage.value = (currentImage.value + 1) % productImages.length;
-    }, 3000);
-});
 
 onBeforeUnmount(() => {
     if (intervalId) clearInterval(intervalId);
