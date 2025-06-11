@@ -332,17 +332,25 @@
                         </div>
 
                         <div class="lg:col-span-1 space-y-8">
-                            <section class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                            <section v-if="selectedAddress"
+                                class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                                 <div class="flex items-center justify-between mb-4">
                                     <h3 class="text-xl font-bold text-gray-800">Giao tới</h3>
-                                    <NuxtLink href="/address" class="text-blue-600 text-sm font-medium">Thay đổi</NuxtLink>
+                                    <NuxtLink href="/address" class="text-blue-600 text-sm font-medium">Thay đổi
+                                    </NuxtLink>
                                 </div>
                                 <div class="space-y-1 text-sm text-gray-700">
-                                    <p class="font-semibold">Trần tiến phát - 0969001733</p>
-                                    <p>Số nhà 234 Thôn 2, Xã Tâm Thắng, Huyện Cư Jút, Đắk Nông</p>
+                                    <p class="font-semibold">
+                                        {{ selectedAddress.name }} - {{ selectedAddress.phone }}
+                                    </p>
+                                    <p>
+                                        {{ selectedAddress.detail }},
+                                        {{ getWardName(selectedAddress.ward_code, selectedAddress.district_id) }},
+                                        {{ getDistrictName(selectedAddress.district_id) }},
+                                        {{ getProvinceName(selectedAddress.province_id) }}
+                                    </p>
                                 </div>
                             </section>
-
                             <section class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                                 <div class="flex items-center justify-between mb-4">
                                     <h3 class="text-xl font-bold text-gray-800">Khuyến mãi</h3>
@@ -494,12 +502,100 @@
     </div>
 </template>
 
-<script>
-import { NuxtLink } from '#components';
+<script setup>
+import axios from 'axios';
+import { ref, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
 
-export default {
-    name: "checkout"
-}
+const route = useRoute();
+
+const selectedAddress = ref(null);
+const provinces = ref([]);
+const districts = ref([]);
+const wards = ref([]);
+
+const address_id = route.query.address_id;
+
+// Hàm lấy tên tỉnh, huyện, xã
+const getProvinceName = (province_id) => {
+  const p = provinces.value.find(item => item.ProvinceID == province_id);
+  return p ? p.ProvinceName : '';
+};
+
+const getDistrictName = (district_id) => {
+  const d = districts.value.find(item => item.DistrictID == district_id);
+  return d ? d.DistrictName : '';
+};
+
+const getWardName = (ward_code, district_id) => {
+  const w = wards.value.find(item => item.WardCode == ward_code && item.DistrictID == district_id);
+  return w ? w.WardName : '';
+};
+
+// Load address đã chọn
+const loadSelectedAddress = async () => {
+  if (!address_id) return;
+
+  try {
+    const res = await axios.get(`http://127.0.0.1:8000/api/address/${address_id}`);
+    selectedAddress.value = res.data.data;
+
+    if (selectedAddress.value) {
+      await loadProvinces(); // nếu có
+      await loadDistricts(selectedAddress.value.province_id);
+      await loadWards(selectedAddress.value.district_id);
+    }
+  } catch (err) {
+    console.error('Lỗi lấy địa chỉ đã chọn:', err);
+  }
+};
+
+// Load tỉnh thành (nếu bạn dùng file JSON hoặc API riêng)
+const loadProvinces = async () => {
+  try {
+    const res = await axios.get('http://127.0.0.1:8000/api/ghn/provinces');
+    provinces.value = res.data.data;
+  } catch (err) {
+    console.error('Không tải được provinces:', err);
+  }
+};
+
+// Load quận huyện từ GHN API
+const loadDistricts = async (province_id) => {
+  try {
+    const res = await axios.post('http://127.0.0.1:8000/api/ghn/districts', {
+      province_id: province_id
+    });
+    if (Array.isArray(res.data.data)) {
+      districts.value = res.data.data;
+    } else {
+      console.warn(`Không tải được districts cho province_id=${province_id}`);
+    }
+  } catch (err) {
+    console.error(`Lỗi tải districts với province_id=${province_id}:`, err);
+  }
+};
+
+// Load xã phường từ GHN API
+const loadWards = async (district_id) => {
+  try {
+    const res = await axios.post('http://127.0.0.1:8000/api/ghn/wards', {
+      district_id: district_id
+    });
+    if (Array.isArray(res.data.data)) {
+      wards.value = res.data.data;
+    } else {
+      console.warn(`Không tải được wards cho district_id=${district_id}`);
+    }
+  } catch (err) {
+    console.error(`Lỗi tải wards với district_id=${district_id}:`, err);
+  }
+};
+
+onMounted(() => {
+  loadSelectedAddress();
+});
 </script>
+
 
 <style scoped></style>
