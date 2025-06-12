@@ -1,8 +1,9 @@
 <template>
-  <div class="bg-[#f6f7fb] min-h-screen py-6 md:py-10 font-sans">
-    <div class="max-w-5xl mx-auto flex flex-col md:flex-row gap-8">
+  <div class="min-h-screen flex flex-col bg-[#f5f7fa] font-sans text-[#1a1a1a]">
+    <div class="flex-1 flex flex-col md:flex-row max-w-[1300px] mx-auto p-4 sm:p-6 gap-6 w-full">
+      <SidebarProfile class="flex-shrink-0 border-r border-gray-200 w-full md:w-[260px] mb-4 md:mb-0" />
       <!-- Thông tin cá nhân -->
-      <section class="flex-1 bg-white rounded-2xl shadow-sm border border-[#ececec] p-4 md:p-8">
+      <section class="flex-1 min-w-0 w-full bg-white rounded-2xl shadow-sm border border-[#ececec] p-4 md:p-8 space-y-6 mb-4 md:mb-0">
         <template v-if="loading">
           <div class="animate-pulse space-y-6">
             <div class="h-8 w-3/4 bg-gray-200 rounded mb-4"></div>
@@ -75,7 +76,7 @@
       </section>
 
       <!-- Sidebar thông tin phụ -->
-      <aside class="md:w-[340px] w-full flex flex-col gap-5">
+      <aside class="w-full md:w-[340px] flex flex-col gap-5">
         <!-- Thông tin liên hệ -->
         <div class="bg-white rounded-2xl shadow-sm border border-[#ececec] p-6 space-y-4">
           <h3 class="text-lg font-semibold text-[#212b36] mb-3">Thông Tin Cá Nhân</h3>
@@ -174,11 +175,12 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted } from 'vue';
+import SidebarProfile from '~/components/shared/Sidebar-profile.vue';
 
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBaseUrl
-const DEFAULT_AVATAR = 'https://www.pngmart.com/files/22/User-Avatar-Profile-PNG.png'
+const DEFAULT_AVATAR =  config.public.mediaBaseUrl + 'avatars/default.jpg'
 
 const loading = ref(true)
 const errors = reactive({})
@@ -215,7 +217,7 @@ const fetchUser = async () => {
       headers: { Authorization: `Bearer ${token}` }
     })
     const data = await res.json()
-    const UrlAvatar = 'https://pub-3fc809b4396849cba1c342a5b9f50be9.r2.dev/'
+    const UrlAvatar = config.public.mediaBaseUrl
     if (data && data.data) {
       userId.value = data.data.id
       Object.assign(formData, {

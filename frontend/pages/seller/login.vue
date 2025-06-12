@@ -92,6 +92,7 @@ async function handleSubmit() {
     setTimeout(() => {
         loading.value = false
         alert('Đăng nhập thành công!')
+        
     }, 1000)
 }
 </script>
