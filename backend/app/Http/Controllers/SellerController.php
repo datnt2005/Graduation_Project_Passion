@@ -163,22 +163,31 @@ class SellerController extends Controller
 
             $user = Auth::user();
 
-            // B3: Kiểm tra xác minh tài khoản
-            if ($user->role === 'seller') {
-                $seller = \App\Models\Seller::where('user_id', $user->id)->first();
+            if ($user->role !== 'seller') {
+    return response()->json(['message' => 'Chỉ seller mới được đăng nhập hệ thống này.'], 403);
+}
 
-                if (!$seller) {
-                    return response()->json([
-                        'message' => 'Bạn chưa đăng ký cửa hàng. Vui lòng hoàn tất hồ sơ để được xét duyệt.',
-                    ], 403);
+            // B3:  Kiểm tra vai trò và trạng thái của người dùng
+                if ($user->role === 'seller') {
+                    $seller = \App\Models\Seller::where('user_id', $user->id)->first();
+
+                    if (!$seller) {
+                        return response()->json([
+                            'message' => 'Bạn chưa đăng ký cửa hàng. Vui lòng hoàn tất hồ sơ để được xét duyệt.',
+                        ], 403);
+                    }
+
+                    // Nếu seller đã có mà status hoặc verification_status chưa đúng thì báo lỗi
+                    if (
+                        $seller->verification_status !== 'verified'  
+                    ) {
+                        return response()->json([
+                            'message' => 'Tài khoản của bạn đang chờ admin xác nhận cửa hàng.',
+                        ], 403);
+                    }
                 }
 
-                if ($seller->verification_status !== 'verified') {
-                    return response()->json([
-                        'message' => 'Tài khoản của bạn đang chờ admin xác nhận cửa hàng.',
-                    ], 403);
-                }
-            }
+
 
             // B4: Tạo token cho user
             $token = $user->createToken('api_token')->plainTextToken;
