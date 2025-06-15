@@ -139,7 +139,7 @@
 
         <!-- Settings -->
         <li>
-          <NuxtLink to="#" class="flex items-center px-4 py-2 hover:bg-gray-800 gap-3" @click="$emit('close')">
+          <NuxtLink to="/admin/settings/list-paymentMethod" class="flex items-center px-4 py-2 hover:bg-gray-800 gap-3" @click="$emit('close')">
             <font-awesome-icon :icon="['fas', 'gear']" class="text-gray-400 w-4 h-4" />
             Cài đặt
           </NuxtLink>

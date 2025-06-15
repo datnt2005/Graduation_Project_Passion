@@ -77,14 +77,15 @@ class PaymentController extends Controller
         $order = Order::findOrFail($request->order_id);
         
         $vnp_Url = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
-        $vnp_Returnurl = "http://localhost:8000/api/payments/vnpay/return";
+        $vnp_Returnurl = "http://localhost:3000/payment/vnpay-return";
         $vnp_TmnCode = "0RS8EKIA"; // Mã website tại VNPAY
         $vnp_HashSecret = "83L7TQH357797GEBWDRUIDM0OV686MME"; // Chuỗi bí mật
 
         $vnp_TxnRef = $order->id . '_' . time(); // Mã đơn hàng
         $vnp_OrderInfo = 'Thanh toan don hang ' . $order->id;
         $vnp_OrderType = 'billpayment';
-        $vnp_Amount = $order->final_price * 100; // Số tiền * 100
+        // Round to nearest integer after multiplying by 100 to avoid floating point issues
+        $vnp_Amount = (int)round($order->final_price * 100);
         $vnp_Locale = 'vn';
         $vnp_BankCode = '';
         $vnp_IpAddr = request()->ip();
@@ -137,16 +138,29 @@ class PaymentController extends Controller
         ]);
     }
 
-    public function vnpayReturn(Request $request)
+    public function verifyVNPayPayment(Request $request)
     {
+        \Log::info('VNPAY Verify Request:', $request->all());
+        
         $vnp_HashSecret = "83L7TQH357797GEBWDRUIDM0OV686MME";
-
         $inputData = array();
-        foreach ($_GET as $key => $value) {
+        
+        // Lấy query params từ request body
+        $returnData = $request->input('query_params', []);
+        
+        foreach ($returnData as $key => $value) {
             if (substr($key, 0, 4) == "vnp_") {
                 $inputData[$key] = $value;
             }
         }
+
+        if (empty($inputData)) {
+            return response()->json([
+                'message' => 'Không nhận được dữ liệu từ VNPAY',
+            ], 400);
+        }
+
+        $vnp_SecureHash = $inputData['vnp_SecureHash'] ?? '';
         unset($inputData['vnp_SecureHash']);
         ksort($inputData);
         $hashData = "";
@@ -161,49 +175,202 @@ class PaymentController extends Controller
         }
 
         $secureHash = hash_hmac('sha512', $hashData, $vnp_HashSecret);
-        $vnpTranId = $request->input('vnp_TransactionNo');
-        $vnp_BankCode = $request->input('vnp_BankCode');
-        $vnp_Amount = $request->input('vnp_Amount');
-        $orderId = explode('_', $request->input('vnp_TxnRef'))[0];
+        $vnpTranId = $returnData['vnp_TransactionNo'] ?? '';
+        $vnp_BankCode = $returnData['vnp_BankCode'] ?? '';
+        $vnp_Amount = intval($returnData['vnp_Amount'] ?? 0);
+        $vnp_ResponseCode = $returnData['vnp_ResponseCode'] ?? '';
         
         try {
-            if ($request->input('vnp_SecureHash') !== $secureHash) {
-                throw new \Exception('Invalid secure hash');
+            // Kiểm tra txnRef có tồn tại
+            $vnp_TxnRef = $returnData['vnp_TxnRef'] ?? '';
+            if (empty($vnp_TxnRef)) {
+                throw new \Exception('Mã đơn hàng không hợp lệ');
             }
 
-            if ($request->input('vnp_ResponseCode') == '00') {
+            $orderId = explode('_', $vnp_TxnRef)[0];
+            
+            // Kiểm tra hash
+            if ($vnp_SecureHash !== $secureHash) {
+                \Log::error('VNPAY Hash Mismatch', [
+                    'received' => $vnp_SecureHash,
+                    'calculated' => $secureHash
+                ]);
+                throw new \Exception('Chữ ký không hợp lệ');
+            }
+
+            if ($vnp_ResponseCode === '00') {
                 $order = Order::findOrFail($orderId);
                 $order->update(['status' => 'processing']);
                 
                 // Tìm hoặc tạo payment_method_id cho VNPAY
-                $paymentMethod = PaymentMethod::where('name', 'VNPAY')->first();
-                if (!$paymentMethod) {
-                    $paymentMethod = PaymentMethod::create([
-                        'name' => 'VNPAY',
-                        'status' => 'active'
-                    ]);
-                }
+                $paymentMethod = PaymentMethod::firstOrCreate(
+                    ['name' => 'VNPAY'],
+                    ['status' => 'active']
+                );
 
                 Payment::create([
                     'order_id' => $orderId,
-                    'payment_method_id' => $paymentMethod->id, // Sử dụng ID động
+                    'payment_method_id' => $paymentMethod->id,
                     'amount' => $vnp_Amount / 100,
                     'transaction_id' => $vnpTranId,
                     'status' => 'completed'
                 ]);
 
+                \Log::info('VNPAY Payment Success', [
+                    'order_id' => $orderId,
+                    'amount' => $vnp_Amount / 100,
+                    'transaction_id' => $vnpTranId
+                ]);
+
                 return response()->json([
                     'message' => 'Thanh toán thành công',
-                    'order_id' => $orderId
+                    'order_id' => $orderId,
+                    'transaction_id' => $vnpTranId,
+                    'amount' => $vnp_Amount / 100,
+                    'bank_code' => $vnp_BankCode
                 ]);
             }
+
+            \Log::warning('VNPAY Payment Failed', [
+                'order_id' => $orderId,
+                'response_code' => $vnp_ResponseCode
+            ]);
+
             return response()->json([
                 'message' => 'Thanh toán thất bại',
-                'order_id' => $orderId
+                'order_id' => $orderId,
+                'response_code' => $vnp_ResponseCode
             ], 400);
+
         } catch (\Exception $e) {
+            \Log::error('VNPAY Payment Error:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all()
+            ]);
+            
             return response()->json([
-                'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
+                'message' => 'Có lỗi xảy ra: ' . $e->getMessage(),
+                'order_id' => $orderId ?? null
+            ], 500);
+        }
+    }
+
+    public function vnpayReturn(Request $request)
+    {
+        \Log::info('VNPAY Return Request:', $request->all());
+        
+        $vnp_HashSecret = "83L7TQH357797GEBWDRUIDM0OV686MME";
+
+        $inputData = array();
+        $returnData = $request->all();
+        
+        foreach ($returnData as $key => $value) {
+            if (substr($key, 0, 4) == "vnp_") {
+                $inputData[$key] = $value;
+            }
+        }
+
+        if (empty($inputData)) {
+            return response()->json([
+                'message' => 'Không nhận được dữ liệu từ VNPAY',
+            ], 400);
+        }
+
+        $vnp_SecureHash = $inputData['vnp_SecureHash'] ?? '';
+        unset($inputData['vnp_SecureHash']);
+        ksort($inputData);
+        $hashData = "";
+        $i = 0;
+        foreach ($inputData as $key => $value) {
+            if ($i == 1) {
+                $hashData = $hashData . '&' . urlencode($key) . "=" . urlencode($value);
+            } else {
+                $hashData = $hashData . urlencode($key) . "=" . urlencode($value);
+                $i = 1;
+            }
+        }
+
+        $secureHash = hash_hmac('sha512', $hashData, $vnp_HashSecret);
+        $vnpTranId = $request->input('vnp_TransactionNo', '');
+        $vnp_BankCode = $request->input('vnp_BankCode', '');
+        $vnp_Amount = intval($request->input('vnp_Amount', 0));
+        $vnp_ResponseCode = $request->input('vnp_ResponseCode', '');
+        
+        try {
+            // Kiểm tra txnRef có tồn tại
+            $vnp_TxnRef = $request->input('vnp_TxnRef', '');
+            if (empty($vnp_TxnRef)) {
+                throw new \Exception('Mã đơn hàng không hợp lệ');
+            }
+
+            $orderId = explode('_', $vnp_TxnRef)[0];
+            
+            // Kiểm tra hash
+            if ($vnp_SecureHash !== $secureHash) {
+                \Log::error('VNPAY Hash Mismatch', [
+                    'received' => $vnp_SecureHash,
+                    'calculated' => $secureHash
+                ]);
+                throw new \Exception('Chữ ký không hợp lệ');
+            }
+
+            if ($vnp_ResponseCode === '00') {
+                $order = Order::findOrFail($orderId);
+                $order->update(['status' => 'processing']);
+                
+                // Tìm hoặc tạo payment_method_id cho VNPAY
+                $paymentMethod = PaymentMethod::firstOrCreate(
+                    ['name' => 'VNPAY'],
+                    ['status' => 'active']
+                );
+
+                Payment::create([
+                    'order_id' => $orderId,
+                    'payment_method_id' => $paymentMethod->id,
+                    'amount' => $vnp_Amount / 100,
+                    'transaction_id' => $vnpTranId,
+                    'status' => 'completed'
+                ]);
+
+                \Log::info('VNPAY Payment Success', [
+                    'order_id' => $orderId,
+                    'amount' => $vnp_Amount / 100,
+                    'transaction_id' => $vnpTranId
+                ]);
+
+                return response()->json([
+                    'message' => 'Thanh toán thành công',
+                    'success' => true,
+                    'order_id' => $orderId,
+                    'transaction_id' => $vnpTranId,
+                    'amount' => $vnp_Amount / 100,
+                    'bank_code' => $vnp_BankCode
+                ]);
+            }
+
+            \Log::warning('VNPAY Payment Failed', [
+                'order_id' => $orderId,
+                'response_code' => $vnp_ResponseCode
+            ]);
+
+            return response()->json([
+                'message' => 'Thanh toán thất bại',
+                'success' => false ,
+                'order_id' => $orderId,
+                'response_code' => $vnp_ResponseCode
+            ], 400);
+
+        } catch (\Exception $e) {
+            \Log::error('VNPAY Payment Error:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all()
+            ]);
+            
+            return response()->json([
+                'message' => 'Có lỗi xảy ra: ' . $e->getMessage(),
+                'order_id' => $orderId ?? null
             ], 500);
         }
     }
@@ -226,7 +393,7 @@ class PaymentController extends Controller
         $orderInfo = "Thanh toán đơn hàng " . $order->id;
         $amount = (int)($order->final_price); // Convert to integer
         $orderId = time() . ""; // Mã đơn hàng, unique
-        $redirectUrl = "http://localhost:8000/api/payments/momo/return";
+        $redirectUrl = "http://localhost:3000/payment/momo-return";
         $ipnUrl = "http://localhost:8000/api/payments/momo/ipn";
         $extraData = base64_encode(json_encode(["order_id" => $order->id])); // Mã hóa thông tin đơn hàng
         $requestId = time() . ""; // Request id, unique

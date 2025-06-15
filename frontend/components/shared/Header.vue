@@ -683,7 +683,7 @@ Quay lại trang đăng nhập
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
 import Swal from 'sweetalert2'
 import Features from '~/components/shared/Features.vue'
@@ -1086,7 +1086,19 @@ onMounted(() => {
   window.addEventListener('storage', (e) => {
     if (e.key === 'access_token') updateLoginState()
   })
+  
+  // Add event listener for openLoginModal
+  window.addEventListener('openLoginModal', () => {
+    openLogin();
+  });
 })
+
+onUnmounted(() => {
+  // Remove event listener when component is unmounted
+  window.removeEventListener('openLoginModal', () => {
+    openLogin();
+  });
+});
 
 const isMobileMenuOpen = ref(false)
 const showVerifyEmailForm = ref(false)

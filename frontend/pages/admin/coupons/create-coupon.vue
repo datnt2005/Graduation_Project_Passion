@@ -517,8 +517,12 @@ definePageMeta({
 
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { useRuntimeConfig } from '#imports'
 
 const router = useRouter();
+const config = useRuntimeConfig()
+const apiBase = config.public.apiBaseUrl
+
 const activeTab = ref('overview');
 const loading = ref(false);
 const errors = reactive({});
@@ -605,28 +609,28 @@ const removeVietnameseTones = (str) => {
 };
 
 const filteredProducts = computed(() => {
-  if (!productSearch.value) return products.value;
-  const searchTerm = removeVietnameseTones(productSearch.value.toLowerCase());
+  if (!productSearch.value) return products.value
+  const searchTerm = removeVietnameseTones(productSearch.value.toLowerCase())
   return products.value.filter(product =>
-    removeVietnameseTones(product.name.toLowerCase()).includes(searchTerm)
-  );
-});
+    removeVietnameseTones((product.name || '').toLowerCase()).includes(searchTerm)
+  )
+})
 
 const filteredCategories = computed(() => {
-  if (!categorySearch.value) return categories.value;
-  const searchTerm = removeVietnameseTones(categorySearch.value.toLowerCase());
+  if (!categorySearch.value) return categories.value
+  const searchTerm = removeVietnameseTones(categorySearch.value.toLowerCase())
   return categories.value.filter(category =>
-    removeVietnameseTones(category.name.toLowerCase()).includes(searchTerm)
-  );
-});
+    removeVietnameseTones((category.name || '').toLowerCase()).includes(searchTerm)
+  )
+})
 
 const filteredUsers = computed(() => {
-  if (!userSearch.value) return users.value;
-  const searchTerm = removeVietnameseTones(userSearch.value.toLowerCase());
+  if (!userSearch.value) return users.value
+  const searchTerm = removeVietnameseTones(userSearch.value.toLowerCase())
   return users.value.filter(user =>
-    removeVietnameseTones(user.name.toLowerCase()).includes(searchTerm)
-  );
-});
+    removeVietnameseTones((user.name || '').toLowerCase()).includes(searchTerm)
+  )
+})
 
 // Thêm refs cho input
 const productInput = ref(null);
@@ -752,50 +756,97 @@ const generateCode = () => {
 };
 
 const createCoupon = async () => {
-  if (!validateForm()) {
-    return;
-  }
+  if (!validateForm()) return;
 
-  const requestData = {
-    ...formData,
-    product_ids: selectedProducts.value.map(p => p.id),
-    category_ids: selectedCategories.value.map(c => c.id),
-    user_ids: selectedUsers.value.map(u => u.id)
-  };
+  const requestData = { ...formData };
 
   try {
     loading.value = true;
-    const response = await fetch('http://localhost:8000/api/discounts', {
+    const response = await fetch(`${apiBase}/discounts`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(requestData)
     });
-
     const data = await response.json();
 
     if (data.success) {
+      const couponId = data.data.id;
+
+      // Gán sản phẩm
+      if (selectedProducts.value.length > 0) {
+        await fetch(`${apiBase}/discounts/${couponId}/products`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ product_ids: selectedProducts.value.map(p => p.id) })
+        });
+      }
+      // Gán danh mục
+      if (selectedCategories.value.length > 0) {
+        await fetch(`${apiBase}/discounts/${couponId}/categories`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ category_ids: selectedCategories.value.map(c => c.id) })
+        });
+      }
+      // Gán user
+      if (selectedUsers.value.length > 0) {
+        await fetch(`${apiBase}/discounts/${couponId}/users`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_ids: selectedUsers.value.map(u => u.id) })
+        });
+      }
+
       showSuccessNotification('Tạo mã giảm giá thành công!');
       setTimeout(() => {
         router.push('/admin/coupons/list-coupon');
       }, 1000);
     } else {
-      if (data.errors) {
-        Object.keys(data.errors).forEach(key => {
-          errors[key] = data.errors[key][0];
-        });
-      } else {
-        showSuccessNotification(data.message || 'Có lỗi xảy ra khi tạo mã giảm giá');
-      }
+      // Xử lý lỗi
     }
   } catch (error) {
-    console.error('Error:', error);
-    showSuccessNotification('Có lỗi xảy ra khi tạo mã giảm giá');
+    // Xử lý lỗi
   } finally {
     loading.value = false;
   }
 };
+
+const fetchProducts = async () => {
+  try {
+    const res = await fetch(`${apiBase}/products?per_page=1000`)
+    const data = await res.json()
+    products.value = data.data?.data || data.data || []
+  } catch (e) {
+    products.value = []
+  }
+}
+
+const fetchCategories = async () => {
+  try {
+    const res = await fetch(`${apiBase}/categories`)
+    const data = await res.json()
+    categories.value = data.categories || data.data || []
+  } catch (e) {
+    categories.value = []
+  }
+}
+
+const fetchUsers = async () => {
+  try {
+    const res = await fetch(`${apiBase}/users`)
+    const data = await res.json()
+    users.value = data.data || []
+  } catch (e) {
+    users.value = []
+  }
+}
+
+// Fetch data on mount
+onMounted(() => {
+  fetchProducts();
+  fetchCategories();
+  fetchUsers();
+});
 </script>
 
 <style scoped>
