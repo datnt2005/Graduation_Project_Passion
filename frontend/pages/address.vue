@@ -155,6 +155,7 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue'
 import axios from 'axios'
+import Swal from 'sweetalert2'
 
 const showNewAddressForm = ref(false)
 const shippingFee = ref(0)
@@ -175,6 +176,16 @@ const form = ref({
   address_type: 'home',
   isDefault: false,
 })
+
+
+const Toast = Swal.mixin({
+  toast: true,
+  position: 'top-end',
+  showConfirmButton: false,
+  timer: 2000,
+  timerProgressBar: true,
+})
+
 
 
 
@@ -240,23 +251,23 @@ const submitForm = async () => {
     }
 
     if (editAddress.value) {
-      // 👉 SỬA
       await axios.put(`http://127.0.0.1:8000/api/address/${editAddress.value.id}`, payload)
-      alert('Cập nhật địa chỉ thành công!')
+      Toast.fire({ icon: 'success', title: 'Cập nhật địa chỉ thành công!' })
     } else {
-      // 👉 TẠO MỚI
       await axios.post(`http://127.0.0.1:8000/api/address`, payload)
-      alert('Thêm địa chỉ thành công!')
+      Toast.fire({ icon: 'success', title: 'Thêm địa chỉ thành công!' })
     }
+
 
     showNewAddressForm.value = false
     editAddress.value = null
     await loadAddresses()
   } catch (error) {
     if (error.response?.data?.errors) {
-      alert(Object.values(error.response.data.errors).join('\n'))
+      Toast.fire({ icon: 'error', title: Object.values(error.response.data.errors).join('\n') })
     } else {
       console.error('Lỗi:', error)
+      Toast.fire({ icon: 'error', title: 'Có lỗi xảy ra khi gửi dữ liệu.' })
     }
   }
 }
@@ -334,13 +345,13 @@ const deleteAddress = async (id) => {
     await axios.delete(`http://127.0.0.1:8000/api/address/${id}`, {
       data: { user_id: 3 } // Thay số 3 bằng userId hiện tại nếu có
     })
-    alert('Xóa địa chỉ thành công!')
+    Toast.fire({ icon: 'success', title: 'Xóa địa chỉ thành công!' })
     await loadAddresses()  // Reload danh sách địa chỉ sau khi xóa
   } catch (error) {
     if (error.response) {
-      alert(error.response.data.message || 'Xảy ra lỗi khi xóa địa chỉ.')
+      Toast.fire({ icon: 'error', title: error.response.data.message || 'Xảy ra lỗi khi xóa địa chỉ.' })
     } else {
-      alert('Lỗi mạng hoặc không thể kết nối đến server.')
+      Toast.fire({ icon: 'error', title: 'Lỗi mạng hoặc không thể kết nối đến server.' })
     }
   }
 }

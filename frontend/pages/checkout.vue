@@ -5,45 +5,26 @@
                 <div class="min-h-full max-w-6xl mx-auto">
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         <div class="lg:col-span-2 space-y-8">
-                            <section class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                                <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center justify-between">
-                                    Chọn hình thức giao hàng
-                                    <span class="text-sm font-normal text-red-500">-35K</span>
-                                </h3>
+                            <section id="shipping-methods"
+                                class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                                <h3 class="text-xl font-bold text-gray-800 mb-4">Chọn hình thức giao hàng</h3>
                                 <div class="space-y-4">
                                     <label
                                         class="flex items-center space-x-3 cursor-pointer p-4 rounded-lg border border-gray-300 hover:border-blue-500 transition-colors duration-200">
-                                        <input type="radio" name="shipping-method"
-                                            class="form-radio text-blue-600 h-5 w-5" checked>
-                                        <span class="text-gray-900 font-medium">Giao tiết kiệm</span>
-                                        <span class="text-red-500 ml-auto">-35K</span>
+                                        <input type="radio" name="shipping_method" value="100039" checked
+                                            class="form-radio text-blue-600 h-5 w-5 shipping-method-radio">
+                                        <span class="text-gray-900 font-medium">GHN Tiết kiệm</span>
+                                        <span class="text-green-600 ml-auto font-semibold" id="fee-100039">Đang
+                                            tính...</span>
                                     </label>
-                                    <div class="p-4 rounded-lg border border-blue-500 bg-blue-50">
-                                        <div class="flex items-center space-x-3 mb-2">
-                                            <input type="radio" name="shipping-method"
-                                                class="form-radio text-blue-600 h-5 w-5" disabled>
-                                            <span class="text-blue-800 font-medium">Giao tốc độ 2, trước 19h,
-                                                02/06</span>
-                                            <span class="ml-auto text-green-600 font-semibold">MIỄN PHÍ</span>
-                                        </div>
-                                        <div class="flex items-start text-sm text-gray-700">
-                                            <img src="https://didongmoi.com.vn/upload/images/product/iphone-15-chinh-hang-cu-2.jpg"
-                                                alt="Product Image" class="w-16 h-16 rounded mr-3 flex-shrink-0">
-                                            <div>
-                                                <p class="font-semibold mb-1">Hộp quà Hộp quà gồm giữ nhiệt Lebentang
-                                                    LBL3038, cà men dung tích...</p>
-                                                <p class="text-gray-600">SL: 1 <span
-                                                        class="ml-2 font-bold text-red-500">299.000 đ</span></p>
-                                            </div>
-                                        </div>
-                                    </div>
+
                                     <label
                                         class="flex items-center space-x-3 cursor-pointer p-4 rounded-lg border border-gray-300 hover:border-blue-500 transition-colors duration-200">
-                                        <input type="radio" name="shipping-method"
-                                            class="form-radio text-blue-600 h-5 w-5" disabled>
-                                        <img src="https://cdn.icon-icons.com/icons2/2699/PNG/512/lebe_express_logo_icon_164391.png"
-                                            alt="Lebe Express Logo" class="w-6 h-6 ml-2">
-                                        <span class="text-gray-900 font-medium">Được giao bởi Lebentang</span>
+                                        <input type="radio" name="shipping_method" value="53321"
+                                            class="form-radio text-blue-600 h-5 w-5 shipping-method-radio">
+                                        <span class="text-gray-900 font-medium">GHN Nhanh</span>
+                                        <span class="text-green-600 ml-auto font-semibold" id="fee-53321">Đang
+                                            tính...</span>
                                     </label>
                                 </div>
                             </section>
@@ -61,57 +42,6 @@
                                 </div>
                             </section>
 
-                            <section class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                                <h3 class="text-xl font-bold text-gray-800 mb-4">Chọn hình thức thanh toán</h3>
-                                <div class="space-y-4">
-                                    <label class="flex items-center space-x-3 cursor-pointer">
-                                        <input type="radio" name="payment-method"
-                                            class="form-radio text-blue-600 h-5 w-5" checked>
-                                        <span class="text-gray-900">Thanh toán tiền mặt</span>
-                                    </label>
-                                    <label class="flex items-center space-x-3 cursor-pointer">
-                                        <input type="radio" name="payment-method"
-                                            class="form-radio text-blue-600 h-5 w-5">
-                                        <img src="https://upload.wikimedia.org/wikipedia/vi/f/f6/Logo_Viettel_Money.png"
-                                            alt="Viettel Money" class="h-6 w-auto">
-                                        <span class="text-gray-900">Viettel Money</span>
-                                    </label>
-                                    <label class="flex items-center space-x-3 cursor-pointer">
-                                        <input type="radio" name="payment-method"
-                                            class="form-radio text-blue-600 h-5 w-5">
-                                        <img src="https://img.mservice.io/image/cc8f4a38dfc6f1a8e100f13c690234a9"
-                                            alt="MoMo" class="h-6 w-auto">
-                                        <span class="text-gray-900">Ví MoMo</span>
-                                    </label>
-                                    <label class="flex items-center space-x-3 cursor-pointer">
-                                        <input type="radio" name="payment-method"
-                                            class="form-radio text-blue-600 h-5 w-5">
-                                        <img src="https://cdn.zalopay.com.vn/zlp/images/logo/logo-square_256px.png"
-                                            alt="ZaloPay" class="h-6 w-auto">
-                                        <span class="text-gray-900">Ví ZaloPay</span>
-                                    </label>
-                                    <label class="flex items-center space-x-3 cursor-pointer">
-                                        <input type="radio" name="payment-method"
-                                            class="form-radio text-blue-600 h-5 w-5">
-                                        <img src="https://static.vnpay.vn/vnpay_logo.svg" alt="VNPAY"
-                                            class="h-6 w-auto">
-                                        <span class="text-gray-900">VNPAY - Quét mã QR từ ứng dụng ngân hàng</span>
-                                    </label>
-                                    <div class="flex items-center space-x-3 cursor-not-allowed text-gray-500">
-                                        <input type="radio" name="payment-method" class="form-radio h-5 w-5" disabled>
-                                        <span class="text-gray-500">Thẻ tín dụng/Ghi nợ</span>
-                                        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Visa_Inc._logo.svg/2560px-Visa_Inc._logo.svg.png"
-                                            alt="Visa" class="h-4 w-auto ml-2 opacity-50">
-                                        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2a/Mastercard-logo.svg/800px-Mastercard-logo.svg.png"
-                                            alt="Mastercard" class="h-4 w-auto ml-1 opacity-50">
-                                        <button
-                                            class="bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm ml-auto cursor-not-allowed"
-                                            disabled>
-                                            Thêm thẻ mới
-                                        </button>
-                                    </div>
-                                </div>
-                            </section>
 
                             <section class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                                 <h3 class="text-xl font-bold text-gray-800 mb-4">Ưu đãi thanh toán khác</h3>
@@ -236,86 +166,7 @@
                                             </svg>
                                         </div>
                                     </div>
-                                    <div
-                                        class="bg-gray-50 p-4 rounded-lg border border-gray-200 flex flex-col items-center text-center">
-                                        <img src="https://img.icons8.com/color/48/000000/discount.png"
-                                            alt="Discount Icon" class="w-10 h-10 mb-2">
-                                        <p class="font-semibold text-gray-800 mb-1">Giảm 150K</p>
-                                        <p class="text-xs text-gray-600">từ 1 triệu</p>
-                                        <p class="text-xs text-red-500 font-medium">Không giới hạn</p>
-                                        <div class="flex items-center mt-2 text-gray-500">
-                                            <img src="https://d1nhio0ox7pgb.cloudfront.net/_img/g_collection_png/standard/512x512/bank_building.png"
-                                                alt="Bank" class="w-4 h-4 mr-1">
-                                            <span class="text-xs">Ohabank</span>
-                                            <svg class="w-3 h-3 ml-auto cursor-pointer" fill="none"
-                                                stroke="currentColor" viewBox="0 0 24 24"
-                                                xmlns="http://www.w3.org/2000/svg">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
-                                                </path>
-                                            </svg>
-                                        </div>
-                                    </div>
-                                    <div
-                                        class="bg-gray-50 p-4 rounded-lg border border-gray-200 flex flex-col items-center text-center">
-                                        <img src="https://img.icons8.com/color/48/000000/discount.png"
-                                            alt="Discount Icon" class="w-10 h-10 mb-2">
-                                        <p class="font-semibold text-gray-800 mb-1">Giảm 50K</p>
-                                        <p class="text-xs text-gray-600">từ 300K</p>
-                                        <p class="text-xs text-red-500 font-medium">Không giới hạn</p>
-                                        <div class="flex items-center mt-2 text-gray-500">
-                                            <img src="https://d1nhio0ox7pgb.cloudfront.net/_img/g_collection_png/standard/512x512/bank_building.png"
-                                                alt="Bank" class="w-4 h-4 mr-1">
-                                            <span class="text-xs">Ohabank</span>
-                                            <svg class="w-3 h-3 ml-auto cursor-pointer" fill="none"
-                                                stroke="currentColor" viewBox="0 0 24 24"
-                                                xmlns="http://www.w3.org/2000/svg">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
-                                                </path>
-                                            </svg>
-                                        </div>
-                                    </div>
-                                    <div
-                                        class="bg-gray-50 p-4 rounded-lg border border-gray-200 flex flex-col items-center text-center">
-                                        <img src="https://img.icons8.com/color/48/000000/discount.png"
-                                            alt="Discount Icon" class="w-10 h-10 mb-2">
-                                        <p class="font-semibold text-gray-800 mb-1">Giảm 70K</p>
-                                        <p class="text-xs text-gray-600">từ 500K</p>
-                                        <p class="text-xs text-red-500 font-medium">Không giới hạn</p>
-                                        <div class="flex items-center mt-2 text-gray-500">
-                                            <img src="https://d1nhio0ox7pgb.cloudfront.net/_img/g_collection_png/standard/512x512/bank_building.png"
-                                                alt="Bank" class="w-4 h-4 mr-1">
-                                            <span class="text-xs">Ohabank</span>
-                                            <svg class="w-3 h-3 ml-auto cursor-pointer" fill="none"
-                                                stroke="currentColor" viewBox="0 0 24 24"
-                                                xmlns="http://www.w3.org/2000/svg">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
-                                                </path>
-                                            </svg>
-                                        </div>
-                                    </div>
-                                    <div
-                                        class="bg-gray-50 p-4 rounded-lg border border-gray-200 flex flex-col items-center text-center">
-                                        <img src="https://img.icons8.com/color/48/000000/discount.png"
-                                            alt="Discount Icon" class="w-10 h-10 mb-2">
-                                        <p class="font-semibold text-gray-800 mb-1">Giảm 100K</p>
-                                        <p class="text-xs text-gray-600">từ 700K</p>
-                                        <p class="text-xs text-red-500 font-medium">Không giới hạn</p>
-                                        <div class="flex items-center mt-2 text-gray-500">
-                                            <img src="https://d1nhio0ox7pgb.cloudfront.net/_img/g_collection_png/standard/512x512/bank_building.png"
-                                                alt="Bank" class="w-4 h-4 mr-1">
-                                            <span class="text-xs">Ohabank</span>
-                                            <svg class="w-3 h-3 ml-auto cursor-pointer" fill="none"
-                                                stroke="currentColor" viewBox="0 0 24 24"
-                                                xmlns="http://www.w3.org/2000/svg">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
-                                                </path>
-                                            </svg>
-                                        </div>
-                                    </div>
+                                    
                                 </div>
 
                                 <div class="mt-6">
@@ -446,9 +297,9 @@
                                         <span>Tổng tiền hàng:</span>
                                         <span>429.000đ</span>
                                     </div>
-                                    <div class="flex justify-between text-gray-700">
+                                    <div class="flex justify-between text-gray-700 mt-4">
                                         <span>Phí vận chuyển:</span>
-                                        <span>36.500đ</span>
+                                        <span id="shipping-fee-display">Đang tính...</span>
                                     </div>
                                     <div class="flex justify-between text-red-600 font-medium">
                                         <span>Giảm giá trực tiếp:</span>
@@ -506,6 +357,10 @@
 import axios from 'axios';
 import { ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
+import { useRuntimeConfig } from '#app';
+
+const config = useRuntimeConfig();
+const apiBase = config.public.apiBaseUrl;
 
 const route = useRoute();
 
@@ -514,88 +369,147 @@ const provinces = ref([]);
 const districts = ref([]);
 const wards = ref([]);
 
+const baseUrl = `http://localhost:8000/api/shipping/calculate-fee`;
+
+const weight = 1000;
 const address_id = route.query.address_id;
 
-// Hàm lấy tên tỉnh, huyện, xã
+// Load tỉnh thành
+const loadProvinces = async () => {
+    try {
+        const res = await axios.get(`${apiBase}/ghn/provinces`);
+        provinces.value = res.data.data;
+    } catch (err) {
+        console.error('Không tải được provinces:', err);
+    }
+};
+
+// Load quận huyện
+const loadDistricts = async (province_id) => {
+    try {
+        const res = await axios.post(`${apiBase}/ghn/districts`, {
+            province_id
+        });
+        districts.value = Array.isArray(res.data.data) ? res.data.data : [];
+    } catch (err) {
+        console.error(`Lỗi tải districts với province_id=${province_id}:`, err);
+    }
+};
+
+// Load xã phường
+const loadWards = async (district_id) => {
+    try {
+        const res = await axios.post(`${apiBase}/ghn/wards`, {
+            district_id
+        });
+        wards.value = Array.isArray(res.data.data) ? res.data.data : [];
+    } catch (err) {
+        console.error(`Lỗi tải wards với district_id=${district_id}:`, err);
+    }
+};
+
+// Load địa chỉ đã chọn
+const loadSelectedAddress = async () => {
+    if (!address_id) return;
+
+    try {
+        const res = await axios.get(`${apiBase}/address/${address_id}`);
+        selectedAddress.value = res.data.data;
+
+        if (selectedAddress.value) {
+            await loadProvinces();
+            await loadDistricts(selectedAddress.value.province_id);
+            await loadWards(selectedAddress.value.district_id);
+        }
+    } catch (err) {
+        console.error('Lỗi lấy địa chỉ đã chọn:', err);
+    }
+};
+
+// Tính phí vận chuyển cho tất cả phương thức
+const calculateAllShippingFees = async () => {
+    if (!selectedAddress.value) return;
+
+    const { district_id: to_district_id, ward_code: to_ward_code } = selectedAddress.value;
+    const methods = document.querySelectorAll('.shipping-method-radio');
+
+    for (const radio of methods) {
+        const service_id = parseInt(radio.value);
+        const feeElement = document.getElementById('fee-' + service_id);
+
+        try {
+            const res = await fetch(baseUrl, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Accept": "application/json"
+                },
+                body: JSON.stringify({
+                    from_district_id: 1552,
+                    to_district_id,
+                    to_ward_code,
+                    service_id,
+                    weight,
+                    height: 20,
+                    length: 20,
+                    width: 20
+                })
+            });
+
+            const data = await res.json();
+            const fee = data?.data?.total ?? 0;
+
+            radio.dataset.fee = fee;
+            if (feeElement) {
+                feeElement.textContent = fee.toLocaleString('vi-VN') + 'đ';
+            }
+
+            if (radio.checked) {
+                const display = document.getElementById('shipping-fee-display');
+                if (display) {
+                    display.textContent = fee.toLocaleString('vi-VN') + 'đ';
+                }
+            }
+        } catch (err) {
+            console.error(`Lỗi tính phí ship cho service_id=${service_id}:`, err);
+            if (feeElement) {
+                feeElement.textContent = "Lỗi";
+            }
+        }
+    }
+
+    document.querySelectorAll('.shipping-method-radio').forEach(radio => {
+        radio.addEventListener('change', () => {
+            const fee = parseInt(radio.dataset.fee || '0');
+            const display = document.getElementById('shipping-fee-display');
+            if (display) {
+                display.textContent = fee.toLocaleString('vi-VN') + 'đ';
+            }
+        });
+    });
+};
+
 const getProvinceName = (province_id) => {
-  const p = provinces.value.find(item => item.ProvinceID == province_id);
-  return p ? p.ProvinceName : '';
+    const p = provinces.value.find(item => item.ProvinceID == province_id);
+    return p ? p.ProvinceName : '';
 };
 
 const getDistrictName = (district_id) => {
-  const d = districts.value.find(item => item.DistrictID == district_id);
-  return d ? d.DistrictName : '';
+    const d = districts.value.find(item => item.DistrictID == district_id);
+    return d ? d.DistrictName : '';
 };
 
 const getWardName = (ward_code, district_id) => {
-  const w = wards.value.find(item => item.WardCode == ward_code && item.DistrictID == district_id);
-  return w ? w.WardName : '';
+    const w = wards.value.find(item => item.WardCode == ward_code && item.DistrictID == district_id);
+    return w ? w.WardName : '';
 };
 
-// Load address đã chọn
-const loadSelectedAddress = async () => {
-  if (!address_id) return;
-
-  try {
-    const res = await axios.get(`http://127.0.0.1:8000/api/address/${address_id}`);
-    selectedAddress.value = res.data.data;
-
-    if (selectedAddress.value) {
-      await loadProvinces(); // nếu có
-      await loadDistricts(selectedAddress.value.province_id);
-      await loadWards(selectedAddress.value.district_id);
-    }
-  } catch (err) {
-    console.error('Lỗi lấy địa chỉ đã chọn:', err);
-  }
-};
-
-// Load tỉnh thành (nếu bạn dùng file JSON hoặc API riêng)
-const loadProvinces = async () => {
-  try {
-    const res = await axios.get('http://127.0.0.1:8000/api/ghn/provinces');
-    provinces.value = res.data.data;
-  } catch (err) {
-    console.error('Không tải được provinces:', err);
-  }
-};
-
-// Load quận huyện từ GHN API
-const loadDistricts = async (province_id) => {
-  try {
-    const res = await axios.post('http://127.0.0.1:8000/api/ghn/districts', {
-      province_id: province_id
-    });
-    if (Array.isArray(res.data.data)) {
-      districts.value = res.data.data;
-    } else {
-      console.warn(`Không tải được districts cho province_id=${province_id}`);
-    }
-  } catch (err) {
-    console.error(`Lỗi tải districts với province_id=${province_id}:`, err);
-  }
-};
-
-// Load xã phường từ GHN API
-const loadWards = async (district_id) => {
-  try {
-    const res = await axios.post('http://127.0.0.1:8000/api/ghn/wards', {
-      district_id: district_id
-    });
-    if (Array.isArray(res.data.data)) {
-      wards.value = res.data.data;
-    } else {
-      console.warn(`Không tải được wards cho district_id=${district_id}`);
-    }
-  } catch (err) {
-    console.error(`Lỗi tải wards với district_id=${district_id}:`, err);
-  }
-};
-
-onMounted(() => {
-  loadSelectedAddress();
+onMounted(async () => {
+    await loadSelectedAddress();
+    await nextTick();
+    calculateAllShippingFees();
 });
-</script>
 
+</script>
 
 <style scoped></style>

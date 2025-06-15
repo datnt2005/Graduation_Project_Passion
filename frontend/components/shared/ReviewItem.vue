@@ -1,5 +1,6 @@
 <template>
   <div class="bg-white rounded-md p-4 border text-sm text-gray-800 relative">
+
     <!-- Header -->
     <div class="flex items-start gap-3 mb-3">
       <!-- Avatar -->
@@ -10,8 +11,6 @@
       <!-- Info -->
       <div class="flex-1">
         <p class="font-semibold text-base">{{ review.user }}</p>
-        <p class="text-sm text-gray-500">Đã tham gia {{ review.joined }}</p>
-        <p class="text-sm text-gray-500">Đã viết {{ review.totalReviews }} Đánh giá</p>
       </div>
 
       <!-- Ellipsis Menu -->
@@ -19,22 +18,20 @@
         <button @click="toggleMenu" class="p-1 hover:bg-gray-100 rounded">
           <i class="fas fa-ellipsis-h text-gray-500"></i>
         </button>
-        <div
-          v-if="showMenu"
-          class="absolute right-0 mt-2 bg-white border rounded shadow-md text-xs z-10 min-w-[100px] overflow-hidden"
-        >
-          <button @click="$emit('edit-review', review)" class="block w-full text-left px-4 py-2 hover:bg-gray-100">
-            ✏️ Sửa
-          </button>
-          <button @click="$emit('delete-review', review.id)" class="block w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600">
+        <div v-if="showMenu"
+          class="absolute right-0 mt-2 bg-white border rounded shadow-md text-xs z-10 min-w-[100px] overflow-hidden">
+         <!-- Đừng truyền review.id nếu bạn cần edit full -->
+<button @click="$emit('edit-review', review)" class="block w-full text-left px-4 py-2 hover:bg-gray-100">
+  ✏️ Sửa
+</button>
+
+          <button @click="$emit('delete-review', review.id)"
+            class="block w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600">
             🗑️ Xoá
           </button>
         </div>
       </div>
     </div>
-
-    <!-- Title -->
-    <p class="font-semibold text-base mb-1">Cực kì hài lòng</p>
 
     <!-- Stars -->
     <div class="flex items-center gap-1 text-yellow-400 mb-2">
@@ -60,28 +57,22 @@
     </div>
 
     <!-- Images -->
-    <div class="flex gap-2 overflow-x-auto mb-2">
-      <img
-        v-for="(img, index) in review.images"
-        :key="index"
-        :src="img"
-        class="w-20 h-20 object-cover rounded border"
-        alt="Ảnh sản phẩm"
-      />
-    </div>
+    <img v-for="(img, index) in review.images" :key="index" :src="img" class="w-20 h-20 object-cover rounded border"
+      alt="Ảnh sản phẩm" />
 
     <!-- Metadata -->
     <p class="text-sm text-gray-500 mb-1">Màu: {{ review.color }}</p>
     <p class="text-sm text-gray-500 mb-2">
-      Đánh giá vào {{ review.date }} • Đã dùng {{ review.usageTime }}
+      Đánh giá vào {{ formatDate(review.created_at) }}
     </p>
+
 
     <!-- Interaction -->
     <div class="flex flex-col gap-2 text-gray-600 text-sm">
       <div class="flex items-center gap-4">
         <!-- Like -->
         <button @click="likeReview" class="text-sm text-gray-500 hover:text-blue-600 flex items-center gap-1">
-          <i :class="['fas fa-thumbs-up', isLiked ? 'text-blue-600' : '']"></i>
+          <i :class="['fas fa-thumbs-up', isLiked ? 'text-blue-600' : 'text-gray-500']"></i>
           <span>{{ likeCount }}</span>
         </button>
 
@@ -103,16 +94,11 @@
         <div v-if="showReplyForm" class="flex items-start border border-black-500 p-2 rounded-md mt-2">
           <div class="text-2xl mr-2 text-gray-400">😊</div>
           <div class="flex-1 relative">
-            <input
-              type="text"
-              v-model="replyContent"
+            <input type="text" v-model="replyContent"
               class="w-full border border-blue-500 rounded-full px-4 py-2 pr-10 outline-none"
-              placeholder="Viết câu trả lời"
-            />
-            <button
-              class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-600"
-              @click="submitReply"
-            >
+              placeholder="Viết câu trả lời" />
+            <button class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-600"
+              @click="submitReply">
               <i class="fas fa-paper-plane"></i>
             </button>
           </div>
@@ -120,59 +106,111 @@
       </transition>
     </div>
   </div>
+
 </template>
 
 <script setup>
-import { ref } from 'vue'
-
+import { ref, onMounted } from 'vue'
+import Swal from 'sweetalert2'
+import { useRuntimeConfig } from '#app';
 
 const { review } = defineProps(['review'])
+
+const config = useRuntimeConfig()
+const apiBase = config.public.apiBaseUrl
+const mediaBase = config.public.mediaBaseUrl
+
 const showReplyForm = ref(false)
 const replyContent = ref('')
 const isLiked = ref(false)
 const likeCount = ref(review.likes_count || 0)
 const showMenu = ref(false)
-const toggleMenu = () => { showMenu.value = !showMenu.value }
+
+const toggleMenu = () => {
+  showMenu.value = !showMenu.value
+}
+
+const formatDate = (dateStr) => {
+  const date = new Date(dateStr)
+  return date.toLocaleString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
 
 const emit = defineEmits(['edit-review', 'delete-review'])
+
+const Toast = Swal.mixin({
+  toast: true,
+  position: 'top-end',
+  showConfirmButton: false,
+  timer: 2000,
+  timerProgressBar: true,
+})
 
 const likeReview = async () => {
   const token = localStorage.getItem('access_token')
   if (!token) {
-    alert('Vui lòng đăng nhập để thích đánh giá.')
+    Toast.fire({
+      icon: 'info',
+      title: 'Vui lòng đăng nhập để thích đánh giá.'
+    })
     return
   }
 
   try {
-    const res = await fetch(`http://127.0.0.1:8000/api/reviews/${review.id}/like`, {
+    const url = `${apiBase}/reviews/${review.id}/${isLiked.value ? 'unlike' : 'like'}`
+    const res = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
+        Authorization: `Bearer ${token}`
+      }
     })
-
     const data = await res.json()
 
-    if (!res.ok) {
-      throw new Error(data.message)
-    }
+    if (!res.ok) throw new Error(data.message)
 
-    isLiked.value = true
+    isLiked.value = !isLiked.value
     likeCount.value = data.likes
   } catch (err) {
-    alert(err.message)
+    Toast.fire({
+      icon: 'error',
+      title: err.message
+    })
   }
 }
+
+onMounted(async () => {
+  const token = localStorage.getItem('access_token')
+  if (!token) return
+
+  try {
+    const res = await fetch(`${apiBase}/reviews/${review.id}/liked`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    const data = await res.json()
+    isLiked.value = data.liked
+  } catch (err) {
+    console.error('Lỗi kiểm tra like:', err)
+  }
+})
+
 const submitReply = async () => {
   const token = localStorage.getItem('access_token')
   if (!token) {
-    alert('Vui lòng đăng nhập để phản hồi.')
+    Toast.fire({
+      icon: 'info',
+      title: 'Vui lòng đăng nhập để phản hồi.'
+    })
     return
   }
 
   try {
-    const res = await fetch(`http://127.0.0.1:8000/api/reviews/${review.id}/reply`, {
+    const res = await fetch(`${apiBase}/reviews/${review.id}/reply`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -189,17 +227,22 @@ const submitReply = async () => {
       throw new Error(data.message || 'Đã xảy ra lỗi khi phản hồi.')
     }
 
-    // ✅ Gán lại cả object reply
     review.reply = data.reply
-
     replyContent.value = ''
     showReplyForm.value = false
+
+    Toast.fire({
+      icon: 'success',
+      title: 'Phản hồi thành công!'
+    })
   } catch (err) {
     console.error(err)
-    alert('Không thể gửi phản hồi. Vui lòng thử lại sau.')
+    Toast.fire({
+      icon: 'error',
+      title: 'Chỉ người bán sản phẩm này mới được phản hồi.'
+    })
   }
 }
-
 </script>
 
 

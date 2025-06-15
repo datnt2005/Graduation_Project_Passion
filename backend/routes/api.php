@@ -20,18 +20,19 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Redis;
 
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Http\Request;
 
 
 
 // Category
 Route::prefix('categories')->group(function () {
-Route::get('/', [CategoryController::class, 'index']);
-Route::get('/{id}', [CategoryController::class, 'show']);
-Route::get('/{id}/children', [CategoryController::class, 'children']);
-Route::get('/{id}/parents', [CategoryController::class, 'parents']);
-Route::post('/', [CategoryController::class, 'store']);
-Route::put('/{id}', [CategoryController::class, 'update']);
-Route::delete('/{id}', [CategoryController::class, 'destroy']);
+    Route::get('/', [CategoryController::class, 'index']);
+    Route::get('/{id}', [CategoryController::class, 'show']);
+    Route::get('/{id}/children', [CategoryController::class, 'children']);
+    Route::get('/{id}/parents', [CategoryController::class, 'parents']);
+    Route::post('/', [CategoryController::class, 'store']);
+    Route::put('/{id}', [CategoryController::class, 'update']);
+    Route::delete('/{id}', [CategoryController::class, 'destroy']);
 });
 
 
@@ -66,7 +67,6 @@ Route::prefix('products')->group(function () {
     Route::delete('/{id}', [ProductController::class, 'destroy']);
     Route::get('/slug/{slug}', [ProductController::class, 'showBySlug']);
     Route::post('/change-status/{id}', [ProductController::class, 'changeStatus']);
-    
 });
 
 // Orders
@@ -76,7 +76,7 @@ Route::prefix('orders')->group(function () {
     Route::post('/', [OrderController::class, 'store']);
     Route::put('/{id}', [OrderController::class, 'update']);
     Route::delete('/{id}', [OrderController::class, 'destroy']);
-    
+
     // Thêm routes cho mã giảm giá
     Route::post('/{id}/apply-discount', [OrderController::class, 'applyDiscount']);
     Route::delete('/{id}/remove-discount', [OrderController::class, 'removeDiscount']);
@@ -98,7 +98,7 @@ Route::prefix('payments')->group(function () {
     Route::post('/', [PaymentController::class, 'store']);
     Route::put('/{id}', [PaymentController::class, 'update']);
     Route::delete('/{id}', [PaymentController::class, 'destroy']);
-    
+
     // VNPAY routes
     Route::post('/vnpay/create', [PaymentController::class, 'createVNPayPayment']);
     Route::get('/vnpay/return', [PaymentController::class, 'vnpayReturn']);
@@ -125,12 +125,12 @@ Route::prefix('discounts')->group(function () {
     Route::post('/', [DiscountController::class, 'store']);
     Route::put('/{id}', [DiscountController::class, 'update']);
     Route::delete('/{id}', [DiscountController::class, 'destroy']);
-    
+
     // Assign routes
     Route::post('/{discountId}/products', [DiscountController::class, 'assignProducts']);
     Route::post('/{discountId}/categories', [DiscountController::class, 'assignCategories']);
     Route::post('/{discountId}/users', [DiscountController::class, 'assignUsers']);
-    
+
     // Flash sale routes
     Route::get('/flash-sales', [DiscountController::class, 'indexFlashSales']);
     Route::get('/flash-sales/{id}', [DiscountController::class, 'showFlashSale']);
@@ -152,7 +152,7 @@ Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 
 // Reviews
 
-   
+
 Route::get('/reviews', [ReviewController::class, 'index']); // Hiển thị đánh giá công khai
 
 // Các route yêu cầu đăng nhập
@@ -160,16 +160,22 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/reviews', [ReviewController::class, 'store']);               // Gửi đánh giá
     Route::put('/reviews/{id}', [ReviewController::class, 'update']);          // Cập nhật đánh giá
     Route::post('/reviews/{id}/like', [ReviewController::class, 'like']);      // Like đánh giá
+    Route::get('/reviews/{id}/liked', [ReviewController::class, 'checkLiked']);
+    Route::post('/reviews/{id}/unlike', [ReviewController::class, 'unlike']);  // Unlike đánh giá
     Route::post('/reviews/{id}/reply', [ReviewController::class, 'reply']);    // Trả lời đánh giá
     Route::delete('/reviews/{id}', [ReviewController::class, 'destroy']);      // Xóa đánh giá
 });
 
 
-Route::get('/address', [AddressController::class, 'index']);
-Route::get('/address/{id}', [AddressController::class, 'show']);
-Route::post('/address', [AddressController::class, 'store']);
-Route::put('/address/{id}', [AddressController::class, 'update']);
-Route::delete('/address/{id}', [AddressController::class, 'destroy']);
+
+
+    Route::get('/address', [AddressController::class, 'index']);
+    Route::get('/address/{id}', [AddressController::class, 'show']);
+    Route::post('/address', [AddressController::class, 'store']);
+    Route::put('/address/{id}', [AddressController::class, 'update']);
+    Route::delete('/address/{id}', [AddressController::class, 'destroy']);
+
+
 // google
 // routes/api.php
 Route::get('auth/google/redirect', [GoogleAuthController::class, 'redirectToGoogle']);
@@ -181,7 +187,11 @@ Route::get('/ghn/districts', [GHNController::class, 'getDistricts']);
 Route::get('/ghn/wards', [GHNController::class, 'getWards']);
 Route::post('/ghn/districts', [GHNController::class, 'getDistricts']);
 Route::post('/ghn/wards', [GHNController::class, 'getWards']);
-Route::post('/ghn/fee', [GHNController::class, 'calculateFee']);
+Route::post('/shipping/calculate-fee', [GHNController::class, 'calculateFee']);
+Route::post('/ghn/services', [GHNController::class, 'getServices']);
+
+
+
 
 // crud user
 Route::apiResource('users', UserController::class);
@@ -192,4 +202,3 @@ Route::post('users/batch-remove-role', [UserController::class, 'batchRemoveRole'
 
 // crud user
 Route::apiResource('users', UserController::class);
-
