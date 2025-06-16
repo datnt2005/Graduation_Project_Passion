@@ -12,10 +12,10 @@ use Illuminate\Support\Facades\Redis;
 
 class CartController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware('auth:sanctum');
-    }
+   public function __construct()
+{
+    $this->middleware('auth:sanctum')->except(['addToRedisCart', 'getRedisCart', 'updateRedisCartItem', 'removeRedisCartItem', 'clearRedisCart']);
+}
 
     public function index(Request $request)
     {
