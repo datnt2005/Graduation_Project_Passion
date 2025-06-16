@@ -57,7 +57,7 @@
     </div>
 
     <!-- Images -->
-    <img v-for="(img, index) in review.images" :key="index" :src="img" class="w-20 h-20 object-cover rounded border"
+    <img v-for="(img, index) in review.images" :key="index" :src="img.url" class="w-20 h-20 object-cover rounded border"
       alt="Ảnh sản phẩm" />
 
     <!-- Metadata -->

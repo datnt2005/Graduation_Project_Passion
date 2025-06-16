@@ -166,7 +166,7 @@
                                             </svg>
                                         </div>
                                     </div>
-                                    
+
                                 </div>
 
                                 <div class="mt-6">
@@ -202,6 +202,12 @@
                                     </p>
                                 </div>
                             </section>
+                            <section v-else
+                                class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 text-gray-600 italic">
+                                Bạn chưa có địa chỉ giao hàng. <NuxtLink to="/address" class="text-blue-500 underline">
+                                    Thêm địa chỉ</NuxtLink>
+                            </section>
+
                             <section class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                                 <div class="flex items-center justify-between mb-4">
                                     <h3 class="text-xl font-bold text-gray-800">Khuyến mãi</h3>
@@ -369,7 +375,7 @@ const provinces = ref([]);
 const districts = ref([]);
 const wards = ref([]);
 
-const baseUrl = `http://localhost:8000/api/shipping/calculate-fee`;
+const baseUrl = `${apiBase}/shipping/calculate-fee`;
 
 const weight = 1000;
 const address_id = route.query.address_id;
@@ -410,21 +416,31 @@ const loadWards = async (district_id) => {
 
 // Load địa chỉ đã chọn
 const loadSelectedAddress = async () => {
-    if (!address_id) return;
-
     try {
-        const res = await axios.get(`${apiBase}/address/${address_id}`);
-        selectedAddress.value = res.data.data;
+        await loadProvinces(); // luôn cần danh sách tỉnh
 
+        if (address_id) {
+            const res = await axios.get(`${apiBase}/address/${address_id}`);
+            selectedAddress.value = res.data.data;
+        } else {
+            // Nếu không có address_id, tìm địa chỉ mặc định của user
+            const userId = 3; // thay bằng user đang đăng nhập nếu cần
+            const res = await axios.get(`${apiBase}/address?user_id=${userId}`);
+            const addresses = res.data.data || [];
+
+            selectedAddress.value = addresses.find(addr => addr.is_default == 1);
+        }
+
+        // Nếu có địa chỉ, load districts và wards tương ứng
         if (selectedAddress.value) {
-            await loadProvinces();
             await loadDistricts(selectedAddress.value.province_id);
             await loadWards(selectedAddress.value.district_id);
         }
     } catch (err) {
-        console.error('Lỗi lấy địa chỉ đã chọn:', err);
+        console.error('Lỗi lấy địa chỉ:', err);
     }
 };
+
 
 // Tính phí vận chuyển cho tất cả phương thức
 const calculateAllShippingFees = async () => {

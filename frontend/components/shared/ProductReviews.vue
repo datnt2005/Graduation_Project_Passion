@@ -23,7 +23,8 @@
 
       <!-- Form gửi hoặc sửa đánh giá -->
       <form @submit.prevent="submitReview" class="flex-1 text-xs">
-        <p class="font-semibold mb-1">{{ editingReviewId ? 'Chỉnh sửa đánh giá của bạn' : 'Bình luận - xem đánh giá' }}
+        <p class="font-semibold mb-1">
+          {{ editingReviewId ? 'Chỉnh sửa đánh giá của bạn' : 'Bình luận - xem đánh giá' }}
         </p>
 
         <!-- Rating -->
@@ -36,7 +37,8 @@
         </div>
 
         <input type="file" accept="image/*" multiple @change="handleImageUpload" class="block mt-2 text-xs" />
-        <!-- Ảnh xem trước -->
+
+        <!-- Xem trước ảnh -->
         <div class="flex gap-2 flex-wrap mt-2" v-if="uploadedImages.length">
           <div v-for="(file, i) in uploadedImages" :key="i" class="relative w-14 h-14 group">
             <img :src="file.isExisting ? file.url : URL.createObjectURL(file)"
@@ -62,6 +64,7 @@
           </button>
         </div>
       </form>
+
     </div>
     <!-- Bộ lọc -->
     <div class="flex flex-wrap sm:flex-nowrap justify-between items-center text-xs mb-4 gap-2">
@@ -245,32 +248,28 @@ const fetchReviews = async () => {
 };
 
 const startEdit = (review) => {
-  console.log('[Review truyền vào]', review); // review phải là object chứa .id
-
-  editingReviewId.value = review.id; // ✅ chỉ gán ID, không gán object
+  editingReviewId.value = review.id;
   newReviewRating.value = review.rating;
   newReviewComment.value = review.content;
 
+  // Reset trước
   uploadedImages.value = [];
   deletedImages.value = [];
 
-  if (Array.isArray(review.media)) {
-    uploadedImages.value = review.media
-  .filter((m) => m.media_type === 'image')
-  .map((media) => ({
-    isExisting: true,
-    url: `${mediaBase}/${String(media.media_url)}`, // fix lỗi ở đây
-    original: media,
-  }));
+  // Gán lại ảnh cũ
+  if (Array.isArray(review.images)) {
+    uploadedImages.value = review.images.map((img) => ({
+      isExisting: true,
+      url: img.url,
+      original: {
+        id: img.id,
+        url: img.url,
+      }
+    }));
   }
-
-  console.log('[Ảnh khi sửa]', uploadedImages.value);
 };
 
-
-
 const deletedImages = ref([]);
-
 const removeImage = (index) => {
   const file = uploadedImages.value[index];
   if (file.isExisting && file.original?.id) {
@@ -289,74 +288,53 @@ if (deletedImages.value.length) {
 // ======= GỬI/CẬP NHẬT ĐÁNH GIÁ =======
 const submitReview = async () => {
   if (!token.value) {
-    return Swal.fire({
-      icon: 'warning',
-      title: 'Bạn cần đăng nhập để gửi đánh giá',
-    });
+    return Swal.fire({ icon: 'warning', title: 'Bạn cần đăng nhập để gửi đánh giá' });
   }
 
   if (!editingReviewId.value && hasUserReviewed.value) {
-    return Swal.fire({
-      icon: 'info',
-      title: 'Bạn đã đánh giá sản phẩm này rồi!',
-    });
+    return Swal.fire({ icon: 'info', title: 'Bạn đã đánh giá sản phẩm này rồi!' });
   }
 
   const formData = new FormData();
   formData.append('rating', newReviewRating.value);
   formData.append('content', newReviewComment.value);
 
-  // Gửi ảnh mới (file dạng File)
-  uploadedImages.value.forEach((file) => {
+  uploadedImages.value.forEach(file => {
     if (!file.isExisting) {
       formData.append('images[]', file);
     }
   });
 
-  // Nếu là chỉnh sửa => gửi cả danh sách ảnh cũ còn giữ lại
-  // Khi là edit => gửi danh sách ảnh cũ còn giữ
   if (editingReviewId.value) {
-    const keptExistingIds = uploadedImages.value
-      .filter((img) => img.isExisting && img.original?.id)
-      .map((img) => img.original.id);
+    formData.append('_method', 'PUT'); //  TRỌNG TÂM: spoof method PUT
 
-    keptExistingIds.forEach((id) => {
-      formData.append('kept_images[]', id);
-    });
+    const keptIds = uploadedImages.value
+      .filter(img => img.isExisting && img.original?.id)
+      .map(img => img.original.id);
+
+    keptIds.forEach(id => formData.append('kept_images[]', id));
   }
 
-
-  const method = editingReviewId.value ? 'PUT' : 'POST';
   const url = editingReviewId.value
     ? `${apiBase}/reviews/${editingReviewId.value}`
-    : `${apiBase}/reviews?product_id=1`;
+    : `${apiBase}/reviews?product_id=${productId.value}`;
 
   try {
     const res = await fetch(url, {
-      method,
-      headers: {
-        Authorization: `Bearer ${token.value}`,
-      },
+      method: 'POST', //  luôn dùng POST
+      headers: { Authorization: `Bearer ${token.value}` },
       body: formData,
     });
 
     const data = await res.json();
 
     if (!res.ok) {
-      let message = data.message || 'Đã xảy ra lỗi.';
-      if (res.status === 422 && data.errors) {
-        const firstError = Object.values(data.errors)[0]?.[0];
-        message = firstError || message;
-      }
-      return await showError('Lỗi', message);
+      const firstError = Object.values(data.errors || {})[0]?.[0];
+      return showError('Lỗi', firstError || data.message || 'Có lỗi xảy ra');
     }
 
-    await Toast.fire({
-      icon: 'success',
-      title: editingReviewId.value ? 'Cập nhật thành công' : 'Đã gửi đánh giá',
-    });
+    await Toast.fire({ icon: 'success', title: editingReviewId.value ? 'Cập nhật thành công' : 'Đã gửi đánh giá' });
 
-    // Reset form
     newReviewRating.value = 0;
     newReviewComment.value = '';
     editingReviewId.value = null;
@@ -364,10 +342,9 @@ const submitReview = async () => {
 
     await fetchReviews();
   } catch (err) {
-    await showError('Không thể gửi đánh giá', err.message);
+    showError('Lỗi gửi đánh giá', err.message);
   }
 };
-
 
 
 // ======= XOÁ ĐÁNH GIÁ =======
@@ -407,7 +384,6 @@ const deleteReview = async (id) => {
     await showError('Xoá không thành công', err.message);
   }
 };
-
 
 // ======= CHỈNH SỬA =======
 const editReview = (review) => {

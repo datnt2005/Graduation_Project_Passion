@@ -50,13 +50,20 @@ class ReviewController extends Controller
         $list = $reviews->map(function ($review) {
             $images = $review->media
                 ->where('media_type', 'image')
-                ->map(fn($m) => Storage::disk('r2')->url($m->media_url))
+                ->map(fn($m) => [
+                    'id' => $m->id,
+                    'url' => Storage::disk('r2')->url($m->media_url),
+                ])
                 ->values();
 
             $videos = $review->media
                 ->where('media_type', 'video')
-                ->map(fn($m) => Storage::disk('r2')->url($m->media_url))
+                ->map(fn($m) => [
+                    'id' => $m->id,
+                    'url' => Storage::disk('r2')->url($m->media_url),
+                ])
                 ->values();
+
 
             return [
                 'id' => $review->id,
@@ -205,99 +212,85 @@ class ReviewController extends Controller
 
     // Thêm đánh giá mới
     public function update(Request $request, $id)
-{
-    $review = Review::findOrFail($id);
+    {
+        $review = Review::findOrFail($id);
 
-    $validator = Validator::make($request->all(), [
-        'content' => 'required|string|min:10|max:1000',
-        'rating' => 'required|integer|min:1|max:5',
-        'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
-        'videos.*' => 'nullable|mimes:mp4,mkv,avi|max:10240',
-        'kept_images' => 'nullable|array',
-    ]);
+        $validator = Validator::make($request->all(), [
+            'content' => 'required|string|min:10|max:1000',
+            'rating' => 'required|integer|min:1|max:5',
+            'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
+            'kept_images' => 'nullable|array',
+            'kept_images.*' => 'integer',
+        ]);
 
-    if ($validator->fails()) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Dữ liệu không hợp lệ.',
-            'errors' => $validator->errors()
-        ], 422);
-    }
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Dữ liệu không hợp lệ.',
+                'errors' => $validator->errors()
+            ], 422);
+        }
 
-    $userId = $request->user()->id;
+        if ($review->user_id !== $request->user()->id) {
+            return response()->json(['message' => 'Bạn không có quyền sửa đánh giá này.'], 403);
+        }
 
-    if ($review->user_id != $userId) {
-        return response()->json(['message' => 'Bạn không có quyền sửa đánh giá này.'], 403);
-    }
+        // Kiểm tra đã mua sản phẩm
+        $hasPurchased = DB::table('orders')
+            ->join('order_items', 'orders.id', '=', 'order_items.order_id')
+            ->where('orders.user_id', $request->user()->id)
+            ->where('orders.status', 'completed')
+            ->where('order_items.product_id', $review->product_id)
+            ->exists();
 
-    // Kiểm tra đã mua hàng
-    $hasPurchased = DB::table('orders')
-        ->join('order_items', 'orders.id', '=', 'order_items.order_id')
-        ->where('orders.user_id', $userId)
-        ->where('orders.status', 'completed')
-        ->where('order_items.product_id', $review->product_id)
-        ->exists();
+        if (!$hasPurchased) {
+            return response()->json(['message' => 'Bạn cần mua sản phẩm này để chỉnh sửa đánh giá.'], 403);
+        }
 
-    if (!$hasPurchased) {
-        return response()->json(['message' => 'Bạn cần mua sản phẩm này mới có thể sửa đánh giá.'], 403);
-    }
+        $review->update([
+            'content' => $request->content,
+            'rating' => $request->rating,
+        ]);
 
-    $review->update([
-        'content' => $request->content,
-        'rating' => $request->rating,
-    ]);
+        try {
+            $mediaUrls = [];
 
-    try {
-        $mediaUrls = [];
-
-        // === ẢNH ===
-        if ($request->has('kept_images')) {
+            // Xoá ảnh không giữ lại
             $keptImageIds = $request->input('kept_images', []);
             $review->media()
                 ->where('media_type', 'image')
                 ->whereNotIn('id', $keptImageIds)
                 ->delete();
-        } else {
-            $review->media()->where('media_type', 'image')->delete();
-        }
 
-        if ($request->hasFile('images')) {
-            foreach ($request->file('images') as $file) {
-                $filename = 'reviews/' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-                Storage::disk('r2')->put($filename, file_get_contents($file));
-                $mediaUrls[] = ['media_url' => $filename, 'media_type' => 'image'];
+            // Upload ảnh mới
+            if ($request->hasFile('images')) {
+                foreach ($request->file('images') as $file) {
+                    $filename = 'reviews/' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+                    Storage::disk('r2')->put($filename, file_get_contents($file));
+                    $mediaUrls[] = ['media_url' => $filename, 'media_type' => 'image'];
+                }
             }
-        }
 
-        // === VIDEO ===
-        if ($request->hasFile('videos')) {
-            $review->media()->where('media_type', 'video')->delete();
-
-            foreach ($request->file('videos') as $file) {
-                $filename = 'reviews/' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-                Storage::disk('r2')->put($filename, file_get_contents($file));
-                $mediaUrls[] = ['media_url' => $filename, 'media_type' => 'video'];
+            // Lưu media
+            foreach ($mediaUrls as $media) {
+                $review->media()->create($media);
             }
-        }
 
-        // Lưu media mới
-        foreach ($mediaUrls as $media) {
-            $review->media()->create($media);
+            return response()->json([
+                'success' => true,
+                'message' => 'Cập nhật đánh giá thành công.',
+                'review' => $review->load('media'),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Lỗi cập nhật media: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi khi cập nhật media.',
+                'error' => env('APP_DEBUG') ? $e->getMessage() : null
+            ], 500);
         }
-
-        return response()->json([
-            'message' => 'Cập nhật đánh giá thành công.',
-            'review' => $review->load('media')
-        ]);
-    } catch (\Exception $e) {
-        Log::error('Lỗi cập nhật media: ' . $e->getMessage());
-        return response()->json([
-            'success' => false,
-            'message' => 'Lỗi khi cập nhật hình ảnh/video.',
-            'error' => env('APP_DEBUG') ? $e->getMessage() : null
-        ], 500);
     }
-}
+
 
 
 
