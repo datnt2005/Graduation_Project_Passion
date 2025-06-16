@@ -2,6 +2,7 @@
 import LoadingSpinner from '~/components/shared/LoadingSpinner.vue'
 import { useLoadingStore } from '~/stores/loading'
 import { useRouter } from 'vue-router'
+import ChatWidget from '~/components/chat/ChatWidget.vue'
 
 const loading = useLoadingStore()
 const router = useRouter()
@@ -24,4 +25,6 @@ router.afterEach(() => {
   <NuxtLayout>
     <NuxtPage />
   </NuxtLayout>
+      <ChatWidget />
+
 </template>

@@ -16,6 +16,8 @@ use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PaymentMethodController;
 use App\Http\Controllers\DiscountController;
 use App\Http\Controllers\GoogleAuthController;
+use App\Http\Controllers\ChatbotController;
+
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Redis;
 
@@ -216,4 +218,8 @@ Route::prefix('admin')->group(function () {
    Route::post('/sellers/{id}/verify', [AdminSellerController::class, 'verify']);
    Route::post('/sellers/{id}/reject', [AdminSellerController::class, 'reject']);
 });
+
+// chat bot
+Route::post('/chatbot', [ChatbotController::class, 'chat']);
+
 

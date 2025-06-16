@@ -18,9 +18,10 @@ class SellerController extends Controller
 
     public function index()
     {
-        $users = User::with('seller.business')->get();
-
-        return response()->json($users);
+  $sellers = User::whereHas('seller')
+                   ->with('seller.business') 
+                   ->get();
+        return response()->json($sellers);
     }
 
    public function showStore($slug)
@@ -179,7 +180,7 @@ class SellerController extends Controller
 
                     // Nếu seller đã có mà status hoặc verification_status chưa đúng thì báo lỗi
                     if (
-                        $seller->verification_status !== 'verified'  
+                        $seller->verification_status !== 'verified'
                     ) {
                         return response()->json([
                             'message' => 'Tài khoản của bạn đang chờ admin xác nhận cửa hàng.',
