@@ -18,6 +18,8 @@ class Order extends Model
         'status',
         'total_price',
         'discount_price',
+        'shipping_fee',
+        'shipping_discount',
         'final_price',
         'shipping_method',
     ];
@@ -26,6 +28,8 @@ class Order extends Model
         'status' => 'string',
         'total_price' => 'decimal:2',
         'discount_price' => 'decimal:2',
+        'shipping_fee' => 'decimal:2',
+        'shipping_discount' => 'decimal:2',
         'final_price' => 'decimal:2',
     ];
 

@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 use App\Mail\OtpMail;
+use App\Mail\OtpForgotPassword;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Validation\ValidationException;
@@ -80,9 +81,8 @@ public function register(Request $request)
             ]);
 
             try {
-                Mail::to($user->email)->send(new OtpMail($otp));
+        Mail::to($user->email)->queue(new OtpMail($otp, $user->name));
             } catch (\Exception $e) {
-                \Log::error('Failed to send OTP email: ' . $e->getMessage());
                 return response()->json([
                     'success' => false,
                     'message' => 'Đăng ký thành công nhưng không thể gửi OTP. Vui lòng thử lại.',
@@ -102,7 +102,6 @@ public function register(Request $request)
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
-            \Log::error('Error during registration: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Lỗi khi đăng ký người dùng.',
@@ -170,7 +169,6 @@ public function verifyOtp(Request $request)
                 'message' => 'Người dùng không tồn tại.',
             ], 404);
         } catch (\Exception $e) {
-            \Log::error('Error during OTP verification: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Lỗi khi xác minh OTP.',
@@ -257,7 +255,6 @@ public function login(Request $request)
             'errors' => $e->errors(),
         ], 422);
     } catch (\Exception $e) {
-        \Log::error('Error during login: ' . $e->getMessage());
         return response()->json([
             'success' => false,
             'message' => 'Lỗi khi đăng nhập.',
@@ -303,9 +300,8 @@ public function resendOtp(Request $request)
 
             // Send OTP email
             try {
-                Mail::to($user->email)->send(new OtpMail($otp));
+         Mail::to($user->email)->queue(new OtpMail($otp, $user->name));
             } catch (\Exception $e) {
-                \Log::error('Failed to resend OTP email: ' . $e->getMessage());
                 return response()->json([
                     'success' => false,
                     'message' => 'Không thể gửi OTP. Vui lòng thử lại.',
@@ -328,7 +324,6 @@ public function resendOtp(Request $request)
                 'message' => 'Người dùng không tồn tại.',
             ], 404);
         } catch (\Exception $e) {
-            \Log::error('Error during OTP resend: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Lỗi khi gửi lại OTP.',
@@ -353,7 +348,7 @@ public function resendOtpByEmail(Request $request)
     $user->otp_expired_at = now()->addMinutes(10);
     $user->save();
 
-    Mail::to($user->email)->send(new OtpMail($otp));
+Mail::to($user->email)->queue(new OtpMail($otp, $user->name));
 
     return response()->json(['message' => 'Mã xác minh đã được gửi lại.']);
 }
@@ -378,7 +373,7 @@ public function sendForgotPassword(Request $request)
     $user->save();
 
     // Gửi email
-    Mail::to($user->email)->send(new OtpMail($otp));
+        Mail::to($user->email)->queue(new OtpForgotPassword($otp));
 
     return response()->json(['message' => 'OTP đã được gửi đến email.'], 200);
 }

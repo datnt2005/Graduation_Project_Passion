@@ -92,7 +92,7 @@
         </div>
 
         <div class="content">
-            <h2>Chào bạn</h2>
+            <h2>Chào mừng {{ $name }}</h2>
             <p>Cảm ơn bạn đã đăng ký tài khoản với chúng tôi!</p>
             <p>Để hoàn tất quá trình xác thực, vui lòng sử dụng mã OTP dưới đây:</p>
             <div class="otp-code" aria-label="Mã OTP">{{ $otp }}</div>

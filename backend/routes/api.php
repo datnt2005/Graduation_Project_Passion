@@ -16,11 +16,16 @@ use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PaymentMethodController;
 use App\Http\Controllers\DiscountController;
 use App\Http\Controllers\GoogleAuthController;
+use App\Http\Controllers\ChatbotController;
+
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Redis;
 
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
+use App\Http\Controllers\CartController;
+use App\Http\Controllers\SellerController;
+use App\Http\Controllers\AdminSellerController;
 
 
 
@@ -101,11 +106,10 @@ Route::prefix('payments')->group(function () {
 
     // VNPAY routes
     Route::post('/vnpay/create', [PaymentController::class, 'createVNPayPayment']);
-    Route::get('/vnpay/return', [PaymentController::class, 'vnpayReturn']);
-
+    Route::match(['get', 'post'], '/vnpay/return', [PaymentController::class, 'vnpayReturn']);
     // MOMO routes
     Route::post('/momo/create', [PaymentController::class, 'createMoMoPayment']);
-    Route::get('/momo/return', [PaymentController::class, 'momoReturn']);
+    Route::match(['get', 'post'], '/momo/return', [PaymentController::class, 'momoReturn']);
     Route::post('/momo/ipn', [PaymentController::class, 'momoIPN']);
 });
 
@@ -152,6 +156,12 @@ Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 
 // Reviews
 
+Route::get('/reviews', [ReviewController::class, 'index']);        // ?product_id=...
+Route::post('/reviews', [ReviewController::class, 'store']);           // Gửi đánh giá
+Route::put('/reviews/{id}', [ReviewController::class, 'update']);     // Cập nhật đánh giá
+Route::post('/reviews/{id}/like', [ReviewController::class, 'like']);  // Like đánh giá
+Route::post('/reviews/{id}/reply', [ReviewController::class, 'reply']); // Trả lời đánh giá
+Route::delete('/reviews/{id}', [ReviewController::class, 'destroy']);   // Xóa đánh giá
 
 Route::get('/reviews', [ReviewController::class, 'index']); // Hiển thị đánh giá công khai
 
@@ -164,6 +174,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/reviews/{id}/unlike', [ReviewController::class, 'unlike']);  // Unlike đánh giá
     Route::post('/reviews/{id}/reply', [ReviewController::class, 'reply']);    // Trả lời đánh giá
     Route::delete('/reviews/{id}', [ReviewController::class, 'destroy']);      // Xóa đánh giá
+    
 });
 
 
@@ -177,7 +188,6 @@ Route::middleware('auth:sanctum')->group(function () {
 
 
 // google
-// routes/api.php
 Route::get('auth/google/redirect', [GoogleAuthController::class, 'redirectToGoogle']);
 Route::get('auth/google/callback', [GoogleAuthController::class, 'handleGoogleCallback']);
 
@@ -200,5 +210,46 @@ Route::post('users/batch-delete', [UserController::class, 'batchDelete']);
 Route::post('users/batch-add-role', [UserController::class, 'batchAddRole']);
 Route::post('users/batch-remove-role', [UserController::class, 'batchRemoveRole']);
 
+Route::post('profile/update/{id}', [UserController::class, 'updateUser']);
+
 // crud user
 Route::apiResource('users', UserController::class);
+
+// api seller
+
+Route::prefix('sellers')->group(function () {
+    Route::get('/', [SellerController::class, 'index']);
+    Route::get('/store/{slug}', [SellerController::class, 'showStore']);
+
+    Route::post('/resgister', [SellerController::class, 'register']);
+    Route::post('/login', [SellerController::class, 'login']);
+});
+
+Route::prefix('admin')->group(function () {
+   Route::get('/sellers', [AdminSellerController::class, 'index']);
+   Route::get('/sellers/{id}', [AdminSellerController::class, 'show']);
+   Route::post('/sellers/{id}/verify', [AdminSellerController::class, 'verify']);
+   Route::post('/sellers/{id}/reject', [AdminSellerController::class, 'reject']);
+});
+
+// chat bot
+Route::post('/chatbot', [ChatbotController::class, 'chat']);
+
+
+// Cart Management
+Route::prefix('cart')->group(function () {
+    Route::get('/', [CartController::class, 'index']);
+    Route::post('/add', [CartController::class, 'addItem']);
+    Route::put('/items/{id}', [CartController::class, 'updateItem']);
+    Route::delete('/items/{id}', [CartController::class, 'removeItem']);
+    Route::delete('/', [CartController::class, 'clear']);
+
+    // Redis Cart Routes
+    Route::get('/redis/{cartId}', [CartController::class, 'getRedisCart']);
+    Route::post('/redis/{cartId}/add', [CartController::class, 'addToRedisCart']);
+    Route::put('/redis/{cartId}/items/{itemId}', [CartController::class, 'updateRedisCartItem']);
+    Route::delete('/redis/{cartId}/items/{itemId}', [CartController::class, 'removeRedisCartItem']);
+    Route::delete('/redis/{cartId}', [CartController::class, 'clearRedisCart']);
+    Route::post('/redis/{cartId}/merge', [CartController::class, 'mergeRedisCart'])->middleware('auth:sanctum');
+});
+
