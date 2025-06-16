@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>Xác thực OTP</title>
+    <title>Quên mật khẩu - Mã OTP xác thực</title>
     <style type="text/css">
         body, table, td, a, p, h1, h2, h3, h4, h5, h6 {
             margin: 0;
@@ -22,10 +21,10 @@
             background-color: #ffffff;
             border-radius: 8px;
             overflow: hidden;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
         }
         .header {
-            background-color: #1a73e8; /* Primary brand color (customizable) */
+            background-color: #1a73e8;
             color: #ffffff;
             text-align: center;
             padding: 20px;
@@ -60,44 +59,27 @@
             color: #1a73e8;
             text-decoration: none;
         }
-        .button {
-            display: inline-block;
-            padding: 12px 24px;
-            background-color: #1a73e8;
-            color: #ffffff !important;
-            text-decoration: none;
-            border-radius: 4px;
-            font-weight: bold;
-            margin: 20px 0;
-        }
         @media only screen and (max-width: 600px) {
-            .container {
-                width: 100%;
-                margin: 0;
-            }
-            .content {
-                padding: 20px;
-            }
-            .otp-code {
-                font-size: 24px;
-            }
+            .container { width: 100%; }
+            .content { padding: 20px; }
+            .otp-code { font-size: 24px; }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <img src="https://www.passionjewelry.co.id/uploads/logo-passion-360x145.png" alt="Logo" style="max-width: 150px; height: auto;">
-            <h1>Xác thực tài khoản</h1>
+            <img src="https://www.passionjewelry.co.id/uploads/logo-passion-360x145.png" alt="Logo Passion" style="max-width: 150px; height: auto;">
+            <h1>Quên mật khẩu</h1>
         </div>
 
         <div class="content">
-            <h2>Chào mừng {{ $name }}</h2>
-            <p>Cảm ơn bạn đã đăng ký tài khoản với chúng tôi!</p>
-            <p>Để hoàn tất quá trình xác thực, vui lòng sử dụng mã OTP dưới đây:</p>
+            <h2>Xin chào{{ isset($user) && $user->name ? ', '.$user->name : '' }}!</h2>
+            <p>Bạn (hoặc ai đó) vừa yêu cầu đặt lại mật khẩu cho tài khoản tại <strong>Passion</strong>.</p>
+            <p>Vui lòng sử dụng mã OTP bên dưới để xác thực yêu cầu:</p>
             <div class="otp-code" aria-label="Mã OTP">{{ $otp }}</div>
-            <p>Mã này có hiệu lực trong <strong>5 phút</strong>.</p>
-            <p>Nếu bạn không yêu cầu mã này, vui lòng bỏ qua email này hoặc liên hệ với chúng tôi.</p>
+            <p>Mã này chỉ có hiệu lực trong <strong>10 phút</strong>.</p>
+            <p>Nếu bạn không yêu cầu, vui lòng bỏ qua email này hoặc liên hệ với chúng tôi.</p>
         </div>
 
         <div class="footer">
@@ -111,4 +93,3 @@
     </div>
 </body>
 </html>
-

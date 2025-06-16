@@ -197,9 +197,10 @@ public function update(Request $request, User $user)
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
-            $data = $validator->validated();
 
-        // Xử lý đổi mật khẩu, bắt buộc phải có old_password check đúng
+        $data = $validator->validated();
+
+        // Đổi mật khẩu (nếu có)
         if (isset($data['password'])) {
             if (!isset($data['old_password']) || !Hash::check($data['old_password'], $user->password)) {
                 return response()->json(['error' => 'Mật khẩu cũ không đúng.'], 403);
@@ -208,43 +209,54 @@ public function update(Request $request, User $user)
         }
         unset($data['old_password']);
 
-        // Xử lý upload và resize avatar (nếu có)
+        // ======= Xử lý avatar giống store =======
         if ($request->hasFile('avatar') && $request->file('avatar')->isValid()) {
-            // Xóa ảnh cũ nếu có
+            // Xóa file cũ nếu có
             if ($user->avatar) {
                 Storage::disk('r2')->delete($user->avatar);
             }
             $file = $request->file('avatar');
-            $filename = 'avatars/' . $user->id . '_' . time() . '_' . Str::random(6) . '.' . $file->getClientOriginalExtension();
+            $filename = 'avatars/' . time() . '_' . Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) . '.' . $file->getClientOriginalExtension();
 
-            // Resize ảnh trước khi upload lên R2
-            $img = Image::make($file)
-                ->resize(512, 512, function ($constraint) {
-                    $constraint->aspectRatio();
-                    $constraint->upsize();
-                })
-                ->encode($file->getClientOriginalExtension());
-
-            $uploadResult = Storage::disk('r2')->put($filename, (string) $img);
-
-            Log::info('R2 upload result in update', [
-                'success' => $uploadResult,
+            logger()->info('Attempting to upload file to R2 (update)', [
                 'filename' => $filename,
+                'file_size' => $file->getSize(),
+                'file_type' => $file->getMimeType(),
             ]);
 
-            if ($uploadResult) {
-                $data['avatar'] = $filename;
-            } else {
-                Log::error('Failed to upload file to R2 in update', ['filename' => $filename]);
-                throw new \Exception('Không thể upload file lên R2.');
+            try {
+                $uploadResult = Storage::disk('r2')->put($filename, file_get_contents($file));
+                logger()->info('R2 upload result (update)', [
+                    'success' => $uploadResult,
+                    'filename' => $filename
+                ]);
+
+                if ($uploadResult) {
+                    $data['avatar'] = $filename;
+                } else {
+                    logger()->error('Failed to upload file to R2 (update)', ['filename' => $filename]);
+                    throw new \Exception('Không thể upload file lên R2: Upload result false');
+                }
+            } catch (\Aws\S3\Exception\S3Exception $e) {
+                logger()->error('S3 Exception during R2 upload (update)', [
+                    'error' => $e->getMessage(),
+                    'aws_error' => $e->getAwsErrorCode(),
+                    'aws_request_id' => $e->getAwsRequestId(),
+                    'filename' => $filename,
+                ]);
+                throw new \Exception('Lỗi R2: ' . $e->getMessage());
             }
         } else {
             unset($data['avatar']);
         }
+        // ========================================
 
-            $user->update($data);
+        $user->update($data);
 
-        Log::info('User updated successfully', [
+        // Gắn thêm URL ảnh
+        $user->avatar_url = $user->avatar ? Storage::disk('r2')->url($user->avatar) : null;
+
+        logger()->info('User updated successfully', [
             'user_id'    => $user->id,
             'avatar_path'=> $user->avatar,
         ]);
@@ -252,9 +264,10 @@ public function update(Request $request, User $user)
         return new UserResource($user);
 
     } catch (\Exception $e) {
-        // Log lỗi đơn giản, không log trace ở prod
-        Log::error('Error in UserController::update', [
+        // Log lỗi đơn giản
+        logger()->error('Error in UserController::update', [
             'error' => $e->getMessage(),
+            // 'trace' => $e->getTraceAsString(), // ẩn trace ở prod
         ]);
 
         return response()->json([
@@ -262,6 +275,94 @@ public function update(Request $request, User $user)
         ], 500);
     }
 }
+
+// update user
+public function updateUser(Request $request, User $user)
+{
+    try {
+        $validator = Validator::make($request->all(), [
+            'name'     => 'sometimes|nullable|string|max:255',
+            'email' => 'sometimes|nullable|email|max:255|:users,email,' . $user->id,
+            'password' => [
+                'sometimes',
+                'required',
+                'string',
+                'min:6',
+                'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).+$/'
+            ],
+            'old_password' => 'required_with:password|string',
+            'avatar'  => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
+            'role'    => 'sometimes|nullable|in:user,seller,admin',
+            'status'  => 'sometimes|nullable|in:active,inactive,banned',
+        ], [
+            'password.regex' => 'Mật khẩu phải chứa ít nhất 1 chữ hoa, 1 chữ thường, 1 số và 1 ký tự đặc biệt.',
+            'name.max' => 'Tên không được vượt quá 255 ký tự.',
+            'email.email' => 'Email không hợp lệ.',
+            'email.unique' => 'Email đã tồn tại.',
+            'avatar.image' => 'Ảnh đại diện phải là file ảnh.',
+            'avatar.mimes' => 'Ảnh đại diện phải có định dạng jpeg, png, jpg, gif, svg hoặc webp.',
+            'avatar.max' => 'Ảnh đại diện không được vượt quá 2MB.',
+            'role.in' => 'Vai trò không hợp lệ.',
+            'status.in' => 'Trạng thái không hợp lệ.',
+            'old_password.required_with' => 'Vui lòng nhập mật khẩu cũ để đổi mật khẩu.'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $data = $validator->validated();
+
+        // Đổi mật khẩu (nếu có)
+        if (isset($data['password'])) {
+            if (!isset($data['old_password']) || !Hash::check($data['old_password'], $user->password)) {
+                return response()->json(['error' => 'Mật khẩu cũ không đúng.'], 403);
+            }
+            $data['password'] = Hash::make($data['password']);
+        }
+        unset($data['old_password']);
+
+        if ($request->hasFile('avatar') && $request->file('avatar')->isValid()) {
+            if ($user->avatar) {
+                Storage::disk('r2')->delete($user->avatar);
+            }
+            $file = $request->file('avatar');
+            $filename = 'avatars/' . time() . '_' . Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) . '.' . $file->getClientOriginalExtension();
+            $uploadResult = Storage::disk('r2')->put($filename, file_get_contents($file));
+
+            if ($uploadResult) {
+                $data['avatar'] = $filename;
+            } else {
+                return response()->json(['error' => 'Không thể upload file lên R2!'], 500);
+            }
+        } else {
+            unset($data['avatar']);
+        }
+
+        $fields = ['name', 'email', 'role', 'status'];
+        foreach ($fields as $field) {
+            if (array_key_exists($field, $data) && is_null($data[$field])) {
+                unset($data[$field]);
+            }
+        }
+
+        $user->update($data);
+
+        $user->avatar_url = $user->avatar ? Storage::disk('r2')->url($user->avatar) : null;
+
+        return new UserResource($user);
+
+    } catch (\Exception $e) {
+        logger()->error('Error in UserController::update', [
+            'error' => $e->getMessage(),
+        ]);
+        return response()->json([
+            'error' => 'Có lỗi xảy ra: ' . $e->getMessage(),
+        ], 500);
+    }
+}
+
+
 
 
     public function destroy(User $user)

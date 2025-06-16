@@ -16,10 +16,14 @@ use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PaymentMethodController;
 use App\Http\Controllers\DiscountController;
 use App\Http\Controllers\GoogleAuthController;
+use App\Http\Controllers\ChatbotController;
+
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Redis;
 
 use Illuminate\Support\Facades\Storage;
+use App\Http\Controllers\SellerController;
+use App\Http\Controllers\AdminSellerController;
 
 
 
@@ -66,7 +70,7 @@ Route::prefix('products')->group(function () {
     Route::delete('/{id}', [ProductController::class, 'destroy']);
     Route::get('/slug/{slug}', [ProductController::class, 'showBySlug']);
     Route::post('/change-status/{id}', [ProductController::class, 'changeStatus']);
-    
+
 });
 
 // Orders
@@ -76,7 +80,7 @@ Route::prefix('orders')->group(function () {
     Route::post('/', [OrderController::class, 'store']);
     Route::put('/{id}', [OrderController::class, 'update']);
     Route::delete('/{id}', [OrderController::class, 'destroy']);
-    
+
     // Thêm routes cho mã giảm giá
     Route::post('/{id}/apply-discount', [OrderController::class, 'applyDiscount']);
     Route::delete('/{id}/remove-discount', [OrderController::class, 'removeDiscount']);
@@ -98,7 +102,7 @@ Route::prefix('payments')->group(function () {
     Route::post('/', [PaymentController::class, 'store']);
     Route::put('/{id}', [PaymentController::class, 'update']);
     Route::delete('/{id}', [PaymentController::class, 'destroy']);
-    
+
     // VNPAY routes
     Route::post('/vnpay/create', [PaymentController::class, 'createVNPayPayment']);
     Route::get('/vnpay/return', [PaymentController::class, 'vnpayReturn']);
@@ -125,12 +129,12 @@ Route::prefix('discounts')->group(function () {
     Route::post('/', [DiscountController::class, 'store']);
     Route::put('/{id}', [DiscountController::class, 'update']);
     Route::delete('/{id}', [DiscountController::class, 'destroy']);
-    
+
     // Assign routes
     Route::post('/{discountId}/products', [DiscountController::class, 'assignProducts']);
     Route::post('/{discountId}/categories', [DiscountController::class, 'assignCategories']);
     Route::post('/{discountId}/users', [DiscountController::class, 'assignUsers']);
-    
+
     // Flash sale routes
     Route::get('/flash-sales', [DiscountController::class, 'indexFlashSales']);
     Route::get('/flash-sales/{id}', [DiscountController::class, 'showFlashSale']);
@@ -152,7 +156,13 @@ Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 
 // Reviews
 
-   
+Route::get('/reviews', [ReviewController::class, 'index']);        // ?product_id=...
+Route::post('/reviews', [ReviewController::class, 'store']);           // Gửi đánh giá
+Route::put('/reviews/{id}', [ReviewController::class, 'update']);     // Cập nhật đánh giá
+Route::post('/reviews/{id}/like', [ReviewController::class, 'like']);  // Like đánh giá
+Route::post('/reviews/{id}/reply', [ReviewController::class, 'reply']); // Trả lời đánh giá
+Route::delete('/reviews/{id}', [ReviewController::class, 'destroy']);   // Xóa đánh giá
+
 Route::get('/reviews', [ReviewController::class, 'index']); // Hiển thị đánh giá công khai
 
 // Các route yêu cầu đăng nhập
@@ -171,7 +181,6 @@ Route::post('/address', [AddressController::class, 'store']);
 Route::put('/address/{id}', [AddressController::class, 'update']);
 Route::delete('/address/{id}', [AddressController::class, 'destroy']);
 // google
-// routes/api.php
 Route::get('auth/google/redirect', [GoogleAuthController::class, 'redirectToGoogle']);
 Route::get('auth/google/callback', [GoogleAuthController::class, 'handleGoogleCallback']);
 
@@ -190,6 +199,28 @@ Route::post('users/batch-delete', [UserController::class, 'batchDelete']);
 Route::post('users/batch-add-role', [UserController::class, 'batchAddRole']);
 Route::post('users/batch-remove-role', [UserController::class, 'batchRemoveRole']);
 
+Route::post('profile/update/{id}', [UserController::class, 'updateUser']);
+
 // crud user
 Route::apiResource('users', UserController::class);
+// api seller
+
+Route::prefix('sellers')->group(function () {
+    Route::get('/', [SellerController::class, 'index']);
+    Route::get('/store/{slug}', [SellerController::class, 'showStore']);
+
+    Route::post('/resgister', [SellerController::class, 'register']);
+    Route::post('/login', [SellerController::class, 'login']);
+});
+
+Route::prefix('admin')->group(function () {
+   Route::get('/sellers', [AdminSellerController::class, 'index']);
+   Route::get('/sellers/{id}', [AdminSellerController::class, 'show']);
+   Route::post('/sellers/{id}/verify', [AdminSellerController::class, 'verify']);
+   Route::post('/sellers/{id}/reject', [AdminSellerController::class, 'reject']);
+});
+
+// chat bot
+Route::post('/chatbot', [ChatbotController::class, 'chat']);
+
 

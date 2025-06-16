@@ -158,19 +158,20 @@ const selectedOptions = ref({
 
 // Images
 const productImages = [
-    'https://storage.googleapis.com/a1aa/image/7ad18199-6b36-4171-e823-9cec3d8bde9f.jpg',
-    'https://storage.googleapis.com/a1aa/image/c63c6593-7a16-4b2b-b1ea-ec7d1b11003e.jpg',
-    'https://storage.googleapis.com/a1aa/image/8eaf1eab-cd53-4bff-45c8-c143d44e1c15.jpg',
-    'https://storage.googleapis.com/a1aa/image/3dbab879-76d8-4e84-9737-f049ded0520f.jpg',
-    'https://storage.googleapis.com/a1aa/image/4b9472fd-7cf0-4bc4-cb5b-57b24d34bf33.jpg',
+
+  'https://storage.googleapis.com/a1aa/image/7ad18199-6b36-4171-e823-9cec3d8bde9f.jpg',
+  'https://storage.googleapis.com/a1aa/image/c63c6593-7a16-4b2b-b1ea-ec7d1b11003e.jpg',
+  'https://storage.googleapis.com/a1aa/image/8eaf1eab-cd53-4bff-45c8-c143d44e1c15.jpg',
+  'https://storage.googleapis.com/a1aa/image/3dbab879-76d8-4e84-9737-f049ded0520f.jpg',
+  'https://storage.googleapis.com/a1aa/image/4b9472fd-7cf0-4bc4-cb5b-57b24d34bf33.jpg',
 ];
 
 const productImagesAlt = [
-    'Samsung Note20 Ultra 5G smartphone front view with rose gold color and stylus pen',
-    'Side view 1 of Samsung Note20 Ultra 5G smartphone in rose gold',
-    'Side view 2 of Samsung Note20 Ultra 5G smartphone in rose gold',
-    'Side view 3 of Samsung Note20 Ultra 5G smartphone in rose gold',
-    'Side view 4 of Samsung Note20 Ultra 5G smartphone in rose gold',
+  'Samsung Note20 Ultra 5G smartphone front view with rose gold color and stylus pen',
+  'Side view 1 of Samsung Note20 Ultra 5G smartphone in rose gold',
+  'Side view 2 of Samsung Note20 Ultra 5G smartphone in rose gold',
+  'Side view 3 of Samsung Note20 Ultra 5G smartphone in rose gold',
+  'Side view 4 of Samsung Note20 Ultra 5G smartphone in rose gold',
 ];
 
 const currentImage = ref(0);
@@ -197,15 +198,16 @@ const displayProducts = computed(() => {
 
 onBeforeUnmount(() => {
     if (intervalId) clearInterval(intervalId);
+
 });
 </script>
 
 <style scoped>
 .line-clamp-2 {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .fade-enter-active,
@@ -218,3 +220,4 @@ onBeforeUnmount(() => {
     opacity: 0;
 }
 </style>
+
