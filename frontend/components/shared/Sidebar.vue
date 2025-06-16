@@ -16,26 +16,26 @@
     </ul>
     <ul class="mt-4 space-y-2">
       <li>
-        <NuxtLink
-         to="/sell-together-passion"
-          class="flex items-center gap-3 px-4 py-2 bg-pink-50 hover:bg-pink-100 text-pink-600 font-medium rounded-lg transition-all"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="h-5 w-5 text-pink-600"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
+       <NuxtLink
+  to="/sell-together-passion"
+  class="flex items-center gap-3 px-4 py-2 bg-[#E6F4FB] hover:bg-[#D1ECFA] text-[#1BA0E2] font-medium rounded-lg transition-all"
           >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M3 10h4l3 10 4-18 3 8h4"
-            />
-          </svg>
-          Bán hàng cùng Passion
-        </NuxtLink>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-5 w-5 text-[#1BA0E2]"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="1.8"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M6.5 14.5l2.8 2.8c.6.6 1.4.9 2.2.9h.1c.9 0 1.8-.4 2.4-1.1l3.4-3.6a1.7 1.7 0 00-2.4-2.4l-.9.9-2.2-2.2a1.7 1.7 0 00-2.4 0 1.7 1.7 0 000 2.4l2.2 2.2-.9.9-1.7-1.7"
+              />
+            </svg>
+            Bán hàng cùng Passion
+          </NuxtLink>
       </li>
     </ul>
   </aside>

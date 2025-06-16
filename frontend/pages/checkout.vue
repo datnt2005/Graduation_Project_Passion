@@ -174,7 +174,8 @@
                         </div>
 
                         <div class="lg:col-span-1 space-y-8">
-                            <section class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                            <section v-if="selectedAddress"
+                                class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                                 <div class="flex items-center justify-between mb-4">
                                     <h3 class="text-xl font-bold text-gray-800">Giao tới</h3>
                                     <NuxtLink href="/address" class="text-blue-600 text-sm font-medium">Thay đổi
@@ -196,7 +197,6 @@
                                     <NuxtLink href="/address" class="text-blue-600">Chọn địa chỉ</NuxtLink>
                                 </div>
                             </section>
-
                             <section class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                                 <div class="flex items-center justify-between mb-4">
                                     <h3 class="text-xl font-bold text-gray-800">Khuyến mãi</h3>
