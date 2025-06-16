@@ -104,98 +104,6 @@
         </section>
 
         <!-- Customer Reviews -->
-        <section ref="reviewSection" class="w-full mb-12 py-6 bg-gray-50">
-            <h3 class="text-sm font-semibold mb-4 ml-4">Khách hàng đánh giá</h3>
-            <div class="flex flex-col sm:flex-row gap-4 mb-4">
-                <!-- Review Summary -->
-                <div class="flex-1 text-xs p-3">
-                    <p class="font-semibold mb-1">Tổng quan</p>
-                    <div class="flex items-center gap-1 mb-1">
-                        <span class="text-yellow-400 font-bold text-lg">{{ reviews.summary.rating }}</span>
-                        <span class="text-yellow-400 text-lg">★★★★★</span>
-                    </div>
-                    <p class="text-gray-500 mb-2">({{ reviews.summary.count }} đánh giá)</p>
-                    <div class="space-y-1">
-                        <div v-for="rating in reviews.summary.ratings" :key="rating.stars"
-                            class="flex items-center gap-2">
-                            <span>{{ rating.stars }}</span>
-                            <div class="w-full bg-gray-200 rounded h-2">
-                                <div class="bg-yellow-400 h-2 rounded" :style="{ width: rating.percentage + '%' }">
-                                </div>
-                            </div>
-                            <span>{{ rating.count }}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Comment Form -->
-                <form @submit.prevent="submitReview" class="flex-1 text-xs">
-                    <p class="font-semibold mb-1">
-                        {{ editingReviewId ? 'Chỉnh sửa đánh giá của bạn' : 'Bình luận - xem đánh giá' }}
-                    </p>
-
-                    <!-- Rating stars -->
-                    <div class="flex items-center gap-1 mb-2">
-                        <span v-for="star in 5" :key="star" class="cursor-pointer text-yellow-500 text-lg"
-                            @click="newReviewRating = star">
-                            <span v-if="newReviewRating >= star">★</span>
-                            <span v-else class="text-gray-300">☆</span>
-                        </span>
-                    </div>
-
-                    <!-- Comment textarea -->
-                    <textarea v-model="newReviewComment" class="w-full border border-gray-300 rounded p-2 resize-none"
-                        rows="6" aria-label="Viết bình luận của bạn" placeholder="Viết cảm nhận của bạn...">
-  </textarea>
-
-                    <!-- Submit + Cancel -->
-                    <div class="flex items-center gap-2 mt-2">
-                        <button class="px-3 py-1 text-xs border border-gray-300 rounded hover:bg-gray-100 transition"
-                            type="submit" aria-label="Gửi bình luận">
-                            {{ editingReviewId ? 'Cập nhật' : 'Gửi' }}
-                        </button>
-
-                        <button v-if="editingReviewId" type="button" class="text-gray-600 text-xs hover:underline"
-                            @click="cancelEdit">
-                            Huỷ chỉnh sửa
-                        </button>
-                    </div>
-                </form>
-
-
-            </div>
-
-
-            <!-- Review List -->
-            <transition-group name="fade" tag="div" class="space-y-4">
-                <ReviewItem v-for="review in paginatedReviews" :key="review.id" :review="review"
-                    @edit-review="editReview" @delete-review="deleteReview" />
-
-            </transition-group>
-
-            <!-- Pagination -->
-            <nav aria-label="Phân trang đánh giá"
-                class="mt-6 flex justify-center items-center gap-3 text-xs text-gray-700 select-none">
-                <button aria-label="Trang trước" class="p-1 rounded hover:bg-gray-200 transition" type="button"
-                    :disabled="currentPage === 1" @click="goToPage(currentPage - 1)">
-                    <i class="fas fa-chevron-left"></i>
-                </button>
-
-                <!-- Các nút số trang -->
-                <button v-for="page in totalPages" :key="page" :aria-current="page === currentPage ? 'page' : undefined"
-                    class="w-7 h-7 rounded hover:bg-gray-200 transition"
-                    :class="{ 'bg-gray-200 text-gray-900 font-semibold': page === currentPage }" type="button"
-                    @click="goToPage(page)">
-                    {{ page }}
-                </button>
-
-                <!-- Nút "Trang sau" -->
-                <button aria-label="Trang sau" class="p-1 rounded hover:bg-gray-200 transition" type="button"
-                    :disabled="currentPage === totalPages" @click="goToPage(currentPage + 1)">
-                    <i class="fas fa-chevron-right"></i>
-                </button>
-            </nav>
-        </section>
         <ProductReviews />
     </main>
 </template>
@@ -204,7 +112,7 @@
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
 import ProductImageGallery from '../components/shared/ProductImageGallery.vue';
 import ProductOptions from '../components/shared/ProductOptions.vue';
-import RelatedProductItem from '../components/shared/RelatedProductItem.vue';
+import RelatedProductItem from '../components/shared/products/RelatedProductItem.vue';
 import ProductReviews from '../components/shared/ProductReviews.vue';
 
 // Product Data

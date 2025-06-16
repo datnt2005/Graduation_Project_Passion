@@ -20,9 +20,17 @@
       <div
         v-for="(item, index) in filteredProducts"
         :key="item.id"
-        class="overflow-hidden p-2 bg-white rounded shadow transition transform hover:scale-[1.03] hover:-translate-y-1 hover:shadow-lg duration-300 text-left"
+        class="relative overflow-hidden p-2 bg-white rounded shadow transition transform hover:scale-[1.03] hover:-translate-y-1 hover:shadow-lg duration-300 text-left"
       >
         <nuxt-link :to="`/products/${item.slug}`" class="block group">
+          <!-- Discount badge -->
+          <div
+            v-if="item.percent && item.percent > 0"
+            class="absolute top-0 right-0 bg-red-100 text-red-500 text-xs font-semibold px-2 py-1 rounded z-10"
+          >
+            -{{ item.percent }}%
+          </div>
+
           <!-- Hình ảnh sản phẩm -->
           <img
             :src="item.image"
@@ -41,12 +49,12 @@
 
           <!-- Giá -->
           <div class="text-red-500 font-semibold mt-1">
-            {{ formatPrice(item.price) }}₫
+            {{ formatPrice(item.price) }}<sup>₫</sup>
           </div>
 
           <!-- Giá gạch ngang nếu có giảm -->
           <div v-if="item.discount" class="line-through text-gray-400 text-sm">
-            {{ formatPrice(item.discount) }}₫
+            {{ formatPrice(item.discount) }}<sup>₫</sup>
           </div>
 
           <!-- Đánh giá & đã bán -->
@@ -81,7 +89,7 @@ const searchStore = useSearchStore();
 // Reactive state
 const products = ref([]);
 const loading = ref(false);
-const error = ref(null); // New state for error messages
+const error = ref(null);
 const filters = ref({ brand: [] });
 
 // Fetch products from API
@@ -100,18 +108,19 @@ const fetchProducts = async () => {
 
     let productArray = [];
 
-    // 👉 Dựa trên cấu trúc thực tế:
+    // Dựa trên cấu trúc thực tế:
     if (data?.data?.products && Array.isArray(data.data.products)) {
       productArray = data.data.products;
     } else {
       throw new Error('Invalid data format: Expected data.data.products to be an array');
     }
 
-    // Gán sản phẩm và xử lý hình ảnh
+    // Gán sản phẩm và xử lý hình ảnh, đảm bảo percent được xử lý
     products.value = productArray.map(p => ({
       ...p,
       image: p.image ? `${mediaBase}${p.image}` : '/default-image.jpg',
       sold: typeof p.sold === 'string' ? parseInt(p.sold) : p.sold,
+      percent: p.percent ? parseFloat(p.percent) : 0, // Đảm bảo percent là số
     }));
 
     console.log('Processed Products:', products.value);
