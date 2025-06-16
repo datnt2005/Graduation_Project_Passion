@@ -191,12 +191,7 @@ class DiscountController extends Controller
         $validator = Validator::make($request->all(), [
             'product_ids' => 'required|array',
             'product_ids.*' => 'exists:products,id',
-        ], [
-            'product_ids.required' => 'Danh sách sản phẩm không được để trống',
-            'product_ids.array' => 'Danh sách sản phẩm không hợp lệ',
-            'product_ids.*.exists' => 'Sản phẩm không tồn tại',
         ]);
-
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
@@ -204,16 +199,9 @@ class DiscountController extends Controller
                 'errors' => $validator->errors()
             ], 422);
         }
-
         try {
             $discount = Discount::findOrFail($discountId);
-            foreach ($request->product_ids as $productId) {
-                DiscountProduct::create([
-                    'discount_id' => $discountId,
-                    'product_id' => $productId,
-                ]);
-            }
-
+            $discount->products()->sync($request->product_ids);
             return response()->json([
                 'success' => true,
                 'message' => 'Áp dụng mã giảm giá cho sản phẩm thành công'
@@ -232,12 +220,7 @@ class DiscountController extends Controller
         $validator = Validator::make($request->all(), [
             'category_ids' => 'required|array',
             'category_ids.*' => 'exists:categories,id',
-        ], [
-            'category_ids.required' => 'Danh sách danh mục không được để trống',
-            'category_ids.array' => 'Danh sách danh mục không hợp lệ',
-            'category_ids.*.exists' => 'Danh mục không tồn tại',
         ]);
-
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
@@ -245,16 +228,9 @@ class DiscountController extends Controller
                 'errors' => $validator->errors()
             ], 422);
         }
-
         try {
             $discount = Discount::findOrFail($discountId);
-            foreach ($request->category_ids as $categoryId) {
-                DiscountCategory::create([
-                    'discount_id' => $discountId,
-                    'category_id' => $categoryId,
-                ]);
-            }
-
+            $discount->categories()->sync($request->category_ids);
             return response()->json([
                 'success' => true,
                 'message' => 'Áp dụng mã giảm giá cho danh mục thành công'
@@ -273,12 +249,7 @@ class DiscountController extends Controller
         $validator = Validator::make($request->all(), [
             'user_ids' => 'required|array',
             'user_ids.*' => 'exists:users,id',
-        ], [
-            'user_ids.required' => 'Danh sách người dùng không được để trống',
-            'user_ids.array' => 'Danh sách người dùng không hợp lệ',
-            'user_ids.*.exists' => 'Người dùng không tồn tại',
         ]);
-
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
@@ -286,17 +257,9 @@ class DiscountController extends Controller
                 'errors' => $validator->errors()
             ], 422);
         }
-
         try {
             $discount = Discount::findOrFail($discountId);
-            foreach ($request->user_ids as $userId) {
-                DiscountUser::create([
-                    'discount_id' => $discountId,
-                    'user_id' => $userId,
-                    'is_used' => false,
-                ]);
-            }
-
+            $discount->users()->sync($request->user_ids);
             return response()->json([
                 'success' => true,
                 'message' => 'Áp dụng mã giảm giá cho người dùng thành công'

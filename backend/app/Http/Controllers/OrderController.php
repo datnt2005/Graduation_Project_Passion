@@ -38,6 +38,13 @@ class OrderController extends Controller
                 $query->where('id', $request->order_id);
             }
 
+            // Lọc theo phương thức thanh toán
+            if ($request->has('payment_method') && !empty($request->payment_method)) {
+                $query->whereHas('payments.paymentMethod', function ($q) use ($request) {
+                    $q->where('name', $request->payment_method);
+                });
+            }
+
             // Sắp xếp
             $sortBy = $request->input('sort_by', 'created_at');
             $sortOrder = $request->input('sort_order', 'desc');
@@ -84,9 +91,9 @@ class OrderController extends Controller
                         'note' => $order->note ?? '',
                         'status' => $order->status,
                         'can_delete' => in_array($order->status, ['pending', 'cancelled']),
-                        'total_price' => number_format($order->total_price, 0, ',', '.') . ' đ',
-                        'discount_price' => number_format($order->discount_price, 0, ',', '.') . ' đ',
-                        'final_price' => number_format($order->final_price, 0, ',', '.') . ' đ',
+                        'total_price' => number_format($order->total_price, 0, '', ',') . ' đ',
+                        'discount_price' => number_format($order->discount_price, 0, '', ',') . ' đ',
+                        'final_price' => number_format($order->final_price, 0, '', ',') . ' đ',
                         'shipping_method' => $order->shipping_method,
                         'created_at' => $order->created_at->format('d/m/Y H:i:s'),
                         'order_items' => $order->orderItems->map(function ($item) {
@@ -102,15 +109,15 @@ class OrderController extends Controller
                                     'name' => $item->productVariant->name,
                                 ] : null,
                                 'quantity' => $item->quantity,
-                                'price' => number_format($item->price, 0, ',', '.') . ' đ',
-                                'total' => number_format($item->price * $item->quantity, 0, ',', '.') . ' đ',
+                                'price' => number_format($item->price, 0, '', ',') . ' đ',
+                                'total' => number_format($item->price * $item->quantity, 0, '', ',') . ' đ',
                             ];
                         }),
                         'payments' => $order->payments->map(function ($payment) {
                             return [
                                 'id' => $payment->id,
                                 'method' => $payment->paymentMethod ? $payment->paymentMethod->name : null,
-                                'amount' => number_format($payment->amount, 0, ',', '.') . ' đ',
+                                'amount' => number_format($payment->amount, 0, '', ',') . ' đ',
                                 'status' => $payment->status,
                                 'created_at' => $payment->created_at->format('d/m/Y H:i:s'),
                             ];
@@ -141,7 +148,6 @@ class OrderController extends Controller
     {
         $request->validate([
             'user_id' => 'required|exists:users,id',
-            'address_id' => 'required|exists:addresses,id',
             'discount_id' => 'nullable|exists:discounts,id',
             'note' => 'nullable|string',
             'items' => 'required|array|min:1',
@@ -150,12 +156,9 @@ class OrderController extends Controller
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.price' => 'required|numeric|min:0',
             'payment_method' => 'required|string|in:COD,VNPAY,MOMO',
-            'shipping_method' => 'nullable|string|in:giao-tiet-kiem,giao-nhanh,other_method',
         ], [
             'user_id.required' => 'ID người dùng là bắt buộc',
             'user_id.exists' => 'ID người dùng không tồn tại',
-            'address_id.required' => 'ID địa chỉ là bắt buộc',
-            'address_id.exists' => 'ID địa chỉ không tồn tại',
             'discount_id.exists' => 'ID mã giảm giá không tồn tại',
             'items.required' => 'Danh sách sản phẩm là bắt buộc',
             'items.array' => 'Danh sách sản phẩm phải là một mảng',
@@ -171,7 +174,6 @@ class OrderController extends Controller
             'items.*.price.min' => 'Giá phải lớn hơn hoặc bằng 0',
             'payment_method.required' => 'Phương thức thanh toán là bắt buộc',
             'payment_method.in' => 'Phương thức thanh toán không hợp lệ',
-            'shipping_method.in' => 'Phương thức vận chuyển không hợp lệ'
         ]);
 
         try {
@@ -180,14 +182,13 @@ class OrderController extends Controller
             // Create order
             $order = Order::create([
                 'user_id' => $request->user_id,
-                'address_id' => $request->address_id,
+                'address_id' => $request->address_id ?? null,
                 'discount_id' => $request->discount_id,
                 'note' => $request->note ?? '',
                 'status' => 'pending',
                 'total_price' => 0,
                 'discount_price' => 0,
                 'final_price' => 0,
-                'shipping_method' => $request->shipping_method,
             ]);
 
             // Create order items
@@ -203,10 +204,51 @@ class OrderController extends Controller
                 $totalPrice += $item['price'] * $item['quantity'];
             }
 
-            // Update order prices
-            $discountPrice = 0; // Calculate discount if needed
+            // Calculate discount if discount_id is provided
+            $discountPrice = 0;
+            if ($request->discount_id) {
+                \Log::info('Processing discount', [
+                    'discount_id' => $request->discount_id,
+                    'total_price' => $totalPrice
+                ]);
+                
+                $discount = \App\Models\Discount::find($request->discount_id);
+                if ($discount) {
+                    \Log::info('Found discount', [
+                        'discount' => $discount->toArray()
+                    ]);
+                    
+                    if ($discount->discount_type === 'percentage') {
+                        $discountPrice = $totalPrice * ($discount->discount_value / 100);
+                    } else {
+                        $discountPrice = $discount->discount_value;
+                    }
+                    
+                    // Ensure discount doesn't exceed total price
+                    $discountPrice = min($discountPrice, $totalPrice);
+                    
+                    \Log::info('Calculated discount', [
+                        'discount_price' => $discountPrice,
+                        'final_price' => $totalPrice - $discountPrice
+                    ]);
+                    
+                    // Update discount usage
+                    \App\Models\DiscountUser::create([
+                        'discount_id' => $discount->id,
+                        'user_id' => $request->user_id,
+                        'is_used' => true
+                    ]);
+                } else {
+                    \Log::warning('Discount not found', [
+                        'discount_id' => $request->discount_id
+                    ]);
+                }
+            }
+
+            // Calculate final price
             $finalPrice = $totalPrice - $discountPrice;
 
+            // Update order prices
             $order->update([
                 'total_price' => $totalPrice,
                 'discount_price' => $discountPrice,
@@ -427,6 +469,11 @@ class OrderController extends Controller
     /**
      * Format order response
      */
+    private function formatPrice($price)
+    {
+        return number_format($price, 0, '', ',');
+    }
+
     private function formatOrderResponse($order)
     {
         return [
@@ -443,9 +490,9 @@ class OrderController extends Controller
             ],
             'note' => $order->note ?? '',
             'status' => $order->status,
-            'total_price' => number_format($order->total_price, 0, ',', '.') . ' đ',
-            'discount_price' => number_format($order->discount_price, 0, ',', '.') . ' đ',
-            'final_price' => number_format($order->final_price, 0, ',', '.') . ' đ',
+            'total_price' => $this->formatPrice($order->total_price) . ' đ',
+            'discount_price' => $this->formatPrice($order->discount_price) . ' đ',
+            'final_price' => $this->formatPrice($order->final_price) . ' đ',
             'shipping_method' => $order->shipping_method,
             'created_at' => $order->created_at->format('d/m/Y H:i:s'),
             'updated_at' => $order->updated_at->format('d/m/Y H:i:s'),
@@ -462,15 +509,15 @@ class OrderController extends Controller
                         'name' => $item->productVariant->name,
                     ] : null,
                     'quantity' => $item->quantity,
-                    'price' => number_format($item->price, 0, ',', '.') . ' đ',
-                    'total' => number_format($item->price * $item->quantity, 0, ',', '.') . ' đ',
+                    'price' => $this->formatPrice($item->price) . ' đ',
+                    'total' => $this->formatPrice($item->price * $item->quantity) . ' đ',
                 ];
             }),
             'payments' => $order->payments->map(function ($payment) {
                 return [
                     'id' => $payment->id,
                     'method' => $payment->paymentMethod->name,
-                    'amount' => number_format($payment->amount, 0, ',', '.') . ' đ',
+                    'amount' => $this->formatPrice($payment->amount) . ' đ',
                     'status' => $payment->status,
                     'created_at' => $payment->created_at->format('d/m/Y H:i:s'),
                 ];
@@ -533,8 +580,8 @@ class OrderController extends Controller
                 'message' => $result['message'],
                 'data' => [
                     'order_id' => $order->id,
-                    'discount_amount' => number_format($result['discount_amount'], 0, ',', '.') . ' đ',
-                    'final_price' => number_format($result['final_price'], 0, ',', '.') . ' đ'
+                    'discount_amount' => number_format($result['discount_amount'], 0, '', ',') . ' đ',
+                    'final_price' => number_format($result['final_price'], 0, '', ',') . ' đ'
                 ]
             ]);
 
@@ -569,7 +616,7 @@ class OrderController extends Controller
                 'message' => $result['message'],
                 'data' => [
                     'order_id' => $order->id,
-                    'final_price' => number_format($result['final_price'], 0, ',', '.') . ' đ'
+                    'final_price' => number_format($result['final_price'], 0, '', ',') . ' đ'
                 ]
             ]);
 
