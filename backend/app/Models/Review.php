@@ -35,4 +35,9 @@ class Review extends Model
     {
         return $this->likes()->count();
     }
+
+    public function media()
+    {
+        return $this->hasMany(ReviewMedia::class, 'review_id');
+    }   
 }

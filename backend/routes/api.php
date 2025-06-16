@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Redis;
 
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Http\Request;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\SellerController;
 use App\Http\Controllers\AdminSellerController;
@@ -30,13 +31,13 @@ use App\Http\Controllers\AdminSellerController;
 
 // Category
 Route::prefix('categories')->group(function () {
-Route::get('/', [CategoryController::class, 'index']);
-Route::get('/{id}', [CategoryController::class, 'show']);
-Route::get('/{id}/children', [CategoryController::class, 'children']);
-Route::get('/{id}/parents', [CategoryController::class, 'parents']);
-Route::post('/', [CategoryController::class, 'store']);
-Route::put('/{id}', [CategoryController::class, 'update']);
-Route::delete('/{id}', [CategoryController::class, 'destroy']);
+    Route::get('/', [CategoryController::class, 'index']);
+    Route::get('/{id}', [CategoryController::class, 'show']);
+    Route::get('/{id}/children', [CategoryController::class, 'children']);
+    Route::get('/{id}/parents', [CategoryController::class, 'parents']);
+    Route::post('/', [CategoryController::class, 'store']);
+    Route::put('/{id}', [CategoryController::class, 'update']);
+    Route::delete('/{id}', [CategoryController::class, 'destroy']);
 });
 
 
@@ -71,7 +72,6 @@ Route::prefix('products')->group(function () {
     Route::delete('/{id}', [ProductController::class, 'destroy']);
     Route::get('/slug/{slug}', [ProductController::class, 'showBySlug']);
     Route::post('/change-status/{id}', [ProductController::class, 'changeStatus']);
-
 });
 
 // Orders
@@ -170,17 +170,23 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/reviews', [ReviewController::class, 'store']);               // Gửi đánh giá
     Route::put('/reviews/{id}', [ReviewController::class, 'update']);          // Cập nhật đánh giá
     Route::post('/reviews/{id}/like', [ReviewController::class, 'like']);      // Like đánh giá
+    Route::get('/reviews/{id}/liked', [ReviewController::class, 'checkLiked']);
+    Route::post('/reviews/{id}/unlike', [ReviewController::class, 'unlike']);  // Unlike đánh giá
     Route::post('/reviews/{id}/reply', [ReviewController::class, 'reply']);    // Trả lời đánh giá
     Route::delete('/reviews/{id}', [ReviewController::class, 'destroy']);      // Xóa đánh giá
     
 });
 
 
-Route::get('/address', [AddressController::class, 'index']);
-Route::get('/address/{id}', [AddressController::class, 'show']);
-Route::post('/address', [AddressController::class, 'store']);
-Route::put('/address/{id}', [AddressController::class, 'update']);
-Route::delete('/address/{id}', [AddressController::class, 'destroy']);
+
+
+    Route::get('/address', [AddressController::class, 'index']);
+    Route::get('/address/{id}', [AddressController::class, 'show']);
+    Route::post('/address', [AddressController::class, 'store']);
+    Route::put('/address/{id}', [AddressController::class, 'update']);
+    Route::delete('/address/{id}', [AddressController::class, 'destroy']);
+
+
 // google
 Route::get('auth/google/redirect', [GoogleAuthController::class, 'redirectToGoogle']);
 Route::get('auth/google/callback', [GoogleAuthController::class, 'handleGoogleCallback']);
@@ -191,7 +197,11 @@ Route::get('/ghn/districts', [GHNController::class, 'getDistricts']);
 Route::get('/ghn/wards', [GHNController::class, 'getWards']);
 Route::post('/ghn/districts', [GHNController::class, 'getDistricts']);
 Route::post('/ghn/wards', [GHNController::class, 'getWards']);
-Route::post('/ghn/fee', [GHNController::class, 'calculateFee']);
+Route::post('/shipping/calculate-fee', [GHNController::class, 'calculateFee']);
+Route::post('/ghn/services', [GHNController::class, 'getServices']);
+
+
+
 
 // crud user
 Route::apiResource('users', UserController::class);
@@ -204,6 +214,7 @@ Route::post('profile/update/{id}', [UserController::class, 'updateUser']);
 
 // crud user
 Route::apiResource('users', UserController::class);
+
 // api seller
 
 Route::prefix('sellers')->group(function () {

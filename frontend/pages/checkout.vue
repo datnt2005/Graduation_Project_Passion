@@ -24,10 +24,20 @@
                                 <div class="space-y-4">
                                     <label
                                         class="flex items-center space-x-3 cursor-pointer p-4 rounded-lg border border-gray-300 hover:border-blue-500 transition-colors duration-200">
-                                        <input type="radio" name="shipping-method"
-                                            class="form-radio text-blue-600 h-5 w-5" checked>
-                                        <span class="text-gray-900 font-medium">Giao tiết kiệm</span>
-                                        <span class="text-red-500 ml-auto">-35K</span>
+                                        <input type="radio" name="shipping_method" value="100039" checked
+                                            class="form-radio text-blue-600 h-5 w-5 shipping-method-radio">
+                                        <span class="text-gray-900 font-medium">GHN Tiết kiệm</span>
+                                        <span class="text-green-600 ml-auto font-semibold" id="fee-100039">Đang
+                                            tính...</span>
+                                    </label>
+
+                                    <label
+                                        class="flex items-center space-x-3 cursor-pointer p-4 rounded-lg border border-gray-300 hover:border-blue-500 transition-colors duration-200">
+                                        <input type="radio" name="shipping_method" value="53321"
+                                            class="form-radio text-blue-600 h-5 w-5 shipping-method-radio">
+                                        <span class="text-gray-900 font-medium">GHN Nhanh</span>
+                                        <span class="text-green-600 ml-auto font-semibold" id="fee-53321">Đang
+                                            tính...</span>
                                     </label>
                                     <div class="p-4 rounded-lg border border-blue-500 bg-blue-50">
                                         <div class="flex items-center space-x-3 mb-2">
@@ -51,7 +61,6 @@
                                             </div>
                                         </div>
                                     </div>
-                                    
                                 </div>
                             </section>
 
@@ -67,7 +76,6 @@
                                     </svg>
                                 </div>
                             </section>
-
                             <section class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                                 <h3 class="text-xl font-bold text-gray-800 mb-4">Chọn hình thức thanh toán</h3>
 
@@ -197,6 +205,12 @@
                                     <NuxtLink href="/address" class="text-blue-600">Chọn địa chỉ</NuxtLink>
                                 </div>
                             </section>
+                            <section v-else
+                                class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 text-gray-600 italic">
+                                Bạn chưa có địa chỉ giao hàng. <NuxtLink to="/address" class="text-blue-500 underline">
+                                    Thêm địa chỉ</NuxtLink>
+                            </section>
+
                             <section class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                                 <div class="flex items-center justify-between mb-4">
                                     <h3 class="text-xl font-bold text-gray-800">Khuyến mãi</h3>
@@ -427,12 +441,18 @@
 </template>
 
 <script setup>
+import axios from 'axios';
+import { ref, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
+import { useRuntimeConfig } from '#app';
+
+const config = useRuntimeConfig();
+const apiBase = config.public.apiBaseUrl;
+const mediaBaseUrl = config.public.mediaBaseUrl
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useCart } from '~/composables/useCart'
 import { usePayment } from '~/composables/usePayment'
 import { useDiscount } from '~/composables/useDiscount'
-import { useRoute } from 'vue-router'
-import axios from 'axios'
 
 const route = useRoute()
 const { cartItems, cartTotal, loading, error, fetchCart } = useCart()
@@ -446,10 +466,136 @@ const wards = ref([])
 const selectedPaymentMethod = ref('')
 const address_id = route.query.address_id
 
-const config = useRuntimeConfig()
-const mediaBaseUrl = config.public.mediaBaseUrl
+const baseUrl = `${apiBase}/shipping/calculate-fee`;
 
-// Hàm lấy tên tỉnh, huyện, xã
+const weight = 1000;
+const address_id = route.query.address_id;
+
+// Load tỉnh thành
+const loadProvinces = async () => {
+    try {
+        const res = await axios.get(`${apiBase}/ghn/provinces`);
+        provinces.value = res.data.data;
+    } catch (err) {
+        console.error('Không tải được provinces:', err);
+    }
+};
+
+// Load quận huyện
+const loadDistricts = async (province_id) => {
+    try {
+        const res = await axios.post(`${apiBase}/ghn/districts`, {
+            province_id
+        });
+        districts.value = Array.isArray(res.data.data) ? res.data.data : [];
+    } catch (err) {
+        console.error(`Lỗi tải districts với province_id=${province_id}:`, err);
+    }
+};
+
+// Load xã phường
+const loadWards = async (district_id) => {
+    try {
+        const res = await axios.post(`${apiBase}/ghn/wards`, {
+            district_id
+        });
+        wards.value = Array.isArray(res.data.data) ? res.data.data : [];
+    } catch (err) {
+        console.error(`Lỗi tải wards với district_id=${district_id}:`, err);
+    }
+};
+
+// Load địa chỉ đã chọn
+const loadSelectedAddress = async () => {
+    try {
+        await loadProvinces(); // luôn cần danh sách tỉnh
+
+        if (address_id) {
+            const res = await axios.get(`${apiBase}/address/${address_id}`);
+            selectedAddress.value = res.data.data;
+        } else {
+            // Nếu không có address_id, tìm địa chỉ mặc định của user
+            const userId = 3; // thay bằng user đang đăng nhập nếu cần
+            const res = await axios.get(`${apiBase}/address?user_id=${userId}`);
+            const addresses = res.data.data || [];
+
+            selectedAddress.value = addresses.find(addr => addr.is_default == 1);
+        }
+
+        // Nếu có địa chỉ, load districts và wards tương ứng
+        if (selectedAddress.value) {
+            await loadDistricts(selectedAddress.value.province_id);
+            await loadWards(selectedAddress.value.district_id);
+        }
+    } catch (err) {
+        console.error('Lỗi lấy địa chỉ:', err);
+    }
+};
+
+
+// Tính phí vận chuyển cho tất cả phương thức
+const calculateAllShippingFees = async () => {
+    if (!selectedAddress.value) return;
+
+    const { district_id: to_district_id, ward_code: to_ward_code } = selectedAddress.value;
+    const methods = document.querySelectorAll('.shipping-method-radio');
+
+    for (const radio of methods) {
+        const service_id = parseInt(radio.value);
+        const feeElement = document.getElementById('fee-' + service_id);
+
+        try {
+            const res = await fetch(baseUrl, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Accept": "application/json"
+                },
+                body: JSON.stringify({
+                    from_district_id: 1552,
+                    to_district_id,
+                    to_ward_code,
+                    service_id,
+                    weight,
+                    height: 20,
+                    length: 20,
+                    width: 20
+                })
+            });
+
+            const data = await res.json();
+            const fee = data?.data?.total ?? 0;
+
+            radio.dataset.fee = fee;
+            if (feeElement) {
+                feeElement.textContent = fee.toLocaleString('vi-VN') + 'đ';
+            }
+
+            if (radio.checked) {
+                const display = document.getElementById('shipping-fee-display');
+                if (display) {
+                    display.textContent = fee.toLocaleString('vi-VN') + 'đ';
+                }
+            }
+        } catch (err) {
+            console.error(`Lỗi tính phí ship cho service_id=${service_id}:`, err);
+            if (feeElement) {
+                feeElement.textContent = "Lỗi";
+            }
+        }
+    }
+
+    document.querySelectorAll('.shipping-method-radio').forEach(radio => {
+        radio.addEventListener('change', () => {
+            const fee = parseInt(radio.dataset.fee || '0');
+            const display = document.getElementById('shipping-fee-display');
+            if (display) {
+                display.textContent = fee.toLocaleString('vi-VN') + 'đ';
+            }
+        });
+    });
+};
+
 const getProvinceName = (province_id) => {
     const p = provinces.value.find(item => item.ProvinceID == province_id);
     return p ? p.ProvinceName : '';
@@ -464,276 +610,14 @@ const getWardName = (ward_code, district_id) => {
     const w = wards.value.find(item => item.WardCode == ward_code && item.DistrictID == district_id);
     return w ? w.WardName : '';
 };
-// Load address đã chọn
-const loadSelectedAddress = async () => {
-    if (!address_id) return;
 
-    try {
-        const res = await axios.get(`http://127.0.0.1:8000/api/address/${address_id}`);
-        selectedAddress.value = res.data.data;
-
-        if (selectedAddress.value) {
-            await loadProvinces(); // nếu có
-            await loadDistricts(selectedAddress.value.province_id);
-            await loadWards(selectedAddress.value.district_id);
-        }
-    } catch (err) {
-        console.error('Lỗi lấy địa chỉ đã chọn:', err);
-    }
-};
-
-// Load tỉnh thành (nếu bạn dùng file JSON hoặc API riêng)
-const loadProvinces = async () => {
-    try {
-        const res = await axios.get('http://127.0.0.1:8000/api/ghn/provinces');
-        provinces.value = res.data.data;
-    } catch (err) {
-        console.error('Không tải được provinces:', err);
-    }
-};
-
-// Load quận huyện từ GHN API
-const loadDistricts = async (province_id) => {
-    try {
-        const res = await axios.post('http://127.0.0.1:8000/api/ghn/districts', {
-            province_id: province_id
-        });
-        if (Array.isArray(res.data.data)) {
-            districts.value = res.data.data;
-        } else {
-            console.warn(`Không tải được districts cho province_id=${province_id}`);
-        }
-    } catch (err) {
-        console.error(`Lỗi tải districts với province_id=${province_id}:`, err);
-    }
-};
-
-// Load xã phường từ GHN API
-const loadWards = async (district_id) => {
-    try {
-        const res = await axios.post('http://127.0.0.1:8000/api/ghn/wards', {
-            district_id: district_id
-        });
-        if (Array.isArray(res.data.data)) {
-            wards.value = res.data.data;
-        } else {
-            console.warn(`Không tải được wards cho district_id=${district_id}`);
-        }
-    } catch (err) {
-        console.error(`Lỗi tải wards với district_id=${district_id}:`, err);
-    }
-};
-
-onMounted(() => {
-    loadSelectedAddress();
+onMounted(async () => {
+    await loadSelectedAddress();
+    await nextTick();
+    calculateAllShippingFees();
 });
 
-// Fetch data on mount
-onMounted(async () => {
-    console.log('onMounted called vnpay-return')
-    console.log('Checkout page mounted')
-    console.log('Access Token:', localStorage.getItem('access_token'))
-    console.log('API Base URL:', config.public.apiBaseUrl)
-    
-    try {
-        console.log('Fetching data...')
-        await Promise.all([
-            fetchCart(),
-            fetchPaymentMethods(),
-            fetchDiscounts(),
-            loadSelectedAddress()
-        ])
-        console.log('Data fetched successfully')
-        console.log('Cart Items:', cartItems.value)
-        console.log('Payment Methods:', paymentMethods.value)
-        console.log('Discounts:', discounts.value)
-        console.log('Selected Address:', selectedAddress.value)
-    } catch (err) {
-        console.error('Error fetching data:', err)
-    }
-})
 
-const promotions = ref([
-    {
-    }
-]);
-
-const getBadgeClass = (badge) => {
-    const classes = {
-        'Hot': 'bg-red-500',
-        'New': 'bg-green-500',
-        'Best': 'bg-yellow-500',
-        'VIP': 'bg-purple-500'
-    }
-    return classes[badge] || 'bg-gray-500'
-}
-
-const selectPromotion = (promotion) => {
-    const selectedCount = promotions.value.filter(p => p.selected).length
-    if (selectedCount >= 2 && !promotion.selected) {
-        alert('Chỉ được chọn tối đa 2 ưu đãi')
-        return
-    }
-    promotion.selected = !promotion.selected
-}
-
-const formatPrice = (price) => {
-    if (!price) return '0'
-    return price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-}
-
-// Calculate final total with discounts
-const finalTotal = computed(() => {
-    const couponDiscount = calculateDiscount(cartTotal.value || 0)
-    const total = Math.max(0, (cartTotal.value || 0) - couponDiscount)
-    return total
-})
-
-// Format price for display
-const formattedFinalTotal = computed(() => {
-    return formatPrice(finalTotal.value) + ' đ'
-})
-
-// Format price for display
-const formattedCartTotal = computed(() => {
-    return formatPrice(cartTotal.value) + ' đ'
-})
-
-// Get payment method display label
-const getPaymentMethodLabel = (methodName) => {
-    switch (methodName) {
-        case 'COD':
-            return 'Thanh toán khi nhận hàng'
-        case 'VNPAY':
-            return 'Thanh toán qua VNPAY'
-        case 'MOMO':
-            return 'Thanh toán qua Ví MoMo'
-        default:
-            return methodName
-    }
-}
-
-const showNotification = ref(false);
-const notificationMessage = ref('');
-
-// Hàm hiển thị notification
-const showSuccessNotification = (message) => {
-  notificationMessage.value = message;
-  showNotification.value = true;
-  // Tự động ẩn sau 3 giây
-  setTimeout(() => {
-    showNotification.value = false;
-  }, 3000);
-};
-
-const placeOrder = async () => {
-    if (!cartItems.value?.length) {
-        showSuccessNotification('Giỏ hàng trống');
-        return;
-    }
-
-    if (!selectedPaymentMethod.value) {
-        showSuccessNotification('Vui lòng chọn phương thức thanh toán');
-        return;
-    }
-
-    try {
-        loading.value = true;
-        error.value = null;
-
-        const token = localStorage.getItem('access_token')
-        if (!token) {
-            navigateTo('/auth/login')
-            return
-        }
-
-        // Fetch user info first
-        const userResponse = await fetch(`${config.public.apiBaseUrl}/me`, {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Accept': 'application/json'
-            }
-        })
-
-        if (!userResponse.ok) {
-            throw new Error('Không thể lấy thông tin người dùng')
-        }
-
-        const { data: userData } = await userResponse.json()
-        
-        if (!userData?.id) {
-            throw new Error('Không tìm thấy thông tin người dùng')
-        }
-
-        // Prepare order data with minimal object structure
-        const orderData = {
-            user_id: userData.id,
-            address_id: 1,
-            payment_method: selectedPaymentMethod.value,
-            discount_id: selectedDiscounts.value?.[0]?.id || null,
-            items: cartItems.value.map(item => ({
-                product_id: item.productVariant?.product?.id,
-                product_variant_id: item.product_variant_id,
-                quantity: item.quantity,
-                price: item.price
-            }))
-        }
-
-        const orderResponse = await fetch(`${config.public.apiBaseUrl}/orders`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify(orderData)
-        })
-
-        if (!orderResponse.ok) {
-            const errorData = await orderResponse.json();
-            throw new Error(errorData.message || 'Lỗi khi tạo đơn hàng');
-        }
-
-        const { data: orderResult } = await orderResponse.json()
-
-        // Process payment based on selected method
-        if (selectedPaymentMethod.value === 'COD') {
-            navigateTo(`/order-success/${orderResult.id}`);
-        } else {
-            const { url } = await processPayment(orderResult.id, selectedPaymentMethod.value);
-            if (url) {
-                window.location.href = url;
-            } else {
-                throw new Error('Không nhận được URL thanh toán');
-            }
-        }
-    } catch (err) {
-        console.error('Order placement error:', err);
-        error.value = err.message || 'Có lỗi xảy ra khi đặt hàng';
-        showSuccessNotification(error.value);
-    } finally {
-        loading.value = false;
-    }
-}
-
-// Cleanup function
-onUnmounted(() => {
-    error.value = null
-    loading.value = false
-    selectedPaymentMethod.value = ''
-})
-
-const formatDate = (date) => {
-    if (!date) return '';
-    if (typeof date === 'string' && date.includes('/')) {
-        // If date is already in DD/MM/YYYY format, convert to MM/DD/YYYY
-        const [day, month, year] = date.split('/');
-        return `${month}/${day}/${year}`;
-    }
-    // For dates from API, format as MM/DD/YYYY
-    const d = new Date(date);
-    return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}/${d.getFullYear()}`;
-};
 </script>
 
 <style scoped>
