@@ -112,7 +112,7 @@
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
 import ProductImageGallery from '../components/shared/ProductImageGallery.vue';
 import ProductOptions from '../components/shared/ProductOptions.vue';
-import RelatedProductItem from '../components/shared/RelatedProductItem.vue';
+import RelatedProductItem from '../components/shared/products/RelatedProductItem.vue';
 import ProductReviews from '../components/shared/ProductReviews.vue';
 
 // Product Data

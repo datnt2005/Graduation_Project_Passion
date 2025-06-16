@@ -65,6 +65,7 @@ Route::prefix('attributes')->group(function () {
 Route::prefix('products')->group(function () {
     Route::get('/', [ProductController::class, 'index']);
     Route::get('/trash', [ProductController::class, 'getTrash']);
+    Route::get('/shop', [ProductController::class, 'getAllProducts']);
     Route::get('/{id}', [ProductController::class, 'show']);
     Route::post('/', [ProductController::class, 'store']);
     Route::post('/import', [ProductController::class, 'import']);
