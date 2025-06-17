@@ -1,31 +1,28 @@
-import { ref } from 'vue'
+import Swal from 'sweetalert2'
 
 export const useAlert = () => {
-  const showAlert = ref(false)
-  const alertMessage = ref('')
-  const alertType = ref('success')
-
   const showMessage = (message: string, type: 'success' | 'error' = 'success') => {
-    console.log('useAlert: Showing message:', { message, type })
-    alertMessage.value = message
-    alertType.value = type
-    showAlert.value = true
-
-    // Auto hide after 5 seconds
-    setTimeout(() => {
-      console.log('useAlert: Auto hiding alert')
-      showAlert.value = false
-    }, 5000)
+    Swal.fire({
+      toast: true,
+      position: 'top',
+      icon: type,
+      title: message,
+      width: '350px',
+      padding: '10px 20px',
+      customClass: { popup: 'text-sm rounded-md shadow-md' },
+      showConfirmButton: false,
+      timer: 1500,
+      timerProgressBar: true,
+      didOpen: (toastEl) => {
+        toastEl.addEventListener('mouseenter', () => Swal.stopTimer());
+        toastEl.addEventListener('mouseleave', () => Swal.resumeTimer());
+      }
+    });
   }
-
   return {
-    showAlert,
-    alertMessage,
-    alertType,
     showMessage
   }
 }
 
-// Create a global instance
 const globalAlert = useAlert()
-export const useGlobalAlert = () => globalAlert 
+export const useGlobalAlert = () => globalAlert

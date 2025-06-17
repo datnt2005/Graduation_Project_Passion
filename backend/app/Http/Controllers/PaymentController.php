@@ -6,6 +6,8 @@ use Illuminate\Http\Request;
 use App\Models\Payment;
 use App\Models\PaymentMethod;
 use App\Models\Order;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\OrderSuccessMail;
 
 class PaymentController extends Controller
 {
@@ -201,6 +203,13 @@ class PaymentController extends Controller
             if ($vnp_ResponseCode === '00') {
                 $order = Order::findOrFail($orderId);
                 $order->update(['status' => 'processing']);
+                // Gửi mail xác nhận đơn hàng thành công
+                if ($order->user && !empty($order->user->email)) {
+                    Mail::to($order->user->email)->send(new OrderSuccessMail($order));
+                }
+                if (!empty($order->email)) {
+                    Mail::to($order->email)->send(new OrderSuccessMail($order));
+                }
                 
                 // Tìm hoặc tạo payment_method_id cho VNPAY
                 $paymentMethod = PaymentMethod::firstOrCreate(
@@ -215,6 +224,11 @@ class PaymentController extends Controller
                     'transaction_id' => $vnpTranId,
                     'status' => 'completed'
                 ]);
+
+                // Gửi email thông báo đơn hàng thành công
+                if (!empty($order->email)) {
+                    Mail::to($order->email)->send(new OrderSuccessMail($order));
+                }
 
                 \Log::info('VNPAY Payment Success', [
                     'order_id' => $orderId,
@@ -318,7 +332,11 @@ class PaymentController extends Controller
             if ($vnp_ResponseCode === '00') {
                 $order = Order::findOrFail($orderId);
                 $order->update(['status' => 'processing']);
-                
+                // Gửi mail xác nhận đơn hàng thành công
+                if ($order->user && $order->user->email) {
+                    Mail::to($order->user->email)->send(new OrderSuccessMail($order));
+                }
+
                 // Tìm hoặc tạo payment_method_id cho VNPAY
                 $paymentMethod = PaymentMethod::firstOrCreate(
                     ['name' => 'VNPAY'],
@@ -332,6 +350,11 @@ class PaymentController extends Controller
                     'transaction_id' => $vnpTranId,
                     'status' => 'completed'
                 ]);
+
+                // Gửi email thông báo đơn hàng thành công
+                if (!empty($order->email)) {
+                    Mail::to($order->email)->send(new OrderSuccessMail($order));
+                }
 
                 \Log::info('VNPAY Payment Success', [
                     'order_id' => $orderId,
@@ -539,7 +562,10 @@ class PaymentController extends Controller
             if ($resultCode == '0') {
                 $order = Order::findOrFail($originalOrderId);
                 $order->update(['status' => 'processing']);
-                
+                // Gửi mail xác nhận đơn hàng thành công
+                if ($order->user && $order->user->email) {
+                    Mail::to($order->user->email)->send(new OrderSuccessMail($order));
+                }
                 // Cập nhật trạng thái payment
                 $payment = Payment::where('order_id', $originalOrderId)
                     ->where('transaction_id', $orderId)
