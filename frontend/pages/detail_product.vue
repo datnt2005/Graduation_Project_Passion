@@ -121,6 +121,7 @@
         </section>
 
         <!-- Customer Reviews -->
+<<<<<<< HEAD
         <section ref="reviewSection" class="w-full mb-12 py-6 bg-gray-50">
             <h3 class="text-sm font-semibold mb-4">Khách hàng đánh giá</h3>
             <div class="flex flex-col sm:flex-row gap-4 mb-4">
@@ -214,6 +215,9 @@
             </nav>
         </section>
     </div>
+=======
+        <ProductReviews />
+>>>>>>> 537c724c34ae742b86897289086712a3b14c6266
     </main>
 </template>
 
@@ -221,8 +225,8 @@
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
 import ProductImageGallery from '../components/shared/ProductImageGallery.vue';
 import ProductOptions from '../components/shared/ProductOptions.vue';
-import RelatedProductItem from '../components/shared/RelatedProductItem.vue';
-import ReviewItem from '../components/shared/ReviewItem.vue';
+import RelatedProductItem from '../components/shared/products/RelatedProductItem.vue';
+import ProductReviews from '../components/shared/ProductReviews.vue';
 
 // Product Data
 const product = {
@@ -264,16 +268,9 @@ const displayProducts = computed(() => {
     return showAll.value ? relatedProducts : relatedProducts.slice(0, 4);
 });
 
-const reviews = ref({
-    summary: {
-        rating: 0,
-        count: 0,
-        ratings: [],
-    },
-    list: [],
-});
 
 
+<<<<<<< HEAD
 // Khai báo biến reactive cho rating và comment
 const newReviewRating = ref(0);
 const newReviewComment = ref('');
@@ -432,6 +429,8 @@ onMounted(() => {
     }, 3000);
 });
 
+=======
+>>>>>>> 537c724c34ae742b86897289086712a3b14c6266
 onBeforeUnmount(() => {
     if (intervalId) clearInterval(intervalId);
 

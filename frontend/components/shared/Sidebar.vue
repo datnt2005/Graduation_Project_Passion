@@ -7,8 +7,8 @@
         class="flex items-center gap-4 bg-white p-2 rounded-lg hover:bg-gray-200 transition-all cursor-pointer"
       >
         <img
-          :src="item.image"
-          alt="item"
+          :src="`${mediaBase}${item.image}`"
+          :alt="item.name"
           class="w-8 h-8 object-contain rounded-full"
         />
         <span class="text-sm font-medium">{{ item.name }}</span>
@@ -43,23 +43,31 @@
 
 <script setup>
 import { NuxtLink } from '#components';
+import { ref } from 'vue';
+import { useRouter } from 'vue-router';
+import { useRuntimeConfig } from '#imports';
+const router = useRouter();
+const config = useRuntimeConfig();
+const apiBase = config.public.apiBaseUrl;
+const mediaBase = config.public.mediaBaseUrl;
+const categories = ref([]);
 
-const categories = [
-  {
-    name: "Thời trang nam",
-    image: "https://media.canifa.com/mega_menu/item/Nam-1-menu-05Mar.webp",
-  },
-  {
-    name: "Thời trang nữ",
-    image: "https://media.canifa.com/mega_menu/item/Nu-1-menu-05Mar.webp",
-  },
-  {
-    name: "Trẻ em",
-    image: "https://media.canifa.com/mega_menu/item/Be-trai-2-menu-05Mar.webp",
-  },
-  {
-    name: "Phụ kiện",
-    image: "https://media.canifa.com/mega_menu/item/Be-gai-2-menu-05Mar.webp",
-  },
-];
+const fetchCategories = async function() {
+  try{
+    const response = await fetch(`${apiBase}/categories`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    const data = await response.json();
+    categories.value = data.categories;
+  } catch (error) {
+    console.error('Error fetching categories:', error);
+  }
+}
+
+onMounted(() => {
+  fetchCategories();
+});
 </script>

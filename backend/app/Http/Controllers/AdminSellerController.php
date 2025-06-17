@@ -30,6 +30,8 @@ class AdminSellerController extends Controller
     {
         $seller = Seller::with('user')->findOrFail($id);
         $seller->verification_status = 'verified';
+        $user = $seller->user;
+        $user->role = 'seller'; // Cập nhật vai trò của người dùng thành seller
         $seller->save();
 
         // Gửi email thông báo

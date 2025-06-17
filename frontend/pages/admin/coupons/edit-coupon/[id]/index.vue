@@ -497,6 +497,7 @@
 <script setup>
 import { ref, reactive, onMounted, computed, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
+import { useRuntimeConfig } from '#imports'
 
 definePageMeta({
   layout: 'default-admin'
@@ -504,11 +505,13 @@ definePageMeta({
 
 const router = useRouter();
 const route = useRoute();
+const config = useRuntimeConfig()
+const apiBase = config.public.apiBaseUrl
+
 const activeTab = ref('overview');
 const loading = ref(false);
 const errors = reactive({});
 
-// Thêm refs cho multiselect
 const activeDropdown = ref(null);
 const productSearch = ref('');
 const categorySearch = ref('');
@@ -522,33 +525,41 @@ const selectedProducts = ref([]);
 const selectedCategories = ref([]);
 const selectedUsers = ref([]);
 
-// Thêm state cho notification
 const showNotification = ref(false);
 const notificationMessage = ref('');
 
-// Mock data (thay thế bằng API call sau)
-const products = ref([
-  { id: 1, name: 'Áo len nữ dài tay cổ tròn' },
-  { id: 2, name: 'Áo len nữ dài tay cổ tròn - Đỏ' },
-  { id: 3, name: 'Áo len nữ dài tay cổ tròn - Hồng' },
-  { id: 4, name: 'Áo khoác dạ nữ hai lớp cổ bẻ dáng suông' },
-  { id: 5, name: 'Áo len polo nam cộc tay' },
-]);
+const products = ref([]);
+const categories = ref([]);
+const users = ref([]);
 
-const categories = ref([
-  { id: 1, name: 'Áo len nữ' },
-  { id: 2, name: 'Áo khoác nữ' },
-  { id: 3, name: 'Áo len nam' },
-  { id: 4, name: 'Áo khoác nam' },
-]);
+const fetchProducts = async () => {
+  try {
+    const res = await fetch(`${apiBase}/products?per_page=1000`);
+    const data = await res.json();
+    products.value = data.data?.data || data.data || [];
+  } catch (e) {
+    products.value = [];
+  }
+};
+const fetchCategories = async () => {
+  try {
+    const res = await fetch(`${apiBase}/categories`);
+    const data = await res.json();
+    categories.value = data.categories || data.data || [];
+  } catch (e) {
+    categories.value = [];
+  }
+};
+const fetchUsers = async () => {
+  try {
+    const res = await fetch(`${apiBase}/users`);
+    const data = await res.json();
+    users.value = data.data || [];
+  } catch (e) {
+    users.value = [];
+  }
+};
 
-const users = ref([
-  { id: 1, name: 'Nguyễn Văn A' },
-  { id: 2, name: 'Trần Thị B' },
-  { id: 3, name: 'Lê Văn C' },
-]);
-
-// Hàm bỏ dấu tiếng Việt
 const removeVietnameseTones = (str) => {
   str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, "a");
   str = str.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g, "e");
@@ -567,12 +578,11 @@ const removeVietnameseTones = (str) => {
   return str;
 };
 
-// Computed properties cho filtered items
 const filteredProducts = computed(() => {
   if (!productSearch.value) return products.value;
   const searchTerm = removeVietnameseTones(productSearch.value.toLowerCase());
   return products.value.filter(product =>
-    removeVietnameseTones(product.name.toLowerCase()).includes(searchTerm)
+    removeVietnameseTones((product.name || '').toLowerCase()).includes(searchTerm)
   );
 });
 
@@ -580,7 +590,7 @@ const filteredCategories = computed(() => {
   if (!categorySearch.value) return categories.value;
   const searchTerm = removeVietnameseTones(categorySearch.value.toLowerCase());
   return categories.value.filter(category =>
-    removeVietnameseTones(category.name.toLowerCase()).includes(searchTerm)
+    removeVietnameseTones((category.name || '').toLowerCase()).includes(searchTerm)
   );
 });
 
@@ -588,21 +598,18 @@ const filteredUsers = computed(() => {
   if (!userSearch.value) return users.value;
   const searchTerm = removeVietnameseTones(userSearch.value.toLowerCase());
   return users.value.filter(user =>
-    removeVietnameseTones(user.name.toLowerCase()).includes(searchTerm)
+    removeVietnameseTones((user.name || '').toLowerCase()).includes(searchTerm)
   );
 });
 
-// Toggle selection
 const toggleSelection = (type, item) => {
   const selections = {
     products: selectedProducts,
     categories: selectedCategories,
     users: selectedUsers
   };
-  
   const selected = selections[type];
   const index = selected.value.findIndex(i => i.id === item.id);
-  
   if (index === -1) {
     selected.value.push(item);
   } else {
@@ -610,28 +617,25 @@ const toggleSelection = (type, item) => {
   }
 };
 
-// Check if item is selected
 const isSelected = (type, item) => {
   const selections = {
     products: selectedProducts,
     categories: selectedCategories,
     users: selectedUsers
   };
-  
   return selections[type].value.some(i => i.id === item.id);
 };
 
-// Close dropdown when clicking outside
 const closeDropdowns = (event) => {
   if (!event.target.closest('.relative')) {
     activeDropdown.value = null;
   }
 };
 
-// Add click event listener
-onMounted(() => {
+onMounted(async () => {
   document.addEventListener('click', closeDropdowns);
-  fetchCouponData();
+  await Promise.all([fetchProducts(), fetchCategories(), fetchUsers()]);
+  await fetchCouponData();
 });
 
 onUnmounted(() => {
@@ -654,7 +658,7 @@ const formData = reactive({
 const fetchCouponData = async () => {
   try {
     loading.value = true;
-    const response = await fetch(`http://localhost:8000/api/discounts/${route.params.id}`);
+    const response = await fetch(`${apiBase}/discounts/${route.params.id}`);
     const data = await response.json();
 
     if (data.success) {
@@ -667,28 +671,32 @@ const fetchCouponData = async () => {
         }
       });
 
-      // Load selected items
-      if (coupon.products) selectedProducts.value = coupon.products;
-      if (coupon.categories) selectedCategories.value = coupon.categories;
-      if (coupon.users) selectedUsers.value = coupon.users;
+      // Gán đúng selected, không tự động chọn tất cả nếu rỗng
+      selectedProducts.value = Array.isArray(coupon.products) && coupon.products.length > 0
+        ? products.value.filter(p => coupon.products.some(cp => cp.id === p.id))
+        : [];
+      selectedCategories.value = Array.isArray(coupon.categories) && coupon.categories.length > 0
+        ? categories.value.filter(c => coupon.categories.some(cc => cc.id === c.id))
+        : [];
+      selectedUsers.value = Array.isArray(coupon.users) && coupon.users.length > 0
+        ? users.value.filter(u => coupon.users.some(cu => cu.id === u.id))
+        : [];
     } else {
-      alert('Không thể tải thông tin mã giảm giá');
+      showSuccessNotification('Không thể tải thông tin mã giảm giá');
       router.push('/admin/coupons');
     }
   } catch (error) {
     console.error('Error:', error);
-    alert('Có lỗi xảy ra khi tải thông tin mã giảm giá');
+    showSuccessNotification('Có lỗi xảy ra khi tải thông tin mã giảm giá');
     router.push('/admin/coupons');
   } finally {
     loading.value = false;
   }
 };
 
-// Hàm hiển thị notification
 const showSuccessNotification = (message) => {
   notificationMessage.value = message;
   showNotification.value = true;
-  // Tự động ẩn sau 3 giây
   setTimeout(() => {
     showNotification.value = false;
   }, 3000);
@@ -703,7 +711,7 @@ const updateCoupon = async () => {
     loading.value = true;
 
     // Step 1: Update basic discount information
-    const response = await fetch(`http://localhost:8000/api/discounts/${route.params.id}`, {
+    const response = await fetch(`${apiBase}/discounts/${route.params.id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -724,47 +732,22 @@ const updateCoupon = async () => {
       return;
     }
 
-    // Step 2: Assign products, categories, and users
-    const assignPromises = [];
-
-    if (selectedProducts.value.length > 0) {
-      assignPromises.push(
-        fetch(`http://localhost:8000/api/discounts/${route.params.id}/products`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ product_ids: selectedProducts.value.map(p => p.id) })
-        })
-      );
-    }
-
-    if (selectedCategories.value.length > 0) {
-      assignPromises.push(
-        fetch(`http://localhost:8000/api/discounts/${route.params.id}/categories`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ category_ids: selectedCategories.value.map(c => c.id) })
-        })
-      );
-    }
-
-    if (selectedUsers.value.length > 0) {
-      assignPromises.push(
-        fetch(`http://localhost:8000/api/discounts/${route.params.id}/users`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ user_ids: selectedUsers.value.map(u => u.id) })
-        })
-      );
-    }
-
-    // Wait for all assignments to complete
-    await Promise.all(assignPromises);
+    // Step 2: Assign products, categories, and users (có thể là mảng rỗng)
+    await fetch(`${apiBase}/discounts/${route.params.id}/products`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ product_ids: selectedProducts.value.map(p => p.id) })
+    });
+    await fetch(`${apiBase}/discounts/${route.params.id}/categories`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ category_ids: selectedCategories.value.map(c => c.id) })
+    });
+    await fetch(`${apiBase}/discounts/${route.params.id}/users`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_ids: selectedUsers.value.map(u => u.id) })
+    });
 
     showSuccessNotification('Cập nhật mã giảm giá thành công!');
     setTimeout(() => {
@@ -779,14 +762,12 @@ const updateCoupon = async () => {
 };
 
 const validateForm = () => {
-  // Reset all errors
   Object.keys(errors).forEach(key => {
     errors[key] = '';
   });
 
   let isValid = true;
 
-  // Validate name
   if (!formData.name) {
     errors.name = 'Tên mã giảm giá không được để trống';
     isValid = false;
@@ -795,7 +776,6 @@ const validateForm = () => {
     isValid = false;
   }
 
-  // Validate code
   if (!formData.code) {
     errors.code = 'Mã giảm giá không được để trống';
     isValid = false;
@@ -804,7 +784,6 @@ const validateForm = () => {
     isValid = false;
   }
 
-  // Validate discount_type
   if (!formData.discount_type) {
     errors.discount_type = 'Loại giảm giá không được để trống';
     isValid = false;
@@ -813,7 +792,6 @@ const validateForm = () => {
     isValid = false;
   }
 
-  // Validate discount_value
   if (formData.discount_value === undefined || formData.discount_value === null) {
     errors.discount_value = 'Giá trị giảm giá không được để trống';
     isValid = false;
@@ -825,19 +803,16 @@ const validateForm = () => {
     isValid = false;
   }
 
-  // Validate usage_limit
   if (formData.usage_limit !== null && formData.usage_limit < 1) {
     errors.usage_limit = 'Giới hạn sử dụng phải lớn hơn 0';
     isValid = false;
   }
 
-  // Validate min_order_value
   if (formData.min_order_value !== null && formData.min_order_value < 0) {
     errors.min_order_value = 'Giá trị đơn hàng tối thiểu phải lớn hơn hoặc bằng 0';
     isValid = false;
   }
 
-  // Validate start_date
   if (!formData.start_date) {
     errors.start_date = 'Ngày bắt đầu không được để trống';
     isValid = false;
@@ -845,28 +820,24 @@ const validateForm = () => {
     const startDate = new Date(formData.start_date);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
     if (startDate < today) {
       errors.start_date = 'Ngày bắt đầu phải từ ngày hôm nay trở đi';
       isValid = false;
     }
   }
 
-  // Validate end_date
   if (!formData.end_date) {
     errors.end_date = 'Ngày kết thúc không được để trống';
     isValid = false;
   } else if (formData.start_date) {
     const startDate = new Date(formData.start_date);
     const endDate = new Date(formData.end_date);
-    
     if (endDate <= startDate) {
       errors.end_date = 'Ngày kết thúc phải sau ngày bắt đầu';
       isValid = false;
     }
   }
 
-  // Validate status
   if (!formData.status) {
     errors.status = 'Trạng thái không được để trống';
     isValid = false;
@@ -875,11 +846,10 @@ const validateForm = () => {
     isValid = false;
   }
 
-  // Show notification if there are errors
   if (!isValid) {
     const errorMessages = Object.values(errors).filter(error => error);
     if (errorMessages.length > 0) {
-      showSuccessNotification(errorMessages[0]); // Show first error message
+      showSuccessNotification(errorMessages[0]);
     }
   }
 

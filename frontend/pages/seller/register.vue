@@ -380,6 +380,7 @@ async function handleSubmit() {
     })
 
     alert('Đăng ký thành công!')
+<<<<<<< HEAD
     console.log('Response:', res.data)
   } catch (error) {
     if (error.response && error.response.status === 422) {
@@ -396,6 +397,11 @@ async function handleSubmit() {
   } finally {
     loading.value = false
   }
+=======
+    // chuyển đến trang chờ
+    window.location.href = '/seller/SellerRegisterSuccess'
+  }, 800)
+>>>>>>> 537c724c34ae742b86897289086712a3b14c6266
 }
 
 </script>

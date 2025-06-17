@@ -184,8 +184,19 @@ const errors = ref({
 });
 
 async function handleSubmit() {
+<<<<<<< HEAD
   loading.value = true;
   errors.value = { email: "", password: "", message: "" };
+=======
+    loading.value = true
+    setTimeout(() => {
+        loading.value = false
+        alert('Đăng nhập thành công!')
+        
+    }, 1000)
+}
+</script>
+>>>>>>> 537c724c34ae742b86897289086712a3b14c6266
 
   try {
     const response = await axios.post(
