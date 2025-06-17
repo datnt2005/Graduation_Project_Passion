@@ -120,6 +120,7 @@
             </div>
         </section>
 
+        </div>
         <!-- Customer Reviews -->
 <<<<<<< HEAD
         <section ref="reviewSection" class="w-full mb-12 py-6 bg-gray-50">

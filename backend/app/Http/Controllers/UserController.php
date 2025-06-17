@@ -176,7 +176,6 @@ public function update(Request $request, User $user)
                 'min:6',
                 'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).+$/'
             ],
-            'old_password' => 'required_with:password|string',
             'avatar'  => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
             'role'    => 'sometimes|required|in:user,seller,admin',
             'status'  => 'sometimes|required|in:active,inactive,banned',
@@ -191,7 +190,6 @@ public function update(Request $request, User $user)
             'role.in' => 'Vai trò không hợp lệ.',
             'status.required' => 'Trạng thái không được để trống.',
             'status.in' => 'Trạng thái không hợp lệ.',
-            'old_password.required_with' => 'Vui lòng nhập mật khẩu cũ để đổi mật khẩu.'
         ]);
 
         if ($validator->fails()) {
@@ -201,13 +199,9 @@ public function update(Request $request, User $user)
         $data = $validator->validated();
 
         // Đổi mật khẩu (nếu có)
-        if (isset($data['password'])) {
-            if (!isset($data['old_password']) || !Hash::check($data['old_password'], $user->password)) {
-                return response()->json(['error' => 'Mật khẩu cũ không đúng.'], 403);
-            }
+       if (isset($data['password'])) {
             $data['password'] = Hash::make($data['password']);
         }
-        unset($data['old_password']);
 
         // ======= Xử lý avatar giống store =======
         if ($request->hasFile('avatar') && $request->file('avatar')->isValid()) {
