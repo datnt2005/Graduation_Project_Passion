@@ -226,7 +226,7 @@ Route::middleware([HandleCors::class, 'api'])
         Route::get('/store/{slug}', [SellerController::class, 'showStore']);
          Route::post('/register', [SellerController::class, 'register'])
               ->middleware('auth:sanctum');
-              
+
         Route::post('/login', [SellerController::class, 'login']);
     });
 

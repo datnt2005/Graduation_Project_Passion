@@ -11,15 +11,23 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redis;
+use Exception;
 
 class SellerController extends Controller
 {
+<<<<<<< HEAD
 
 
 public function index()
     {
         $sellers = User::whereHas('seller')
                    ->with('seller.business')
+=======
+    public function index()
+    {
+       $sellers = User::whereHas('seller')
+                   ->with('seller.business') 
+>>>>>>> f3c332afab3c6315f56b66cd8dedc6f03f16d4a4
                    ->get();
         return response()->json($sellers);
     }
@@ -99,9 +107,43 @@ public function index()
             // Generate unique store slug
             $storeSlug = Str::slug($request->store_name) . '-' . uniqid();
 
+<<<<<<< HEAD
             // Handle document upload
             $documentPath = $request->hasFile('document')
                 ? $request->file('document')->store('documents', 'public')
+=======
+        // 👉 Check trùng
+        if (Seller::where('user_id', $userId)->exists()) {
+            return response()->json([
+                'message' => 'Bạn đã đăng ký cửa hàng rồi. Không thể tạo thêm.'
+            ], 409);
+        }
+
+       $storeSlug = Str::slug($request->store_name) . '-' . uniqid();
+
+        $documentPath = $request->hasFile('document')
+            ? $request->file('document')->store('documents', 'public')
+            : null;
+        // $userId = $request->input('user_id', auth()->id());
+        $seller = Seller::create([
+            'user_id' => auth()->id(),
+            // 'user_id' => $userId,
+            'store_name' => $request->store_name,
+            'store_slug' => $storeSlug,
+            'seller_type' => $request->seller_type,
+            'identity_card_number' => $request->identity_card_number,
+            'date_of_birth' => $request->date_of_birth,
+            'personal_address' => $request->personal_address,
+            'phone_number' => $request->phone_number,
+            'document' => $documentPath,
+            'bio' => $request->bio,
+            'verification_status' => 'pending',
+        ]);
+
+        if ($request->seller_type === 'business') {
+            $licensePath = $request->hasFile('business_license')
+                ? $request->file('business_license')->store('licenses', 'public')
+>>>>>>> f3c332afab3c6315f56b66cd8dedc6f03f16d4a4
                 : null;
 
             // Create seller
@@ -148,7 +190,11 @@ public function index()
         }
     }
 
+<<<<<<< HEAD
 public function login(Request $request)
+=======
+ public function login(Request $request)
+>>>>>>> f3c332afab3c6315f56b66cd8dedc6f03f16d4a4
     {
         try {
             // B1: Validate dữ liệu đầu vào
@@ -175,32 +221,29 @@ public function login(Request $request)
 
             $user = Auth::user();
 
-            if ($user->role !== 'seller') {
-    return response()->json(['message' => 'Chỉ seller mới được đăng nhập hệ thống này.'], 403);
-}
+            // B3: Kiểm tra xác minh tài khoản
+            $seller = null;
+            $store_slug = null;
 
-            // B3:  Kiểm tra vai trò và trạng thái của người dùng
-                if ($user->role === 'seller') {
-                    $seller = \App\Models\Seller::where('user_id', $user->id)->first();
+            if ($user->role === 'seller') {
+                $seller = \App\Models\Seller::where('user_id', $user->id)->first();
 
-                    if (!$seller) {
-                        return response()->json([
-                            'message' => 'Bạn chưa đăng ký cửa hàng. Vui lòng hoàn tất hồ sơ để được xét duyệt.',
-                        ], 403);
-                    }
-
-                    // Nếu seller đã có mà status hoặc verification_status chưa đúng thì báo lỗi
-                    if (
-                        $seller->verification_status !== 'verified'
-                    ) {
-                        return response()->json([
-                            'message' => 'Tài khoản của bạn đang chờ admin xác nhận cửa hàng.',
-                        ], 403);
-                    }
+                if (!$seller) {
+                    Auth::logout(); // Đăng xuất để tránh trạng thái không hợp lệ
+                    return response()->json([
+                        'message' => 'Bạn chưa đăng ký cửa hàng. Vui lòng hoàn tất hồ sơ.',
+                    ], 403);
                 }
 
+                if ($seller->verification_status !== 'verified') {
+                    Auth::logout(); // Đăng xuất để tránh trạng thái không hợp lệ
+                    return response()->json([
+                        'message' => 'Tài khoản của bạn đang chờ xác nhận.',
+                    ], 403);
+                }
 
-
+                $store_slug = $seller->store_slug;
+            }
             // B4: Tạo token cho user
             $token = $user->createToken('api_token')->plainTextToken;
 
@@ -214,6 +257,7 @@ public function login(Request $request)
                 'status' => $user->status,
                 'avatar' => $user->avatar,
                 'token' => $token,
+                'store_slug' => $store_slug,
                 'logged_in_at' => now()->toDateTimeString(),
             ];
             Redis::setex($redisKey, 7200, json_encode($redisData)); // TTL 2 giờ
@@ -223,17 +267,79 @@ public function login(Request $request)
                 'user_id' => $user->id,
                 'user_role' => $user->role,
                 'user_name' => $user->name,
+                'store_slug' => $store_slug,
             ]);
 
             // B7: Trả response thành công
             return response()->json([
                 'message' => 'Đăng nhập thành công!',
                 'token' => $token,
-                'user' => $user,
-            ]);
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'role' => $user->role,
+                    'avatar' => $user->avatar,
+                ],
+                'store_slug' => $store_slug,
+            ], 200);
         } catch (Exception $e) {
-            return response()->json(['message' => 'Lỗi hệ thống: ' . $e->getMessage()], 500);
+            \Log::error('Login error: ' . $e->getMessage());
+            return response()->json(['message' => 'Lỗi hệ thống. Vui lòng thử lại sau.'], 500);
         }
     }
+
+// đăng xuất
+
+public function logout(Request $request)
+{
+    try {
+        $token = $request->bearerToken();
+        $accessToken = \Laravel\Sanctum\PersonalAccessToken::findToken($token);
+
+        if (!$accessToken) {
+            Log::warning('Logout failed: Invalid token.', [
+                'ip' => $request->ip(),
+                'authorization' => $token,
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Không tìm thấy người dùng đang đăng nhập.',
+                'token' => $token
+            ], 401);
+        }
+
+        $user = $accessToken->tokenable;
+
+        Log::info('Attempting logout for user', [
+            'user_id' => $user->id,
+            'email' => $user->email,
+        ]);
+
+        $redisKey = 'user:session:' . $user->id;
+        if (Redis::exists($redisKey)) {
+            Redis::del($redisKey);
+            Log::info('Deleted Redis key', ['key' => $redisKey]);
+        } else {
+            Log::info('Redis key not found', ['key' => $redisKey]);
+        }
+
+        $accessToken->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Đăng xuất thành công.',
+        ]);
+    } catch (\Exception $e) {
+        Log::error('Error during logout: ' . $e->getMessage(), [
+            'trace' => $e->getTraceAsString()
+        ]);
+        return response()->json([
+            'success' => false,
+            'message' => config('app.debug') ? $e->getMessage() : 'Có lỗi xảy ra khi đăng xuất. Vui lòng thử lại!',
+            'trace'   => config('app.debug') ? $e->getTrace() : null, // Chỉ show khi debug, bình thường để null
+        ], 500);
+    }
+}
 
 }
