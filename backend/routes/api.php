@@ -205,9 +205,9 @@ Route::apiResource('users', UserController::class);
 Route::prefix('sellers')->group(function () {
     Route::get('/', [SellerController::class, 'index']);
     Route::get('/store/{slug}', [SellerController::class, 'showStore']);
-
     Route::post('/resgister', [SellerController::class, 'register']);
     Route::post('/login', [SellerController::class, 'login']);
+    Route::middleware('auth:sanctum')->post('/logout', [SellerController::class, 'logout']);
 });
 
 Route::prefix('admin')->group(function () {

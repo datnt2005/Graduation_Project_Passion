@@ -1,5 +1,6 @@
 <template>
-    <main class="max-w-7xl mx-auto p-4 sm:p-6 md:p-8">
+    <main class="bg-[#f5f7fa] font-sans text-sm text-[#222222]">
+         <div class="max-w-[1200px] mx-auto p-6 space-y-6">
         <!-- Top product section -->
         <section class="bg-white border border-gray-200 rounded-md p-4 md:p-6 mb-8">
             <div class="flex flex-col md:flex-row gap-6">
@@ -8,61 +9,77 @@
                     v-model:current-image="currentImage" />
 
                 <!-- Product Info -->
-                <div class="flex-1 flex flex-col justify-between">
+                <div class="flex-1 space-y-4">
+                <!-- Title -->
+                <div class="flex items-center justify-between">
+                    <h1 class="text-lg font-normal leading-tight">
+                    {{ product.name }}  
+                    </h1>
+                    <button @click="toggleFavorite" class="text-red-500 text-xl focus:outline-none">
+                    <i :class="[isFavorite ? 'fas' : 'far', 'fa-heart']"></i>
+                    </button>
+                </div>
+                <!-- Rating and report -->
+               <div class="flex items-center text-xs text-[#222222] space-x-2">
+                <span>{{ product.rating }}</span>
+                <div class="flex space-x-0.5 text-[#fdd835]">
+                    <i v-for="n in product.stars" :key="n" class="fas fa-star"></i>
+                    <i v-for="n in (5 - product.stars)" :key="'empty-' + n" class="far fa-star"></i>
+                </div>
+                </div>
+                <!-- Seller Info -->
+                <div class="flex justify-between items-center bg-white border rounded-sm p-4">
+                <div class="flex items-center space-x-4">
+                    <img src="https://cf.shopee.vn/file/7bdab1db90b84a85844658f0938a34d1_tn" alt="Shop avatar" class="w-16 h-16 rounded-full border" />
                     <div>
-                        <h1 class="text-lg font-semibold text-gray-900">{{ product.name }}</h1>
-                        <p class="text-sm text-gray-600 mb-1">{{ product.description }}</p>
-                        <!-- Changed text-red-600 to text-gray-900 for price if red is unwanted -->
-                        <p class="text-2xl font-bold text-gray-900 mb-2">{{ product.price }} ₫</p>
-                        <p class="text-xs text-gray-500 mb-2">Rẻ hơn - Có trả góp</p>
-
-                        <!-- Product Options -->
-                        <ProductOptions :options="options" v-model:selected="selectedOptions" />
-
-                        <!-- Action Buttons -->
-                        <div class="flex gap-4 mb-2">
-                            <!-- Changed text-red-600 to text-blue-600 for buttons -->
-                            <button
-                                class="text-xs font-semibold text-blue-600 border border-blue-600 rounded px-4 py-1 bg-white transition hover:bg-blue-600 hover:text-white"
-                                type="button" aria-label="Mua ngay sản phẩm">
-                                Mua ngay
-                            </button>
-                            <NuxtLink to="/cart"
-                                class="text-xs font-semibold text-blue-600 border border-blue-600 rounded px-4 py-1 bg-white transition hover:bg-blue-600 hover:text-white"
-                                type="button" aria-label="Thêm sản phẩm vào giỏ hàng">
-                                Thêm vào giỏ hàng
-                            </NuxtLink>
-                            <button
-                                class="text-xs font-semibold text-pink-600 border border-pink-600 rounded px-4 py-1 bg-white transition hover:bg-pink-600 hover:text-white flex items-center gap-1"
-                                type="button" aria-label="Yêu thích sản phẩm" @click="toggleFavorite">
-                                <i :class="isFavorite ? 'fas fa-heart' : 'far fa-heart'"></i>
-                                <span>{{ isFavorite ? 'Đã yêu thích' : 'Yêu thích' }}</span>
-                            </button>
-                        </div>
-
-                        <!-- Location and Update Time -->
-                        <div class="flex flex-col gap-1 text-xs text-gray-700 mb-2">
-                            <div class="flex items-center gap-2">
-                                <i class="fas fa-map-marker-alt text-blue-500"></i>
-                                <span>{{ product.location }}</span>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <i class="fas fa-clock text-yellow-500"></i>
-                                <span>Cập nhật {{ product.updatedAt }}</span>
-                            </div>
-                        </div>
+                    <h2 class="font-semibold text-lg">Thời Trang Trẻ09</h2>
+                    <p class="text-sm text-gray-500">Online 11 Giờ Trước</p>
+                    <div class="flex space-x-2 mt-2">
+                        
+                        <button class="border px-3 py-1 rounded text-sm flex items-center">
+                        <i class="fas fa-store mr-1"></i> Xem Shop
+                        </button>
                     </div>
-
-                    <!-- Seller Info -->
-                    <div class="flex items-center gap-3 bg-gray-100 p-3 rounded-md">
-                        <img :alt="seller.alt" :src="seller.avatar" class="w-10 h-10 rounded-full" height="40"
-                            width="40" loading="lazy" />
-                        <div class="flex-1">
-                            <p class="text-sm font-semibold text-gray-900">{{ seller.name }}</p>
-                            <p class="text-xs text-gray-600">{{ seller.stats }}</p>
-                        </div>
-                        <div class="text-yellow-400 font-semibold text-lg">{{ seller.rating }}</div>
                     </div>
+                </div>
+                <div class="text-right text-sm">
+                    <p class="text-gray-500">Đánh Giá</p>
+                    <p class="text-red-500 font-semibold">3k</p>
+                    <p class="text-gray-500 mt-2">Sản Phẩm</p>
+                    <p class="text-red-500 font-semibold">51</p>
+                </div>
+                </div>
+
+                <!-- Price and discount -->
+               <div class="bg-[#fef0ef] p-4 rounded-sm flex items-center space-x-4">
+                <div class="text-[#f15a24] text-3xl font-semibold flex items-center space-x-1">
+                    <span>₫</span>
+                    <span>{{ product.price.toLocaleString() }}</span>
+                </div>
+                <div class="text-gray-400 line-through text-sm">
+                    ₫{{ product.originalPrice.toLocaleString() }}
+                </div>
+                <div class="text-[#f15a24] text-xs font-semibold bg-[#fddede] rounded px-1 py-0.5">
+                    -{{ product.discountPercent }}%
+                </div>
+                </div>
+             
+                  <ProductOptions @update:selected="handleSelectedOptions" />
+                 
+               <div class="flex space-x-4 mt-6">
+                <button
+                    class="flex items-center justify-center border border-[#0d5cb6] text-[#0d5cb6] bg-white rounded-md w-48 h-11 text-sm font-semibold hover:bg-[#e6f0fb] transition-colors duration-200"
+                >
+                    <i class="fas fa-shopping-cart mr-2"></i>
+                    Thêm Vào Giỏ Hàng
+                </button>
+                <button
+                    class="bg-[#0d5cb6] text-white rounded-md w-48 h-11 text-sm font-semibold hover:bg-[#084d9d] transition-colors duration-200"
+                >
+                    Mua Ngay
+                </button>
+                </div>
+
                 </div>
             </div>
         </section>
@@ -196,6 +213,7 @@
                 </button>
             </nav>
         </section>
+    </div>
     </main>
 </template>
 
@@ -208,62 +226,23 @@ import ReviewItem from '../components/shared/ReviewItem.vue';
 
 // Product Data
 const product = {
-    name: 'Samsung Note20 Ultra 5G',
-    description: 'Galaxy Note 20 Ultra 256 GB 1 tháng',
-    price: '5.500.000',
-    location: 'Phường 9, Quận 3, Tp Hồ Chí Minh',
-    updatedAt: '5 giờ trước',
-    phone: '0374********',
-    fullDescription: `
-    Samsung note20 ultra 5G ram 12G ổ cứng 256 G. Máy đầy đủ tính năng. Ngoại hình đẹp 99%. Màn chính kim. Giá chỉ 5tr6, với các trạng thái như mới, chưa trầy xước, chưa tróc sơn, vân tay.
-    Xem máy tại 55 D1 Tô Quang Bửu, Phường 15, Quận 8, Hồ Chí Minh.
-    Có ship COD toàn quốc, được kiểm tra, trả nghiệm trước khi nhận hàng.
-    Máy được test, bảo hành theo quy định.
-    Thanh toán: tiền mặt, chuyển khoản, trả góp lãi suất 0%.
-  `,
-};
+  phone: '0374********',
+  name: 'Áo phông nam nữ Premium Cotton BBR dệt họa tiết kẻ sọc caro toàn thân vàng bò/ xanh than Hot 2025',
+  rating: 4.1,
+  stars: 4,
+  price: 1500,
+  originalPrice: 15000,
+  discountPercent: 90,
+  fullDescription: `
+Samsung note20 ultra 5G ram 12G ổ cứng 256 G. Máy đầy đủ tính năng. Ngoại hình đẹp 99%. Màn chính kim. Giá chỉ 5tr6, với các trạng thái như mới, chưa trầy xước, chưa tróc sơn, vân tay.
+Xem máy tại 55 D1 Tô Quang Bửu, Phường 15, Quận 8, Hồ Chí Minh.
+Có ship COD toàn quốc, được kiểm tra, trả nghiệm trước khi nhận hàng.
+Máy được test, bảo hành theo quy định.
+Thanh toán: tiền mặt, chuyển khoản, trả góp lãi suất 0%.
+`
+}
 
-// Seller Data
-const seller = {
-    name: 'Phan Minh Tuấn',
-    stats: 'Đã đăng bán 6 sản phẩm - Đánh giá 4.8/5',
-    rating: 4.8,
-    avatar: 'https://storage.googleapis.com/a1aa/image/bbe47371-7ae2-4341-d2fb-d02436f6367e.jpg',
-    alt: 'Avatar of user Phan Minh Tuấn',
-};
 
-// Options
-const options = {
-    ram: ['8GB', '12GB', '16GB'],
-    rom: ['128GB', '256GB', '512GB'],
-    color: ['Đen', 'Bạc', 'Vàng'],
-    warranty: ['12 tháng', '18 tháng'],
-};
-
-const selectedOptions = ref({
-    ram: null,
-    rom: null,
-    color: null,
-    warranty: null,
-});
-
-// Images
-const productImages = [
-
-  'https://storage.googleapis.com/a1aa/image/7ad18199-6b36-4171-e823-9cec3d8bde9f.jpg',
-  'https://storage.googleapis.com/a1aa/image/c63c6593-7a16-4b2b-b1ea-ec7d1b11003e.jpg',
-  'https://storage.googleapis.com/a1aa/image/8eaf1eab-cd53-4bff-45c8-c143d44e1c15.jpg',
-  'https://storage.googleapis.com/a1aa/image/3dbab879-76d8-4e84-9737-f049ded0520f.jpg',
-  'https://storage.googleapis.com/a1aa/image/4b9472fd-7cf0-4bc4-cb5b-57b24d34bf33.jpg',
-];
-
-const productImagesAlt = [
-  'Samsung Note20 Ultra 5G smartphone front view with rose gold color and stylus pen',
-  'Side view 1 of Samsung Note20 Ultra 5G smartphone in rose gold',
-  'Side view 2 of Samsung Note20 Ultra 5G smartphone in rose gold',
-  'Side view 3 of Samsung Note20 Ultra 5G smartphone in rose gold',
-  'Side view 4 of Samsung Note20 Ultra 5G smartphone in rose gold',
-];
 
 const currentImage = ref(0);
 const isCollapsed = ref(true);
@@ -388,12 +367,6 @@ const fetchReviews = async () => {
         if (!res.ok) throw new Error('Lỗi khi lấy đánh giá');
 
         const data = await res.json();
-
-        // Giả sử backend trả về định dạng:
-        // {
-        //   summary: { rating: 4.5, count: 10, ratings: [...] },
-        //   list: [ { id, user, avatar, rating, comment, ... } ]
-        // }
 
         reviews.value = data;
     } catch (err) {
