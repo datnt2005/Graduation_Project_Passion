@@ -155,7 +155,11 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue'
 import axios from 'axios'
+import Swal from 'sweetalert2'
 
+
+const config = useRuntimeConfig()
+const apiBase = config.public.apiBaseUrl
 const showNewAddressForm = ref(false)
 const shippingFee = ref(0)
 const provinces = ref([])
@@ -177,10 +181,20 @@ const form = ref({
 })
 
 
+const Toast = Swal.mixin({
+  toast: true,
+  position: 'top-end',
+  showConfirmButton: false,
+  timer: 2000,
+  timerProgressBar: true,
+})
+
+
+
 
 // Tải danh sách tỉnh
 const loadProvinces = async () => {
-  const res = await axios.get('http://127.0.0.1:8000/api/ghn/provinces')
+  const res = await axios.get(`${apiBase}/ghn/provinces`)
   provinces.value = res.data.data || []
 }
 
@@ -192,7 +206,7 @@ const loadDistricts = async () => {
   wards.value = []
   if (!form.value.province_id) return
 
-  const res = await axios.post('http://127.0.0.1:8000/api/ghn/districts', {
+  const res = await axios.post(`${apiBase}/ghn/districts`, {
     province_id: form.value.province_id,
   })
   districts.value = res.data.data || []
@@ -204,18 +218,16 @@ const loadWards = async () => {
   wards.value = []
   if (!form.value.district_id) return
 
-  const res = await axios.post('http://127.0.0.1:8000/api/ghn/wards', {
+  const res = await axios.post(`${apiBase}/ghn/wards`, {
     district_id: form.value.district_id,
   })
   wards.value = res.data.data || []
 }
 
-
-// Tính phí vận chuyển
 const calculateShippingFee = async () => {
   if (!form.value.ward_code) return
 
-  const res = await axios.post('/api/shipping/calculate-fee', {
+  const res = await axios.post(`${apiBase}/shipping/calculate-fee`, {
     province_id: form.value.province_id,
     district_id: form.value.district_id,
     ward_code: form.value.ward_code,
@@ -240,13 +252,11 @@ const submitForm = async () => {
     }
 
     if (editAddress.value) {
-      // 👉 SỬA
-      await axios.put(`http://127.0.0.1:8000/api/address/${editAddress.value.id}`, payload)
-      alert('Cập nhật địa chỉ thành công!')
+      await axios.put(`${apiBase}/address/${editAddress.value.id}`, payload)
+      Toast.fire({ icon: 'success', title: 'Cập nhật địa chỉ thành công!' })
     } else {
-      // 👉 TẠO MỚI
-      await axios.post(`http://127.0.0.1:8000/api/address`, payload)
-      alert('Thêm địa chỉ thành công!')
+      await axios.post(`${apiBase}/address`, payload)
+      Toast.fire({ icon: 'success', title: 'Thêm địa chỉ thành công!' })
     }
 
     showNewAddressForm.value = false
@@ -254,9 +264,10 @@ const submitForm = async () => {
     await loadAddresses()
   } catch (error) {
     if (error.response?.data?.errors) {
-      alert(Object.values(error.response.data.errors).join('\n'))
+      Toast.fire({ icon: 'error', title: Object.values(error.response.data.errors).join('\n') })
     } else {
       console.error('Lỗi:', error)
+      Toast.fire({ icon: 'error', title: 'Có lỗi xảy ra khi gửi dữ liệu.' })
     }
   }
 }
@@ -289,35 +300,27 @@ const addresses = ref([])
 // Load địa chỉ
 const loadAddresses = async () => {
   try {
-    const res = await axios.get(`http://127.0.0.1:8000/api/address?user_id=3`)
+    const res = await axios.get(`${apiBase}/address?user_id=3`)
     addresses.value = res.data.data || []
 
     const provinceIds = [...new Set(addresses.value.map(a => a.province_id))]
     const districtIds = [...new Set(addresses.value.map(a => a.district_id))]
 
-    // Load districts
     for (const pid of provinceIds) {
-      const resDistricts = await axios.post('http://127.0.0.1:8000/api/ghn/districts', {
+      const resDistricts = await axios.post(`${apiBase}/ghn/districts`, {
         province_id: pid
       })
-
       if (Array.isArray(resDistricts.data.data)) {
         districts.value.push(...resDistricts.data.data)
-      } else {
-        console.warn(`Không tải được districts cho province_id=${pid}`)
       }
     }
 
-    // Load wards
     for (const did of districtIds) {
-      const resWards = await axios.post('http://127.0.0.1:8000/api/ghn/wards', {
+      const resWards = await axios.post(`${apiBase}/ghn/wards`, {
         district_id: did
       })
-
       if (Array.isArray(resWards.data.data)) {
         wards.value.push(...resWards.data.data)
-      } else {
-        console.warn(`Không tải được wards cho district_id=${did}`)
       }
     }
   } catch (err) {
@@ -325,22 +328,20 @@ const loadAddresses = async () => {
   }
 }
 
-
 const deleteAddress = async (id) => {
   if (!confirm('Bạn có chắc chắn muốn xóa địa chỉ này không?')) return
 
   try {
-    // Gửi user_id cùng request để xác thực quyền xóa
-    await axios.delete(`http://127.0.0.1:8000/api/address/${id}`, {
-      data: { user_id: 3 } // Thay số 3 bằng userId hiện tại nếu có
+    await axios.delete(`${apiBase}/address/${id}`, {
+      data: { user_id: 3 }
     })
-    alert('Xóa địa chỉ thành công!')
-    await loadAddresses()  // Reload danh sách địa chỉ sau khi xóa
+    Toast.fire({ icon: 'success', title: 'Xóa địa chỉ thành công!' })
+    await loadAddresses()
   } catch (error) {
     if (error.response) {
-      alert(error.response.data.message || 'Xảy ra lỗi khi xóa địa chỉ.')
+      Toast.fire({ icon: 'error', title: error.response.data.message || 'Xảy ra lỗi khi xóa địa chỉ.' })
     } else {
-      alert('Lỗi mạng hoặc không thể kết nối đến server.')
+      Toast.fire({ icon: 'error', title: 'Lỗi mạng hoặc không thể kết nối đến server.' })
     }
   }
 }

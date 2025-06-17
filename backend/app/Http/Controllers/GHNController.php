@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
@@ -59,11 +60,33 @@ class GHNController extends Controller
     }
 
     public function calculateFee(Request $request)
-    {
-        $data = $request->all();
+{
+    $data = $request->all();
 
-        $response = Http::withHeaders($this->headers())
-            ->post("{$this->baseUrl}/shipping-order/fee", $data);
+    $response = Http::withHeaders($this->headers())
+        ->post($this->baseUrl . '/v2/shipping-order/fee', $data);
+
+    return response()->json($response->json());
+}
+
+
+    public function getServices(Request $request)
+    {
+        $fromDistrict = $request->input('from_district_id');
+        $toDistrict = $request->input('to_district_id');
+
+        $token = config('services.ghn.token');
+        $shopId = config('services.ghn.shop_id');
+        $baseUrl = config('services.ghn.base_url');
+
+        $response = Http::withHeaders([
+            'Token' => $token,
+            'Content-Type' => 'application/json'
+        ])->post($baseUrl . '/v2/shipping-order/available-services', [
+            "shop_id" => (int)$shopId, // 👈 ép kiểu về int
+            "from_district" => (int)$fromDistrict,
+            "to_district" => (int)$toDistrict
+        ]);
 
         return response()->json($response->json());
     }

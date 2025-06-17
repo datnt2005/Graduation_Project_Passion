@@ -35,17 +35,17 @@ class Discount extends Model
     // Relationships
     public function products()
     {
-        return $this->hasMany(DiscountProduct::class);
+        return $this->belongsToMany(Product::class, 'discount_products', 'discount_id', 'product_id');
     }
 
     public function categories()
     {
-        return $this->hasMany(DiscountCategory::class);
+        return $this->belongsToMany(Category::class, 'discount_categories', 'discount_id', 'category_id');
     }
 
     public function users()
     {
-        return $this->hasMany(DiscountUser::class);
+        return $this->belongsToMany(User::class, 'discount_users', 'discount_id', 'user_id');
     }
 
     public function flashSales()

@@ -17,8 +17,10 @@ class SellerController extends Controller
 {
     public function index()
     {
-        $users = User::with('seller.business')->get();
-        return response()->json($users);
+       $sellers = User::whereHas('seller')
+                   ->with('seller.business') 
+                   ->get();
+        return response()->json($sellers);
     }
 
    public function showStore($slug)
@@ -184,7 +186,6 @@ class SellerController extends Controller
 
                 $store_slug = $seller->store_slug;
             }
-
             // B4: Tạo token cho user
             $token = $user->createToken('api_token')->plainTextToken;
 
