@@ -29,6 +29,3 @@ router.afterEach(() => {
 
 </template>
 
-<script setup>
-// The Notification component will be auto-imported by Nuxt
-</script>

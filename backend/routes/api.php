@@ -19,6 +19,7 @@ use App\Http\Controllers\GoogleAuthController;
 use App\Http\Controllers\ChatbotController;
 
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Http\Middleware\HandleCors;
 use Illuminate\Support\Facades\Redis;
 
 use Illuminate\Support\Facades\Storage;
@@ -175,7 +176,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/reviews/{id}/unlike', [ReviewController::class, 'unlike']);  // Unlike đánh giá
     Route::post('/reviews/{id}/reply', [ReviewController::class, 'reply']);    // Trả lời đánh giá
     Route::delete('/reviews/{id}', [ReviewController::class, 'destroy']);      // Xóa đánh giá
-    
+
 });
 
 
@@ -218,13 +219,17 @@ Route::apiResource('users', UserController::class);
 
 // api seller
 
-Route::prefix('sellers')->group(function () {
-    Route::get('/', [SellerController::class, 'index']);
-    Route::get('/store/{slug}', [SellerController::class, 'showStore']);
+Route::middleware([HandleCors::class, 'api'])
+    ->prefix('sellers')
+    ->group(function () {
+        Route::get('/', [SellerController::class, 'index']);
+        Route::get('/store/{slug}', [SellerController::class, 'showStore']);
+         Route::post('/register', [SellerController::class, 'register'])
+              ->middleware('auth:sanctum');
+              
+        Route::post('/login', [SellerController::class, 'login']);
+    });
 
-    Route::post('/resgister', [SellerController::class, 'register']);
-    Route::post('/login', [SellerController::class, 'login']);
-});
 
 Route::prefix('admin')->group(function () {
    Route::get('/sellers', [AdminSellerController::class, 'index']);

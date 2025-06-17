@@ -442,7 +442,6 @@
 
 <script setup>
 import axios from 'axios';
-import { ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { useRuntimeConfig } from '#app';
 
@@ -464,7 +463,6 @@ const provinces = ref([])
 const districts = ref([])
 const wards = ref([])
 const selectedPaymentMethod = ref('')
-const address_id = route.query.address_id
 
 const baseUrl = `${apiBase}/shipping/calculate-fee`;
 
