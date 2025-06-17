@@ -1,6 +1,15 @@
 <template>
     <main class="bg-[#f5f7fa] font-sans text-sm text-[#222222]">
         <div class="max-w-[1200px] mx-auto p-6 space-y-6">
+            <div class="w-full max-w-6xl">
+                <div class="text-sm text-gray-500 rounded ">
+                    <nuxt-link to="/">
+                        <span class="text-gray-400">Trang chủ</span>
+                    </nuxt-link>
+                    <span class="mx-1">›</span>
+                    <span class="text-black font-medium">{{ product.name }}</span>
+                </div>
+            </div>
             <!-- Loading State -->
             <div v-if="loading" class="text-center text-gray-500">
                 <i class="fas fa-spinner fa-spin mr-2"></i> Đang tải...
@@ -39,10 +48,12 @@
                         @select-option="selectOption"
                         @increase-quantity="increaseQuantity"
                         @decrease-quantity="decreaseQuantity"
-                        @validate-quantity="validateQuantity"
+                        @validate-selection="onValidateSelection"
                         @add-to-cart="addToCart"
                         @buy-now="buyNow"
                         @update:quantity="quantity = $event"
+                        :validation-message="validationMessage"
+                        @clear-validation="validationMessage = ''"
                     />
                 </div>
                 <div v-else class="text-center text-gray-500">
@@ -79,6 +90,8 @@
                     </button>
                 </div>
             </section>
+
+            <ProductReviews />
         </div>
     </main>
 </template>
@@ -90,6 +103,7 @@ import RelatedProductItem from '../components/shared/products/RelatedProductItem
 import ProductImageGallery from '../components/shared/products/ProductImageGallery.vue';
 import ProductInfo from '../components/shared/products/ProductInfo.vue';
 import ProductDescription from '../components/shared/products/ProductDescription.vue';
+import ProductReviews from '../components/shared/reviews/ProductReviews.vue';
 import PhoneNumber from '../components/shared/products/PhoneNumber.vue';
 
 const config = useRuntimeConfig();
@@ -127,6 +141,8 @@ const seller = ref({
     last_active: ''
 });
 
+const category = ref({});
+const tag = ref({});
 // Image gallery data
 const images = ref([]);
 const currentIndex = ref(0);
@@ -148,6 +164,9 @@ const displayProducts = computed(() => {
 
 // Favorites state
 const isFavorite = ref(false);
+
+// Validation state
+const validationMessage = ref('');
 
 // Computed properties
 const isVariantFullySelected = computed(() => {
@@ -238,10 +257,12 @@ function isOptionAvailable(attrName, value) {
 function validateQuantity() {
     if (quantity.value < 1) {
         quantity.value = 1;
-    }
-    if (selectedVariant.value?.stock && quantity.value > selectedVariant.value.stock) {
+        validationMessage.value = `Số lượng phải từ 1 trở lên.`;
+    } else if (selectedVariant.value?.stock && quantity.value > selectedVariant.value.stock) {
         quantity.value = selectedVariant.value.stock;
-        alert(`Số lượng tối đa là ${selectedVariant.value.stock}`);
+        validationMessage.value = `Số lượng tối đa là ${selectedVariant.value.stock} sản phẩm.`;
+    } else {
+        validationMessage.value = '';
     }
 }
 
@@ -252,6 +273,10 @@ function findValidVariant(attrName, value) {
     );
 }
 
+function onValidateSelection(callback) {
+    const isValid = validateSelection();
+    if (typeof callback === 'function') callback(isValid);
+}
 function formatPrice(price) {
     if (!price || price === 'null' || price === null || price === undefined) {
         return '0';
@@ -298,25 +323,32 @@ function decreaseQuantity() {
 }
 
 function validateSelection() {
-    if (variants.value?.length > 0 && !isVariantFullySelected.value) {
-        alert('Vui lòng chọn tất cả các biến thể.');
+    const requiredAttrs = variantAttributes.value.map(attr => attr.name);
+    const selectedAttrs = Object.keys(selectedOptions.value || {});
+
+    const isValid = requiredAttrs.every(attr => selectedOptions.value[attr]);
+    if (!isValid) {
+        validationMessage.value = 'Vui lòng chọn Phân loại hàng';
+        console.log('Validation failed:', validationMessage.value); // Debug log
         return false;
     }
+
     if (selectedVariant.value?.stock === 0) {
-        alert('Sản phẩm hiện tại đã hết hàng.');
+        validationMessage.value = 'Sản phẩm hiện tại đã hết hàng.';
         return false;
     }
     if (quantity.value > selectedVariant.value?.stock) {
-        alert(`Số lượng vượt quá số lượng tồn kho. Chỉ còn ${selectedVariant.value.stock} sản phẩm.`);
+        validationMessage.value = `Số lượng vượt quá số lượng tồn kho. Chỉ còn ${selectedVariant.value.stock} sản phẩm.`;
         quantity.value = selectedVariant.value.stock;
         return false;
     }
     const token = localStorage.getItem('access_token');
     if (!token) {
-        alert('Vui lòng đăng nhập để tiếp tục.');
+        validationMessage.value = 'Vui lòng đăng nhập để tiếp tục.';
         router.push('/login');
         return false;
     }
+    validationMessage.value = '';
     return true;
 }
 
@@ -345,19 +377,20 @@ function toggleFavorite() {
 }
 
 async function addToCart() {
-    if (!validateSelection()) return;
+    if (!validateSelection()) {
+        return; // Halt if validation fails, message is set
+    }
 
     const token = localStorage.getItem('access_token');
     const payload = {
-        product_id: product.value.id || 0,
-        variant_id: selectedVariant.value?.id || null,
+        product_variant_id: selectedVariant.value?.id || null,
         quantity: quantity.value,
         price: selectedVariant.value?.sale_price || selectedVariant.value?.price || '0.00'
     };
 
     try {
         loading.value = true;
-        const res = await fetch(`${apiBase}/cart`, {
+        const res = await fetch(`${apiBase}/cart/add`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -371,16 +404,20 @@ async function addToCart() {
         }
         alert('Đã thêm sản phẩm vào giỏ hàng.');
         quantity.value = 1;
+        validationMessage.value = '';
+        emit('clear-validation');
     } catch (err) {
         console.error('Add to cart error:', err);
-        alert(`Error adding to cart: ${err.message}. Please try again.`);
+        validationMessage.value = `${err.message}.`;
     } finally {
         loading.value = false;
     }
 }
 
 async function buyNow() {
-    if (!validateSelection()) return;
+    if (!validateSelection()) {
+        return; // Halt if validation fails, message is set
+    }
 
     const token = localStorage.getItem('access_token');
     const payload = {
@@ -407,7 +444,7 @@ async function buyNow() {
         router.push(`/checkout/${data.order_id}`);
     } catch (err) {
         console.error('Buy now error:', err);
-        alert(`Error creating order: ${err.message}. Please try again.`);
+        validationMessage.value = `Error creating order: ${err.message}. Please try again.`;
     } finally {
         loading.value = false;
     }
@@ -454,7 +491,10 @@ async function fetchProduct() {
             rating: Number(data.data?.product?.seller?.rating || 0),
             last_active: data.data?.product?.seller?.last_active || 'Not recently active'
         };
-
+        category.value = {
+            name: data.data?.product?.category?.name || 'Unknown Category',
+            slug: data.data?.product?.category?.slug || 'unknown-category'
+        }
         variants.value = (data.data?.product?.variants || []).map(variant => ({
             id: Number(variant.id || 0),
             thumbnail: variant.thumbnail || null,
@@ -544,7 +584,7 @@ watch(selectedOptions, (newOptions) => {
         }
     }
     if (variant?.stock === 0 && isVariantFullySelected.value) {
-        alert('Biến thể này hiện đã hết hàng.');
+        validationMessage.value = 'Biến thể này hiện đã hết hàng.';
         const lastSelectedAttr = Object.keys(newOptions).pop();
         if (lastSelectedAttr) {
             const newSelected = { ...selectedOptions.value };

@@ -661,12 +661,12 @@ class ProductController extends Controller
                 ->where('status', 'active')
                 ->with([
                     'seller.user',
-                    'categories:id,name',
+                    'categories:id,name,slug',
                     'productVariants.inventories:id,product_variant_id,quantity',
                     'productVariants.attributes.values:id,attribute_id,value',
                     'productVariants.orderItems:id,product_variant_id,quantity',
                     'productPic:id,product_id,imagePath',
-                    'tags:id,name',
+                    'tags:id,name,slug',
                     'reviews:id,product_id,rating',
                 ])
                 ->select('id', 'name', 'slug', 'description', 'seller_id', 'status')
@@ -809,6 +809,8 @@ class ProductController extends Controller
                 'data' => [
                     'product' => $formattedProduct,
                     'related_products' => $relatedProducts,
+                    'tags' => $product->tags->toArray(),
+                    'categories' => $product->categories->pluck('name')->toArray(),
                 ],
             ], 200);
         } catch (\Exception $e) {

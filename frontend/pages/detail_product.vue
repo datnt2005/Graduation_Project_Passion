@@ -122,6 +122,7 @@
 
         <!-- Customer Reviews -->
         <ProductReviews />
+         </div>
     </main>
 </template>
 
@@ -130,7 +131,7 @@ import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
 import ProductImageGallery from '../components/shared/ProductImageGallery.vue';
 import ProductOptions from '../components/shared/ProductOptions.vue';
 import RelatedProductItem from '../components/shared/products/RelatedProductItem.vue';
-import ProductReviews from '../components/shared/ProductReviews.vue';
+import ProductReviews from '../components/shared/reviews/ProductReviews.vue';
 
 // Product Data
 const product = {

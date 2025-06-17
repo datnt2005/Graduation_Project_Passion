@@ -297,8 +297,10 @@ Quay lại trang đăng nhập
       >
         <!-- Logo -->
         <div class="flex items-center space-x-4">
-          <div class="w-10 h-10 bg-gray-300 rounded text-center text-xs flex items-center justify-center">
-            <NuxtLink to="/">Logo</NuxtLink>
+          <div class="w-16 h-16 rounded text-center text-xs flex items-center justify-center">
+            <NuxtLink to="/">
+              <img src="/images/logo.png" alt="logo">
+            </NuxtLink>
           </div>
         </div>
         <!-- NAVIGATION -->
