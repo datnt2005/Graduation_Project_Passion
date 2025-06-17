@@ -20,10 +20,10 @@
         </button>
         <div v-if="showMenu"
           class="absolute right-0 mt-2 bg-white border rounded shadow-md text-xs z-10 min-w-[100px] overflow-hidden">
-         <!-- Đừng truyền review.id nếu bạn cần edit full -->
-<button @click="$emit('edit-review', review)" class="block w-full text-left px-4 py-2 hover:bg-gray-100">
-  ✏️ Sửa
-</button>
+          <!-- Đừng truyền review.id nếu bạn cần edit full -->
+          <button @click="$emit('edit-review', review)" class="block w-full text-left px-4 py-2 hover:bg-gray-100">
+            ✏️ Sửa
+          </button>
 
           <button @click="$emit('delete-review', review.id)"
             class="block w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600">

@@ -180,4 +180,3 @@ function handleImageError(index) {
   }
 }
 </script>
-
