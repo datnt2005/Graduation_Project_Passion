@@ -1,11 +1,14 @@
 <template>
-  <div class="container bg-white p-4 shadow w-full  mx-auto mt-4">
+  <div class="container bg-white p-4 shadow w-full  mx-auto mt-4" v-if="seller">
+     <div>
+      <h1>Chào mừng đến gian hàng</h1>
+    </div>
     <!-- Header: Thông tin shop -->
     <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
       <div class="flex items-center gap-4">
         <div class="w-14 h-14 bg-gray-200 rounded-full flex items-center justify-center text-2xl">📘</div>
         <div>
-          <h2 class="font-semibold text-lg">Pao books</h2>
+          <h2 class="font-semibold text-lg">{{ seller.store_name }}</h2>
           <div class="flex items-center text-sm text-gray-500 space-x-2">
             <span class="text-yellow-500">★ 4.8</span>
             <span>|</span>
@@ -15,7 +18,8 @@
       </div>
       <div class="flex space-x-2">
         <button class="border px-3 py-1 rounded hover:bg-gray-100 transition text-sm">Chat</button>
-        <button class="border px-3 py-1 rounded hover:bg-gray-100 transition text-sm"><font-awesome-icon :icon="['fas', 'plus']" /> Theo dõi</button>
+        <button class="border px-3 py-1 rounded hover:bg-gray-100 transition text-sm"><font-awesome-icon
+            :icon="['fas', 'plus']" /> Theo dõi</button>
       </div>
     </div>
 
@@ -40,48 +44,35 @@
     <!-- Nội dung chính: Sidebar + danh sách sp -->
     <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mt-6">
       <!-- Nút chỉ hiển thị ở mobile -->
-  <div class="md:hidden mb-4">
-    <button 
-      @click="isSidebarOpen = true"
-      class="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-md text-sm text-blue-600 bg-white shadow hover:bg-blue-50 transition"
-    >
-      ☰ <span>Danh mục</span>
-    </button>
-  </div>
+      <div class="md:hidden mb-4">
+        <button @click="isSidebarOpen = true"
+          class="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-md text-sm text-blue-600 bg-white shadow hover:bg-blue-50 transition">
+          ☰ <span>Danh mục</span>
+        </button>
+      </div>
 
-  <!-- Lớp nền mờ khi sidebar mở (mobile) -->
-  <div
-    v-if="isSidebarOpen && !screenIsMdUp"
-    @click="isSidebarOpen = false"
-    class="fixed inset-0 bg-black bg-opacity-40 z-30"
-  ></div>
+      <!-- Lớp nền mờ khi sidebar mở (mobile) -->
+      <div v-if="isSidebarOpen && !screenIsMdUp" @click="isSidebarOpen = false"
+        class="fixed inset-0 bg-black bg-opacity-40 z-30"></div>
 
-  <!-- Sidebar danh mục -->
-  <transition name="slide-in">
-    <aside 
-      v-show="isSidebarOpen || screenIsMdUp"
-      class="bg-white p-5 shadow-md rounded-lg col-span-1 h-fit z-40 relative md:static fixed top-0 left-0 w-64 h-full md:h-fit md:w-auto md:rounded-lg md:p-4 transition-transform"
-    >
-      <!-- Nút đóng ở mobile -->
-      <button 
-        v-if="!screenIsMdUp" 
-        @click="isSidebarOpen = false"
-        class="absolute top-4 right-4 text-gray-500 hover:text-red-500 text-xl"
-      >
-        ✕
-      </button>
+      <!-- Sidebar danh mục -->
+      <transition name="slide-in">
+        <aside v-show="isSidebarOpen || screenIsMdUp"
+          class="bg-white p-5 shadow-md rounded-lg col-span-1 h-fit z-40 relative md:static fixed top-0 left-0 w-64 h-full md:h-fit md:w-auto md:rounded-lg md:p-4 transition-transform">
+          <!-- Nút đóng ở mobile -->
+          <button v-if="!screenIsMdUp" @click="isSidebarOpen = false"
+            class="absolute top-4 right-4 text-gray-500 hover:text-red-500 text-xl">
+            ✕
+          </button>
 
-      <h3 class="font-semibold text-base mb-4 text-gray-800 border-b pb-2">📂 Tất cả danh mục</h3>
-      <ul class="space-y-2 text-gray-700 text-sm">
-        <li><a href="#" class="block px-3 py-2 rounded hover:bg-blue-50 hover:text-blue-600 transition">📚 Sách chuyện</a></li>
-        <li><a href="#" class="block px-3 py-2 rounded hover:bg-blue-50 hover:text-blue-600 transition">🔥 Sách passion</a></li>
-        <li><a href="#" class="block px-3 py-2 rounded hover:bg-blue-50 hover:text-blue-600 transition">🎭 Giải trí</a></li>
-        <li><a href="#" class="block px-3 py-2 rounded hover:bg-blue-50 hover:text-blue-600 transition">👗 Thời trang</a></li>
-        <li><a href="#" class="block px-3 py-2 rounded hover:bg-blue-50 hover:text-blue-600 transition">🧒 Trẻ em</a></li>
-        <li><a href="#" class="block px-3 py-2 rounded hover:bg-blue-50 hover:text-blue-600 transition">👩‍👧 Mẹ & Bé</a></li>
-      </ul>
-    </aside>
-  </transition>
+          <h3 class="font-semibold text-base mb-4 text-gray-800 border-b pb-2">📂 Tất cả danh mục</h3>
+          <ul class="space-y-2 text-gray-700 text-sm">
+            <li v-for="item in categories" :key="item.id" >
+              <a href="#" class="block px-3 py-2 rounded hover:bg-blue-50 hover:text-blue-600 transition">{{ item.icon }} {{ item.name }}  </a>
+            </li>
+          </ul>
+        </aside>
+      </transition> 
 
 
       <!-- Danh sách sản phẩm -->
@@ -102,8 +93,9 @@
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-5">
           <!-- Card sản phẩm -->
           <div class="bg-white rounded shadow p-3 text-left">
-            <img src="https://salt.tikicdn.com/cache/750x750/ts/product/a9/83/7c/6664136e604227071213793e7a2091d9.jpg.webp" alt="book"
-              class="w-full h-35 object-cover mb-2 rounded-md">
+            <img
+              src="https://salt.tikicdn.com/cache/750x750/ts/product/a9/83/7c/6664136e604227071213793e7a2091d9.jpg.webp"
+              alt="book" class="w-full h-35 object-cover mb-2 rounded-md">
             <p class="text-sm leading-snug font-medium mb-1">PHẠM XUÂN ẨN - Tên Người Như Cuộc Đời</p>
             <p class="text-gray-500 text-xs mb-1">Tác giả</p>
             <div class="flex items-center text-xs text-gray-600 mb-1">
@@ -122,6 +114,31 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
+import axios from 'axios';
+
+const route = useRoute()
+// const seller = route.params.seller
+const seller = ref(null);
+
+onMounted(async () => {
+  try {
+    const res = await axios.get(`http://localhost:8000/api/sellers/store/${route.params.slug}`);
+    seller.value = res.data.seller;
+  } catch (e) {
+    console.log(e)
+  }
+});
+
+const categories = [
+  { icon: '📚', name: 'Sách chuyện' },
+  { icon: '🔥', name: 'Sách passion' },
+  { icon: '🎭', name: 'Giải trí' },
+  { icon: '👗', name: 'Thời trang' },
+  { icon: '🧒', name: 'Trẻ em' },
+  { icon: '👩‍👧', name: 'Mẹ & Bé' },
+]
+
 
 const isSidebarOpen = ref(false)
 const screenIsMdUp = ref(false)
@@ -138,4 +155,3 @@ onMounted(() => {
   window.addEventListener('resize', updateScreenSize)
 })
 </script>
-

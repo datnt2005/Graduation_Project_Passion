@@ -239,7 +239,8 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue';
+import axios from 'axios';
 
 const sellerType = ref('personal')
 const loading = ref(false)
@@ -323,16 +324,77 @@ function validateEmail(email) {
 
 async function handleSubmit() {
   emailError.value = false
+
   if (!validateEmail(form.value.email)) {
     emailError.value = true
     return
   }
+
   loading.value = true
-  setTimeout(() => {
-    loading.value = false
+
+  try {
+    const formData = new FormData()
+
+    // Chung
+    formData.append('email', form.value.email)
+    formData.append('store_name', form.value.store_name)
+    formData.append('phone_number', form.value.phone_number)
+
+    // Personal
+    formData.append('identity_card_number', form.value.identity_card_number)
+    formData.append('date_of_birth', form.value.date_of_birth)
+    formData.append('personal_address', form.value.personal_address)
+    formData.append('bio', form.value.bio)
+
+    // File CCCD
+    if (cccdFiles.value.length > 0) {
+      cccdFiles.value.forEach((file, index) => {
+        formData.append(`identity_card_file[${index}]`, file)
+      })
+    }
+
+    // File giấy phép
+    if (documentFile.value) {
+      formData.append('document', documentFile.value)
+    }
+
+    // Business (nếu là doanh nghiệp)
+    if (sellerType.value === 'business') {
+      formData.append('tax_code', form.value.tax_code)
+      formData.append('company_address', form.value.company_address)
+      formData.append('province', form.value.province)
+      formData.append('district', form.value.district)
+      formData.append('representative_name', form.value.representative_name)
+      formData.append('representative_phone', form.value.representative_phone)
+      formData.append('business_license', form.value.business_license)
+
+      if (form.value.business_license_file) {
+        formData.append('business_license_file', form.value.business_license_file)
+      }
+    }
+
+    const res = await axios.post('http://localhost:8000/api/sellers/resgister', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+
     alert('Đăng ký thành công!')
-    // chuyển đến trang chờ
-    window.location.href = '/seller/SellerRegisterSuccess'
-  }, 800)
+    console.log('Response:', res.data)
+  } catch (error) {
+    if (error.response && error.response.status === 422) {
+      const errors = error.response.data.errors
+
+      if (errors.user_id && errors.user_id[0]) {
+        alert(errors.user_id[0]) // => "Người dùng này đã đăng ký seller rồi."
+      } else {
+        alert('Dữ liệu không hợp lệ. Vui lòng kiểm tra lại thông tin.')
+      }
+    } else {
+      alert('Lỗi không xác định. Vui lòng thử lại sau.')
+    }
+  } finally {
+    loading.value = false
+  }
 }
 </script>
