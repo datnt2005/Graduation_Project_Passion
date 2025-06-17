@@ -57,8 +57,15 @@
 
       <!-- Sidebar danh mục -->
       <transition name="slide-in">
-        <aside v-show="isSidebarOpen || screenIsMdUp"
-          class="bg-white p-5 shadow-md rounded-lg col-span-1 h-fit z-40 relative md:static fixed top-0 left-0 w-64 h-full md:h-fit md:w-auto md:rounded-lg md:p-4 transition-transform">
+      <aside
+  v-show="isSidebarOpen || screenIsMdUp"
+  :class="[
+    'bg-white p-5 shadow-md rounded-lg col-span-1 z-40 transition-transform',
+    screenIsMdUp
+      ? 'relative md:static md:h-fit md:w-auto md:rounded-lg md:p-4'
+      : 'fixed top-0 left-0 w-64 h-full'
+  ]"
+>
           <!-- Nút đóng ở mobile -->
           <button v-if="!screenIsMdUp" @click="isSidebarOpen = false"
             class="absolute top-4 right-4 text-gray-500 hover:text-red-500 text-xl">

@@ -265,172 +265,165 @@
   </div>
 </template>
 
-<script>
+<script setup>
+import { ref, reactive, watch } from 'vue';
 import axios from 'axios';
 
 const config = useRuntimeConfig();
 const API = config.public.apiBaseUrl;
-export default {
-  data() {
-    return {
-      sellerType: 'personal',
-      form: {
-        store_name: '',
-        seller_type: 'personal',
-        phone_number: '',
-        identity_card_number: '',
-        date_of_birth: '',
-        personal_address: '',
-        document: null,
-        bio: '',
-        tax_code: '',
-        company_name: '',
-        company_address: '',
-        representative_name: '',
-        representative_phone: '',
-        business_license: null
-      },
-      errors: {},
-      loading: false,
-      isHover: false,
-      cccdPreviews: [],
-      documentFile: null,
-      documentPreview: '',
-      businessLicensePreview: ''
-    };
-  },
-  watch: {
-    sellerType(newType) {
-      this.form.seller_type = newType;
-      this.resetFormData();
+
+const sellerType = ref('personal');
+const isHover = ref(false);
+const loading = ref(false);
+const errors = reactive({});
+const cccdPreviews = ref([]);
+const documentFile = ref(null);
+const documentPreview = ref('');
+const businessLicensePreview = ref('');
+
+const form = reactive({
+  store_name: '',
+  seller_type: 'personal',
+  phone_number: '',
+  identity_card_number: '',
+  date_of_birth: '',
+  personal_address: '',
+  document: null,
+  bio: '',
+  tax_code: '',
+  company_name: '',
+  company_address: '',
+  representative_name: '',
+  representative_phone: '',
+  business_license: null
+});
+
+watch(sellerType, (newType) => {
+  form.seller_type = newType;
+  resetFormData();
+});
+
+function resetFormData() {
+  Object.assign(errors, {});
+  cccdPreviews.value = [];
+  documentFile.value = null;
+  documentPreview.value = '';
+  businessLicensePreview.value = '';
+
+  if (sellerType.value === 'business') {
+    form.phone_number = '';
+    form.identity_card_number = '';
+    form.date_of_birth = '';
+    form.personal_address = '';
+    form.document = null;
+    form.bio = '';
+  } else {
+    form.tax_code = '';
+    form.company_name = '';
+    form.company_address = '';
+    form.representative_name = '';
+    form.representative_phone = '';
+    form.business_license = null;
+  }
+}
+
+function isImage(file) {
+  return file && file.startsWith('data:image');
+}
+
+function onCccdFiles(event) {
+  const files = event.target.files;
+  cccdPreviews.value = [];
+  if (files.length > 0) {
+    form.document = files[0];
+    cccdPreviews.value.push(URL.createObjectURL(files[0]));
+    if (files[1]) {
+      cccdPreviews.value.push(URL.createObjectURL(files[1]));
     }
-  },
-  methods: {
-    resetFormData() {
-      this.errors = {};
-      this.cccdPreviews = [];
-      this.documentFile = null;
-      this.documentPreview = '';
-      this.businessLicensePreview = '';
+  }
+}
 
-      if (this.sellerType === 'business') {
-        this.form.phone_number = '';
-        this.form.identity_card_number = '';
-        this.form.date_of_birth = '';
-        this.form.personal_address = '';
-        this.form.document = null;
-        this.form.bio = '';
-      } else {
-        this.form.tax_code = '';
-        this.form.company_name = '';
-        this.form.company_address = '';
-        this.form.representative_name = '';
-        this.form.representative_phone = '';
-        this.form.business_license = null;
-      }
-    },
+function onDocumentFile(event) {
+  const file = event.target.files[0];
+  if (file) {
+    documentFile.value = file;
+    form.document = file;
+    documentPreview.value = file.type.startsWith('image/') ? URL.createObjectURL(file) : file.name;
+  }
+}
 
-    isImage(file) {
-      return file && file.startsWith('data:image');
-    },
+function onBusinessLicenseFile(event) {
+  const file = event.target.files[0];
+  if (file) {
+    form.business_license = file;
+    businessLicensePreview.value = file.type.startsWith('image/') ? URL.createObjectURL(file) : file.name;
+  }
+}
 
-    onCccdFiles(event) {
-      const files = event.target.files;
-      this.cccdPreviews = [];
+function validateForm() {
+  Object.assign(errors, {});
+  const f = form;
 
-      if (files.length > 0) {
-        this.form.document = files[0];
-        this.cccdPreviews.push(URL.createObjectURL(files[0]));
-        if (files[1]) {
-          this.cccdPreviews.push(URL.createObjectURL(files[1]));
-        }
-      }
-    },
+  if (!f.store_name || f.store_name.length > 255) {
+    errors.store_name = 'Tên cửa hàng là bắt buộc và không vượt quá 255 ký tự.';
+  }
 
-    onDocumentFile(event) {
-      const file = event.target.files[0];
-      if (file) {
-        this.documentFile = file;
-        this.form.document = file;
-        this.documentPreview = file.type.startsWith('image/') ? URL.createObjectURL(file) : file.name;
-      }
-    },
+  if (f.seller_type === 'personal') {
+    if (!f.phone_number || !/^[0-9]{10,15}$/.test(f.phone_number)) {
+      errors.phone_number = 'Số điện thoại không hợp lệ (10–15 số).';
+    }
+    if (!f.identity_card_number || f.identity_card_number.length > 20) {
+      errors.identity_card_number = 'Số CMND/CCCD là bắt buộc và tối đa 20 ký tự.';
+    }
+    if (!f.date_of_birth) {
+      errors.date_of_birth = 'Ngày sinh là bắt buộc.';
+    }
+    if (!f.personal_address) {
+      errors.personal_address = 'Địa chỉ cá nhân là bắt buộc.';
+    }
+  } else {
+    if (!f.tax_code) errors.tax_code = 'Mã số thuế là bắt buộc.';
+    if (!f.company_name) errors.company_name = 'Tên công ty là bắt buộc.';
+    if (!f.company_address) errors.company_address = 'Địa chỉ công ty là bắt buộc.';
+    if (!f.representative_name) errors.representative_name = 'Tên người đại diện là bắt buộc.';
+    if (!f.representative_phone || !/^[0-9]{10,15}$/.test(f.representative_phone)) {
+      errors.representative_phone = 'Số điện thoại người đại diện không hợp lệ.';
+    }
+    if (!f.business_license) errors.business_license = 'Giấy phép kinh doanh là bắt buộc.';
+  }
 
-    onBusinessLicenseFile(event) {
-      const file = event.target.files[0];
-      if (file) {
-        this.form.business_license = file;
-        this.businessLicensePreview = file.type.startsWith('image/') ? URL.createObjectURL(file) : file.name;
-      }
-    },
+  return Object.keys(errors).length === 0;
+}
 
-    validateForm() {
-      this.errors = {};
-      const f = this.form;
-
-      if (!f.store_name || f.store_name.length > 255) {
-        this.errors.store_name = 'Tên cửa hàng là bắt buộc và không vượt quá 255 ký tự.';
-      }
-
-      if (f.seller_type === 'personal') {
-        if (!f.phone_number || !/^[0-9]{10,15}$/.test(f.phone_number)) {
-          this.errors.phone_number = 'Số điện thoại không hợp lệ (10–15 số).';
-        }
-        if (!f.identity_card_number || f.identity_card_number.length > 20) {
-          this.errors.identity_card_number = 'Số CMND/CCCD là bắt buộc và tối đa 20 ký tự.';
-        }
-        if (!f.date_of_birth) {
-          this.errors.date_of_birth = 'Ngày sinh là bắt buộc.';
-        }
-        if (!f.personal_address) {
-          this.errors.personal_address = 'Địa chỉ cá nhân là bắt buộc.';
-        }
-      } else if (f.seller_type === 'business') {
-        if (!f.tax_code) this.errors.tax_code = 'Mã số thuế là bắt buộc.';
-        if (!f.company_name) this.errors.company_name = 'Tên công ty là bắt buộc.';
-        if (!f.company_address) this.errors.company_address = 'Địa chỉ công ty là bắt buộc.';
-        if (!f.representative_name) this.errors.representative_name = 'Tên người đại diện là bắt buộc.';
-        if (!f.representative_phone || !/^[0-9]{10,15}$/.test(f.representative_phone)) {
-          this.errors.representative_phone = 'Số điện thoại người đại diện không hợp lệ.';
-        }
-        if (!f.business_license) this.errors.business_license = 'Giấy phép kinh doanh là bắt buộc.';
-      }
-
-      return Object.keys(this.errors).length === 0;
-    },
- async handleSubmit() {
-  if (!this.validateForm()) return;
-  this.loading = true;
-  this.errors = {};
+async function handleSubmit() {
+  if (!validateForm()) return;
+  loading.value = true;
+  Object.assign(errors, {});
 
   const token = localStorage.getItem('access_token');
   if (!token) {
     alert('Bạn chưa đăng nhập!');
-    this.loading = false;
+    loading.value = false;
     return;
   }
 
   try {
-    // Lấy thông tin user từ /me
     const meRes = await axios.get(`${API}/me`, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
+      headers: { Authorization: `Bearer ${token}` }
     });
 
     const user = meRes?.data?.data;
     if (!user || !user.id) {
       alert('Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.');
-      this.loading = false;
+      loading.value = false;
       return;
     }
 
-    // Tạo FormData để gửi đăng ký seller
-    const f = this.form;
+    const f = form;
     const formData = new FormData();
     formData.append('store_name', f.store_name);
     formData.append('seller_type', f.seller_type);
-    formData.append('user_id', user.id); // ✅ thêm user_id từ /me
+    formData.append('user_id', user.id);
 
     if (f.seller_type === 'personal') {
       formData.append('phone_number', f.phone_number);
@@ -456,24 +449,18 @@ export default {
     });
 
     alert(response.data.message || 'Đăng ký thành công!');
-    this.resetFormData();
+    resetFormData();
   } catch (error) {
     const res = error.response;
-    this.errors = res?.data?.errors || {};
-
+    Object.assign(errors, res?.data?.errors || {});
     const message = res?.data?.message || res?.data?.error || 'Đăng ký thất bại!';
-    const detail = Object.values(this.errors).flat().join('\n');
-
+    const detail = Object.values(errors).flat().join('\n');
     alert(detail ? `${message}\n\n${detail}` : message);
     console.error('Registration error:', error);
   } finally {
-    this.loading = false;
+    loading.value = false;
   }
 }
-
-
-
-  }
-};
 </script>
+
 

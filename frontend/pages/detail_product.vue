@@ -120,6 +120,7 @@
             </div>
         </section>
 
+        </div>
         <!-- Customer Reviews -->
         <ProductReviews />
     </main>
