@@ -166,6 +166,7 @@
 <script setup>
 import { ref } from "vue";
 import axios from "axios";
+import Swal from 'sweetalert2'
 import { useRouter } from 'vue-router'
 const router = useRouter()
 const form = ref({
@@ -183,20 +184,29 @@ const errors = ref({
   message: "",
 });
 
+const toast = (icon, title) => {
+  Swal.fire({
+    toast: true,
+    position: 'top-end',
+    icon,
+    title,
+    width: '350px',
+    padding: '10px 20px',
+    customClass: { popup: 'text-sm rounded-md shadow-md' },
+    showConfirmButton: false,
+    timer: 1500,
+    timerProgressBar: true,
+    didOpen: (toastEl) => {
+      toastEl.addEventListener('mouseenter', () => Swal.stopTimer());
+      toastEl.addEventListener('mouseleave', () => Swal.resumeTimer());
+    }
+  });
+};
+
+
 async function handleSubmit() {
-<<<<<<< HEAD
   loading.value = true;
   errors.value = { email: "", password: "", message: "" };
-=======
-    loading.value = true
-    setTimeout(() => {
-        loading.value = false
-        alert('Đăng nhập thành công!')
-        
-    }, 1000)
-}
-</script>
->>>>>>> 537c724c34ae742b86897289086712a3b14c6266
 
   try {
     const response = await axios.post(
@@ -207,6 +217,8 @@ async function handleSubmit() {
     const slug = response.data.store_slug; 
     console.log("Login response data:", response.data);
     localStorage.setItem("token", token);
+
+    toast('success', 'Đăng nhập thành công!')
 
     // 👉 Điều hướng tới trang cửa hàng theo slug
    if (slug) {
@@ -225,12 +237,15 @@ async function handleSubmit() {
       error.response?.status === 403
     ) {
       errors.value.message = error.response.data.message;
+        toast("error", errors.value.message);
     } else {
       errors.value.message = "Lỗi hệ thống. Vui lòng thử lại sau.";
+       toast("error", errors.value.message);
     }
   } finally {
     loading.value = false;
   }
+
 }
 
 </script>

@@ -219,16 +219,24 @@ Route::apiResource('users', UserController::class);
 
 // api seller
 
-Route::middleware([HandleCors::class, 'api'])
-    ->prefix('sellers')
-    ->group(function () {
-        Route::get('/', [SellerController::class, 'index']);
-        Route::get('/store/{slug}', [SellerController::class, 'showStore']);
-         Route::post('/register', [SellerController::class, 'register'])
-              ->middleware('auth:sanctum');
+// Route::middleware([HandleCors::class, 'api'])
+//     ->prefix('sellers')
+//     ->group(function () {
+//         Route::get('/', [SellerController::class, 'index']);
+//         Route::get('/store/{slug}', [SellerController::class, 'showStore']);
+//          Route::post('/register', [SellerController::class, 'register'])
+//               ->middleware('auth:sanctum');
 
-        Route::post('/login', [SellerController::class, 'login']);
-    });
+//         Route::post('/login', [SellerController::class, 'login']);
+//     });
+Route::prefix('sellers')->group(function ()
+{   Route::get('/', [SellerController::class, 'index']);
+    Route::post('/register', [SellerController::class, 'register'])->middleware('auth:sanctum');
+    Route::post('/login', [SellerController::class, 'login']);
+    Route::get('/', [SellerController::class, 'index'])->middleware('auth:sanctum');
+    Route::get('/store/{slug}', [SellerController::class, 'showStore']);
+
+});
 
 
 Route::prefix('admin')->group(function () {
