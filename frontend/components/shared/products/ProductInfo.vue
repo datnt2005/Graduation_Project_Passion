@@ -93,7 +93,7 @@
                         <input
                             class="input-no-spinner w-full h-10 text-center text-sm text-gray-900 bg-transparent border-x border-gray-200 focus:outline-none"
                             type="number" step="1" :value="quantity" min="1" :max="selectedVariant?.stock || 0"
-                            @input="handleQuantityInput($event.target.value)" aria-label="Quantity" />
+                            @input="handleQuantityInput($event.target.value)" @keydown="blockInvalidKeys" aria-label="Quantity" />
                         <button class="w-10 h-10 text-gray-600 hover:bg-gray-100 rounded-r-md"
                             :disabled="quantity >= (selectedVariant?.stock || 0)" @click="$emit('increase-quantity')"
                             aria-label="Increase quantity">
@@ -186,6 +186,7 @@ function formatPrice(price) {
 
 function handleQuantityInput(value) {
     const maxStock = props.selectedVariant?.stock || 0;
+
     let newQuantity = parseInt(value, 10);
 
     if (isNaN(newQuantity) || newQuantity < 1) {
@@ -209,6 +210,14 @@ function handleBuyNow() {
     if (!props.isVariantFullySelected) return;
     emit('buy-now');
 }
+
+function blockInvalidKeys(event) {
+  const invalidKeys = ['-', '+', 'e', 'E', '.', ','];
+  if (invalidKeys.includes(event.key)) {
+    event.preventDefault();
+  }
+}
+
 </script>
 <style scoped>
 .input-no-spinner::-webkit-outer-spin-button,
