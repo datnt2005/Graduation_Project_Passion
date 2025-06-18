@@ -230,11 +230,15 @@ Route::apiResource('users', UserController::class);
 //         Route::post('/login', [SellerController::class, 'login']);
 //     });
 Route::prefix('sellers')->group(function ()
-{   Route::get('/', [SellerController::class, 'index']);
+{
+    // lấy seller or business theo id
+    Route::get('/{id}', [SellerController::class, 'getSellerById']);
+    Route::get('/', [SellerController::class, 'index']);
     Route::post('/register', [SellerController::class, 'register'])->middleware('auth:sanctum');
     Route::post('/login', [SellerController::class, 'login']);
     Route::get('/', [SellerController::class, 'index'])->middleware('auth:sanctum');
     Route::get('/store/{slug}', [SellerController::class, 'showStore']);
+    Route::put('/update/{id}', [SellerController::class, 'update']);
 
 });
 

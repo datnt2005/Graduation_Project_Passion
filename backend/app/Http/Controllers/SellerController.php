@@ -24,6 +24,65 @@ class SellerController extends Controller
 
 
 
+public function getSellerById($id){
+    $seller = Seller::with([
+        'business',
+        'user:id,name,email'
+    ])
+    ->where('id', $id)
+    ->first();
+
+    return response()->json([
+        'seller' => $seller
+    ]);
+}
+
+public function update(Request $request, $id)
+{
+
+    $seller = Seller::findOrFail($id);
+     // Cập nhật thông tin seller
+    $seller->update($request->only([
+        'store_name',
+        'store_slug',
+        'seller_type',
+        'bio',
+        'identity_card_number',
+        'date_of_birth',
+        'personal_address',
+        'phone_number',
+        'identity_card_file',
+        'document'
+    ]));
+
+    // Nếu seller_type là business và có business_info thì cập nhật business_seller
+    if ($request->seller_type === 'business' && $request->filled('business_info')) {
+        BusinessSeller::updateOrCreate(
+            ['seller_id' => $seller->id],
+            [
+                'tax_code' => $request->business_info['tax_code'] ?? null,
+                'company_name' => $request->business_info['company_name'] ?? null,
+                'company_address' => $request->business_info['company_address'] ?? null,
+                'business_license' => $request->business_info['business_license'] ?? null,
+                'representative_name' => $request->business_info['representative_name'] ?? null,
+                'representative_phone' => $request->business_info['representative_phone'] ?? null
+            ]
+        );
+    }
+
+   $seller = Seller::with([
+    'user:id,name,email',
+    'business'
+    ])->findOrFail($id);
+
+    return response()->json([
+        'message' => 'Cập nhật thành công',
+        'seller' => $seller
+    ]);
+
+}
+
+
 
    public function showStore($slug)
     {
@@ -40,198 +99,120 @@ class SellerController extends Controller
         ]);
     }
 
-    // public function register(Request $request)
-    // {
-    //     try {
-    //         $userId = auth()->id();
-
-    //         if (!$userId) {
-    //             return response()->json([
-    //                 'message' => 'Bạn cần đăng nhập để đăng ký cửa hàng.'
-    //             ], 401);
-    //         }
-
-    //         // Validation rules
-    //         $validator = Validator::make($request->all(), [
-    //             'store_name' => 'required|string|max:255',
-    //             'seller_type' => 'required|in:personal,business',
-    //             'identity_card_number' => 'required_if:seller_type,personal|string|max:20',
-    //             'date_of_birth' => 'required_if:seller_type,personal|date',
-    //             'personal_address' => 'required_if:seller_type,personal|string',
-    //             'phone_number' => 'required_if:seller_type,personal|string|max:20',
-    //             'document' => 'nullable|file|mimes:jpg,png,pdf|max:4048',
-    //             'bio' => 'nullable|string',
-    //             'tax_code' => 'required_if:seller_type,business|string',
-    //             'company_name' => 'required_if:seller_type,business|string',
-    //             'company_address' => 'required_if:seller_type,business|string',
-    //             'business_license' => 'required_if:seller_type,business|file|mimes:jpg,png,pdf|max:4048',
-    //             'representative_name' => 'required_if:seller_type,business|string',
-    //             'representative_phone' => 'required_if:seller_type,business|string|max:20',
-    //         ], [
-    //             'store_name.required' => 'Tên cửa hàng là bắt buộc.',
-    //             'seller_type.required' => 'Loại người bán là bắt buộc.',
-    //             'seller_type.in' => 'Loại người bán phải là cá nhân hoặc doanh nghiệp.',
-    //             'identity_card_number.required_if' => 'Số CMND/CCCD là bắt buộc đối với cá nhân.',
-    //             'date_of_birth.required_if' => 'Ngày sinh là bắt buộc đối với cá nhân.',
-    //             'personal_address.required_if' => 'Địa chỉ cá nhân là bắt buộc đối với cá nhân.',
-    //             'phone_number.required_if' => 'Số điện thoại là bắt buộc đối với cá nhân.',
-    //             'tax_code.required_if' => 'Mã số thuế là bắt buộc đối với doanh nghiệp.',
-    //             'company_name.required_if' => 'Tên công ty là bắt buộc đối với doanh nghiệp.',
-    //             'company_address.required_if' => 'Địa chỉ công ty là bắt buộc đối với doanh nghiệp.',
-    //             'business_license.required_if' => 'Giấy phép kinh doanh là bắt buộc đối với doanh nghiệp.',
-    //             'representative_name.required_if' => 'Tên người đại diện là bắt buộc đối với doanh nghiệp.',
-    //             'representative_phone.required_if' => 'Số điện thoại người đại diện là bắt buộc đối với doanh nghiệp.',
-    //         ]);
-
-    //         if ($validator->fails()) {
-    //             return response()->json([
-    //                 'message' => 'Dữ liệu không hợp lệ',
-    //                 'errors' => $validator->errors()
-    //             ], 422);
-    //         }
-
-    //         // Check if user already registered a store
-    //         if (Seller::where('user_id', $userId)->exists()) {
-    //             return response()->json([
-    //                 'message' => 'Tài khoản này đã đăng ký cửa hàng.'
-    //             ], 409);
-    //         }
-
-    //         // Generate unique store slug
-    //         $storeSlug = Str::slug($request->store_name) . '-' . uniqid();
-
-    //         // Handle document upload
-    //         $documentPath = $request->hasFile('document')
-    //             ? $request->file('document')->store('documents', 'public')
-    //             : null;
-
-    //         // Create seller
-    //         $seller = Seller::create([
-    //             'user_id' => $userId,
-    //             'store_name' => $request->store_name,
-    //             'store_slug' => $storeSlug,
-    //             'seller_type' => $request->seller_type,
-    //             'identity_card_number' => $request->seller_type === 'personal' ? $request->identity_card_number : null,
-    //             'date_of_birth' => $request->seller_type === 'personal' ? $request->date_of_birth : null,
-    //             'personal_address' => $request->seller_type === 'personal' ? $request->personal_address : null,
-    //             'phone_number' => $request->seller_type === 'personal' ? $request->phone_number : null,
-    //             'document' => $documentPath,
-    //             'bio' => $request->bio,
-    //             'verification_status' => 'pending'
-    //         ]);
-
-    //         // Create business info if seller_type is business
-    //         if ($request->seller_type === 'business') {
-    //             $licensePath = $request->hasFile('business_license')
-    //                 ? $request->file('business_license')->store('licenses', 'public')
-    //                 : null;
-
-    //             // Check if user already registered a store
-    //             $seller = Seller::where('user_id', $userId)->first();
-    //             if ($seller) {
-    //                 // Nếu đã có seller và chưa có business, cho phép update thêm business info
-    //                 if ($seller->seller_type === 'personal' && $request->seller_type === 'business' && !$seller->business) {
-    //                     // Thực hiện thêm business info vào seller hiện tại
-    //                     $licensePath = $request->hasFile('business_license')
-    //                         ? $request->file('business_license')->store('licenses', 'public')
-    //                         : null;
-
-    //                     $seller->business()->create([
-    //                         'tax_code' => $request->tax_code,
-    //                         'company_name' => $request->company_name,
-    //                         'company_address' => $request->company_address,
-    //                         'business_license' => $licensePath,
-    //                         'representative_name' => $request->representative_name,
-    //                         'representative_phone' => $request->representative_phone,
-    //                     ]);
-
-    //                     // Cập nhật loại seller luôn (nếu muốn)
-    //                     $seller->update(['seller_type' => 'business']);
-
-    //                     return response()->json([
-    //                         'message' => 'Nâng cấp thành công lên doanh nghiệp! Vui lòng chờ xác minh.',
-    //                         'data' => $seller->load('business')
-    //                     ], 200);
-    //                 }
-
-    //                 // Nếu đã có business, hoặc không đúng điều kiện thì báo lỗi như cũ
-    //                 return response()->json([
-    //                     'message' => 'Tài khoản này đã đăng ký cửa hàng.'
-    //                 ], 409);
-    //             }
-
-    //         }
-
-    //         return response()->json([
-    //             'message' => 'Đăng ký thành công! Vui lòng chờ xác minh.',
-    //             'data' => $seller->load('business')
-    //         ], 201);
-    //     } catch (\Exception $e) {
-    //         \Log::error('Registration error: ' . $e->getMessage(), ['exception' => $e]);
-    //         return response()->json([
-    //             'message' => 'Đã xảy ra lỗi server.',
-    //             'error' => $e->getMessage()
-    //         ], 500);
-    //     }
-    // }
-
     public function register(Request $request)
-{
-    try {
-        $userId = auth()->id();
+    {
+        try {
+            $userId = auth()->id();
 
-        if (!$userId) {
-            return response()->json([
-                'message' => 'Bạn cần đăng nhập để đăng ký cửa hàng.'
-            ], 401);
-        }
+            if (!$userId) {
+                return response()->json([
+                    'message' => 'Bạn cần đăng nhập để đăng ký cửa hàng.'
+                ], 401);
+            }
 
-        // Validation rules
-        $validator = Validator::make($request->all(), [
-            'store_name' => 'required_if:seller_type,personal|string|max:255', // Chỉ yêu cầu store_name cho personal
-            'seller_type' => 'required|in:personal,business',
-            'identity_card_number' => 'required_if:seller_type,personal|string|max:20',
-            'date_of_birth' => 'required_if:seller_type,personal|date',
-            'personal_address' => 'required_if:seller_type,personal|string',
-            'phone_number' => 'required_if:seller_type,personal|string|max:20',
-            'document' => 'nullable|file|mimes:jpg,png,pdf|max:4048',
-            'bio' => 'nullable|string',
-            'tax_code' => 'required_if:seller_type,business|string',
-            'company_name' => 'required_if:seller_type,business|string',
-            'company_address' => 'required_if:seller_type,business|string',
-            'business_license' => 'required_if:seller_type,business|file|mimes:jpg,png,pdf|max:4048',
-            'representative_name' => 'required_if:seller_type,business|string',
-            'representative_phone' => 'required_if:seller_type,business|string|max:20',
-        ], [
-            'store_name.required_if' => 'Tên cửa hàng là bắt buộc đối với cá nhân.',
-            'seller_type.required' => 'Loại người bán là bắt buộc.',
-            'seller_type.in' => 'Loại người bán phải là cá nhân hoặc doanh nghiệp.',
-            'identity_card_number.required_if' => 'Số CMND/CCCD là bắt buộc đối với cá nhân.',
-            'date_of_birth.required_if' => 'Ngày sinh là bắt buộc đối với cá nhân.',
-            'personal_address.required_if' => 'Địa chỉ cá nhân là bắt buộc đối với cá nhân.',
-            'phone_number.required_if' => 'Số điện thoại là bắt buộc đối với cá nhân.',
-            'tax_code.required_if' => 'Mã số thuế là bắt buộc đối với doanh nghiệp.',
-            'company_name.required_if' => 'Tên công ty là bắt buộc đối với doanh nghiệp.',
-            'company_address.required_if' => 'Địa chỉ công ty là bắt buộc đối với doanh nghiệp.',
-            'business_license.required_if' => 'Giấy phép kinh doanh là bắt buộc đối với doanh nghiệp.',
-            'representative_name.required_if' => 'Tên người đại diện là bắt buộc đối với doanh nghiệp.',
-            'representative_phone.required_if' => 'Số điện thoại người đại diện là bắt buộc đối với doanh nghiệp.',
-        ]);
+            // Validation rules
+            $validator = Validator::make($request->all(), [
+                'store_name' => 'required_if:seller_type,personal|string|max:255', // Chỉ yêu cầu store_name cho personal
+                'seller_type' => 'required|in:personal,business',
+                'identity_card_number' => 'required_if:seller_type,personal|string|max:20',
+                'date_of_birth' => 'required_if:seller_type,personal|date',
+                'personal_address' => 'required_if:seller_type,personal|string',
+                'phone_number' => 'required_if:seller_type,personal|string|max:20',
+                'document' => 'nullable|file|mimes:jpg,png,pdf|max:4048',
+                'bio' => 'nullable|string',
+                'tax_code' => 'required_if:seller_type,business|string',
+                'company_name' => 'required_if:seller_type,business|string',
+                'company_address' => 'required_if:seller_type,business|string',
+                'business_license' => 'required_if:seller_type,business|file|mimes:jpg,png,pdf|max:4048',
+                'representative_name' => 'required_if:seller_type,business|string',
+                'representative_phone' => 'required_if:seller_type,business|string|max:20',
+            ], [
+                'store_name.required_if' => 'Tên cửa hàng là bắt buộc đối với cá nhân.',
+                'seller_type.required' => 'Loại người bán là bắt buộc.',
+                'seller_type.in' => 'Loại người bán phải là cá nhân hoặc doanh nghiệp.',
+                'identity_card_number.required_if' => 'Số CMND/CCCD là bắt buộc đối với cá nhân.',
+                'date_of_birth.required_if' => 'Ngày sinh là bắt buộc đối với cá nhân.',
+                'personal_address.required_if' => 'Địa chỉ cá nhân là bắt buộc đối với cá nhân.',
+                'phone_number.required_if' => 'Số điện thoại là bắt buộc đối với cá nhân.',
+                'tax_code.required_if' => 'Mã số thuế là bắt buộc đối với doanh nghiệp.',
+                'company_name.required_if' => 'Tên công ty là bắt buộc đối với doanh nghiệp.',
+                'company_address.required_if' => 'Địa chỉ công ty là bắt buộc đối với doanh nghiệp.',
+                'business_license.required_if' => 'Giấy phép kinh doanh là bắt buộc đối với doanh nghiệp.',
+                'representative_name.required_if' => 'Tên người đại diện là bắt buộc đối với doanh nghiệp.',
+                'representative_phone.required_if' => 'Số điện thoại người đại diện là bắt buộc đối với doanh nghiệp.',
+            ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Dữ liệu không hợp lệ',
-                'errors' => $validator->errors()
-            ], 422);
-        }
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => 'Dữ liệu không hợp lệ',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
 
-        // Kiểm tra xem người dùng đã có bản ghi Seller chưa
-        $seller = Seller::where('user_id', $userId)->first();
+            // Kiểm tra xem người dùng đã có bản ghi Seller chưa
+            $seller = Seller::where('user_id', $userId)->first();
 
-        if ($seller) {
-            // Trường hợp nâng cấp từ personal sang business
-            if ($seller->seller_type === 'personal' && $request->seller_type === 'business' && !$seller->business) {
-                // Thêm thông tin doanh nghiệp vào bảng business_sellers
+            if ($seller) {
+                // Trường hợp nâng cấp từ personal sang business
+                if ($seller->seller_type === 'personal' && $request->seller_type === 'business' && !$seller->business) {
+                    // Thêm thông tin doanh nghiệp vào bảng business_sellers
+                    $licensePath = $request->hasFile('business_license')
+                        ? $request->file('business_license')->store('licenses', 'public')
+                        : null;
+
+                    $seller->business()->create([
+                        'tax_code' => $request->tax_code,
+                        'company_name' => $request->company_name,
+                        'company_address' => $request->company_address,
+                        'business_license' => $licensePath,
+                        'representative_name' => $request->representative_name,
+                        'representative_phone' => $request->representative_phone,
+                    ]);
+
+                    // Cập nhật seller_type thành business
+                    $seller->update([
+                        'seller_type' => 'business',
+                        'verification_status' => 'pending' // Đặt lại trạng thái để chờ xác minh
+                    ]);
+
+                    return response()->json([
+                        'message' => 'Nâng cấp thành công lên doanh nghiệp! Vui lòng chờ xác minh.',
+                        'data' => $seller->load('business')
+                    ], 200);
+                }
+
+                // Nếu không phải trường hợp nâng cấp hợp lệ, trả về lỗi
+                return response()->json([
+                    'message' => 'Tài khoản này đã đăng ký cửa hàng hoặc không thể nâng cấp.'
+                ], 409);
+            }
+
+            // Trường hợp đăng ký mới
+            // Generate unique store slug
+            $storeSlug = Str::slug($request->store_name) . '-' . uniqid();
+
+            // Handle document upload
+            $documentPath = $request->hasFile('document')
+                ? $request->file('document')->store('documents', 'public')
+                : null;
+
+            // Tạo seller mới
+            $seller = Seller::create([
+                'user_id' => $userId,
+                'store_name' => $request->store_name,
+                'store_slug' => $storeSlug,
+                'seller_type' => $request->seller_type,
+                'identity_card_number' => $request->seller_type === 'personal' ? $request->identity_card_number : null,
+                'date_of_birth' => $request->seller_type === 'personal' ? $request->date_of_birth : null,
+                'personal_address' => $request->seller_type === 'personal' ? $request->personal_address : null,
+                'phone_number' => $request->seller_type === 'personal' ? $request->phone_number : null,
+                'document' => $documentPath,
+                'bio' => $request->bio,
+                'verification_status' => 'pending'
+            ]);
+
+            // Tạo thông tin doanh nghiệp nếu là business
+            if ($request->seller_type === 'business') {
                 $licensePath = $request->hasFile('business_license')
                     ? $request->file('business_license')->store('licenses', 'public')
                     : null;
@@ -244,77 +225,20 @@ class SellerController extends Controller
                     'representative_name' => $request->representative_name,
                     'representative_phone' => $request->representative_phone,
                 ]);
-
-                // Cập nhật seller_type thành business
-                $seller->update([
-                    'seller_type' => 'business',
-                    'verification_status' => 'pending' // Đặt lại trạng thái để chờ xác minh
-                ]);
-
-                return response()->json([
-                    'message' => 'Nâng cấp thành công lên doanh nghiệp! Vui lòng chờ xác minh.',
-                    'data' => $seller->load('business')
-                ], 200);
             }
 
-            // Nếu không phải trường hợp nâng cấp hợp lệ, trả về lỗi
             return response()->json([
-                'message' => 'Tài khoản này đã đăng ký cửa hàng hoặc không thể nâng cấp.'
-            ], 409);
+                'message' => 'Đăng ký thành công! Vui lòng chờ xác minh.',
+                'data' => $seller->load('business')
+            ], 201);
+        } catch (\Exception $e) {
+            \Log::error('Registration error: ' . $e->getMessage(), ['exception' => $e]);
+            return response()->json([
+                'message' => 'Đã xảy ra lỗi server.',
+                'error' => $e->getMessage()
+            ], 500);
         }
-
-        // Trường hợp đăng ký mới
-        // Generate unique store slug
-        $storeSlug = Str::slug($request->store_name) . '-' . uniqid();
-
-        // Handle document upload
-        $documentPath = $request->hasFile('document')
-            ? $request->file('document')->store('documents', 'public')
-            : null;
-
-        // Tạo seller mới
-        $seller = Seller::create([
-            'user_id' => $userId,
-            'store_name' => $request->store_name,
-            'store_slug' => $storeSlug,
-            'seller_type' => $request->seller_type,
-            'identity_card_number' => $request->seller_type === 'personal' ? $request->identity_card_number : null,
-            'date_of_birth' => $request->seller_type === 'personal' ? $request->date_of_birth : null,
-            'personal_address' => $request->seller_type === 'personal' ? $request->personal_address : null,
-            'phone_number' => $request->seller_type === 'personal' ? $request->phone_number : null,
-            'document' => $documentPath,
-            'bio' => $request->bio,
-            'verification_status' => 'pending'
-        ]);
-
-        // Tạo thông tin doanh nghiệp nếu là business
-        if ($request->seller_type === 'business') {
-            $licensePath = $request->hasFile('business_license')
-                ? $request->file('business_license')->store('licenses', 'public')
-                : null;
-
-            $seller->business()->create([
-                'tax_code' => $request->tax_code,
-                'company_name' => $request->company_name,
-                'company_address' => $request->company_address,
-                'business_license' => $licensePath,
-                'representative_name' => $request->representative_name,
-                'representative_phone' => $request->representative_phone,
-            ]);
-        }
-
-        return response()->json([
-            'message' => 'Đăng ký thành công! Vui lòng chờ xác minh.',
-            'data' => $seller->load('business')
-        ], 201);
-    } catch (\Exception $e) {
-        \Log::error('Registration error: ' . $e->getMessage(), ['exception' => $e]);
-        return response()->json([
-            'message' => 'Đã xảy ra lỗi server.',
-            'error' => $e->getMessage()
-        ], 500);
     }
-}
 
         public function login(Request $request)
     {
