@@ -670,20 +670,21 @@ Quay lại trang đăng nhập
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
-import Swal from 'sweetalert2'
 import Features from '~/components/shared/Features.vue'
+import { useSearchStore } from "~/stores/search"
+import { useRouter } from "vue-router"
+import { useToast } from '~/composables/useToast' // Import useToast
 
-import { useSearchStore } from "~/stores/search";
-import { useRouter } from "vue-router";
+const { toast } = useToast() // Sử dụng composable useToast
 
-const input = ref("");
-const searchStore = useSearchStore();
-const router = useRouter();
+const input = ref("")
+const searchStore = useSearchStore()
+const router = useRouter()
 
 function handleSearch() {
-  if (input.value.trim() === "") return; // gọi .trim() như một hàm
-  searchStore.updateSearch(input.value);
-  router.push("/product_search");
+  if (input.value.trim() === "") return
+  searchStore.updateSearch(input.value)
+  router.push("/product_search")
 }
 
 const config = useRuntimeConfig()
@@ -705,11 +706,11 @@ const isLoggedIn = ref(false)
 const showForgotPassword = ref(false)
 const showResetPassword = ref(false)
 const isForgotMode = ref(false)
-const isResetMode = ref(false) 
- const emit = defineEmits(['loginSuccess'])
-
+const isResetMode = ref(false)
 const isResetting = ref(false)
 const userName = ref('')
+const isMobileMenuOpen = ref(false)
+const showVerifyEmailForm = ref(false)
 
 let resendTimer = null
 
@@ -720,6 +721,17 @@ const form = ref({
   confirmPassword: '',
   phone: '',
 })
+
+const forgotEmail = ref('')
+const isSending = ref(false)
+
+const resetForm = ref({
+  email: '',
+  otp: '',
+  password: '',
+  password_confirmation: ''
+})
+
 const openForgotPassword = () => {
   openLogin.value = false
   showForgotPassword.value = true
@@ -728,70 +740,66 @@ const openForgotPassword = () => {
   showOtp.value = false
 }
 
-// google login
 function loginWithGoogle() {
-  const width = 500;
-  const height = 600;
-  const left = window.screen.width / 2 - width / 2;
-  const top = window.screen.height / 2 - height / 2;
-
+  const width = 500
+  const height = 600
+  const left = window.screen.width / 2 - width / 2
+  const top = window.screen.height / 2 - height / 2
   const googleAuthUrl = `${api}/auth/google/redirect`;
   const expectedOrigin = 'http://localhost:8000';
+ 
   const popup = window.open(
     googleAuthUrl,
     'Google Login',
     `width=${width},height=${height},top=${top},left=${left}`
-  );
+  )
 
-  // Hàm xử lý nhận thông báo từ popup
   const messageHandler = async (event) => {
     if (event.origin !== expectedOrigin) {
-      console.warn('Invalid origin:', event.origin);
-      return;
+      console.warn('Invalid origin:', event.origin)
+      return
     }
 
-    console.log('Received message from:', event.origin, event.data);
+    console.log('Received message from:', event.origin, event.data)
 
     if (event.data?.token) {
-      localStorage.setItem('access_token', event.data.token);
+      localStorage.setItem('access_token', event.data.token)
 
       try {
         const res = await fetch(`${api}/me`, {
           headers: {
             Authorization: `Bearer ${event.data.token}`,
           },
-        });
+        })
 
-        const data = await res.json();
+        const data = await res.json()
 
         if (res.ok && data.data) {
-          window.dispatchEvent(new CustomEvent('loginSuccess', { detail: data.data }));
-          toast('success', 'Đăng nhập Google thành công!');
-          showModal.value = false;
-          fetchUserProfile();
-          updateLoginState();
+          window.dispatchEvent(new CustomEvent('loginSuccess', { detail: data.data }))
+          toast('success', 'Đăng nhập Google thành công!') // Sử dụng toast từ useToast
+          showModal.value = false
+          fetchUserProfile()
+          updateLoginState()
         } else {
-          throw new Error(data.message || 'Không lấy được thông tin tài khoản!');
+          throw new Error(data.message || 'Không lấy được thông tin tài khoản!')
         }
       } catch (error) {
-        console.error('Login verification failed:', error);
-        toast('error', 'Xác thực đăng nhập thất bại.');
-        localStorage.removeItem('access_token');
+        console.error('Login verification failed:', error)
+        toast('error', 'Xác thực đăng nhập thất bại.') // Sử dụng toast từ useToast
+        localStorage.removeItem('access_token')
       } finally {
-        popup?.close();
-        window.removeEventListener('message', messageHandler);
+        popup?.close()
+        window.removeEventListener('message', messageHandler)
       }
+    } else if (event.data?.error) {
+      toast('error', event.data.error) // Sử dụng toast từ useToast
+      popup?.close()
+      window.removeEventListener('message', messageHandler)
     }
-    else if (event.data?.error) {
-      toast('error', event.data.error);
-      popup?.close();
-      window.removeEventListener('message', messageHandler);
-    }
-  };
+  }
 
-  window.addEventListener('message', messageHandler, { once: true });
+  window.addEventListener('message', messageHandler, { once: true })
 }
-
 
 const cancelOtp = () => {
   showOtp.value = false
@@ -805,24 +813,6 @@ const cancelOtp = () => {
     confirmPassword: '',
     phone: '',
   }
-}
-const toast = (icon, title) => {
-  Swal.fire({
-    toast: true,
-    position: 'top-end',
-    icon,
-    title,
-    width: '350px',
-    padding: '10px 20px',
-    customClass: { popup: 'text-sm rounded-md shadow-md' },
-    showConfirmButton: false,
-    timer: 1500,
-    timerProgressBar: true,
-    didOpen: (toastEl) => {
-      toastEl.addEventListener('mouseenter', () => Swal.stopTimer())
-      toastEl.addEventListener('mouseleave', () => Swal.resumeTimer())
-    }
-  })
 }
 
 const openLogin = () => {
@@ -859,7 +849,7 @@ const submitForm = async () => {
       localStorage.setItem('access_token', res.data.token)
       await fetchUserProfile()
       updateLoginState()
-      toast('success', 'Đăng nhập thành công!')
+      toast('success', 'Đăng nhập thành công!') // Sử dụng toast từ useToast
       closeModal()
     } else {
       const res = await axios.post(`${api}/register`, {
@@ -873,7 +863,7 @@ const submitForm = async () => {
       tempUserId.value = res.data.user_id
       showOtp.value = true
       startResendCountdown()
-      toast('success', 'Đăng ký thành công. Kiểm tra email để lấy mã OTP.')
+      toast('success', 'Đăng ký thành công. Kiểm tra email để lấy mã OTP.') // Sử dụng toast từ useToast
     }
   } catch (err) {
     if (
@@ -883,13 +873,13 @@ const submitForm = async () => {
     ) {
       verificationEmail.value = form.value.email
       verificationPending.value = true
-      toast('warning', 'Tài khoản chưa được xác minh, vui lòng xác minh trước khi đăng nhập')
+      toast('warning', 'Tài khoản chưa được xác minh, vui lòng xác minh trước khi đăng nhập') // Sử dụng toast từ useToast
       showVerifyEmailForm.value = true
     } else {
       const msg = err.response?.data?.errors
         ? Object.values(err.response.data.errors)[0][0]
         : err.response?.data?.message || 'Đã xảy ra lỗi.'
-      toast('error', msg)
+      toast('error', msg) // Sử dụng toast từ useToast
     }
   } finally {
     isSubmitting.value = false
@@ -900,7 +890,7 @@ const verifyOtp = async () => {
   isVerifying.value = true
   try {
     if (!/^[0-9]{6}$/.test(otp.value)) {
-      toast('warning', 'Mã OTP phải gồm 6 chữ số.')
+      toast('warning', 'Mã OTP phải gồm 6 chữ số.') // Sử dụng toast từ useToast
       return
     }
 
@@ -909,11 +899,11 @@ const verifyOtp = async () => {
       otp: otp.value,
     })
 
-    toast('success', 'Xác minh thành công! Bạn có thể đăng nhập.')
+    toast('success', 'Xác minh thành công! Bạn có thể đăng nhập.') // Sử dụng toast từ useToast
     showOtp.value = false
     isLogin.value = true
   } catch (err) {
-    toast('error', err.response?.data?.message || 'Mã OTP không hợp lệ hoặc đã hết hạn.')
+    toast('error', err.response?.data?.message || 'Mã OTP không hợp lệ hoặc đã hết hạn.') // Sử dụng toast từ useToast
   } finally {
     isVerifying.value = false
   }
@@ -932,9 +922,9 @@ const sendVerificationRequest = async () => {
     showOtp.value = true
     showVerifyEmailForm.value = false
     startResendCountdown()
-    toast('success', 'Mã xác minh đã được gửi. Vui lòng kiểm tra email!')
+    toast('success', 'Mã xác minh đã được gửi. Vui lòng kiểm tra email!') // Sử dụng toast từ useToast
   } catch (err) {
-    toast('error', err.response?.data?.message || 'Không thể gửi mã xác minh.')
+    toast('error', err.response?.data?.message || 'Không thể gửi mã xác minh.') // Sử dụng toast từ useToast
   } finally {
     isSubmitting.value = false
   }
@@ -951,7 +941,7 @@ const startResendCountdown = () => {
 
 const resendVerificationEmail = async () => {
   if (!verificationEmail.value) {
-    toast('warning', 'Không tìm thấy email xác minh trước đó.')
+    toast('warning', 'Không tìm thấy email xác minh trước đó.') // Sử dụng toast từ useToast
     return
   }
 
@@ -959,10 +949,10 @@ const resendVerificationEmail = async () => {
     await axios.post(`${api}/resend-otp-by-email`, {
       email: verificationEmail.value,
     })
-    toast('success', 'Email xác minh đã được gửi lại!')
+    toast('success', 'Email xác minh đã được gửi lại!') // Sử dụng toast từ useToast
     startResendCountdown()
   } catch (err) {
-    toast('error', err.response?.data?.message || 'Không thể gửi lại email.')
+    toast('error', err.response?.data?.message || 'Không thể gửi lại email.') // Sử dụng toast từ useToast
   }
 }
 
@@ -970,7 +960,7 @@ const logout = async () => {
   try {
     const token = localStorage.getItem('access_token')
     if (!token) {
-      toast('warning', 'Bạn chưa đăng nhập.')
+      toast('warning', 'Bạn chưa đăng nhập.') // Sử dụng toast từ useToast
       return
     }
     await axios.post(`${api}/logout`, {}, {
@@ -978,18 +968,13 @@ const logout = async () => {
     })
     localStorage.removeItem('access_token')
     updateLoginState()
-    toast('success', 'Đăng xuất thành công!')
+    toast('success', 'Đăng xuất thành công!') // Sử dụng toast từ useToast
   } catch (err) {
-  toast(
-    'error',
-    err?.response?.data?.message || 'Không thể đăng xuất.'
-  )
-  // Có thể log trace chi tiết cho dev:
-  if (err?.response?.data?.trace) {
-    console.error('Trace:', err.response.data.trace)
+    toast('error', err.response?.data?.message || 'Không thể đăng xuất.') // Sử dụng toast từ useToast
+    if (err?.response?.data?.trace) {
+      console.error('Trace:', err.response.data.trace)
+    }
   }
-}
-
 }
 
 const fetchUserProfile = async () => {
@@ -1018,49 +1003,35 @@ const updateLoginState = async () => {
   await fetchUserProfile()
 }
 
-const forgotEmail = ref('')
-const isSending = ref(false)
-
-const resetForm = ref({
-  email: '',
-  otp: '',
-  password: '',
-  password_confirmation: ''
-})
-
- 
-
 const sendForgotEmail = async () => {
   isSending.value = true
   try {
     const res = await axios.post(`${api}/send-forgot-password`, { email: forgotEmail.value })
 
-    toast('success', 'Email đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra hộp thư đến của bạn.')
-
+    toast('success', 'Email đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra hộp thư đến của bạn.') // Sử dụng toast từ useToast
     resetForm.value.email = forgotEmail.value
     showOtp.value = false
     showVerifyEmailForm.value = false
     isLogin.value = false
-    isResetMode.value = true        
-    isForgotMode.value = false     
+    isResetMode.value = true
+    isForgotMode.value = false
   } catch (err) {
-    toast('error', err.response?.data?.message || 'Không thể gửi email đặt lại mật khẩu.')
+    toast('error', err.response?.data?.message || 'Không thể gửi email đặt lại mật khẩu.') // Sử dụng toast từ useToast
   } finally {
     isSending.value = false
   }
 }
 
-
 const submitResetPassword = async () => {
   isResetting.value = true
   try {
     await axios.post(`${api}/reset-password`, resetForm.value)
-    toast('success', 'Mật khẩu đã được đặt lại thành công!')
+    toast('success', 'Mật khẩu đã được đặt lại thành công!') // Sử dụng toast từ useToast
     showResetPassword.value = false
     isResetMode.value = false
     isLogin.value = true
   } catch (err) {
-toast ('error', err.response?.data?.message || 'Không thể đặt lại mật khẩu.') 
+    toast('error', err.response?.data?.message || 'Không thể đặt lại mật khẩu.') // Sử dụng toast từ useToast
   } finally {
     isResetting.value = false
   }
@@ -1071,22 +1042,17 @@ onMounted(() => {
   window.addEventListener('storage', (e) => {
     if (e.key === 'access_token') updateLoginState()
   })
-  
-  // Add event listener for openLoginModal
+
   window.addEventListener('openLoginModal', () => {
-    openLogin();
-  });
+    openLogin()
+  })
 })
 
 onUnmounted(() => {
-  // Remove event listener when component is unmounted
   window.removeEventListener('openLoginModal', () => {
-    openLogin();
-  });
-});
-
-const isMobileMenuOpen = ref(false)
-const showVerifyEmailForm = ref(false)
+    openLogin()
+  })
+})
 </script>
 
 
