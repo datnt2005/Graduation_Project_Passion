@@ -450,6 +450,7 @@ async function handleSubmit() {
 
     alert(response.data.message || 'Đăng ký thành công!');
     resetFormData();
+    router.push('/seller/SellerRegisterSuccess');
   } catch (error) {
     const res = error.response;
     Object.assign(errors, res?.data?.errors || {});
