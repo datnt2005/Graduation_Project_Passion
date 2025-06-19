@@ -1,4 +1,4 @@
-    import Swal from 'sweetalert2'
+import Swal from 'sweetalert2'
 
 export function useToast() {
   const toast = (icon, title) => {

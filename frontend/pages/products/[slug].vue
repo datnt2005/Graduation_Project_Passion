@@ -159,22 +159,34 @@ const selectedVariant = computed(() => {
         thumbnail: null
     };
 
-    if (!variants.value?.length) {
+    if (!variants.value.length) {
+        return defaultVariant;
+    }
+
+    // If no attributes, select the first variant with stock > 0
+    if (!variantAttributes.value.length) {
+        const variant = variants.value.find(v => v.stock > 0) || variants.value[0];
+        if (variant) {
+            return {
+                id: variant.id || null,
+                price: String(variant.price || '0.00'),
+                sale_price: String(variant.sale_price === 'null' ? null : variant.sale_price || null),
+                original_price: String(variant.original_price || variant.price || '0.00'),
+                discount_percent: Number(variant.discount_percent || 0),
+                stock: Number(variant.stock || 0),
+                thumbnail: variant.thumbnail || null
+            };
+        }
         return defaultVariant;
     }
 
     const selectedKeys = Object.keys(selectedOptions.value);
-    if (!selectedKeys.length) {
-        return defaultVariant;
-    }
-
     if (selectedKeys.length === variantAttributes.value.length) {
-        const variant = variants.value.find(variant =>
-            variant.attributes.every(attr =>
+        const variant = variants.value.find(v =>
+            v.attributes.every(attr =>
                 selectedOptions.value[attr.attribute_name] === attr.value
             )
         );
-
         if (variant) {
             return {
                 id: variant.id || null,
@@ -283,7 +295,12 @@ function selectOption(attrName, value) {
         validationMessage.value = (`Tùy chọn hiện không khả dụng hoặc đã hết hàng.`);
     }
 }
-
+function selectDefaultVariant(variant) {
+    if (variant?.id) {
+        selectedOptions.value = {}; // Clear any existing selections
+        validationMessage.value = '';
+    }
+}
 function increaseQuantity() {
     if (selectedVariant.value?.stock && quantity.value < selectedVariant.value.stock) {
         quantity.value++;

@@ -1,8 +1,8 @@
 <template>
-  <section class="mb-8">
+  <section class="mb-8 text-gray-700 text-sm bg-[#FFFFFF] p-4 rounded-2">
     <h2 class="text-xl font-semibold mb-3">Mô tả chi tiết</h2>
     
-    <div class="text-base text-gray-700 mb-4 leading-relaxed"
+    <div class="text-base text-gray-700 mb-4 leading-relaxed break-words break-all"
          v-html="displayedHtml"
          :class="{ 'line-clamp-2 overflow-hidden': !isExpanded }">
     </div>

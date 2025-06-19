@@ -85,15 +85,15 @@ class ProductController extends Controller
             'categories.*' => 'exists:categories,id',
             'tags' => 'nullable|array',
             'tags.*' => 'exists:tags,id',
-            'variants' => 'required|array|min:1',
-            'variants.*.price' => 'required|numeric|min:0',
+            'variants' => 'nullable|array',
+            'variants.*.price' => 'required_with:variants|numeric|min:0',
             'variants.*.sale_price' => 'nullable|numeric|min:0',
-            'variants.*.cost_price' => 'required|numeric|min:0',
-            'variants.*.attributes' => 'required|array|min:1',
-            'variants.*.attributes.*.attribute_id' => 'required|exists:attributes,id',
-            'variants.*.attributes.*.value_id' => 'required|exists:attribute_values,id',
-            'variants.*.inventory' => 'required|array|min:1',
-            'variants.*.inventory.*.quantity' => 'required|integer|min:0',
+            'variants.*.cost_price' => 'required_with:variants|numeric|min:0',
+            'variants.*.attributes' => 'nullable|array',
+            'variants.*.attributes.*.attribute_id' => 'required_with:variants.*.attributes|exists:attributes,id',
+            'variants.*.attributes.*.value_id' => 'required_with:variants.*.attributes|exists:attribute_values,id',
+            'variants.*.inventory' => 'nullable|array',
+            'variants.*.inventory.*.quantity' => 'required_with:variants.*.inventory|integer|min:0',
             'variants.*.inventory.*.location' => 'nullable|string|max:255',
             'variants.*.thumbnail' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:4048',
             'images' => 'nullable|array',
@@ -107,23 +107,19 @@ class ProductController extends Controller
             'categories.*.exists' => 'Danh mục không hợp lệ.',
             'tags.array' => 'Thẻ phải là một mảng.',
             'tags.*.exists' => 'Thẻ không hợp lệ.',
-            'variants.required' => 'Phải có ít nhất một biến thể.',
-            'variants.min' => 'Phải có ít nhất một biến thể.',
-            'variants.*.price.required' => 'Giá sản phẩm là bắt buộc.',
+            'variants.*.price.required_with' => 'Giá sản phẩm là bắt buộc khi có biến thể.',
             'variants.*.price.numeric' => 'Giá phải là số.',
             'variants.*.price.min' => 'Giá không được nhỏ hơn 0.',
             'variants.*.sale_price.numeric' => 'Giá khuyến mãi phải là số.',
             'variants.*.sale_price.min' => 'Giá khuyến mãi không được nhỏ hơn 0.',
-            'variants.*.cost_price.required' => 'Giá vốn là bắt buộc.',
+            'variants.*.cost_price.required_with' => 'Giá vốn là bắt buộc khi có biến thể.',
             'variants.*.cost_price.numeric' => 'Giá vốn phải là số.',
             'variants.*.cost_price.min' => 'Giá vốn không được nhỏ hơn 0.',
-            'variants.*.attributes.required' => 'Thuộc tính biến thể là bắt buộc.',
-            'variants.*.attributes.*.attribute_id.required' => 'ID thuộc tính là bắt buộc.',
+            'variants.*.attributes.*.attribute_id.required_with' => 'ID thuộc tính là bắt buộc khi có thuộc tính.',
             'variants.*.attributes.*.attribute_id.exists' => 'Thuộc tính không hợp lệ.',
-            'variants.*.attributes.*.value_id.required' => 'ID giá trị thuộc tính là bắt buộc.',
+            'variants.*.attributes.*.value_id.required_with' => 'ID giá trị thuộc tính là bắt buộc khi có thuộc tính.',
             'variants.*.attributes.*.value_id.exists' => 'Giá trị thuộc tính không hợp lệ.',
-            'variants.*.inventory.required' => 'Phải có ít nhất một bản ghi kho.',
-            'variants.*.inventory.*.quantity.required' => 'Số lượng kho là bắt buộc.',
+            'variants.*.inventory.*.quantity.required_with' => 'Số lượng kho là bắt buộc khi có kho.',
             'variants.*.inventory.*.quantity.integer' => 'Số lượng kho phải là số nguyên.',
             'variants.*.inventory.*.quantity.min' => 'Số lượng kho không được nhỏ hơn 0.',
             'variants.*.inventory.*.location.max' => 'Vị trí kho không được vượt quá 255 ký tự.',
@@ -144,26 +140,40 @@ class ProductController extends Controller
             ], 422);
         }
 
-        // Kiểm tra thuộc tính trùng nhau
-        $attributeSets = collect($request->variants)->map(function ($variant, $index) {
-            return [
-                'index' => $index,
-                'attributes' => collect($variant['attributes'])->sortBy('attribute_id')->map(function ($attr) {
-                    return $attr['attribute_id'] . ':' . $attr['value_id'];
-                })->implode(',')
-            ];
-        });
+        // Kiểm tra thuộc tính trùng nhau nếu có biến thể và thuộc tính
+        if ($request->has('variants') && !empty($request->variants)) {
+            $attributeSets = collect($request->variants)->map(function ($variant, $index) {
+                // Chỉ xử lý nếu attributes tồn tại và không rỗng
+                if (!empty($variant['attributes'])) {
+                    // Lọc bỏ các đối tượng attributes rỗng
+                    $validAttributes = collect($variant['attributes'])->filter(function ($attr) {
+                        return !empty($attr['attribute_id']) && !empty($attr['value_id']);
+                    });
+                    if ($validAttributes->isNotEmpty()) {
+                        return [
+                            'index' => $index,
+                            'attributes' => $validAttributes->sortBy('attribute_id')->map(function ($attr) {
+                                return $attr['attribute_id'] . ':' . $attr['value_id'];
+                            })->implode(',')
+                        ];
+                    }
+                }
+                return ['index' => $index, 'attributes' => ''];
+            });
 
-        $duplicates = $attributeSets->groupBy('attributes')->filter(function ($group) {
-            return $group->count() > 1;
-        });
+            $duplicates = $attributeSets->filter(function ($set) {
+                return !empty($set['attributes']); // Chỉ kiểm tra các biến thể có thuộc tính
+            })->groupBy('attributes')->filter(function ($group) {
+                return $group->count() > 1;
+            });
 
-        if ($duplicates->isNotEmpty()) {
-            $duplicateIndices = $duplicates->flatten(1)->pluck('index')->implode(', ');
-            return response()->json([
-                'success' => false,
-                'message' => "Các biến thể tại vị trí $duplicateIndices có thuộc tính trùng nhau.",
-            ], 422);
+            if ($duplicates->isNotEmpty()) {
+                $duplicateIndices = $duplicates->flatten(1)->pluck('index')->implode(', ');
+                return response()->json([
+                    'success' => false,
+                    'message' => "Các biến thể tại vị trí $duplicateIndices có thuộc tính trùng nhau.",
+                ], 422);
+            }
         }
 
         DB::beginTransaction();
@@ -178,7 +188,7 @@ class ProductController extends Controller
             }
 
             $product = Product::create([
-                'seller_id' =>  1,
+                'seller_id' => 1,
                 'name' => $request->name,
                 'slug' => $slug,
                 'description' => $request->description,
@@ -200,49 +210,61 @@ class ProductController extends Controller
                 }
             }
 
-            foreach ($request->variants as $index => $variant) {
-                $sku = $this->generateSKU($request->name, $request->categories[0] ?? null, $variant['attributes'], $product->id);
+            // Xử lý biến thể nếu có
+            if ($request->has('variants') && !empty($request->variants)) {
+                foreach ($request->variants as $index => $variant) {
+                    $sku = $this->generateSKU($request->name, $request->categories[0] ?? null, $variant['attributes'] ?? [], $product->id);
 
-                // Xử lý single thumbnail
-                $thumbnailPath = null;
-                if ($request->hasFile("variants.$index.thumbnail")) {
-                    $thumbnailPath = $request->file("variants.$index.thumbnail")->store('products/variants/thumbnails', 'r2');
-                }
-
-                // Tính tổng số lượng từ tất cả kho
-                $totalQuantity = collect($variant['inventory'])->sum('quantity');
-
-                $productVariant = $product->productVariants()->create([
-                    'sku' => $sku,
-                    'price' => $variant['price'],
-                    'sale_price' => $variant['sale_price'] ?? null,
-                    'cost_price' => $variant['cost_price'],
-                    'quantity' => $totalQuantity,
-                    'thumbnail' => $thumbnailPath,
-                ]);
-
-                // Tạo inventory hàng loạt
-                $inventoryData = collect($variant['inventory'])->map(function ($inventory) use ($productVariant) {
-                    return [
-                        'product_variant_id' => $productVariant->id,
-                        'quantity' => $inventory['quantity'],
-                        'location' => $inventory['location'] ?? null,
-                        'last_updated' => now(),
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ];
-                })->toArray();
-
-                Inventory::insert($inventoryData);
-
-                // Gán attributes
-                $attributes = collect($variant['attributes'])->mapWithKeys(function ($attribute) {
-                    if (!Attribute::find($attribute['attribute_id']) || !AttributeValue::find($attribute['value_id'])) {
-                        throw new \Exception('Invalid attribute_id or value_id');
+                    // Xử lý single thumbnail
+                    $thumbnailPath = null;
+                    if ($request->hasFile("variants.$index.thumbnail")) {
+                        $thumbnailPath = $request->file("variants.$index.thumbnail")->store('products/variants/thumbnails', 'r2');
                     }
-                    return [$attribute['attribute_id'] => ['value_id' => $attribute['value_id']]];
-                })->toArray();
-                $productVariant->attributes()->attach($attributes);
+
+                    // Tính tổng số lượng từ tất cả kho, mặc định là 0 nếu không có kho
+                    $totalQuantity = collect($variant['inventory'] ?? [])->sum('quantity');
+
+                    $productVariant = $product->productVariants()->create([
+                        'sku' => $sku,
+                        'price' => $variant['price'],
+                        'sale_price' => $variant['sale_price'] ?? null,
+                        'cost_price' => $variant['cost_price'],
+                        'quantity' => $totalQuantity,
+                        'thumbnail' => $thumbnailPath,
+                    ]);
+
+                    // Xử lý inventory nếu có
+                    if (!empty($variant['inventory'])) {
+                        $inventoryData = collect($variant['inventory'])->map(function ($inventory) use ($productVariant) {
+                            return [
+                                'product_variant_id' => $productVariant->id,
+                                'quantity' => $inventory['quantity'],
+                                'location' => $inventory['location'] ?? null,
+                                'last_updated' => now(),
+                                'created_at' => now(),
+                                'updated_at' => now(),
+                            ];
+                        })->toArray();
+
+                        Inventory::insert($inventoryData);
+                    }
+
+                    // Xử lý attributes nếu có
+                    if (!empty($variant['attributes'])) {
+                        $validAttributes = collect($variant['attributes'])->filter(function ($attr) {
+                            return !empty($attr['attribute_id']) && !empty($attr['value_id']);
+                        });
+                        if ($validAttributes->isNotEmpty()) {
+                            $attributes = $validAttributes->mapWithKeys(function ($attribute) {
+                                if (!Attribute::find($attribute['attribute_id']) || !AttributeValue::find($attribute['value_id'])) {
+                                    throw new \Exception('Invalid attribute_id or value_id');
+                                }
+                                return [$attribute['attribute_id'] => ['value_id' => $attribute['value_id']]];
+                            })->toArray();
+                            $productVariant->attributes()->attach($attributes);
+                        }
+                    }
+                }
             }
 
             DB::commit();
@@ -288,22 +310,22 @@ class ProductController extends Controller
             'categories.*' => 'exists:categories,id',
             'tags' => 'nullable|array',
             'tags.*' => 'exists:tags,id',
-            'variants' => 'required|array|min:1',
+            'variants' => 'nullable|array', // Removed min:1 to make variants optional
             'variants.*.id' => 'nullable|exists:product_variants,id',
-            'variants.*.price' => 'required|numeric|min:0',
+            'variants.*.price' => 'nullable|numeric|min:0', // Required only if variant exists
             'variants.*.sale_price' => 'nullable|numeric|min:0',
-            'variants.*.cost_price' => 'required|numeric|min:0',
-            'variants.*.attributes' => 'required|array|min:1',
-            'variants.*.attributes.*.attribute_id' => 'required|exists:attributes,id',
-            'variants.*.attributes.*.value_id' => 'required|exists:attribute_values,id',
-            'variants.*.inventory' => 'required|array|min:1',
-            'variants.*.inventory.*.quantity' => 'required|integer|min:0',
+            'variants.*.cost_price' => 'nullable|numeric|min:0', // Required only if variant exists
+            'variants.*.attributes' => 'nullable|array', // Removed min:1 to make attributes optional
+            'variants.*.attributes.*.attribute_id' => 'nullable|exists:attributes,id', // Optional
+            'variants.*.attributes.*.value_id' => 'nullable|exists:attribute_values,id', // Optional
+            'variants.*.inventory' => 'nullable|array', // Removed min:1 to make inventory optional
+            'variants.*.inventory.*.quantity' => 'nullable|integer|min:0', // Required only if inventory exists
             'variants.*.inventory.*.location' => 'nullable|string|max:255',
             'variants.*.thumbnail' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:4048',
             'images' => 'nullable|array',
             'images.*' => 'image|mimes:jpeg,png,jpg,gif,svg,webp|max:4048',
             'removed_images' => 'nullable|array',
-            'removed_images.*' => 'integer|exists:product_pics,id,product_id,' . $id, // Restrict to product
+            'removed_images.*' => 'integer|exists:product_pics,id,product_id,' . $id,
         ], [
             'name.required' => 'Tên sản phẩm là bắt buộc.',
             'name.max' => 'Tên sản phẩm không được vượt quá 255 ký tự.',
@@ -314,24 +336,14 @@ class ProductController extends Controller
             'categories.*.exists' => 'Danh mục không hợp lệ.',
             'tags.array' => 'Thẻ phải là một mảng.',
             'tags.*.exists' => 'Thẻ không hợp lệ.',
-            'variants.required' => 'Phải có ít nhất một biến thể.',
-            'variants.min' => 'Phải có ít nhất một biến thể.',
-            'variants.*.id.exists' => 'ID biến thể không hợp lệ.',
-            'variants.*.price.required' => 'Giá sản phẩm là bắt buộc.',
             'variants.*.price.numeric' => 'Giá phải là số.',
             'variants.*.price.min' => 'Giá không được nhỏ hơn 0.',
             'variants.*.sale_price.numeric' => 'Giá khuyến mãi phải là số.',
             'variants.*.sale_price.min' => 'Giá khuyến mãi không được nhỏ hơn 0.',
-            'variants.*.cost_price.required' => 'Giá vốn là bắt buộc.',
             'variants.*.cost_price.numeric' => 'Giá vốn phải là số.',
             'variants.*.cost_price.min' => 'Giá vốn không được nhỏ hơn 0.',
-            'variants.*.attributes.required' => 'Thuộc tính biến thể là bắt buộc.',
-            'variants.*.attributes.*.attribute_id.required' => 'ID thuộc tính là bắt buộc.',
             'variants.*.attributes.*.attribute_id.exists' => 'Thuộc tính không hợp lệ.',
-            'variants.*.attributes.*.value_id.required' => 'ID giá trị thuộc tính là bắt buộc.',
             'variants.*.attributes.*.value_id.exists' => 'Giá trị thuộc tính không hợp lệ.',
-            'variants.*.inventory.required' => 'Phải có ít nhất một bản ghi kho.',
-            'variants.*.inventory.*.quantity.required' => 'Số lượng kho là bắt buộc.',
             'variants.*.inventory.*.quantity.integer' => 'Số lượng kho phải là số nguyên.',
             'variants.*.inventory.*.quantity.min' => 'Số lượng kho không được nhỏ hơn 0.',
             'variants.*.inventory.*.location.max' => 'Vị trí kho không được vượt quá 255 ký tự.',
@@ -354,27 +366,39 @@ class ProductController extends Controller
             ], 422);
         }
 
+        // Check for duplicate attributes only for variants with attributes
+        if ($request->has('variants')) {
+            $attributeSets = collect($request->variants)
+                ->filter(function ($variant) {
+                    return !empty($variant['attributes']);
+                })
+                ->map(function ($variant, $index) {
+                    return [
+                        'index' => $index,
+                        'attributes' => collect($variant['attributes'])
+                            ->filter(function ($attr) {
+                                return !empty($attr['attribute_id']) && !empty($attr['value_id']);
+                            })
+                            ->sortBy('attribute_id')
+                            ->map(function ($attr) {
+                                return $attr['attribute_id'] . ':' . $attr['value_id'];
+                            })->implode(',')
+                    ];
+                });
 
-        // Kiểm tra thuộc tính trùng nhau
-        $attributeSets = collect($request->variants)->map(function ($variant, $index) {
-            return [
-                'index' => $index,
-                'attributes' => collect($variant['attributes'])->sortBy('attribute_id')->map(function ($attr) {
-                    return $attr['attribute_id'] . ':' . $attr['value_id'];
-                })->implode(',')
-            ];
-        });
+            $duplicates = $attributeSets->groupBy('attributes')->filter(function ($group) {
+                return $group->count() > 1;
+            });
 
-        $duplicates = $attributeSets->groupBy('attributes')->filter(function ($group) {
-            return $group->count() > 1;
-        });
-
-        if ($duplicates->isNotEmpty()) {
-            $duplicateIndices = $duplicates->flatten(1)->pluck('index')->implode(', ');
-            return response()->json([
-                'success' => false,
-                'message' => "Các biến thể tại vị trí $duplicateIndices có thuộc tính trùng nhau.",
-            ], 422);
+            if ($duplicates->isNotEmpty()) {
+                $duplicateIndices = $duplicates->flatten(1)->pluck('index')->map(function ($index) {
+                    return $index + 1; // Adjust for 1-based indexing in error message
+                })->implode(', ');
+                return response()->json([
+                    'success' => false,
+                    'message' => "Các biến thể tại vị trí $duplicateIndices có thuộc tính trùng nhau.",
+                ], 422);
+            }
         }
 
         DB::beginTransaction();
@@ -388,14 +412,13 @@ class ProductController extends Controller
                 'status' => $request->status ?? 'active',
             ]);
 
-            // Sync categories if provided, otherwise sync empty array
+            // Sync categories
             $product->categories()->sync($request->categories ?? []);
 
-            if ($request->has('tags')) {
-                $product->tags()->sync($request->tags ?? []);
-            }
+            // Sync tags
+            $product->tags()->sync($request->tags ?? []);
 
-            // Xóa hình ảnh cũ nếu có
+            // Remove old images
             if ($request->has('removed_images')) {
                 foreach ($request->removed_images as $imageId) {
                     $image = ProductPic::where('id', $imageId)->where('product_id', $id)->first();
@@ -406,7 +429,7 @@ class ProductController extends Controller
                 }
             }
 
-            // Thêm hình ảnh sản phẩm mới
+            // Add new product images
             if ($request->hasFile('images')) {
                 foreach ($request->file('images') as $image) {
                     $path = $image->store('products/images', 'r2');
@@ -414,38 +437,46 @@ class ProductController extends Controller
                 }
             }
 
-            // Xử lý variants
-            $variantIdsFromRequest = collect($request->variants)->pluck('id')->filter()->all();
-            $product->productVariants()->whereNotIn('id', $variantIdsFromRequest)->delete();
+            // Handle variants
+            if ($request->has('variants')) {
+                $variantIdsFromRequest = collect($request->variants)->pluck('id')->filter()->all();
+                $product->productVariants()->whereNotIn('id', $variantIdsFromRequest)->delete();
 
-            foreach ($request->variants as $index => $variant) {
-                $sku = $this->generateSKU($request->name, $request->categories[0] ?? null, $variant['attributes'], $product->id);
+                foreach ($request->variants as $index => $variant) {
+                    // Skip invalid variants
+                    if (!isset($variant['price']) || !isset($variant['cost_price'])) {
+                        continue;
+                    }
 
-                // Xử lý single thumbnail
-                $thumbnailPath = null;
-                if ($request->hasFile("variants.$index.thumbnail")) {
-                    // Xóa thumbnail cũ nếu có
-                    if (isset($variant['id'])) {
-                        $existingVariant = $product->productVariants()->find($variant['id']);
-                        if ($existingVariant && $existingVariant->thumbnail) {
-                            Storage::disk('r2')->delete($existingVariant->thumbnail);
+                    $sku = $this->generateSKU(
+                        $request->name,
+                        $request->categories[0] ?? null,
+                        $variant['attributes'] ?? [],
+                        $product->id
+                    );
+
+                    // Handle thumbnail
+                    $thumbnailPath = null;
+                    if ($request->hasFile("variants.$index.thumbnail")) {
+                        if (isset($variant['id'])) {
+                            $existingVariant = $product->productVariants()->find($variant['id']);
+                            if ($existingVariant && $existingVariant->thumbnail) {
+                                Storage::disk('r2')->delete($existingVariant->thumbnail);
+                            }
+                        }
+                        $thumbnailPath = $request->file("variants.$index.thumbnail")->store('products/variants/thumbnails', 'r2');
+                    } else {
+                        if (isset($variant['id'])) {
+                            $existingVariant = $product->productVariants()->find($variant['id']);
+                            $thumbnailPath = $existingVariant ? $existingVariant->thumbnail : null;
                         }
                     }
-                    $thumbnailPath = $request->file("variants.$index.thumbnail")->store('products/variants/thumbnails', 'r2');
-                } else {
-                    // Nếu không có thumbnail mới, giữ nguyên thumbnail cũ nếu có
-                    if (isset($variant['id'])) {
-                        $existingVariant = $product->productVariants()->find($variant['id']);
-                        $thumbnailPath = $existingVariant ? $existingVariant->thumbnail : null;
-                    }
-                }
 
-                // Tính tổng số lượng từ inventory
-                $totalQuantity = collect($variant['inventory'])->sum('quantity');
+                    // Calculate total quantity
+                    $totalQuantity = collect($variant['inventory'] ?? [])->sum('quantity');
 
-                // Cập nhật hoặc tạo biến thể
-                if (isset($variant['id']) && $existingVariant = $product->productVariants()->find($variant['id'])) {
-                    $updateData = [
+                    // Update or create variant
+                    $variantData = [
                         'sku' => $sku,
                         'price' => $variant['price'],
                         'sale_price' => $variant['sale_price'] ?? null,
@@ -453,46 +484,62 @@ class ProductController extends Controller
                         'quantity' => $totalQuantity,
                     ];
                     if ($thumbnailPath) {
-                        $updateData['thumbnail'] = $thumbnailPath;
+                        $variantData['thumbnail'] = $thumbnailPath;
                     }
-                    $existingVariant->update($updateData);
-                    $productVariant = $existingVariant;
-                } else {
-                    $productVariant = $product->productVariants()->create([
-                        'sku' => $sku,
-                        'price' => $variant['price'],
-                        'sale_price' => $variant['sale_price'] ?? null,
-                        'cost_price' => $variant['cost_price'],
-                        'quantity' => $totalQuantity,
-                        'thumbnail' => $thumbnailPath,
-                    ]);
+
+                    if (isset($variant['id']) && $existingVariant = $product->productVariants()->find($variant['id'])) {
+                        $existingVariant->update($variantData);
+                        $productVariant = $existingVariant;
+                    } else {
+                        $productVariant = $product->productVariants()->create($variantData);
+                    }
+
+                    // Handle inventory
+                    if (!empty($variant['inventory'])) {
+                        $productVariant->inventories()->delete();
+                        $inventoryData = collect($variant['inventory'])
+                            ->filter(function ($inventory) {
+                                return isset($inventory['quantity']) && $inventory['quantity'] >= 0;
+                            })
+                            ->map(function ($inventory) use ($productVariant) {
+                                return [
+                                    'product_variant_id' => $productVariant->id,
+                                    'quantity' => $inventory['quantity'],
+                                    'location' => $inventory['location'] ?? null,
+                                    'last_updated' => now(),
+                                    'created_at' => now(),
+                                    'updated_at' => now(),
+                                ];
+                            })->toArray();
+
+                        if (!empty($inventoryData)) {
+                            Inventory::insert($inventoryData);
+                        }
+                    }
+
+                    // Handle attributes
+                    $productVariant->attributes()->detach();
+                    if (!empty($variant['attributes'])) {
+                        $attributes = collect($variant['attributes'])
+                            ->filter(function ($attribute) {
+                                return !empty($attribute['attribute_id']) && !empty($attribute['value_id']);
+                            })
+                            ->mapWithKeys(function ($attribute) {
+                                if (!Attribute::find($attribute['attribute_id']) || !AttributeValue::find($attribute['value_id'])) {
+                                    throw new \Exception('Invalid attribute_id or value_id');
+                                }
+                                return [$attribute['attribute_id'] => ['value_id' => $attribute['value_id']]];
+                            })->toArray();
+                        if (!empty($attributes)) {
+                            $productVariant->attributes()->attach($attributes);
+                        }
+                    }
                 }
-
-                // Xóa inventory cũ và thêm inventory mới
-                $productVariant->inventories()->delete();
-                $inventoryData = collect($variant['inventory'])->map(function ($inventory) use ($productVariant) {
-                    return [
-                        'product_variant_id' => $productVariant->id,
-                        'quantity' => $inventory['quantity'],
-                        'location' => $inventory['location'] ?? null,
-                        'last_updated' => now(),
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ];
-                })->toArray();
-
-                Inventory::insert($inventoryData);
-
-                // Xóa attributes cũ và gán attributes mới
-                $productVariant->attributes()->detach();
-                $attributes = collect($variant['attributes'])->mapWithKeys(function ($attribute) {
-                    if (!Attribute::find($attribute['attribute_id']) || !AttributeValue::find($attribute['value_id'])) {
-                        throw new \Exception('Invalid attribute_id or value_id');
-                    }
-                    return [$attribute['attribute_id'] => ['value_id' => $attribute['value_id']]];
-                })->toArray();
-                $productVariant->attributes()->attach($attributes);
+            } else {
+                // If no variants provided, delete all existing variants
+                $product->productVariants()->delete();
             }
+
             DB::commit();
             $this->clearProductCache();
 
@@ -510,7 +557,6 @@ class ProductController extends Controller
             ], 500);
         }
     }
-
 
     public function destroy($id)
     {
@@ -964,5 +1010,155 @@ class ProductController extends Controller
                 'error' => env('APP_DEBUG', false) ? $e->getMessage() : null
             ], 500);
         }
+    }
+
+public function getProductBySlugCategory(Request $request, $slug)
+{
+    try {
+        $page       = (int) $request->get('page', 1);
+        $search     = trim($request->get('search', ''));
+        $perPage    = (int) $request->get('per_page', 12);
+        $priceMin   = $request->get('price_min', 0);
+        $priceMax   = $request->get('price_max', 100000000);
+        $brand      = $request->get('brands', null); // frontend gửi `brands`
+        $sort       = $request->get('sort', null);
+        $priceOrder = $request->get('price_order', ''); // frontend gửi `price_order`
+
+        // 1. Lấy danh mục theo slug
+        $parentCategory = Category::where('slug', $slug)->first();
+        if (!$parentCategory) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không tìm thấy danh mục với slug: ' . $slug
+            ], 404);
+        }
+
+        // 2. Lấy ID danh mục con
+        $categoryIds = $this->getAllCategoryChildrenIds($parentCategory);
+        $categoryIds[] = $parentCategory->id;
+
+        // 3. Cache key
+        $brandKey = is_array($brand) ? implode(',', $brand) : $brand;
+        $keyHash = md5(json_encode([$search, $priceMin, $priceMax, $brandKey, $sort, $priceOrder]));
+        $cacheKey = "products_by_slug_{$slug}_page_{$page}_{$perPage}_{$keyHash}";
+        $ttl = 3600;
+
+        $products = Cache::store('redis')->tags(['products'])->remember($cacheKey, $ttl, function () use (
+            $search, $perPage, $categoryIds, $priceMin, $priceMax, $brand, $sort, $priceOrder
+        ) {
+            $query = Product::with([
+                'categories',
+                'productPic',
+                'productVariants.inventories',
+                'productVariants.orderItems',
+                'reviews',
+                'tags',
+                'seller'
+            ])
+                ->where('status', 'active')
+                ->whereHas('categories', fn($q) => $q->whereIn('categories.id', $categoryIds));
+
+            // Tìm kiếm
+            if ($search) {
+                $query->where('name', 'like', '%' . $search . '%');
+            }
+
+            // Lọc giá
+            if ($priceMin !== null && $priceMax !== null) {
+                $query->whereHas('productVariants', fn($q) =>
+                    $q->where(function ($q2) use ($priceMin, $priceMax) {
+                        $q2->whereBetween('price', [$priceMin, $priceMax])
+                           ->orWhereBetween('sale_price', [$priceMin, $priceMax]);
+                    })
+                );
+            }
+
+            // Lọc thương hiệu
+            if ($brand) {
+                $brands = is_array($brand) ? $brand : explode(',', $brand);
+                $query->whereHas('seller', fn($q) => $q->whereIn('store_name', $brands));
+            }
+
+            // Sắp xếp theo giá
+            if ($priceOrder === 'asc' || $priceOrder === 'desc') {
+                $query->orderByRaw('(SELECT MIN(COALESCE(sale_price, price)) FROM product_variants WHERE product_variants.product_id = products.id) ' . $priceOrder);
+            }
+
+            // Sắp xếp đặc biệt
+            switch ($sort) {
+                case 'newest':
+                    $query->orderBy('created_at', 'desc');
+                    break;
+                case 'popular':
+                    $query->withCount('reviews')->orderBy('reviews_count', 'desc');
+                    break;
+                case 'bestseller':
+                    // Không dùng `get()` giữa query
+                    $query->with(['productVariants.orderItems']);
+                    break;
+                default:
+                    $query->orderBy('created_at', 'desc');
+                    break;
+            }
+
+            return $query->paginate($perPage);
+        });
+
+        // 4. Format lại dữ liệu sản phẩm
+        $formatted = collect($products->items())->map(function ($product) {
+            $variant = $product->productVariants->first();
+            $price = $variant?->price ?? 0;
+            $discount = $variant?->sale_price ?? null;
+            $finalPrice = $discount ?? $price;
+
+            $sold = $variant?->orderItems->sum('quantity') ?? 0;
+            $rating = round($product->reviews->avg('rating') ?? 0);
+            $percent = ($discount && $price > 0)
+                ? round((($price - $discount) / $price) * 100)
+                : 0;
+
+            return [
+                'id'         => $product->id,
+                'name'       => $product->name,
+                'slug'       => $product->slug,
+                'image'      => $product->productPic->first()->imagePath ?? $variant?->thumbnail ?? '/default.jpg',
+                'price'      => number_format($finalPrice, 0, '.', ''),
+                'discount'   => $discount ? number_format($price, 0, '.', '') : null,
+                'rating'     => str_repeat('★', $rating) . str_repeat('☆', 5 - $rating),
+                'sold'       => $sold,
+                'brand'      => $product->seller->store_name ?? 'N/A',
+                'percent'    => $percent,
+                'categories' => $product->categories->pluck('name')->implode(', '),
+                'tags'       => $product->tags->pluck('name')->implode(', '),
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Lấy danh sách sản phẩm thành công.',
+            'data'    => [
+                'products'     => $formatted,
+                'total'        => $products->total(),
+                'current_page' => $products->currentPage(),
+                'last_page'    => $products->lastPage(),
+            ]
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Đã xảy ra lỗi khi lấy danh sách sản phẩm.',
+            'error'   => env('APP_DEBUG') ? $e->getMessage() : null
+        ], 500);
+    }
+}
+
+    protected function getAllCategoryChildrenIds($category)
+    {
+        $ids = [];
+        foreach ($category->children as $child) {
+            $ids[] = $child->id;
+            $ids = array_merge($ids, $this->getAllCategoryChildrenIds($child));
+        }
+        return $ids;
     }
 }

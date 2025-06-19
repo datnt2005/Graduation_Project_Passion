@@ -17,53 +17,7 @@
 
     <!-- Danh sách sản phẩm -->
     <div v-else-if="filteredProducts.length > 0" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-      <div
-        v-for="(item, index) in filteredProducts"
-        :key="item.id"
-        class="relative overflow-hidden p-2 bg-white rounded shadow transition transform hover:scale-[1.03] hover:-translate-y-1 hover:shadow-lg duration-300 text-left"
-      >
-        <nuxt-link :to="`/products/${item.slug}`" class="block group">
-          <!-- Discount badge -->
-          <div
-            v-if="item.percent && item.percent > 0"
-            class="absolute top-0 right-0 bg-red-100 text-red-500 text-xs font-semibold px-2 py-1 rounded z-10"
-          >
-            -{{ item.percent }}%
-          </div>
-
-          <!-- Hình ảnh sản phẩm -->
-          <img
-            :src="item.image"
-            :alt="item.name"
-            class="w-full h-40 object-cover rounded group-hover:brightness-95 transition duration-300"
-            loading="lazy"
-          />
-
-          <!-- Tên sản phẩm -->
-          <p
-            class="text-sm mt-2 font-medium text-gray-700 line-clamp-2"
-            :title="item.name"
-          >
-            {{ item.name }}
-          </p>
-
-          <!-- Giá -->
-          <div class="text-red-500 font-semibold mt-1">
-            {{ formatPrice(item.price) }}<sup>₫</sup>
-          </div>
-
-          <!-- Giá gạch ngang nếu có giảm -->
-          <div v-if="item.discount" class="line-through text-gray-400 text-sm">
-            {{ formatPrice(item.discount) }}<sup>₫</sup>
-          </div>
-
-          <!-- Đánh giá & đã bán -->
-          <div class="flex items-center text-[12px] text-gray-400 space-x-2 mt-1">
-            <div class="text-yellow-400">{{ item.rating }}</div>
-            <div>| {{ item.sold.toLocaleString() }} đã bán</div>
-          </div>
-        </nuxt-link>
-      </div>
+      <ProductCard v-for="(item, index) in filteredProducts" :key="item.id" :item="item" />
     </div>
 
     <!-- Trạng thái không có sản phẩm -->
@@ -76,6 +30,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import Filters from '~/components/shared/Filters.vue';
+import ProductCard from '~/components/shared/products/ProductCard.vue';
 import { useSearchStore } from '~/stores/search';
 
 // Runtime config for API and media base URLs
@@ -150,11 +105,6 @@ const handleBrandFilter = (filterData) => {
   filters.value.brand = filterData.brand || [];
 };
 
-// Format price with thousand separators
-const formatPrice = (price) => {
-  return price ? price.toLocaleString('vi-VN') : '0';
-};
-
 // Fetch products on component mount
 onMounted(() => {
   fetchProducts();
@@ -162,11 +112,5 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* Limit product name to 2 lines */
-.line-clamp-2 {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
+/* No additional styles needed here as they are in ProductCard */
 </style>
