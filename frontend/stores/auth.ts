@@ -1,3 +1,4 @@
+// stores/auth.js
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import axios from 'axios'
@@ -11,18 +12,23 @@ export const useAuthStore = defineStore('auth', () => {
     if (!token) {
       isLoggedIn.value = false
       currentUser.value = null
-      delete axios.defaults.headers.common['Authorization']
       return
     }
 
-    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
     try {
-      const res = await axios.get('http://localhost:8000/api/me')
+      const res = await axios.get('http://localhost:8000/api/me', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
       currentUser.value = res.data.data
       isLoggedIn.value = true
-    } catch {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+    } catch (err) {
       isLoggedIn.value = false
       currentUser.value = null
+      localStorage.removeItem('access_token')
+      delete axios.defaults.headers.common['Authorization']
     }
   }
 
@@ -33,5 +39,10 @@ export const useAuthStore = defineStore('auth', () => {
     currentUser.value = null
   }
 
-  return { currentUser, isLoggedIn, fetchUser, logout }
+  return {
+    currentUser,
+    isLoggedIn,
+    fetchUser,
+    logout,
+  }
 })
