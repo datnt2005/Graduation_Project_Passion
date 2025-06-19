@@ -14,7 +14,6 @@
             Chỉnh sửa hồ sơ
           </button>
         </div>
-
         <!-- Render toàn bộ nếu đã có seller -->
         <template v-if="seller">
           <!-- Body -->
@@ -56,6 +55,38 @@
                 <label class="font-medium">CMND/CCCD / Mã số thuế:</label>
                 <p>{{ seller.identity_card_number }}</p>
               </div>
+            <div class="mt-4">
+              <label class="font-medium">Ảnh CCCD (2 mặt):</label>
+              <div class="flex gap-6 mt-2"> <!-- Dùng flex ở đây để 2 ảnh nằm ngang -->
+                <!-- Mặt trước -->
+                <div class="flex flex-col items-start">
+                  <p class="text-sm text-gray-500 mb-1">Mặt trước:</p>
+                  <img
+                    v-if="getCccdImage(seller, 'front')"
+                    :src="getCccdImage(seller, 'front')"
+                    alt="CCCD Mặt trước"
+                    class="w-48 rounded border shadow cursor-pointer"
+                    @click="openImagePreview(getCccdImage(seller, 'front'))"
+                  />
+                  <p v-else class="text-gray-400 text-sm">Không có ảnh mặt trước</p>
+                </div>
+
+                <!-- Mặt sau -->
+                <div class="flex flex-col items-start">
+                  <p class="text-sm text-gray-500 mb-1">Mặt sau:</p>
+                  <img
+                    v-if="getCccdImage(seller, 'back')"
+                    :src="getCccdImage(seller, 'back')"
+                    alt="CCCD Mặt sau"
+                    class="w-48 rounded border shadow cursor-pointer"
+                    @click="openImagePreview(getCccdImage(seller, 'back'))"
+                  />
+                  <p v-else class="text-gray-400 text-sm">Không có ảnh mặt sau</p>
+                </div>
+              </div>
+            </div>
+
+
             </div>
           </div>
 
@@ -70,7 +101,6 @@
               <p>{{ seller.website || '—' }}</p>
             </div>
           </div>
-
           <!-- Business Seller Info -->
           <div
             v-if="seller.seller_type === 'business' && seller.business"
@@ -91,15 +121,15 @@
             </div>
           <div>
             <label class="font-medium">Giấy phép kinh doanh:</label>
-            <img
-              v-if="seller.business.business_license"
-              :src="getFileUrl(seller.business.business_license)"
-              alt="Giấy phép kinh doanh"
-              class="mt-2 rounded border max-w-xs shadow"
-            />
+         <img
+            v-if="getDocumentImage(seller, 'business')"
+            :src="mediaBase + getDocumentImage(seller, 'business')"
+            alt="Giấy phép kinh doanh"
+            class="mt-2  max-w-xs w-full h-auto rounded border shadow cursor-pointer"
+            @click="openImagePreview(mediaBase + getDocumentImage(seller, 'business'))"
+          />
             <p v-else class="text-gray-400">Chưa có giấy phép</p>
           </div>
-
             <div>
               <label class="font-medium">Người đại diện:</label>
               <p>{{ seller.business.representative_name }}</p>
@@ -110,21 +140,29 @@
             </div>
           </div>
         </template>
-
         <div v-else class="text-center text-gray-400 py-10">Đang tải hồ sơ người bán...</div>
       </div>
     </div>
+    <!-- Modal ảnh to -->
+  <div
+    v-if="previewImage"
+    class="fixed inset-0 bg-black/70 flex items-center justify-center z-50"
+    @click="closeImagePreview"
+  >
+    <img :src="previewImage" @click.stop />
+  </div>
+
   </template>
-
-
-
 
 <script setup>
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
+import Swal from 'sweetalert2'
 const seller = ref(null);
 const config = useRuntimeConfig();
 const API = config.public.apiBaseUrl;
+const mediaBase = (config.public.mediaBaseUrl || 'http://localhost:8000').replace(/\/?$/, '/');
+
 
 onMounted(async () => {
   try {
@@ -148,16 +186,57 @@ onMounted(async () => {
   }
 });
 
+const toast = (icon, title) => {
+  Swal.fire({
+    toast: true,  
+    position: 'top-end',
+    icon,
+    title,
+    width: '350px',
+    padding: '10px 20px',
+    customClass: { popup: 'text-sm rounded-md shadow-md' },
+    showConfirmButton: false,
+    timer: 1500,
+    timerProgressBar: true,
+    didOpen: (toastEl) => {
+      toastEl.addEventListener('mouseenter', () => Swal.stopTimer());
+      toastEl.addEventListener('mouseleave', () => Swal.resumeTimer());
+    }
+  });
+};
 
+const previewImage = ref(null);
 
-function getFileUrl(path) {
-  if (!path) return '';
-  return `${API}/${path}`;
-}
+const openImagePreview = (imgUrl) => {
+  previewImage.value = imgUrl;
+};
 
+const closeImagePreview = () => {
+  previewImage.value = null;
+};
 
+const getDocumentImage = (seller, type) => {
+  if (type === 'business' && seller?.business?.business_license) {
+    return seller.business.business_license;
+  }
+  if (type === 'personal' && seller?.document) {
+    return seller.document;
+  }
+  return ''; // hoặc return null nếu bạn đã kiểm tra v-if kỹ
+};
 
+const getCccdImage = (seller, side) => {
+  if (side === 'front' && seller?.cccd_front) {
+    return mediaBase + seller.cccd_front;
+  }
+  if (side === 'back' && seller?.cccd_back) {
+    return mediaBase + seller.cccd_back;
+  }
+  return null;
+};
 
+console.log("Image path:", getDocumentImage(seller, 'business'));
+console.log("Full URL:", mediaBase + getDocumentImage(seller, 'business'));
 
 const statusLabel = {
   pending: 'Đang chờ xác minh',
@@ -184,7 +263,7 @@ function getAvatarUrl(avatar) {
 
 function editProfile() {
   // Điều hướng đến form chỉnh sửa
-  alert('Đi đến chỉnh sửa hồ sơ.')
+  toast('success', 'Đi đến chỉnh sửa hồ sơ.')
   navigateTo(`/seller/seller_profile_edit`)
 }
 

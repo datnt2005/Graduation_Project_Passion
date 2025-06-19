@@ -29,6 +29,30 @@
           <label class="block font-medium mb-1">CMND/CCCD / Mã số thuế</label>
           <input v-model="form.identity_card_number" type="text" class="input" />
         </div>
+
+      <!-- CCCD mặt trước -->
+      <div class="sm:col-span-1">
+        <label class="block font-medium mb-1">Ảnh CCCD mặt trước</label>
+        <input type="file" @change="(e) => handleFileUpload(e, 'cccd_front')" class="input" />
+        <img
+          v-if="form.cccd_front_preview"
+          :src="form.cccd_front_preview"
+          class="mt-2 max-w-xs border rounded"
+          alt="CCCD mặt trước"
+        />
+      </div>
+
+      <!-- CCCD mặt sau -->
+      <div class="sm:col-span-1">
+        <label class="block font-medium mb-1">Ảnh CCCD mặt sau</label>
+        <input type="file" @change="(e) => handleFileUpload(e, 'cccd_back')" class="input" />
+        <img
+          v-if="form.cccd_back_preview"
+          :src="form.cccd_back_preview"
+          class="mt-2 max-w-xs border rounded"
+          alt="CCCD mặt sau"
+        />
+      </div>
       </div>
 
       <!-- Nếu là doanh nghiệp -->
@@ -80,10 +104,13 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
+import Swal from 'sweetalert2'
 const router = useRouter();
 
 const config = useRuntimeConfig();
 const API = config.public.apiBaseUrl;
+const mediaBase = (config.public.mediaBaseUrl || 'http://localhost:8000/storage/').replace(/\/?$/, '/');
+
 const token = localStorage.getItem('access_token');
 
 const form = ref({
@@ -94,6 +121,10 @@ const form = ref({
   date_of_birth: '',
   personal_address: '',
   identity_card_number: '',
+  cccd_front: '',
+  cccd_back: '',
+  cccd_front_preview: '',
+  cccd_back_preview: '',
   business: {
     company_name: '',
     tax_code: '',
@@ -105,34 +136,92 @@ const form = ref({
   }
 });
 
+const toast = (icon, title) => {
+  Swal.fire({
+    toast: true,
+    position: 'top-end',
+    icon,
+    title,
+    width: '350px',
+    padding: '10px 20px',
+    customClass: { popup: 'text-sm rounded-md shadow-md' },
+    showConfirmButton: false,
+    timer: 1500,
+    timerProgressBar: true,
+    didOpen: (toastEl) => {
+      toastEl.addEventListener('mouseenter', () => Swal.stopTimer());
+      toastEl.addEventListener('mouseleave', () => Swal.resumeTimer());
+    }
+  });
+};
+
 // lấy dữ liệu seller hiệu tạo 
 onMounted(async () => {
-  const response = await axios.get(`${API}/sellers/seller/me`, {
+  const { data } = await axios.get(`${API}/sellers/seller/me`, {
     headers: { Authorization: `Bearer ${token}` }
   });
-  form.value = { ...response.data.seller };
-  form.value.business = response.data.seller.business || {};
-  form.value.business.business_license_preview = getFileUrl(form.value.business.business_license);
+
+  //  console.log('✅ Seller:', data.seller); // 👈 thêm dòng này
+  // console.log('✅ Front path:', data.seller.cccd_front);
+  // console.log('✅ Back path:', data.seller.cccd_back);
+
+
+  form.value = { ...data.seller };
+  form.value.business = data.seller.business || {};
+
+  form.value.cccd_front_preview = data.seller.cccd_front
+    ? getFileUrl(data.seller.cccd_front)
+    : '';
+  form.value.cccd_back_preview = data.seller.cccd_back
+    ? getFileUrl(data.seller.cccd_back)
+    : '';
+  form.value.cccd_front = null;
+  form.value.cccd_back = null;
+
+  form.value.business.business_license_preview = data.seller.business?.business_license
+    ? getFileUrl(data.seller.business.business_license)
+    : '';
 });
 
+
+
+
 function getFileUrl(path) {
-  return `${API}/storage/${path}`;
+  return `${mediaBase}${path}`;
 }
 
-function handleFileUpload(event) {
+
+function handleFileUpload(event, field) {
   const file = event.target.files[0];
-  form.value.business.business_license = file;
-  form.value.business.business_license_preview = URL.createObjectURL(file);
-}
+  if (!file) return;
 
+  const previewURL = URL.createObjectURL(file);
+  if (field === 'cccd_front') {
+    form.value.cccd_front = file;
+    form.value.cccd_front_preview = previewURL;
+  } else if (field === 'cccd_back') {
+    form.value.cccd_back = file;
+    form.value.cccd_back_preview = previewURL;
+  } else if (field === 'business_license') {
+    form.value.business.business_license = file;
+    form.value.business.business_license_preview = previewURL;
+  }
+}
 
 // Lưu thay đổi 
 async function submitForm() {
   const payload = new FormData();
+
   for (const key in form.value) {
-    if (key !== 'business') {
-      payload.append(key, form.value[key]);
-    }
+    if (['business', 'cccd_front_preview', 'cccd_back_preview'].includes(key)) continue;
+    payload.append(key, form.value[key]);
+  }
+
+  if (form.value.cccd_front instanceof File) {
+    payload.append('cccd_front', form.value.cccd_front);
+  }
+  if (form.value.cccd_back instanceof File) {
+    payload.append('cccd_back', form.value.cccd_back);
   }
 
   if (form.value.business) {
@@ -150,11 +239,9 @@ async function submitForm() {
     }
   });
 
-  alert('Hồ sơ đã được cập nhật.');
-  // điều hướng tới trang /seller/seller_profile 
+  toast('success', 'Hồ sơ đã được cập nhật!');
   router.push('/seller/seller_profile');
- 
-};
+}
 
 
 definePageMeta({

@@ -11,7 +11,7 @@ class Seller extends Model
     protected $fillable = [
         'user_id', 'store_name', 'store_slug', 'seller_type', 'bio',
         'identity_card_number', 'date_of_birth', 'personal_address',
-        'phone_number', 'document', 'verification_status',
+        'phone_number', 'document', 'verification_status','cccd_front', 'cccd_back',
     ];
 
     public function user()
