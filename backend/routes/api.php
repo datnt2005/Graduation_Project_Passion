@@ -17,6 +17,7 @@ use App\Http\Controllers\PaymentMethodController;
 use App\Http\Controllers\DiscountController;
 use App\Http\Controllers\GoogleAuthController;
 use App\Http\Controllers\ChatbotController;
+use App\Http\Controllers\DashboardController;
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Redis;
@@ -253,4 +254,14 @@ Route::prefix('cart')->group(function () {
     Route::delete('/redis/{cartId}', [CartController::class, 'clearRedisCart']);
     Route::post('/redis/{cartId}/merge', [CartController::class, 'mergeRedisCart'])->middleware('auth:sanctum');
 });
+
+// Dashboard stats
+Route::prefix('dashboard')->group(function () {
+    Route::get('/stats', [DashboardController::class, 'stats']);
+    Route::get('/stats-list', [DashboardController::class, 'statsList']);
+    Route::get('/revenue-chart', [DashboardController::class, 'revenueChart']);
+    Route::get('/revenue-profit-chart', [DashboardController::class, 'revenueProfitChart']);
+});
+
+Route::get('inventory/list', [App\Http\Controllers\InventoryController::class, 'list']);
 

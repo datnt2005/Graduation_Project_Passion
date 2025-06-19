@@ -627,4 +627,34 @@ class OrderController extends Controller
             ], 400);
         }
     }
+
+    /**
+     * Thống kê dashboard cho admin
+     */
+    public function dashboardStats()
+    {
+        // Tổng người dùng
+        $totalUsers = \App\Models\User::count();
+        // Tổng đơn hàng
+        $totalOrders = \App\Models\Order::count();
+        // Tổng kênh bán hàng (giả sử là tổng số seller)
+        $totalSellers = \App\Models\User::where('role', 'seller')->count();
+        // Doanh thu từ người bán (tổng final_price các đơn hàng của seller, trạng thái delivered)
+        $sellerRevenue = \App\Models\Order::whereHas('user', function($q){
+            $q->where('role', 'seller');
+        })->where('status', 'delivered')->sum('final_price');
+        // Tổng doanh thu (tổng final_price các đơn hàng trạng thái delivered)
+        $totalRevenue = \App\Models\Order::where('status', 'delivered')->sum('final_price');
+        // Tổng thu thập (giả sử là tổng discount_price các đơn hàng delivered)
+        $totalDiscount = \App\Models\Order::where('status', 'delivered')->sum('discount_price');
+
+        return response()->json([
+            'total_users' => $totalUsers,
+            'total_orders' => $totalOrders,
+            'total_sellers' => $totalSellers,
+            'seller_revenue' => $sellerRevenue,
+            'total_revenue' => $totalRevenue,
+            'total_discount' => $totalDiscount,
+        ]);
+    }
 }
