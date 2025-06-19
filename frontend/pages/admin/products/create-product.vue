@@ -603,7 +603,6 @@ const fetchCategories = async () => {
     }
   } catch (error) {
     console.error('Error fetching categories:', error);
-    apiErrors.categories = 'Không thể tải danh mục. Vui lòng kiểm tra kết nối hoặc API.';
   }
 };
 
@@ -628,7 +627,6 @@ const fetchTags = async () => {
     }
   } catch (error) {
     console.error('Error fetching tags:', error);
-    apiErrors.tags = 'Không thể tải thẻ. Vui lòng kiểm tra kết nối hoặc API.';
   }
 };
 
@@ -900,13 +898,13 @@ const validateFormData = () => {
     isValid = false;
   }
 
-  if (!formData.variants.length) {
-    errors.variants = 'Phải có ít nhất một biến thể.';
-    isValid = false;
-  }
+  // if (!formData.variants.length) {
+  //   errors.variants = 'Phải có ít nhất một biến thể.';
+  //   isValid = false;
+  // }
 
   formData.variants.forEach((variant, index) => {
-    if (!Number.isFinite(variant.price) || variant.price <= 0) {
+    if (!Number.isFinite(variant.price) || variant.price < 0) {
       errors[`variants.${index}.price`] = 'Giá gốc phải là số dương.';
       isValid = false;
     }
@@ -929,14 +927,14 @@ const validateFormData = () => {
       isValid = false;
     }
 
-    if (!variant.attributes.length || variant.attributes.some(attr => !attr.attribute_id || !attr.value_id)) {
-      errors[`variants.${index}.attributes`] = 'Phải có ít nhất một thuộc tính hợp lệ.';
-      isValid = false;
-    }
-    if (!variant.inventory.length || variant.inventory.some(inv => !inv.location || !Number.isFinite(inv.quantity) || inv.quantity < 0)) {
-      errors[`variants.${index}.inventory`] = 'Phải có ít nhất một kho hàng hợp lệ với số lượng dương.';
-      isValid = false;
-    }
+    // if (!variant.attributes.length || variant.attributes.some(attr => !attr.attribute_id || !attr.value_id)) {
+    //   errors[`variants.${index}.attributes`] = 'Phải có ít nhất một thuộc tính hợp lệ.';
+    //   isValid = false;
+    // }
+    // if (!variant.inventory.length || variant.inventory.some(inv => !inv.location || !Number.isFinite(inv.quantity) || inv.quantity < 0)) {
+    //   errors[`variants.${index}.inventory`] = 'Phải có ít nhất một kho hàng hợp lệ với số lượng dương.';
+    //   isValid = false;
+    // }
   });
   const attributeSets = formData.variants.map((variant, index) => ({
     index: index,
@@ -983,33 +981,51 @@ const createProduct = async () => {
     formDataToSend.append('tags[]', tagId);
   });
 
-  formData.variants.forEach((variant, index) => {
+  // Only include variants with valid data
+  const validVariants = formData.variants.filter(variant =>
+    variant.price !== null && Number.isFinite(variant.price) && variant.cost_price !== null && Number.isFinite(variant.cost_price)
+  );
+
+  validVariants.forEach((variant, index) => {
     formDataToSend.append(`variants[${index}][price]`, variant.price.toFixed(2));
-    if (variant.sale_price !== null) {
+    if (variant.sale_price !== null && Number.isFinite(variant.sale_price)) {
       formDataToSend.append(`variants[${index}][sale_price]`, variant.sale_price.toFixed(2));
     }
     formDataToSend.append(`variants[${index}][cost_price]`, variant.cost_price.toFixed(2));
-    variant.attributes.forEach((attr, i) => {
-      formDataToSend.append(`variants[${index}][attributes][${i}][attribute_id]`, attr.attribute_id);
-      formDataToSend.append(`variants[${index}][attributes][${i}][value_id]`, attr.value_id);
-    });
-    variant.inventory.forEach((inv, i) => {
+
+    // Only include valid attributes
+    const validAttributes = variant.attributes.filter(attr => attr.attribute_id && attr.value_id);
+    if (validAttributes.length > 0) {
+      validAttributes.forEach((attr, i) => {
+        formDataToSend.append(`variants[${index}][attributes][${i}][attribute_id]`, attr.attribute_id);
+        formDataToSend.append(`variants[${index}][attributes][${i}][value_id]`, attr.value_id);
+      });
+    }
+
+    // Only include valid inventory
+    const validInventory = variant.inventory.filter(inv => Number.isFinite(inv.quantity) && inv.quantity >= 0);
+    validInventory.forEach((inv, i) => {
       formDataToSend.append(`variants[${index}][inventory][${i}][quantity]`, inv.quantity);
-      if (inv.location.trim()) {
-        formDataToSend.append(`inv[${index}][inventory][${i}][location]`, inv.location.trim());
+      if (inv.location && inv.location.trim()) {
+        formDataToSend.append(`variants[${index}][inventory][${i}][location]`, inv.location.trim());
       }
     });
+
     if (variant.thumbnailFile) {
       formDataToSend.append(`variants[${index}][thumbnail]`, variant.thumbnailFile);
     }
   });
+
   formData.images.forEach((img, index) => {
     formDataToSend.append(`images[${index}]`, img.file);
   });
 
   try {
     loading.value = true;
-    console.log('Sending product creation request...');
+    console.log('Sending product creation request with payload:');
+    for (let [key, value] of formDataToSend.entries()) {
+      console.log(`${key}: ${value instanceof File ? value.name : value}`);
+    }
     const response = await fetch(`${apiBase}/products`, {
       method: 'POST',
       body: formDataToSend,
@@ -1036,7 +1052,6 @@ const createProduct = async () => {
     loading.value = false;
   }
 };
-
 // Panel toggle
 const togglePanel = (panel) => {
   panels.value[panel] = !panels.value[panel];

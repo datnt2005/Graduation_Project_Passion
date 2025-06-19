@@ -32,12 +32,14 @@ use App\Http\Controllers\AdminSellerController;
 // Category
 Route::prefix('categories')->group(function () {
     Route::get('/', [CategoryController::class, 'index']);
+    Route::get('/parents', [CategoryController::class, 'showAllCategoryParent']);
     Route::get('/{id}', [CategoryController::class, 'show']);
     Route::get('/{id}/children', [CategoryController::class, 'children']);
     Route::get('/{id}/parents', [CategoryController::class, 'parents']);
     Route::post('/', [CategoryController::class, 'store']);
     Route::put('/{id}', [CategoryController::class, 'update']);
     Route::delete('/{id}', [CategoryController::class, 'destroy']);
+    Route::get('/tree/{slug}', [CategoryController::class, 'getCategoryChildrenByParent']);
 });
 
 
@@ -73,6 +75,7 @@ Route::prefix('products')->group(function () {
     Route::delete('/{id}', [ProductController::class, 'destroy']);
     Route::get('/slug/{slug}', [ProductController::class, 'showBySlug']);
     Route::post('/change-status/{id}', [ProductController::class, 'changeStatus']);
+    Route::get('/category/{slug}', [ProductController::class, 'getProductBySlugCategory']);
 });
 
 // Orders

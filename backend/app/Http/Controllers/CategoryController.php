@@ -343,4 +343,84 @@ class CategoryController extends Controller
             Log::error('Lỗi khi xóa cache danh mục: ' . $e->getMessage());
         }
     }
+
+    public function showAllCategoryParent()
+    {
+        try {
+            $categories = Cache::store('redis')->tags(['categories'])->remember('categories:only_parents', 3600, function () {
+                return Category::whereNull('parent_id')->get()->toArray();
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Lấy danh sách danh mục cha thành công.',
+                'categories' => $categories,
+            ], 200);
+        } catch (\Exception $e) {
+            Log::error('Lỗi khi lấy danh sách danh mục cha: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Đã xảy ra lỗi khi lấy danh sách danh mục cha.',
+                'error' => env('APP_DEBUG', false) ? $e->getMessage() : null
+            ], 500);
+        }
+    }
+
+   public function getCategoryChildrenByParent($slug)
+{
+    try {
+        $cacheKey = "category:tree_children_of:$slug";
+
+        $tree = Cache::store('redis')->tags(['categories'])->remember($cacheKey, 3600, function () use ($slug) {
+            $parent = Category::where('slug', $slug)->first();
+
+            if (!$parent) {
+                return null;
+            }
+
+            // Gọi đệ quy lấy toàn bộ cây con
+            return $this->buildCategoryTree($parent->id);
+        });
+
+        if ($tree === null) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không tìm thấy danh mục cha với slug: ' . $slug,
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Lấy danh sách danh mục con thành công.',
+            'categories' => $tree,
+        ]);
+    } catch (\Exception $e) {
+        Log::error('Lỗi khi lấy cây danh mục: ' . $e->getMessage());
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Đã xảy ra lỗi khi lấy cây danh mục.',
+            'error' => env('APP_DEBUG', false) ? $e->getMessage() : null,
+        ], 500);
+    }
+}
+
+/**
+ * Đệ quy xây dựng cây danh mục con.
+ */
+private function buildCategoryTree($parentId)
+{
+    $children = Category::where('parent_id', $parentId)->get();
+
+    return $children->map(function ($child) {
+        return [
+            'id' => $child->id,
+            'name' => $child->name,
+            'slug' => $child->slug,
+            'image' => $child->image,
+            'children' => $this->buildCategoryTree($child->id),
+        ];
+    });
+}
+
 }
