@@ -232,13 +232,14 @@ Route::apiResource('users', UserController::class);
 Route::prefix('sellers')->group(function ()
 {
     // lấy seller or business theo id
-    Route::get('/{id}', [SellerController::class, 'getSellerById']);
+    Route::middleware('auth:sanctum')->get('/seller/me', [SellerController::class, 'getMySellerInfo']);
+
     Route::get('/', [SellerController::class, 'index']);
     Route::post('/register', [SellerController::class, 'register'])->middleware('auth:sanctum');
-    Route::post('/login', [SellerController::class, 'login']);
+    // Route::post('/login', [SellerController::class, 'login']);
     Route::get('/', [SellerController::class, 'index'])->middleware('auth:sanctum');
     Route::get('/store/{slug}', [SellerController::class, 'showStore']);
-    Route::put('/update/{id}', [SellerController::class, 'update']);
+    Route::post('/update', [SellerController::class, 'update'])->middleware('auth:sanctum');
 
 });
 

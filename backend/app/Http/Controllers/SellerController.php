@@ -24,63 +24,55 @@ class SellerController extends Controller
 
 
 
-public function getSellerById($id){
-    $seller = Seller::with([
-        'business',
-        'user:id,name,email'
-    ])
-    ->where('id', $id)
+public function getMySellerInfo()
+{
+    $user = auth()->user();
+
+    // Kiểm tra user có phải seller không
+    $seller = Seller::with(['business', 'user:id,name,email'])
+    ->where('user_id', auth()->id())
     ->first();
+
+
+
+    if (!$seller) {
+        return response()->json([
+            'message' => 'Bạn không phải là người bán (seller).'
+        ], 403); // Hoặc 404 nếu muốn ẩn thông tin
+    }
 
     return response()->json([
         'seller' => $seller
     ]);
 }
-
-public function update(Request $request, $id)
+public function update(Request $request)
 {
+    $user = auth()->user();
+    $seller = Seller::where('user_id', $user->id)->firstOrFail();
 
-    $seller = Seller::findOrFail($id);
-     // Cập nhật thông tin seller
     $seller->update($request->only([
-        'store_name',
-        'store_slug',
-        'seller_type',
-        'bio',
-        'identity_card_number',
-        'date_of_birth',
-        'personal_address',
-        'phone_number',
-        'identity_card_file',
-        'document'
+        'store_name', 'store_slug', 'seller_type', 'bio',
+        'identity_card_number', 'date_of_birth',
+        'personal_address', 'phone_number'
     ]));
 
-    // Nếu seller_type là business và có business_info thì cập nhật business_seller
-    if ($request->seller_type === 'business' && $request->filled('business_info')) {
+    // Cập nhật thông tin doanh nghiệp nếu có
+    if ($request->seller_type === 'business' && $request->has('business')) {
         BusinessSeller::updateOrCreate(
             ['seller_id' => $seller->id],
-            [
-                'tax_code' => $request->business_info['tax_code'] ?? null,
-                'company_name' => $request->business_info['company_name'] ?? null,
-                'company_address' => $request->business_info['company_address'] ?? null,
-                'business_license' => $request->business_info['business_license'] ?? null,
-                'representative_name' => $request->business_info['representative_name'] ?? null,
-                'representative_phone' => $request->business_info['representative_phone'] ?? null
-            ]
+            $request->input('business')
         );
     }
 
-   $seller = Seller::with([
-    'user:id,name,email',
-    'business'
-    ])->findOrFail($id);
+    // Lấy lại seller sau khi update
+    $seller = Seller::with(['user:id,name,email', 'business'])->findOrFail($seller->id);
 
     return response()->json([
         'message' => 'Cập nhật thành công',
         'seller' => $seller
     ]);
-
 }
+
 
 
 

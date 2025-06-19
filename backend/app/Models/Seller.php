@@ -28,4 +28,5 @@ class Seller extends Model
     {
         return $this->hasMany(Product::class, 'seller_id');
     }
+
 }
