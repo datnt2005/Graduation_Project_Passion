@@ -13,14 +13,14 @@ return new class extends Migration
     {
         // Update bảng sellers
         Schema::table('sellers', function (Blueprint $table) {
-            $table->enum('seller_type', ['personal', 'business'])->default('personal')->after('store_slug');
-            $table->string('identity_card_number', 20)->nullable()->unique()->after('bio');
-            $table->date('date_of_birth')->nullable()->after('identity_card_number');
-            $table->text('personal_address')->nullable()->after('date_of_birth');
-            $table->string('phone_number', 20)->nullable()->after('personal_address');
-            $table->string('identity_card_file')->nullable()->after('phone_number');
-            $table->timestamp('verified_at')->nullable()->after('verification_status');
-            $table->softDeletes();
+            // $table->enum('seller_type', ['personal', 'business'])->default('personal')->after('store_slug');
+            // $table->string('identity_card_number', 20)->nullable()->unique()->after('bio');
+            // $table->date('date_of_birth')->nullable()->after('identity_card_number');
+            // $table->text('personal_address')->nullable()->after('date_of_birth');
+            // $table->string('phone_number', 20)->nullable()->after('personal_address');
+            // $table->string('identity_card_file')->nullable()->after('phone_number');
+            // $table->timestamp('verified_at')->nullable()->after('verification_status');
+            // $table->softDeletes();
 
             // Nếu muốn đổi tên column 'document' thành 'identity_card_file' thì bỏ comment dòng dưới
             // $table->renameColumn('document', 'identity_card_file');
@@ -28,17 +28,31 @@ return new class extends Migration
 
         // Update bảng business_sellers
         Schema::table('business_sellers', function (Blueprint $table) {
-            $table->string('representative_name')->nullable()->after('business_license');
-            $table->string('representative_phone', 20)->nullable()->after('representative_name');
-            $table->string('province', 100)->nullable()->after('company_address');
-            $table->string('district', 100)->nullable()->after('province');
-            $table->enum('status', ['active', 'inactive', 'revoked'])->default('active')->after('representative_phone');
-            $table->string('business_license_file')->nullable()->after('business_license');
-            $table->softDeletes();
+            // $table->string('representative_name')->nullable()->after('business_license');
+            // $table->string('representative_phone', 20)->nullable()->after('representative_name');
+            // $table->string('province', 100)->nullable()->after('company_address');
+            // $table->string('district', 100)->nullable()->after('province');
+            // $table->enum('status', ['active', 'inactive', 'revoked'])->default('active')->after('representative_phone');
+            // $table->string('business_license_file')->nullable()->after('business_license');
+            // $table->softDeletes();
 
             // Nếu muốn đổi tên column 'business_license' thành 'business_license_file' thì bỏ comment dòng dưới
             // $table->renameColumn('business_license', 'business_license_file');
         });
+
+        // Tạo bảng seller_followers
+    Schema::create('seller_followers', function (Blueprint $table) {
+    $table->id();
+    $table->unsignedBigInteger('user_id');
+    $table->unsignedBigInteger('seller_id');
+    $table->timestamps();
+
+    $table->unique(['user_id', 'seller_id']); // Tránh trùng lặp
+
+    $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+    $table->foreign('seller_id')->references('id')->on('sellers')->onDelete('cascade');
+});
+
     }
 
     /**
@@ -74,5 +88,8 @@ return new class extends Migration
             ]);
             // $table->renameColumn('business_license_file', 'business_license');
         });
+
+        Schema::dropIfExists('seller_followers');
+
     }
 };

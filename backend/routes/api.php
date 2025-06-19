@@ -27,6 +27,7 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\SellerController;
 use App\Http\Controllers\AdminSellerController;
+use App\Http\Controllers\SellerFollowerController;
 
 
 
@@ -158,6 +159,8 @@ Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 
 // Reviews
 
+
+
 Route::get('/reviews', [ReviewController::class, 'index']);        // ?product_id=...
 Route::post('/reviews', [ReviewController::class, 'store']);           // Gửi đánh giá
 Route::put('/reviews/{id}', [ReviewController::class, 'update']);     // Cập nhật đánh giá
@@ -211,25 +214,41 @@ Route::apiResource('users', UserController::class);
 Route::post('users/batch-delete', [UserController::class, 'batchDelete']);
 Route::post('users/batch-add-role', [UserController::class, 'batchAddRole']);
 Route::post('users/batch-remove-role', [UserController::class, 'batchRemoveRole']);
-
 Route::post('profile/update/{id}', [UserController::class, 'updateUser']);
 
 // crud user
 Route::apiResource('users', UserController::class);
 
 // api seller
- 
-Route::prefix('sellers')->group(function ()
-{
-    // lấy seller or business theo id
-    Route::get('/{id}', [SellerController::class, 'getSellerById']);
-    Route::get('/', [SellerController::class, 'index']);
-    Route::post('/register', [SellerController::class, 'register'])->middleware('auth:sanctum');
-    Route::post('/login', [SellerController::class, 'login']);
-    Route::get('/', [SellerController::class, 'index'])->middleware('auth:sanctum');
-    Route::get('/store/{slug}', [SellerController::class, 'showStore']);
-    Route::put('/update/{id}', [SellerController::class, 'update']);
 
+Route::middleware([HandleCors::class, 'api'])
+    ->prefix('sellers')
+    ->group(function () {
+        Route::get('/', [SellerController::class, 'index']);
+        Route::get('/store/{slug}', [SellerController::class, 'showStore']);
+         Route::post('/register', [SellerController::class, 'register'])
+              ->middleware('auth:sanctum');
+        Route::post('/login', [SellerController::class, 'login']);
+    });
+// Route::prefix('sellers')->group(function ()
+// {
+//     // lấy seller or business theo id
+//     Route::get('/{id}', [SellerController::class, 'getSellerById']);
+//     Route::get('/', [SellerController::class, 'index']);
+//     Route::post('/register', [SellerController::class, 'register'])->middleware('auth:sanctum');
+//     Route::post('/login', [SellerController::class, 'login']);
+//     Route::get('/', [SellerController::class, 'index'])->middleware('auth:sanctum');
+//     Route::get('/store/{slug}', [SellerController::class, 'showStore']);
+//     Route::put('/update/{id}', [SellerController::class, 'update']);
+
+// });
+
+// Seller Follower
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/sellers/{id}/follow', [SellerFollowerController::class, 'follow']);
+    Route::post('/sellers/{id}/unfollow', [SellerFollowerController::class, 'unfollow']);
+    Route::get('/my-followed-sellers', [SellerFollowerController::class, 'myFollows']);
+    Route::get('/sellers/{id}/followers', [SellerFollowerController::class, 'followersOfSeller']);
 });
 
 

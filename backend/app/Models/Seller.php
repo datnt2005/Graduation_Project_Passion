@@ -1,31 +1,41 @@
 <?php
-namespace App\Models;
+    namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+    use Illuminate\Database\Eloquent\Model;
+    use Illuminate\Database\Eloquent\Factories\HasFactory;
 
-class Seller extends Model
-{
-    use HasFactory;
-
-    protected $fillable = [
-        'user_id', 'store_name', 'store_slug', 'seller_type', 'bio',
-        'identity_card_number', 'date_of_birth', 'personal_address',
-        'phone_number', 'document', 'verification_status',
-    ];
-
-    public function user()
+    class Seller extends Model
     {
-        return $this->belongsTo(User::class);
-    }
+        use HasFactory;
 
-    public function business()
-    {
-        return $this->hasOne(BusinessSeller::class);
-    }
+        protected $fillable = [
+            'user_id', 'store_name', 'store_slug', 'seller_type', 'bio',
+            'identity_card_number', 'date_of_birth', 'personal_address',
+            'phone_number', 'document', 'verification_status',
+        ];
 
-     public function products()
-    {
-        return $this->hasMany(Product::class, 'seller_id');
+        public function user()
+        {
+            return $this->belongsTo(User::class);
+        }
+
+        public function business()
+        {
+            return $this->hasOne(BusinessSeller::class);
+        }
+
+        public function products()
+        {
+            return $this->hasMany(Product::class, 'seller_id');
+        }
+
+        public function followers()
+        {
+            return $this->belongsToMany(User::class, 'seller_followers')
+                    ->withTimestamps();
+        }
+    public function followersCount()
+        {
+            return $this->followers()->count();
+        }
     }
-}
