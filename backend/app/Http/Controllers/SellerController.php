@@ -31,17 +31,22 @@ public function getMySellerInfo()
     $user = auth()->user();
 
     // Kiểm tra user có phải seller không
-    $seller = Seller::with(['business', 'user:id,name,email'])
+    $seller = Seller::with(['business', 'user:id,name,email,avatar'])
     ->where('user_id', auth()->id())
     ->first();
-
-
 
     if (!$seller) {
         return response()->json([
             'message' => 'Bạn không phải là người bán (seller).'
         ], 403); // Hoặc 404 nếu muốn ẩn thông tin
     }
+     $avatarFile = $seller->user->avatar;
+    $avatarUrl = $avatarFile
+        ? env('R2_AVATAR_URL') . $avatarFile
+        : env('R2_AVATAR_URL') . 'default.jpg';
+
+    // Gắn vào response
+    $seller->user->avatar_url = $avatarUrl;
 
     return response()->json([
         'seller' => $seller

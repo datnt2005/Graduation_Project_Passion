@@ -21,10 +21,12 @@
             <!-- Avatar + Basic Info -->
             <div class="col-span-1 flex flex-col items-center text-center">
               <img
-                :src="getAvatarUrl(seller.avatar)"
+                :src="seller.user?.avatar_url"
                 alt="Avatar"
-                class="w-28 h-28 rounded-full object-cover border mb-4"
+                class="w-28 h-28 rounded-full object-cover border mb-4 cursor-pointer"
+                @click="openImagePreview(seller.user?.avatar_url)"
               />
+
               <h3 class="text-lg font-semibold text-gray-800">{{ seller.store_name }}</h3>
               <p class="text-sm text-gray-500 italic">{{ seller.store_slug }}</p>
               <span class="mt-2 px-3 py-1 text-xs font-medium rounded-full"
@@ -65,7 +67,7 @@
                     v-if="getCccdImage(seller, 'front')"
                     :src="getCccdImage(seller, 'front')"
                     alt="CCCD Mặt trước"
-                    class="w-48 rounded border shadow cursor-pointer"
+                   class="w-48 rounded border shadow cursor-pointer"
                     @click="openImagePreview(getCccdImage(seller, 'front'))"
                   />
                   <p v-else class="text-gray-400 text-sm">Không có ảnh mặt trước</p>
@@ -125,7 +127,7 @@
             v-if="getDocumentImage(seller, 'business')"
             :src="mediaBase + getDocumentImage(seller, 'business')"
             alt="Giấy phép kinh doanh"
-            class="mt-2  max-w-xs w-full h-auto rounded border shadow cursor-pointer"
+              class="mt-2  max-w-xs w-full h-auto rounded border shadow cursor-pointer"
             @click="openImagePreview(mediaBase + getDocumentImage(seller, 'business'))"
           />
             <p v-else class="text-gray-400">Chưa có giấy phép</p>
@@ -143,14 +145,18 @@
         <div v-else class="text-center text-gray-400 py-10">Đang tải hồ sơ người bán...</div>
       </div>
     </div>
-    <!-- Modal ảnh to -->
-  <div
-    v-if="previewImage"
-    class="fixed inset-0 bg-black/70 flex items-center justify-center z-50"
-    @click="closeImagePreview"
-  >
-    <img :src="previewImage" @click.stop />
-  </div>
+   <!-- Overlay preview ảnh to -->
+<div
+  v-if="previewImage"
+  class="fixed inset-0 z-50 bg-black bg-opacity-70 flex justify-center items-center"
+  @click.self="closeImagePreview"
+>
+  <img
+    :src="previewImage"
+    alt="Preview"
+    class="max-w-[90vw] max-h-[85vh] object-contain rounded shadow-lg border-4 border-white"
+  />
+</div>
 
   </template>
 
@@ -158,8 +164,8 @@
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
 import Swal from 'sweetalert2'
-const seller = ref(null);
 const config = useRuntimeConfig();
+const seller = ref(null);
 const API = config.public.apiBaseUrl;
 const mediaBase = (config.public.mediaBaseUrl || 'http://localhost:8000').replace(/\/?$/, '/');
 
@@ -235,18 +241,16 @@ const getCccdImage = (seller, side) => {
   return null;
 };
 
-console.log("Image path:", getDocumentImage(seller, 'business'));
-console.log("Full URL:", mediaBase + getDocumentImage(seller, 'business'));
 
 const statusLabel = {
   pending: 'Đang chờ xác minh',
-  approved: 'Đã xác minh',
+  verified: 'Đã xác minh',
   rejected: 'Bị từ chối'
 }
 
 function statusColor(status) {
   switch (status) {
-    case 'approved':
+    case 'verified':
       return 'bg-green-100 text-green-700'
     case 'pending':
       return 'bg-yellow-100 text-yellow-700'
@@ -257,10 +261,9 @@ function statusColor(status) {
   }
 }
 
-function getAvatarUrl(avatar) {
-  return avatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(seller.value.store_name)
+function getAvatarUrl(avatarUrl) {
+  return avatarUrl || mediaBase + 'avatars/default.jpg';
 }
-
 function editProfile() {
   // Điều hướng đến form chỉnh sửa
   toast('success', 'Đi đến chỉnh sửa hồ sơ.')
@@ -271,3 +274,4 @@ definePageMeta({
   layout: 'default-seller'
 })
 </script>
+
