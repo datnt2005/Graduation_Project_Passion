@@ -15,14 +15,74 @@ use Illuminate\Support\Facades\Redis;
 class SellerController extends Controller
 {
 
+  public function index(){
+     $sellers = User::whereHas('seller')
+                    ->with('seller.business')
+                    ->get();
+            return response()->json($sellers);
+  }
 
-public function index()
-    {
-        $sellers = User::whereHas('seller')
-                   ->with('seller.business')
-                   ->get();
-        return response()->json($sellers);
+
+
+public function getSellerById($id){
+    $seller = Seller::with([
+        'business',
+        'user:id,name,email'
+    ])
+    ->where('id', $id)
+    ->first();
+
+    return response()->json([
+        'seller' => $seller
+    ]);
+}
+
+public function update(Request $request, $id)
+{
+
+    $seller = Seller::findOrFail($id);
+     // Cập nhật thông tin seller
+    $seller->update($request->only([
+        'store_name',
+        'store_slug',
+        'seller_type',
+        'bio',
+        'identity_card_number',
+        'date_of_birth',
+        'personal_address',
+        'phone_number',
+        'identity_card_file',
+        'document'
+    ]));
+
+    // Nếu seller_type là business và có business_info thì cập nhật business_seller
+    if ($request->seller_type === 'business' && $request->filled('business_info')) {
+        BusinessSeller::updateOrCreate(
+            ['seller_id' => $seller->id],
+            [
+                'tax_code' => $request->business_info['tax_code'] ?? null,
+                'company_name' => $request->business_info['company_name'] ?? null,
+                'company_address' => $request->business_info['company_address'] ?? null,
+                'business_license' => $request->business_info['business_license'] ?? null,
+                'representative_name' => $request->business_info['representative_name'] ?? null,
+                'representative_phone' => $request->business_info['representative_phone'] ?? null
+            ]
+        );
     }
+
+   $seller = Seller::with([
+    'user:id,name,email',
+    'business'
+    ])->findOrFail($id);
+
+    return response()->json([
+        'message' => 'Cập nhật thành công',
+        'seller' => $seller
+    ]);
+
+}
+
+
 
    public function showStore($slug)
     {
@@ -52,7 +112,7 @@ public function index()
 
             // Validation rules
             $validator = Validator::make($request->all(), [
-                'store_name' => 'required|string|max:255',
+                'store_name' => 'required_if:seller_type,personal|string|max:255', // Chỉ yêu cầu store_name cho personal
                 'seller_type' => 'required|in:personal,business',
                 'identity_card_number' => 'required_if:seller_type,personal|string|max:20',
                 'date_of_birth' => 'required_if:seller_type,personal|date',
@@ -67,7 +127,7 @@ public function index()
                 'representative_name' => 'required_if:seller_type,business|string',
                 'representative_phone' => 'required_if:seller_type,business|string|max:20',
             ], [
-                'store_name.required' => 'Tên cửa hàng là bắt buộc.',
+                'store_name.required_if' => 'Tên cửa hàng là bắt buộc đối với cá nhân.',
                 'seller_type.required' => 'Loại người bán là bắt buộc.',
                 'seller_type.in' => 'Loại người bán phải là cá nhân hoặc doanh nghiệp.',
                 'identity_card_number.required_if' => 'Số CMND/CCCD là bắt buộc đối với cá nhân.',
@@ -89,13 +149,45 @@ public function index()
                 ], 422);
             }
 
-            // Check if user already registered a store
-            if (Seller::where('user_id', $userId)->exists()) {
+            // Kiểm tra xem người dùng đã có bản ghi Seller chưa
+            $seller = Seller::where('user_id', $userId)->first();
+
+            if ($seller) {
+                // Trường hợp nâng cấp từ personal sang business
+                if ($seller->seller_type === 'personal' && $request->seller_type === 'business' && !$seller->business) {
+                    // Thêm thông tin doanh nghiệp vào bảng business_sellers
+                    $licensePath = $request->hasFile('business_license')
+                        ? $request->file('business_license')->store('licenses', 'public')
+                        : null;
+
+                    $seller->business()->create([
+                        'tax_code' => $request->tax_code,
+                        'company_name' => $request->company_name,
+                        'company_address' => $request->company_address,
+                        'business_license' => $licensePath,
+                        'representative_name' => $request->representative_name,
+                        'representative_phone' => $request->representative_phone,
+                    ]);
+
+                    // Cập nhật seller_type thành business
+                    $seller->update([
+                        'seller_type' => 'business',
+                        'verification_status' => 'pending' // Đặt lại trạng thái để chờ xác minh
+                    ]);
+
+                    return response()->json([
+                        'message' => 'Nâng cấp thành công lên doanh nghiệp! Vui lòng chờ xác minh.',
+                        'data' => $seller->load('business')
+                    ], 200);
+                }
+
+                // Nếu không phải trường hợp nâng cấp hợp lệ, trả về lỗi
                 return response()->json([
-                    'message' => 'Tài khoản này đã đăng ký cửa hàng.'
+                    'message' => 'Tài khoản này đã đăng ký cửa hàng hoặc không thể nâng cấp.'
                 ], 409);
             }
 
+            // Trường hợp đăng ký mới
             // Generate unique store slug
             $storeSlug = Str::slug($request->store_name) . '-' . uniqid();
 
@@ -104,7 +196,7 @@ public function index()
                 ? $request->file('document')->store('documents', 'public')
                 : null;
 
-            // Create seller
+            // Tạo seller mới
             $seller = Seller::create([
                 'user_id' => $userId,
                 'store_name' => $request->store_name,
@@ -119,46 +211,20 @@ public function index()
                 'verification_status' => 'pending'
             ]);
 
-            // Create business info if seller_type is business
+            // Tạo thông tin doanh nghiệp nếu là business
             if ($request->seller_type === 'business') {
                 $licensePath = $request->hasFile('business_license')
                     ? $request->file('business_license')->store('licenses', 'public')
                     : null;
 
-                // Check if user already registered a store
-                $seller = Seller::where('user_id', $userId)->first();
-                if ($seller) {
-                    // Nếu đã có seller và chưa có business, cho phép update thêm business info
-                    if ($seller->seller_type === 'personal' && $request->seller_type === 'business' && !$seller->business) {
-                        // Thực hiện thêm business info vào seller hiện tại
-                        $licensePath = $request->hasFile('business_license')
-                            ? $request->file('business_license')->store('licenses', 'public')
-                            : null;
-
-                        $seller->business()->create([
-                            'tax_code' => $request->tax_code,
-                            'company_name' => $request->company_name,
-                            'company_address' => $request->company_address,
-                            'business_license' => $licensePath,
-                            'representative_name' => $request->representative_name,
-                            'representative_phone' => $request->representative_phone,
-                        ]);
-
-                        // Cập nhật loại seller luôn (nếu muốn)
-                        $seller->update(['seller_type' => 'business']);
-
-                        return response()->json([
-                            'message' => 'Nâng cấp thành công lên doanh nghiệp! Vui lòng chờ xác minh.',
-                            'data' => $seller->load('business')
-                        ], 200);
-                    }
-
-                    // Nếu đã có business, hoặc không đúng điều kiện thì báo lỗi như cũ
-                    return response()->json([
-                        'message' => 'Tài khoản này đã đăng ký cửa hàng.'
-                    ], 409);
-                }
-
+                $seller->business()->create([
+                    'tax_code' => $request->tax_code,
+                    'company_name' => $request->company_name,
+                    'company_address' => $request->company_address,
+                    'business_license' => $licensePath,
+                    'representative_name' => $request->representative_name,
+                    'representative_phone' => $request->representative_phone,
+                ]);
             }
 
             return response()->json([
@@ -174,7 +240,7 @@ public function index()
         }
     }
 
-public function login(Request $request)
+        public function login(Request $request)
     {
         try {
             // B1: Validate dữ liệu đầu vào
@@ -202,8 +268,8 @@ public function login(Request $request)
             $user = Auth::user();
 
             if ($user->role !== 'seller') {
-    return response()->json(['message' => 'Chỉ seller mới được đăng nhập hệ thống này.'], 403);
-}
+             return response()->json(['message' => 'Chỉ seller mới được đăng nhập hệ thống này.'], 403);
+                   }
 
             // B3:  Kiểm tra vai trò và trạng thái của người dùng
                 if ($user->role === 'seller') {
@@ -216,7 +282,7 @@ public function login(Request $request)
                     }
 
                     // Nếu seller đã có mà status hoặc verification_status chưa đúng thì báo lỗi
-                    if (
+                        if (
                         $seller->verification_status !== 'verified'
                     ) {
                         return response()->json([
@@ -265,4 +331,6 @@ public function login(Request $request)
         }
     }
 
-}
+
+
+ }

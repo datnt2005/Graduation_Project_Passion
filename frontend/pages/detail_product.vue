@@ -120,9 +120,9 @@
             </div>
         </section>
 
-        </div>
         <!-- Customer Reviews -->
         <ProductReviews />
+        </div>
     </main>
 </template>
 
@@ -200,4 +200,3 @@ onBeforeUnmount(() => {
     opacity: 0;
 }
 </style>
-

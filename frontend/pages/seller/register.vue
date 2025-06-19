@@ -1,3 +1,4 @@
+
 <template>
   <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#eaf1fd] to-[#f4f7fd] px-2 py-6">
     <div
@@ -266,7 +267,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, watch } from 'vue';
+import { ref, reactive, watch, onMounted } from 'vue';
 import axios from 'axios';
 
 const config = useRuntimeConfig();
@@ -276,6 +277,7 @@ const sellerType = ref('personal');
 const isHover = ref(false);
 const loading = ref(false);
 const errors = reactive({});
+const isUpgrading = ref(false); // Biến xác định trạng thái nâng cấp
 const cccdPreviews = ref([]);
 const documentFile = ref(null);
 const documentPreview = ref('');
@@ -298,6 +300,32 @@ const form = reactive({
   business_license: null
 });
 
+// Kiểm tra trạng thái Seller khi component được mount
+onMounted(async () => {
+  await checkSellerStatus();
+});
+
+async function checkSellerStatus() {
+  try {
+    const token = localStorage.getItem('access_token');
+    if (!token) return;
+
+    const res = await axios.get(`${API}/sellers/me`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    const seller = res?.data?.data;
+    if (seller && seller.seller_type === 'personal') {
+      isUpgrading.value = true;
+      sellerType.value = 'business';
+      form.store_name = seller.store_name; // Tái sử dụng store_name
+      form.seller_type = 'business';
+    }
+  } catch (error) {
+    console.error('Error checking seller status:', error);
+  }
+}
+
 watch(sellerType, (newType) => {
   form.seller_type = newType;
   resetFormData();
@@ -317,7 +345,7 @@ function resetFormData() {
     form.personal_address = '';
     form.document = null;
     form.bio = '';
-  } else {
+  } else if (!isUpgrading.value) {
     form.tax_code = '';
     form.company_name = '';
     form.company_address = '';
@@ -364,11 +392,11 @@ function validateForm() {
   Object.assign(errors, {});
   const f = form;
 
-  if (!f.store_name || f.store_name.length > 255) {
+  if (!isUpgrading.value && (!f.store_name || f.store_name.length > 255)) {
     errors.store_name = 'Tên cửa hàng là bắt buộc và không vượt quá 255 ký tự.';
   }
 
-  if (f.seller_type === 'personal') {
+  if (f.seller_type === 'personal' && !isUpgrading.value) {
     if (!f.phone_number || !/^[0-9]{10,15}$/.test(f.phone_number)) {
       errors.phone_number = 'Số điện thoại không hợp lệ (10–15 số).';
     }
@@ -381,7 +409,7 @@ function validateForm() {
     if (!f.personal_address) {
       errors.personal_address = 'Địa chỉ cá nhân là bắt buộc.';
     }
-  } else {
+  } else if (f.seller_type === 'business') {
     if (!f.tax_code) errors.tax_code = 'Mã số thuế là bắt buộc.';
     if (!f.company_name) errors.company_name = 'Tên công ty là bắt buộc.';
     if (!f.company_address) errors.company_address = 'Địa chỉ công ty là bắt buộc.';
@@ -421,24 +449,35 @@ async function handleSubmit() {
 
     const f = form;
     const formData = new FormData();
-    formData.append('store_name', f.store_name);
     formData.append('seller_type', f.seller_type);
     formData.append('user_id', user.id);
 
-    if (f.seller_type === 'personal') {
-      formData.append('phone_number', f.phone_number);
-      formData.append('identity_card_number', f.identity_card_number);
-      formData.append('date_of_birth', f.date_of_birth);
-      formData.append('personal_address', f.personal_address);
-      if (f.document) formData.append('document', f.document);
-      if (f.bio) formData.append('bio', f.bio);
-    } else {
+    if (isUpgrading.value) {
+      // Gửi dữ liệu cho nâng cấp
       formData.append('tax_code', f.tax_code);
       formData.append('company_name', f.company_name);
       formData.append('company_address', f.company_address);
       formData.append('representative_name', f.representative_name);
       formData.append('representative_phone', f.representative_phone);
       if (f.business_license) formData.append('business_license', f.business_license);
+    } else {
+      // Gửi dữ liệu cho đăng ký mới
+      formData.append('store_name', f.store_name);
+      if (f.seller_type === 'personal') {
+        formData.append('phone_number', f.phone_number);
+        formData.append('identity_card_number', f.identity_card_number);
+        formData.append('date_of_birth', f.date_of_birth);
+        formData.append('personal_address', f.personal_address);
+        if (f.document) formData.append('document', f.document);
+        if (f.bio) formData.append('bio', f.bio);
+      } else {
+        formData.append('tax_code', f.tax_code);
+        formData.append('company_name', f.company_name);
+        formData.append('company_address', f.company_address);
+        formData.append('representative_name', f.representative_name);
+        formData.append('representative_phone', f.representative_phone);
+        if (f.business_license) formData.append('business_license', f.business_license);
+      }
     }
 
     const response = await axios.post(`${API}/sellers/register`, formData, {
@@ -448,16 +487,16 @@ async function handleSubmit() {
       }
     });
 
-    alert(response.data.message || 'Đăng ký thành công!');
+    alert(response.data.message || 'Thành công!');
     resetFormData();
     router.push('/seller/SellerRegisterSuccess');
   } catch (error) {
     const res = error.response;
     Object.assign(errors, res?.data?.errors || {});
-    const message = res?.data?.message || res?.data?.error || 'Đăng ký thất bại!';
+    const message = res?.data?.message || res?.data?.error || 'Thất bại!';
     const detail = Object.values(errors).flat().join('\n');
     alert(detail ? `${message}\n\n${detail}` : message);
-    console.error('Registration error:', error);
+    console.error('Error:', error);
   } finally {
     loading.value = false;
   }

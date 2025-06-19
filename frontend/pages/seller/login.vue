@@ -166,9 +166,6 @@
 <script setup>
 import { ref } from "vue";
 import axios from "axios";
-import Swal from 'sweetalert2'
-import 'sweetalert2/dist/sweetalert2.min.css'
-
 import { useRouter } from 'vue-router'
 const router = useRouter()
 const form = ref({
@@ -186,25 +183,6 @@ const errors = ref({
   message: "",
 });
 
-const toast = (icon, title) => {
-  Swal.fire({
-    toast: true,
-    position: 'top-end',
-    icon,
-    title,
-    width: '350px',
-    padding: '10px 20px',
-    customClass: { popup: 'text-sm rounded-md shadow-md' },
-    showConfirmButton: false,
-    timer: 1500,
-    timerProgressBar: true,
-    didOpen: (toastEl) => {
-      toastEl.addEventListener('mouseenter', () => Swal.stopTimer())
-      toastEl.addEventListener('mouseleave', () => Swal.resumeTimer())
-    }
-  })
-}
-
 async function handleSubmit() {
   loading.value = true;
   errors.value = { email: "", password: "", message: "" };
@@ -217,7 +195,6 @@ async function handleSubmit() {
     const slug = response.data.store_slug; 
       console.log("Login response data:", response.data);
     localStorage.setItem("token", token);
-    toast('success', 'Đăng nhập shop thành công!')
 
     // 👉 Điều hướng tới trang cửa hàng theo slug
    if (slug) {
@@ -227,23 +204,19 @@ async function handleSubmit() {
     }
 
   } catch (error) {
-  if (error.response?.status === 422) {
-    const resErrors = error.response.data.errors;
-    errors.value.email = resErrors.email?.[0] || "";
-    errors.value.password = resErrors.password?.[0] || "";
-    toast('error', 'Vui lòng kiểm tra lại thông tin đăng nhập.');
-  } else if (
-    error.response?.status === 401 ||
-    error.response?.status === 403
-  ) {
-    errors.value.message = error.response.data.message;
-    toast('error', error.response.data.message || 'Không thể đăng nhập.');
-  } else {
-    errors.value.message = "Lỗi hệ thống. Vui lòng thử lại sau.";
-    toast('error', 'Lỗi hệ thống. Vui lòng thử lại sau.');
-  }
-}
- finally {
+    if (error.response?.status === 422) {
+      const resErrors = error.response.data.errors;
+      errors.value.email = resErrors.email?.[0] || "";
+      errors.value.password = resErrors.password?.[0] || "";
+    } else if (
+      error.response?.status === 401 ||
+      error.response?.status === 403
+    ) {
+      errors.value.message = error.response.data.message;
+    } else {
+      errors.value.message = "Lỗi hệ thống. Vui lòng thử lại sau.";
+    }
+  } finally {
     loading.value = false;
   }
 
