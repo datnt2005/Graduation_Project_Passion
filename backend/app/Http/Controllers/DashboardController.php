@@ -23,7 +23,7 @@ class DashboardController extends Controller
         })->where('status', 'delivered')->sum('final_price');
         // Tổng doanh thu (tổng final_price các đơn hàng trạng thái delivered)
         $totalRevenue = \App\Models\Order::where('status', 'delivered')->sum('final_price');
-        // Tổng thu thập (giả sử là tổng discount_price các đơn hàng delivered)
+        // Tổng giảm giá (tổng discount_price các đơn hàng delivered)
         $totalDiscount = \App\Models\Order::where('status', 'delivered')->sum('discount_price');
 
         return response()->json([
@@ -82,11 +82,6 @@ class DashboardController extends Controller
                 'value' => \App\Models\User::where('role', 'seller')->count(),
             ],
             [
-                'label' => 'Doanh Thu Từ Người Bán',
-                'key' => 'seller_revenue',
-                'value' => \App\Models\Order::whereHas('user', function($q){ $q->where('role', 'seller'); })->where('status', 'delivered')->sum('final_price'),
-            ],
-            [
                 'label' => 'Tổng Doanh Thu',
                 'key' => 'total_revenue',
                 'value' => $totalRevenue,
@@ -97,14 +92,9 @@ class DashboardController extends Controller
                 'value' => $totalCost,
             ],
             [
-                'label' => 'Tổng lời',
-                'key' => 'total_income',
+                'label' => 'Tổng Lợi Nhuận',
+                'key' => 'total_profit',
                 'value' => $totalProfit,
-            ],
-            [
-                'label' => 'Tổng tiền giảm giá',
-                'key' => 'total_discount',
-                'value' => \App\Models\Order::where('status', 'delivered')->sum('discount_price'),
             ],
         ];
         $lossStats = [
@@ -121,174 +111,111 @@ class DashboardController extends Controller
     }
 
     /**
-     * API trả về dữ liệu doanh thu cho dashboard (theo ngày/tuần/tháng/năm)
+     * API trả về dữ liệu doanh thu, lợi nhuận và số đơn hàng cho dashboard (theo ngày/tuần/tháng/năm)
      */
-   // app/Http/Controllers/DashboardController.php
-public function revenueChart(Request $request)
-{
-    $type = $request->input('type', 'month'); // day|week|month|year
-    $now = now();
-    $labels = [];
-    $revenue = [];
-    
-    if ($type === 'day') {
-        // 7 ngày gần nhất
-        for ($i = 6; $i >= 0; $i--) {
-            $date = $now->copy()->subDays($i)->format('Y-m-d');
-            $labels[] = $now->copy()->subDays($i)->format('d/m');
-            $orders = \App\Models\Order::whereDate('created_at', $date)->where('status', 'delivered')->get();
-            $revenue[] = $orders->sum('final_price');
-        }
-    } elseif ($type === 'week') {
-        // 4 tuần gần nhất
-        for ($i = 3; $i >= 0; $i--) {
-            $start = $now->copy()->subWeeks($i)->startOfWeek();
-            $end = $now->copy()->subWeeks($i)->endOfWeek();
-            $labels[] = 'Tuần ' . $start->format('W');
-            $orders = \App\Models\Order::whereBetween('created_at', [$start, $end])->where('status', 'delivered')->get();
-            $revenue[] = $orders->sum('final_price');
-        }
-    } elseif ($type === 'month') {
-        // 4 tháng gần nhất
-        for ($i = 3; $i >= 0; $i--) {
-            $month = $now->copy()->subMonths($i);
-            $labels[] = 'Tháng ' . $month->format('m');
-            $orders = \App\Models\Order::whereYear('created_at', $month->year)
-                ->whereMonth('created_at', $month->month)
-                ->where('status', 'delivered')->get();
-            $revenue[] = $orders->sum('final_price');
-        }
-    } else {
-        // 4 năm gần nhất
-        for ($i = 3; $i >= 0; $i--) {
-            $year = $now->copy()->subYears($i)->year;
-            $labels[] = (string)$year;
-            $orders = \App\Models\Order::whereYear('created_at', $year)->where('status', 'delivered')->get();
-            $revenue[] = $orders->sum('final_price');
-        }
-    }
+    public function revenueProfitChart(Request $request)
+    {
+        $type = $request->input('type', 'month'); // day|week|month|year
+        $now = now();
+        $labels = [];
+        $revenueData = [];
+        $profitData = [];
+        $orderCountData = []; // Thêm mảng cho số lượng đơn hàng
 
-    return response()->json([
-        'labels' => $labels,
-        'revenue' => $revenue,
-    ]);
-}
+        if ($type === 'day') {
+            for ($i = 6; $i >= 0; $i--) {
+                $date = $now->copy()->subDays($i)->format('Y-m-d');
+                $labels[] = $now->copy()->subDays($i)->format('d/m');
+                $orders = \App\Models\Order::whereDate('created_at', $date)->where('status', 'delivered')->get();
+                $orderIds = $orders->pluck('id');
+                $orderItems = \App\Models\OrderItem::whereIn('order_id', $orderIds)->get();
+                $variantIds = $orderItems->pluck('product_variant_id')->unique();
+                $variants = \App\Models\ProductVariant::whereIn('id', $variantIds)->get()->keyBy('id');
+                $totalRevenue = $orders->sum('final_price');
+                $totalCost = 0;
+                foreach ($orderItems as $item) {
+                    $variant = $variants[$item->product_variant_id] ?? null;
+                    if ($variant) {
+                        $totalCost += $variant->cost_price * $item->quantity;
+                    }
+                }
+                $revenueData[] = $totalRevenue;
+                $profitData[] = $totalRevenue - $totalCost;
+                $orderCountData[] = $orders->count(); // Số lượng đơn hàng trong ngày
+            }
+        } elseif ($type === 'week') {
+            for ($i = 3; $i >= 0; $i--) {
+                $start = $now->copy()->subWeeks($i)->startOfWeek();
+                $end = $now->copy()->subWeeks($i)->endOfWeek();
+                $labels[] = 'Tuần ' . $start->format('W');
+                $orders = \App\Models\Order::whereBetween('created_at', [$start, $end])->where('status', 'delivered')->get();
+                $orderIds = $orders->pluck('id');
+                $orderItems = \App\Models\OrderItem::whereIn('order_id', $orderIds)->get();
+                $variantIds = $orderItems->pluck('product_variant_id')->unique();
+                $variants = \App\Models\ProductVariant::whereIn('id', $variantIds)->get()->keyBy('id');
+                $totalRevenue = $orders->sum('final_price');
+                $totalCost = 0;
+                foreach ($orderItems as $item) {
+                    $variant = $variants[$item->product_variant_id] ?? null;
+                    if ($variant) {
+                        $totalCost += $variant->cost_price * $item->quantity;
+                    }
+                }
+                $revenueData[] = $totalRevenue;
+                $profitData[] = $totalRevenue - $totalCost;
+                $orderCountData[] = $orders->count(); // Số lượng đơn hàng trong tuần
+            }
+        } elseif ($type === 'month') {
+            for ($i = 3; $i >= 0; $i--) {
+                $month = $now->copy()->subMonths($i);
+                $labels[] = 'Tháng ' . $month->format('m');
+                $orders = \App\Models\Order::whereYear('created_at', $month->year)
+                    ->whereMonth('created_at', $month->month)
+                    ->where('status', 'delivered')->get();
+                $orderIds = $orders->pluck('id');
+                $orderItems = \App\Models\OrderItem::whereIn('order_id', $orderIds)->get();
+                $variantIds = $orderItems->pluck('product_variant_id')->unique();
+                $variants = \App\Models\ProductVariant::whereIn('id', $variantIds)->get()->keyBy('id');
+                $totalRevenue = $orders->sum('final_price');
+                $totalCost = 0;
+                foreach ($orderItems as $item) {
+                    $variant = $variants[$item->product_variant_id] ?? null;
+                    if ($variant) {
+                        $totalCost += $variant->cost_price * $item->quantity;
+                    }
+                }
+                $revenueData[] = $totalRevenue;
+                $profitData[] = $totalRevenue - $totalCost;
+                $orderCountData[] = $orders->count(); // Số lượng đơn hàng trong tháng
+            }
+        } else {
+            for ($i = 3; $i >= 0; $i--) {
+                $year = $now->copy()->subYears($i)->year;
+                $labels[] = (string)$year;
+                $orders = \App\Models\Order::whereYear('created_at', $year)->where('status', 'delivered')->get();
+                $orderIds = $orders->pluck('id');
+                $orderItems = \App\Models\OrderItem::whereIn('order_id', $orderIds)->get();
+                $variantIds = $orderItems->pluck('product_variant_id')->unique();
+                $variants = \App\Models\ProductVariant::whereIn('id', $variantIds)->get()->keyBy('id');
+                $totalRevenue = $orders->sum('final_price');
+                $totalCost = 0;
+                foreach ($orderItems as $item) {
+                    $variant = $variants[$item->product_variant_id] ?? null;
+                    if ($variant) {
+                        $totalCost += $variant->cost_price * $item->quantity;
+                    }
+                }
+                $revenueData[] = $totalRevenue;
+                $profitData[] = $totalRevenue - $totalCost;
+                $orderCountData[] = $orders->count(); // Số lượng đơn hàng trong năm
+            }
+        }
 
-public function revenueProfitChart(Request $request)
-{
-    $type = $request->input('type', 'month'); // day|week|month|year
-    $now = now();
-    $labels = [];
-    $profitData = [];
-    $lossData = [];
-    if ($type === 'day') {
-        for ($i = 6; $i >= 0; $i--) {
-            $date = $now->copy()->subDays($i)->format('Y-m-d');
-            $labels[] = $now->copy()->subDays($i)->format('d/m');
-            $orderIds = \App\Models\Order::whereDate('created_at', $date)->where('status', 'delivered')->pluck('id');
-            $orderItems = \App\Models\OrderItem::whereIn('order_id', $orderIds)->get();
-            $variantIds = $orderItems->pluck('product_variant_id')->unique();
-            $variants = \App\Models\ProductVariant::whereIn('id', $variantIds)->get()->keyBy('id');
-            $profit = 0;
-            $loss = 0;
-            foreach ($orderItems as $item) {
-                $variant = $variants[$item->product_variant_id] ?? null;
-                if ($variant) {
-                    $sellPrice = $variant->sale_price !== null ? $variant->sale_price : $variant->price;
-                    $diff = ($sellPrice - $variant->cost_price) * $item->quantity;
-                    if ($diff >= 0) {
-                        $profit += $diff;
-                    } else {
-                        $loss += abs($diff);
-                    }
-                }
-            }
-            $profitData[] = $profit;
-            $lossData[] = -$loss;
-        }
-    } elseif ($type === 'week') {
-        for ($i = 3; $i >= 0; $i--) {
-            $start = $now->copy()->subWeeks($i)->startOfWeek();
-            $end = $now->copy()->subWeeks($i)->endOfWeek();
-            $labels[] = 'Tuần ' . $start->format('W');
-            $orderIds = \App\Models\Order::whereBetween('created_at', [$start, $end])->where('status', 'delivered')->pluck('id');
-            $orderItems = \App\Models\OrderItem::whereIn('order_id', $orderIds)->get();
-            $variantIds = $orderItems->pluck('product_variant_id')->unique();
-            $variants = \App\Models\ProductVariant::whereIn('id', $variantIds)->get()->keyBy('id');
-            $profit = 0;
-            $loss = 0;
-            foreach ($orderItems as $item) {
-                $variant = $variants[$item->product_variant_id] ?? null;
-                if ($variant) {
-                    $sellPrice = $variant->sale_price !== null ? $variant->sale_price : $variant->price;
-                    $diff = ($sellPrice - $variant->cost_price) * $item->quantity;
-                    if ($diff >= 0) {
-                        $profit += $diff;
-                    } else {
-                        $loss += abs($diff);
-                    }
-                }
-            }
-            $profitData[] = $profit;
-            $lossData[] = -$loss;
-        }
-    } elseif ($type === 'month') {
-        for ($i = 3; $i >= 0; $i--) {
-            $month = $now->copy()->subMonths($i);
-            $labels[] = 'Tháng ' . $month->format('m');
-            $orderIds = \App\Models\Order::whereYear('created_at', $month->year)
-                ->whereMonth('created_at', $month->month)
-                ->where('status', 'delivered')->pluck('id');
-            $orderItems = \App\Models\OrderItem::whereIn('order_id', $orderIds)->get();
-            $variantIds = $orderItems->pluck('product_variant_id')->unique();
-            $variants = \App\Models\ProductVariant::whereIn('id', $variantIds)->get()->keyBy('id');
-            $profit = 0;
-            $loss = 0;
-            foreach ($orderItems as $item) {
-                $variant = $variants[$item->product_variant_id] ?? null;
-                if ($variant) {
-                    $sellPrice = $variant->sale_price !== null ? $variant->sale_price : $variant->price;
-                    $diff = ($sellPrice - $variant->cost_price) * $item->quantity;
-                    if ($diff >= 0) {
-                        $profit += $diff;
-                    } else {
-                        $loss += abs($diff);
-                    }
-                }
-            }
-            $profitData[] = $profit;
-            $lossData[] = -$loss;
-        }
-    } else {
-        for ($i = 3; $i >= 0; $i--) {
-            $year = $now->copy()->subYears($i)->year;
-            $labels[] = (string)$year;
-            $orderIds = \App\Models\Order::whereYear('created_at', $year)->where('status', 'delivered')->pluck('id');
-            $orderItems = \App\Models\OrderItem::whereIn('order_id', $orderIds)->get();
-            $variantIds = $orderItems->pluck('product_variant_id')->unique();
-            $variants = \App\Models\ProductVariant::whereIn('id', $variantIds)->get()->keyBy('id');
-            $profit = 0;
-            $loss = 0;
-            foreach ($orderItems as $item) {
-                $variant = $variants[$item->product_variant_id] ?? null;
-                if ($variant) {
-                    $sellPrice = $variant->sale_price !== null ? $variant->sale_price : $variant->price;
-                    $diff = ($sellPrice - $variant->cost_price) * $item->quantity;
-                    if ($diff >= 0) {
-                        $profit += $diff;
-                    } else {
-                        $loss += abs($diff);
-                    }
-                }
-            }
-            $profitData[] = $profit;
-            $lossData[] = -$loss;
-        }
+        return response()->json([
+            'labels' => $labels,
+            'revenue' => $revenueData,
+            'profit' => $profitData,
+            'orderCount' => $orderCountData, // Thêm dữ liệu số lượng đơn hàng
+        ]);
     }
-    return response()->json([
-        'labels' => $labels,
-        'profit' => $profitData,
-        'loss' => $lossData,
-    ]);
-}
 }

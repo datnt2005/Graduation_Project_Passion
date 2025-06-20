@@ -1,5 +1,5 @@
+<!-- File: components/Dashboard.vue -->
 <template>
-  <!-- Template của bạn giữ nguyên, không thay đổi -->
   <div class="overflow-x-auto">
     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 min-w-full">
       <!-- Thẻ thống kê động -->
@@ -25,16 +25,17 @@
     <div v-else class="text-gray-400">Không có dữ liệu lỗ</div>
   </div>
 
-  <!-- Biểu đồ doanh thu + lời/lỗ -->
+  <!-- Biểu đồ doanh thu + lợi nhuận -->
   <div class="bg-white p-4 sm:p-6 rounded shadow mt-6 w-full overflow-x-auto">
     <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
-      <h2 class="text-lg sm:text-xl font-semibold text-gray-700">Biểu đồ doanh thu & lời/lỗ</h2>
+      <h2 class="text-lg sm:text-xl font-semibold text-gray-700">Biểu đồ Doanh Thu & Lợi Nhuận</h2>
       <div class="mt-2 md:mt-0 flex flex-wrap items-center gap-2">
         <label for="filter" class="text-sm text-gray-600">Lọc theo:</label>
         <select
           id="filter"
           v-model="chartType"
           class="border border-gray-300 rounded px-3 py-1 text-sm focus:outline-none focus:ring focus:ring-blue-200"
+          :disabled="orderChartMode === 'inventory'"
         >
           <option value="day">Ngày</option>
           <option value="week">Tuần</option>
@@ -44,12 +45,14 @@
         <label for="chartMode" class="text-sm text-gray-600 ml-4">Biểu đồ:</label>
         <select
           id="chartMode"
-          v-model="chartMode"
+          v-model="orderChartMode"
           class="border border-gray-300 rounded px-3 py-1 text-sm focus:outline-none focus:ring focus:ring-blue-200"
         >
-          <option value="revenue">Doanh thu</option>
-          <option value="profit">Lời/Lỗ</option>
-          <option value="all">Cả hai</option>
+          <option value="revenue">Doanh Thu</option>
+          <option value="profit">Lợi Nhuận</option>
+          <option value="all">Cả Hai</option>
+          <option value="inventory">Tồn Kho</option>
+          <option value="orders">Tổng Đơn Hàng</option>
         </select>
         <label for="chartTypeMode" class="text-sm text-gray-600 ml-4">Kiểu biểu đồ:</label>
         <select
@@ -64,8 +67,8 @@
       </div>
     </div>
     <div class="h-[300px] sm:h-[400px] min-w-[600px]">
-      <div v-if="chartLoading || profitChartLoading" class="text-center text-gray-400 py-10">Đang tải biểu đồ...</div>
-      <div v-else-if="chartError || profitChartError" class="text-center text-red-500 py-10">{{ chartError || profitChartError }}</div>
+      <div v-if="chartLoading" class="text-center text-gray-400 py-10">Đang tải biểu đồ...</div>
+      <div v-else-if="chartError" class="text-center text-red-500 py-10">{{ chartError }}</div>
       <component :is="chartComponent" :data="combinedChartData" :options="combinedChartOptions" />
     </div>
   </div>
@@ -73,12 +76,10 @@
   <!-- Bảng xếp hạng sản phẩm -->
   <div class="bg-white p-4 sm:p-6 rounded shadow mt-6 w-full overflow-x-auto">
     <h2 class="text-lg sm:text-xl font-semibold text-gray-700">Danh sách tồn kho</h2>
-
     <!-- Bộ lọc -->
     <div class="flex flex-wrap gap-3 mt-4">
       <input v-model="filters.keyword" type="text" placeholder="Tìm theo tên hoặc mã SP"
         class="border p-2 rounded flex-1 min-w-[150px] sm:min-w-[200px]">
-
       <select v-model="filters.status"
         class="border p-2 rounded flex-1 min-w-[150px] sm:min-w-[160px]">
         <option value="">Tất cả trạng thái</option>
@@ -86,27 +87,21 @@
         <option value="Gần hết">Gần hết</option>
         <option value="Hết hàng">Hết hàng</option>
       </select>
-
       <input v-model="filters.maxQuantity" type="number" placeholder="Tồn kho <="
         class="border p-2 rounded flex-1 min-w-[130px]">
-
       <input v-model="filters.minPrice" type="number" placeholder="Giá từ"
         class="border p-2 rounded flex-1 min-w-[100px]">
-
       <input v-model="filters.maxPrice" type="number" placeholder="Giá đến"
         class="border p-2 rounded flex-1 min-w-[100px]">
-
       <button @click="applyFilters"
         class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 w-full sm:w-auto">Lọc</button>
       <button @click="resetFilters"
         class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 w-full sm:w-auto">Reset</button>
     </div>
-
     <!-- Thông báo khi không có dữ liệu -->
     <div v-if="loadingInventory" class="text-center text-gray-400 py-10">Đang tải dữ liệu...</div>
     <div v-else-if="inventoryError" class="text-center text-red-500 py-10">{{ inventoryError }}</div>
     <div v-else-if="!filteredData.length" class="text-center text-gray-400 py-10">Không tìm thấy sản phẩm nào</div>
-
     <!-- Bảng dữ liệu -->
     <div v-else class="overflow-x-auto mt-4">
       <table class="min-w-[1200px] divide-y divide-gray-200">
@@ -145,13 +140,11 @@ import { useRuntimeConfig } from '#imports'
 import { Bar, Line, Pie } from 'vue-chartjs'
 import { Chart as ChartJS, Title, Tooltip, Legend, BarElement, LineElement, PointElement, ArcElement, CategoryScale, LinearScale } from 'chart.js'
 
-
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend)
 
 const config = useRuntimeConfig()
 const apiBaseUrl = config.public.apiBaseUrl
 
-// --- GỘP LOGIC useDashboardStats.js ---
 // Thống kê dashboard
 const dashboardStats = ref({ stats: [], lossStats: [] })
 const loadingStats = ref(false)
@@ -170,17 +163,17 @@ onMounted(async () => {
   }
 })
 
-// Biểu đồ doanh thu động
+// Biểu đồ doanh thu và lợi nhuận
 const chartType = ref('month')
 const chartLoading = ref(false)
 const chartError = ref('')
-const chartDataApi = ref({ labels: [], revenue: [], profit: [] })
+const chartDataApi = ref({ labels: [], revenue: [], profit: [], orderCount: [] }) // Thêm orderCount
 
-async function fetchRevenueChart(type = 'month') {
+async function fetchChartData(type = 'month') {
   chartLoading.value = true
   chartError.value = ''
   try {
-    const url = new URL(`${apiBaseUrl}/dashboard/revenue-chart`)
+    const url = new URL(`${apiBaseUrl}/dashboard/revenue-profit-chart`)
     url.searchParams.set('type', type)
     const res = await fetch(url)
     if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`)
@@ -193,69 +186,158 @@ async function fetchRevenueChart(type = 'month') {
 }
 
 onMounted(() => {
-  fetchRevenueChart(chartType.value)
+  fetchChartData(chartType.value)
 })
 
 watch(chartType, (val) => {
-  fetchRevenueChart(val)
-})
-// --- END GỘP LOGIC useDashboardStats.js ---
-
-// Biểu đồ lợi nhuận động
-const { data: profitChartApi, pending: profitChartLoading, error: profitChartError } = await useFetch(`${apiBaseUrl}/dashboard/revenue-profit-chart`, {
-  query: { type: chartType },
-  default: () => ({ labels: ['Đang tải'], profit: [0], loss: [0] })
+  fetchChartData(val)
 })
 
-watch(chartType, async (val) => {
-  const { data } = await useFetch(`${apiBaseUrl}/dashboard/revenue-profit-chart`, {
-    query: { type: val }
-  })
-  profitChartApi.value = data.value || { labels: ['Lỗi'], profit: [0], loss: [0] }
+const chartMode = ref('all')
+const chartTypeMode = ref('bar')
+const inventoryChartMode = ref('revenue') // 'revenue' | 'profit' | 'all' | 'inventory'
+const orderChartMode = ref('revenue') // 'revenue' | 'profit' | 'all' | 'inventory' | 'orders'
+
+const chartComponent = computed(() => {
+  if (chartTypeMode.value === 'bar') return Bar
+  if (chartTypeMode.value === 'line') return Line
+  if (chartTypeMode.value === 'pie') return Pie
+  return Bar
 })
 
-const profitChartData = computed(() => ({
-  labels: profitChartApi.value.labels,
-  datasets: [
-    {
-      label: 'Lời',
-      data: profitChartApi.value.profit,
-      backgroundColor: '#22c55e',
-      borderRadius: 6,
-      barThickness: 30,
-    },
-    {
-      label: 'Lỗ',
-      data: profitChartApi.value.loss,
-      backgroundColor: '#ef4444',
-      borderRadius: 6,
-      barThickness: 30,
-    }
-  ]
-}))
+const combinedChartData = computed(() => {
+  const labels = chartDataApi.value.labels || []
+  const datasets = []
+  if (orderChartMode.value === 'revenue' || orderChartMode.value === 'all') {
+    datasets.push({
+      label: 'Doanh Thu',
+      data: chartDataApi.value.revenue,
+      backgroundColor: chartTypeMode.value === 'pie' ? ['#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe'] : '#3b82f6',
+      borderColor: chartTypeMode.value === 'line' ? '#3b82f6' : undefined,
+      borderWidth: chartTypeMode.value === 'line' ? 2 : undefined,
+      borderRadius: chartTypeMode.value === 'bar' ? 6 : undefined,
+      barThickness: chartTypeMode.value === 'bar' ? 30 : undefined,
+      fill: chartTypeMode.value === 'line' ? false : undefined,
+    })
+  }
+  if (orderChartMode.value === 'profit' || orderChartMode.value === 'all') {
+    datasets.push({
+      label: 'Lợi Nhuận',
+      data: chartDataApi.value.profit,
+      backgroundColor: chartTypeMode.value === 'pie' ? ['#22c55e', '#4ade80', '#86efac', '#bbf7d0'] : '#22c55e',
+      borderColor: chartTypeMode.value === 'line' ? '#22c55e' : undefined,
+      borderWidth: chartTypeMode.value === 'line' ? 2 : undefined,
+      borderRadius: chartTypeMode.value === 'bar' ? 6 : undefined,
+      barThickness: chartTypeMode.value === 'bar' ? 30 : undefined,
+      fill: chartTypeMode.value === 'line' ? false : undefined,
+    })
+  }
+  if (orderChartMode.value === 'inventory') {
+    const inventoryLabels = inventoryList.value ? inventoryList.value.map(item => item.product_name + (item.variant_name ? ' - ' + item.variant_name : '')) : []
+    const inventoryData = inventoryList.value ? inventoryList.value.map(item => item.quantity) : []
+    datasets.push({
+      label: 'Tồn kho',
+      data: inventoryData,
+      backgroundColor: '#f59e42',
+      borderColor: '#f59e42',
+      borderWidth: chartTypeMode.value === 'line' ? 2 : undefined,
+      borderRadius: chartTypeMode.value === 'bar' ? 6 : undefined,
+      barThickness: chartTypeMode.value === 'bar' ? 30 : undefined,
+      fill: chartTypeMode.value === 'line' ? false : undefined,
+    })
+    return { labels: inventoryLabels, datasets }
+  }
+  if (orderChartMode.value === 'orders') {
+    datasets.push({
+      label: 'Tổng Đơn Hàng',
+      data: chartDataApi.value.orderCount, // Sử dụng orderCount từ API
+      backgroundColor: '#6366f1',
+      borderColor: '#6366f1',
+      borderWidth: chartTypeMode.value === 'line' ? 2 : undefined,
+      borderRadius: chartTypeMode.value === 'bar' ? 6 : undefined,
+      barThickness: chartTypeMode.value === 'bar' ? 30 : undefined,
+      fill: chartTypeMode.value === 'line' ? false : undefined,
+    })
+    return { labels, datasets }
+  }
+  return { labels, datasets }
+})
 
-const profitChartOptions = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: { position: 'top' },
-    tooltip: {
-      callbacks: {
-        label: (context) => `${context.dataset.label}: ${context.parsed.y} triệu`
+const combinedChartOptions = computed(() => {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: chartTypeMode.value === 'pie' ? 'right' : 'top',
+        labels: { padding: 20 }
+      },
+      tooltip: {
+        callbacks: {
+          label: (context) => {
+            const value = context.parsed.y || context.parsed;
+            if (orderChartMode.value === 'inventory') {
+              return `${context.dataset.label}: ${value.toLocaleString('vi-VN')} sản phẩm`;
+            }
+            if (orderChartMode.value === 'orders') {
+              return `${context.dataset.label}: ${value.toLocaleString('vi-VN')} đơn hàng`;
+            }
+            return `${context.dataset.label}: ${value.toLocaleString('vi-VN')} đ`;
+          }
+        }
+      },
+      title: {
+        display: true,
+        text: orderChartMode.value === 'inventory'
+          ? 'Biểu Đồ Tồn Kho'
+          : orderChartMode.value === 'orders'
+            ? 'Biểu Đồ Tổng Đơn Hàng'
+            : chartMode.value === 'revenue' ? 'Biểu Đồ Doanh Thu' :
+              chartMode.value === 'profit' ? 'Biểu Đồ Lợi Nhuận' :
+              'Biểu Đồ Doanh Thu & Lợi Nhuận',
+        font: { size: 16 },
+        padding: { top: 10, bottom: 10 }
       }
-    }
-  },
-  scales: {
-    y: {
-      beginAtZero: true,
-      ticks: {
-        callback: (value) => `${value} triệu`
+    },
+    scales: chartTypeMode.value === 'pie' ? {} : {
+      y: {
+        beginAtZero: true,
+        ticks: {
+          callback: (value) => {
+            if (orderChartMode.value === 'inventory') {
+              return `${value.toLocaleString('vi-VN')} sản phẩm`;
+            }
+            if (orderChartMode.value === 'orders') {
+              return `${value.toLocaleString('vi-VN')} đơn hàng`;
+            }
+            return `${value.toLocaleString('vi-VN')} đ`;
+          }
+        },
+        title: {
+          display: true,
+          text: orderChartMode.value === 'inventory'
+            ? 'Số lượng'
+            : orderChartMode.value === 'orders'
+              ? 'Số đơn hàng'
+              : 'VND'
+        }
+      },
+      x: {
+        title: {
+          display: true,
+          text: orderChartMode.value === 'inventory' || orderChartMode.value === 'orders'
+            ? 'Sản phẩm'
+            : chartType.value === 'day' ? 'Ngày' :
+              chartType.value === 'week' ? 'Tuần' :
+              chartType.value === 'month' ? 'Tháng' :
+              'Năm'
+        }
       }
     }
   }
-}
+})
 
-// Dữ liệu tồn kho (giữ nguyên logic cũ)
+// Dữ liệu tồn kho
 const { data: inventoryList, pending: loadingInventory, error: inventoryError } = await useFetch(`${apiBaseUrl}/inventory/list`, {
   default: () => []
 })
@@ -268,7 +350,6 @@ const filters = ref({
   maxPrice: ''
 })
 
-// Thay đổi: filteredData chỉ cập nhật khi ấn nút Lọc
 const filteredData = ref([])
 
 function doFilter() {
@@ -277,38 +358,28 @@ function doFilter() {
     return
   }
   filteredData.value = inventoryList.value.filter(item => {
-    // Lọc theo từ khóa
     const keyword = filters.value.keyword.toLowerCase().trim()
     const matchKeyword = !keyword ||
       (item.product_name?.toLowerCase() || '').includes(keyword) ||
       (item.variant_sku?.toLowerCase() || '').includes(keyword)
-
-    // Lọc theo trạng thái
     const matchStatus = !filters.value.status ||
       (item.status || '') === filters.value.status
-
-    // Lọc theo số lượng tồn kho tối đa
     const maxQuantity = parseFloat(filters.value.maxQuantity)
     const matchQuantity = isNaN(maxQuantity) || item.quantity <= maxQuantity
-
-    // Lọc theo giá bán
     const minPrice = parseFloat(filters.value.minPrice)
     const maxPrice = parseFloat(filters.value.maxPrice)
     const sellPrice = parseFloat(item.sell_price)
     const matchMinPrice = isNaN(minPrice) || sellPrice >= minPrice
     const matchMaxPrice = isNaN(maxPrice) || sellPrice <= maxPrice
-
     return matchKeyword && matchStatus && matchQuantity && matchMinPrice && matchMaxPrice
   })
 }
 
-// Khi dữ liệu inventoryList thay đổi, filteredData sẽ tự động hiển thị toàn bộ danh sách
 watch(inventoryList, () => {
   filteredData.value = inventoryList.value ? [...inventoryList.value] : []
 }, { immediate: true })
 
 function applyFilters() {
-  // Validation cho các trường số
   if (filters.value.maxQuantity && parseFloat(filters.value.maxQuantity) < 0) {
     alert('Số lượng tồn kho tối đa không thể âm.')
     filters.value.maxQuantity = ''
@@ -340,72 +411,10 @@ function resetFilters() {
   filteredData.value = inventoryList.value ? [...inventoryList.value] : []
 }
 
-// Định dạng số tiền kiểu vi-VN, không có phần thập phân
 function formatNumber(val) {
   if (typeof val === 'number') return val.toLocaleString('vi-VN', { maximumFractionDigits: 0 })
   if (!isNaN(val) && val !== null && val !== undefined && val !== '') return Number(val).toLocaleString('vi-VN', { maximumFractionDigits: 0 })
   return val || '0'
-}
-
-const chartMode = ref('all')
-const chartTypeMode = ref('bar')
-const chartComponent = computed(() => {
-  if (chartTypeMode.value === 'bar') return Bar
-  if (chartTypeMode.value === 'line') return Line
-  if (chartTypeMode.value === 'pie') return Pie
-  return Bar
-})
-
-const combinedChartData = computed(() => {
-  const labels = chartDataApi.value.labels
-  const datasets = []
-  if (chartMode.value === 'revenue' || chartMode.value === 'all') {
-    datasets.push({
-      label: 'Doanh thu',
-      data: chartDataApi.value.revenue,
-      backgroundColor: '#3b82f6',
-      borderRadius: 6,
-      barThickness: 30,
-    })
-  }
-  if (chartMode.value === 'profit' || chartMode.value === 'all') {
-    datasets.push({
-      label: 'Lời',
-      data: profitChartApi.value.profit,
-      backgroundColor: '#22c55e',
-      borderRadius: 6,
-      barThickness: 30,
-    })
-    datasets.push({
-      label: 'Lỗ',
-      data: profitChartApi.value.loss,
-      backgroundColor: '#ef4444',
-      borderRadius: 6,
-      barThickness: 30,
-    })
-  }
-  return { labels, datasets }
-})
-
-const combinedChartOptions = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: { position: 'top' },
-    tooltip: {
-      callbacks: {
-        label: (context) => `${context.dataset.label}: ${context.parsed.y} triệu`
-      }
-    }
-  },
-  scales: {
-    y: {
-      beginAtZero: true,
-      ticks: {
-        callback: (value) => `${value} triệu`
-      }
-    }
-  }
 }
 
 definePageMeta({
