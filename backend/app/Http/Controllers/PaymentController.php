@@ -432,7 +432,7 @@ class PaymentController extends Controller
             "&orderInfo=" . $orderInfo . 
             "&partnerCode=" . $partnerCode . 
             "&redirectUrl=" . $redirectUrl . 
-            "&requestId=" . $requestaId . 
+            "&requestId=" . $requestId . 
             "&requestType=" . $requestType;
 
         $signature = hash_hmac('sha256', $rawSignature, $secretKey);
