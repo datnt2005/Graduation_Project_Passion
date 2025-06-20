@@ -1,169 +1,257 @@
-<template>
-  <div class="bg-gray-50 min-h-screen py-10 px-4 sm:px-8">
-    <div class="max-w-6xl mx-auto bg-white rounded-xl border border-gray-200 shadow-sm">
 
-      <!-- Header -->
-      <div class="flex justify-between items-start p-6 border-b border-gray-100">
-        <div>
-          <h2 class="text-2xl font-semibold text-gray-900">Hồ Sơ Người Bán</h2>
-          <p class="text-sm text-gray-500 mt-1">Thông tin chi tiết doanh nghiệp / cá nhân bán hàng</p>
+  <template>
+    <div class="bg-gray-50 min-h-screen py-8 px-4 sm:px-8">
+      <div class="max-w-5xl mx-auto bg-white shadow-md rounded-lg overflow-hidden">
+        <!-- Header -->
+        <div class="bg-gray-800 px-6 py-5 text-white flex justify-between items-center">
+          <div>
+            <h2 class="text-2xl font-bold">Hồ Sơ Người Bán</h2>
+            <p class="text-sm text-blue-200">Thông tin chi tiết doanh nghiệp / cá nhân bán hàng</p>
+          </div>
+          <button
+            @click="editProfile"
+            class="bg-white text-blue-700 font-medium px-4 py-2 rounded-md hover:bg-blue-100 transition"
+          >
+            Chỉnh sửa hồ sơ
+          </button>
         </div>
-        <button @click="editProfile"
-          class="flex items-center gap-1 text-sm text-gray-700 hover:text-blue-600 border border-gray-300 hover:border-blue-500 rounded-md px-3 py-1.5 transition">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round"
-              d="M15.232 5.232l3.536 3.536M9 11l3.536-3.536a2 2 0 012.828 0l1.172 1.172a2 2 0 010 2.828L13 15l-4 1 1-4z" />
-          </svg>
-          Chỉnh sửa
-        </button>
-      </div>
+        <!-- Render toàn bộ nếu đã có seller -->
+        <template v-if="seller">
+          <!-- Body -->
+          <div class="p-6 grid grid-cols-1 sm:grid-cols-3 gap-6 border-b">
+            <!-- Avatar + Basic Info -->
+            <div class="col-span-1 flex flex-col items-center text-center">
+              <img
+                :src="seller.user?.avatar_url"
+                alt="Avatar"
+                class="w-28 h-28 rounded-full object-cover border mb-4 cursor-pointer"
+                @click="openImagePreview(seller.user?.avatar_url)"
+              />
 
-      <!-- Info Section -->
-      <div class="grid sm:grid-cols-3 gap-6 p-6 text-sm text-gray-800">
-        <!-- Avatar + Store Info -->
-        <div class="col-span-1 flex flex-col items-center sm:items-start text-center sm:text-left">
-          <img :src="getAvatarUrl(seller.avatar)" alt="Avatar" class="w-24 h-24 rounded-full object-cover border" />
-          <p class="text-base font-medium mt-4">{{ seller.store_name }}</p>
-          <p class="text-gray-500">@{{ seller.store_slug }}</p>
-          <span
-            class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700">
-            <svg class="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-              stroke-width="1.5">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                d="M12 3l7.5 4.5v5.25c0 4.28-3.11 8.14-7.5 9-4.39-.86-7.5-4.72-7.5-9V7.5L12 3z" />
-              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4" />
-            </svg>
-          Đã xác thực
-          </span>
+              <h3 class="text-lg font-semibold text-gray-800">{{ seller.store_name }}</h3>
+              <p class="text-sm text-gray-500 italic">{{ seller.store_slug }}</p>
+              <span class="mt-2 px-3 py-1 text-xs font-medium rounded-full"
+                :class="statusColor(seller.verification_status)">
+                {{ statusLabel[seller.verification_status] }}
+              </span>
+            </div>
 
-        </div>
-        <!-- Contact + Info -->
-        <div class="col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label class="text-gray-500">Loại người bán</label>
-            <p class="mt-1 font-medium">{{ seller.seller_type }}</p>
-          </div>
-          <div>
-            <label class="text-gray-500">Số điện thoại</label>
-            <p class="mt-1 font-medium">{{ seller.phone_number }}</p>
-          </div>
-          <div>
-            <label class="text-gray-500">Email liên hệ</label>
-            <p class="mt-1 font-medium">{{ seller.email }}</p>
-          </div>
-          <div>
-            <label class="text-gray-500">Ngày sinh / thành lập</label>
-            <p class="mt-1 font-medium">{{ seller.date_of_birth }}</p>
-          </div>
-          <div class="sm:col-span-2">
-            <label class="text-gray-500">CMND/CCCD / Mã số thuế</label>
-            <p class="mt-1 font-medium">{{ seller.identity_card_number }}</p>
-          </div>
-        </div>
-      </div>
+            <!-- General Info -->
+            <div class="col-span-2 grid sm:grid-cols-2 gap-4 text-sm text-gray-700">
+              <div>
+                <label class="font-medium">Loại người bán:</label>
+                <p>{{ seller.seller_type }}</p>
+              </div>
+              <div>
+                <label class="font-medium">Số điện thoại:</label>
+                <p>{{ seller.phone_number }}</p>
+              </div>
+              <div>
+                <label class="font-medium">Email liên hệ:</label>
+                <p>{{ seller.user?.email || '—' }}</p>
+              </div>
+              <div>
+                <label class="font-medium">Ngày sinh / thành lập:</label>
+                <p>{{ seller.date_of_birth }}</p>
+              </div>
+              <div class="sm:col-span-2">
+                <label class="font-medium">CMND/CCCD / Mã số thuế:</label>
+                <p>{{ seller.identity_card_number }}</p>
+              </div>
+            <div class="mt-4">
+              <label class="font-medium">Ảnh CCCD (2 mặt):</label>
+              <div class="flex gap-6 mt-2"> <!-- Dùng flex ở đây để 2 ảnh nằm ngang -->
+                <!-- Mặt trước -->
+                <div class="flex flex-col items-start">
+                  <p class="text-sm text-gray-500 mb-1">Mặt trước:</p>
+                  <img
+                    v-if="getCccdImage(seller, 'front')"
+                    :src="getCccdImage(seller, 'front')"
+                    alt="CCCD Mặt trước"
+                   class="w-48 rounded border shadow cursor-pointer"
+                    @click="openImagePreview(getCccdImage(seller, 'front'))"
+                  />
+                  <p v-else class="text-gray-400 text-sm">Không có ảnh mặt trước</p>
+                </div>
 
-      <!-- Địa chỉ & Website -->
-      <div class="grid sm:grid-cols-2 gap-6 px-6 pb-6 text-sm text-gray-800">
-        <div>
-          <label class="text-gray-500">Địa chỉ cá nhân / công ty</label>
-          <p class="mt-1 font-medium">{{ seller.personal_address }}</p>
-        </div>
-        <div>
-          <a href="{ seller.website }" target="_blank" rel="noopener noreferrer">
-            <label class="text-gray-500">Website / Fanpage</label>
-            <p class="mt-1 font-medium text-blue-600 hover:underline cursor-pointer">
-              {{ seller.website || '—' }}
-            </p>
-          </a>
-        </div>
-      </div>
+                <!-- Mặt sau -->
+                <div class="flex flex-col items-start">
+                  <p class="text-sm text-gray-500 mb-1">Mặt sau:</p>
+                  <img
+                    v-if="getCccdImage(seller, 'back')"
+                    :src="getCccdImage(seller, 'back')"
+                    alt="CCCD Mặt sau"
+                    class="w-48 rounded border shadow cursor-pointer"
+                    @click="openImagePreview(getCccdImage(seller, 'back'))"
+                  />
+                  <p v-else class="text-gray-400 text-sm">Không có ảnh mặt sau</p>
+                </div>
+              </div>
+            </div>
 
-      <!-- Thông tin doanh nghiệp -->
-      <div v-if="seller.seller_type === 'Doanh Nghiệp' && seller.business_info"
-        class="bg-gray-50 border-t border-gray-100 px-6 py-6 text-sm text-gray-800">
-        <h3 class="text-base font-semibold mb-4 text-gray-700 flex items-center gap-2">
-          <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round"
-              d="M3 10h18M9 21h6m-6 0a3 3 0 01-3-3v-4a3 3 0 013-3h6a3 3 0 013 3v4a3 3 0 01-3 3" />
-          </svg>
-          Thông tin doanh nghiệp
-        </h3>
-        <div class="grid sm:grid-cols-2 gap-4">
-          <div>
-            <label class="text-gray-500">Tên công ty</label>
-            <p class="mt-1 font-medium">{{ seller.business_info.company_name }}</p>
+
+            </div>
           </div>
-          <div>
-            <label class="text-gray-500">Mã số thuế</label>
-            <p class="mt-1 font-medium">{{ seller.business_info.tax_code }}</p>
+
+          <!-- Address & Other -->
+          <div class="p-6 grid sm:grid-cols-2 gap-6 text-sm text-gray-700">
+            <div>
+              <label class="font-medium">Địa chỉ cá nhân / công ty:</label>
+              <p>{{ seller.personal_address }}</p>
+            </div>
+            <div>
+              <label class="font-medium">Website / Fanpage (nếu có):</label>
+              <p>{{ seller.website || '—' }}</p>
+            </div>
           </div>
+          <!-- Business Seller Info -->
+          <div
+            v-if="seller.seller_type === 'business' && seller.business"
+            class="p-6 border-t bg-gray-50 grid sm:grid-cols-2 gap-6 text-sm text-gray-700"
+          >
+            <h3 class="text-base font-semibold col-span-2 text-gray-800 border-b pb-2">Thông tin doanh nghiệp</h3>
+            <div>
+              <label class="font-medium">Tên công ty:</label>
+              <p>{{ seller.business.company_name }}</p>
+            </div>
+            <div>
+              <label class="font-medium">Mã số thuế:</label>
+              <p>{{ seller.business.tax_code }}</p>
+            </div>
+            <div>
+              <label class="font-medium">Địa chỉ công ty:</label>
+              <p>{{ seller.business.company_address }}</p>
+            </div>
           <div>
-            <label class="text-gray-500">Địa chỉ công ty</label>
-            <p class="mt-1 font-medium">{{ seller.business_info.company_address }}</p>
+            <label class="font-medium">Giấy phép kinh doanh:</label>
+         <img
+            v-if="getDocumentImage(seller, 'business')"
+            :src="mediaBase + getDocumentImage(seller, 'business')"
+            alt="Giấy phép kinh doanh"
+              class="mt-2  max-w-xs w-full h-auto rounded border shadow cursor-pointer"
+            @click="openImagePreview(mediaBase + getDocumentImage(seller, 'business'))"
+          />
+            <p v-else class="text-gray-400">Chưa có giấy phép</p>
           </div>
-          <div>
-            <label class="text-gray-500">Số giấy phép kinh doanh</label>
-            <p class="mt-1 font-medium">{{ seller.business_info.business_license }}</p>
+            <div>
+              <label class="font-medium">Người đại diện:</label>
+              <p>{{ seller.business.representative_name }}</p>
+            </div>
+            <div>
+              <label class="font-medium">SĐT người đại diện:</label>
+              <p>{{ seller.business.representative_phone }}</p>
+            </div>
           </div>
-          <div>
-            <label class="text-gray-500">Người đại diện</label>
-            <p class="mt-1 font-medium">{{ seller.business_info.representative_name }}</p>
-          </div>
-          <div>
-            <label class="text-gray-500">SĐT người đại diện</label>
-            <p class="mt-1 font-medium">{{ seller.business_info.representative_phone }}</p>
-          </div>
-        </div>
+        </template>
+        <div v-else class="text-center text-gray-400 py-10">Đang tải hồ sơ người bán...</div>
       </div>
     </div>
-  </div>
-</template>
+   <!-- Overlay preview ảnh to -->
+<div
+  v-if="previewImage"
+  class="fixed inset-0 z-50 bg-black bg-opacity-70 flex justify-center items-center"
+  @click.self="closeImagePreview"
+>
+  <img
+    :src="previewImage"
+    alt="Preview"
+    class="max-w-[90vw] max-h-[85vh] object-contain rounded shadow-lg border-4 border-white"
+  />
+</div>
 
-
+  </template>
 
 <script setup>
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
+import Swal from 'sweetalert2'
+const config = useRuntimeConfig();
+const seller = ref(null);
+const API = config.public.apiBaseUrl;
+const mediaBase = (config.public.mediaBaseUrl || 'http://localhost:8000').replace(/\/?$/, '/');
 
 
+onMounted(async () => {
+  try {
+    const token = localStorage.getItem('access_token');
 
+    if (!token) {
+      toast('error', 'Vui lòng đăng nhập để tiếp tục!');
+      return;
+    }
 
-const seller = ref({
-  id: 101,
-  store_name: 'Công ty TNHH TM ABC',
-  store_slug: 'cong-ty-abc',
-  seller_type: 'Doanh Nghiệp',
-  phone_number: '0909123456',
-  email: 'contact@abc.vn',
-  identity_card_number: '0312345678', // hoặc mã số thuế
-  // ngày thành lập
-  date_of_birth: '2005-05-12',
-  // địa chỉ cá nhân
-  personal_address: 'Tầng 10, Tòa nhà XYZ, Quận 1, TP.HCM',
-  website: 'https://abc.vn',
-  verification_status: 'approved',
-  avatar: null,
-  business_info: {
-    tax_code: '1234567890',
-    company_name: 'Công ty TNHH ABC',
-    company_address: '123 Nguyễn Trãi, Q1, TP.HCM',
-    business_license: 'GP-2024-XYZ',
-    representative_name: 'Nguyễn Văn A',
-    representative_phone: '0909888777'
+    const response = await axios.get(`${API}/sellers/seller/me`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+    console.log('response', response);
+
+    seller.value = response.data.seller;
+  } catch (error) {
+    console.error('Lỗi khi tải hồ sơ người bán:', error);
   }
 });
 
+const toast = (icon, title) => {
+  Swal.fire({
+    toast: true,  
+    position: 'top-end',
+    icon,
+    title,
+    width: '350px',
+    padding: '10px 20px',
+    customClass: { popup: 'text-sm rounded-md shadow-md' },
+    showConfirmButton: false,
+    timer: 1500,
+    timerProgressBar: true,
+    didOpen: (toastEl) => {
+      toastEl.addEventListener('mouseenter', () => Swal.stopTimer());
+      toastEl.addEventListener('mouseleave', () => Swal.resumeTimer());
+    }
+  });
+};
+
+const previewImage = ref(null);
+
+const openImagePreview = (imgUrl) => {
+  previewImage.value = imgUrl;
+};
+
+const closeImagePreview = () => {
+  previewImage.value = null;
+};
+
+const getDocumentImage = (seller, type) => {
+  if (type === 'business' && seller?.business?.business_license) {
+    return seller.business.business_license;
+  }
+  if (type === 'personal' && seller?.document) {
+    return seller.document;
+  }
+  return ''; // hoặc return null nếu bạn đã kiểm tra v-if kỹ
+};
+
+const getCccdImage = (seller, side) => {
+  if (side === 'front' && seller?.cccd_front) {
+    return mediaBase + seller.cccd_front;
+  }
+  if (side === 'back' && seller?.cccd_back) {
+    return mediaBase + seller.cccd_back;
+  }
+  return null;
+};
 
 
 const statusLabel = {
   pending: 'Đang chờ xác minh',
-  approved: 'Đã xác minh',
+  verified: 'Đã xác minh',
   rejected: 'Bị từ chối'
 }
 
 function statusColor(status) {
   switch (status) {
-    case 'approved':
+    case 'verified':
       return 'bg-green-100 text-green-700'
     case 'pending':
       return 'bg-yellow-100 text-yellow-700'
@@ -174,17 +262,17 @@ function statusColor(status) {
   }
 }
 
-function getAvatarUrl(avatar) {
-  return avatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(seller.value.store_name)
+function getAvatarUrl(avatarUrl) {
+  return avatarUrl || mediaBase + 'avatars/default.jpg';
 }
-
 function editProfile() {
   // Điều hướng đến form chỉnh sửa
-  // navigateTo(`/seller/profile/edit`)
-  alert('Đi đến chỉnh sửa hồ sơ.')
+  toast('success', 'Đi đến chỉnh sửa hồ sơ.')
+  navigateTo(`/seller/seller_profile_edit`)
 }
 
 definePageMeta({
   layout: 'default-seller'
 })
 </script>
+ 

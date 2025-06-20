@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Facades\Storage;
+
 
 class SellerController extends Controller
 {
@@ -24,62 +26,120 @@ class SellerController extends Controller
 
 
 
-public function getSellerById($id){
-    $seller = Seller::with([
-        'business',
-        'user:id,name,email'
-    ])
-    ->where('id', $id)
+public function getMySellerInfo()
+{
+    $user = auth()->user();
+
+    // Kiểm tra user có phải seller không
+    $seller = Seller::with(['business', 'user:id,name,email,avatar'])
+    ->where('user_id', auth()->id())
     ->first();
+
+    if (!$seller) {
+        return response()->json([
+            'message' => 'Bạn không phải là người bán (seller).'
+        ], 403); // Hoặc 404 nếu muốn ẩn thông tin
+    }
+     $avatarFile = $seller->user->avatar;
+    $avatarUrl = $avatarFile
+        ? env('R2_AVATAR_URL') . $avatarFile
+        : env('R2_AVATAR_URL') . 'default.jpg';
+
+    // Gắn vào response
+    $seller->user->avatar_url = $avatarUrl;
 
     return response()->json([
         'seller' => $seller
     ]);
 }
-
-public function update(Request $request, $id)
+public function update(Request $request)
 {
+    $user = auth()->user();
+    $seller = Seller::where('user_id', $user->id)->firstOrFail();
 
-    $seller = Seller::findOrFail($id);
-     // Cập nhật thông tin seller
-    $seller->update($request->only([
-        'store_name',
-        'store_slug',
-        'seller_type',
-        'bio',
-        'identity_card_number',
-        'date_of_birth',
-        'personal_address',
-        'phone_number',
-        'identity_card_file',
-        'document'
-    ]));
+    $data = $request->only([
+        'store_name', 'store_slug', 'seller_type', 'bio',
+        'identity_card_number', 'date_of_birth',
+        'personal_address', 'phone_number'
+    ]);
 
-    // Nếu seller_type là business và có business_info thì cập nhật business_seller
-    if ($request->seller_type === 'business' && $request->filled('business_info')) {
+    // ======= Upload giấy tờ cá nhân lên R2 =======
+    if ($request->hasFile('document') && $request->file('document')->isValid()) {
+        // Xóa file cũ nếu có
+        if ($seller->document) {
+            Storage::disk('r2')->delete($seller->document);
+        }
+
+        $file = $request->file('document');
+        $filename = 'seller-documents/personal/' . time() . '_' . Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) . '.' . $file->getClientOriginalExtension();
+
+        $uploadResult = Storage::disk('r2')->put($filename, file_get_contents($file));
+
+        if ($uploadResult) {
+            $data['document'] = $filename;
+        } else {
+            throw new \Exception('Không thể upload file giấy tờ cá nhân lên R2.');
+        }
+    }
+
+     // ======= Upload CCCD mặt trước =======
+    if ($request->hasFile('cccd_front') && $request->file('cccd_front')->isValid()) {
+        if ($seller->cccd_front) {
+            Storage::disk('r2')->delete($seller->cccd_front);
+        }
+
+        $cccdFrontPath = $request->file('cccd_front')->store('seller-documents', 'r2');
+        $data['cccd_front'] = $cccdFrontPath;
+    }
+
+    // ======= Upload CCCD mặt sau =======
+    if ($request->hasFile('cccd_back') && $request->file('cccd_back')->isValid()) {
+        if ($seller->cccd_back) {
+            Storage::disk('r2')->delete($seller->cccd_back);
+        }
+
+        $cccdBackPath = $request->file('cccd_back')->store('seller-documents', 'r2');
+        $data['cccd_back'] = $cccdBackPath;
+    }
+
+
+    $seller->update($data);
+
+    // ======= Upload giấy phép kinh doanh =======
+    if ($request->seller_type === 'business' && $request->has('business')) {
+        $businessData = $request->input('business');
+
+        if ($request->hasFile('business.business_license') && $request->file('business.business_license')->isValid()) {
+            // Xóa file cũ nếu có
+            if ($seller->business?->business_license) {
+                Storage::disk('r2')->delete($seller->business->business_license);
+            }
+
+            $file = $request->file('business.business_license');
+            $filename = 'seller-documents/business/' . time() . '_' . Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) . '.' . $file->getClientOriginalExtension();
+
+            $uploadResult = Storage::disk('r2')->put($filename, file_get_contents($file));
+
+            if ($uploadResult) {
+                $businessData['business_license'] = $filename;
+            } else {
+                throw new \Exception('Không thể upload file giấy phép kinh doanh lên R2.');
+            }
+        }
+
         BusinessSeller::updateOrCreate(
             ['seller_id' => $seller->id],
-            [
-                'tax_code' => $request->business_info['tax_code'] ?? null,
-                'company_name' => $request->business_info['company_name'] ?? null,
-                'company_address' => $request->business_info['company_address'] ?? null,
-                'business_license' => $request->business_info['business_license'] ?? null,
-                'representative_name' => $request->business_info['representative_name'] ?? null,
-                'representative_phone' => $request->business_info['representative_phone'] ?? null
-            ]
+            $businessData
         );
     }
 
-   $seller = Seller::with([
-    'user:id,name,email',
-    'business'
-    ])->findOrFail($id);
+    // Lấy lại seller sau khi update
+    $seller = Seller::with(['user:id,name,email', 'business'])->findOrFail($seller->id);
 
     return response()->json([
         'message' => 'Cập nhật thành công',
         'seller' => $seller
     ]);
-
 }
 
  public function showStore($slug)
@@ -107,7 +167,8 @@ public function update(Request $request, $id)
 }
 
 
-    public function register(Request $request)
+
+   public function register(Request $request)
     {
         try {
             $userId = auth()->id();
@@ -120,7 +181,7 @@ public function update(Request $request, $id)
 
             // Validation rules
             $validator = Validator::make($request->all(), [
-                'store_name' => 'required_if:seller_type,personal|string|max:255', // Chỉ yêu cầu store_name cho personal
+                'store_name' => 'required_if:seller_type,personal|string|max:255',
                 'seller_type' => 'required|in:personal,business',
                 'identity_card_number' => 'required_if:seller_type,personal|string|max:20',
                 'date_of_birth' => 'required_if:seller_type,personal|date',
@@ -134,20 +195,10 @@ public function update(Request $request, $id)
                 'business_license' => 'required_if:seller_type,business|file|mimes:jpg,png,pdf|max:4048',
                 'representative_name' => 'required_if:seller_type,business|string',
                 'representative_phone' => 'required_if:seller_type,business|string|max:20',
+                'cccd_front' => 'nullable|file|mimes:jpg,jpeg,png|max:4096',
+                'cccd_back' => 'nullable|file|mimes:jpg,jpeg,png|max:4096',
             ], [
-                'store_name.required_if' => 'Tên cửa hàng là bắt buộc đối với cá nhân.',
-                'seller_type.required' => 'Loại người bán là bắt buộc.',
-                'seller_type.in' => 'Loại người bán phải là cá nhân hoặc doanh nghiệp.',
-                'identity_card_number.required_if' => 'Số CMND/CCCD là bắt buộc đối với cá nhân.',
-                'date_of_birth.required_if' => 'Ngày sinh là bắt buộc đối với cá nhân.',
-                'personal_address.required_if' => 'Địa chỉ cá nhân là bắt buộc đối với cá nhân.',
-                'phone_number.required_if' => 'Số điện thoại là bắt buộc đối với cá nhân.',
-                'tax_code.required_if' => 'Mã số thuế là bắt buộc đối với doanh nghiệp.',
-                'company_name.required_if' => 'Tên công ty là bắt buộc đối với doanh nghiệp.',
-                'company_address.required_if' => 'Địa chỉ công ty là bắt buộc đối với doanh nghiệp.',
-                'business_license.required_if' => 'Giấy phép kinh doanh là bắt buộc đối với doanh nghiệp.',
-                'representative_name.required_if' => 'Tên người đại diện là bắt buộc đối với doanh nghiệp.',
-                'representative_phone.required_if' => 'Số điện thoại người đại diện là bắt buộc đối với doanh nghiệp.',
+
             ]);
 
             if ($validator->fails()) {
@@ -157,52 +208,70 @@ public function update(Request $request, $id)
                 ], 422);
             }
 
-            // Kiểm tra xem người dùng đã có bản ghi Seller chưa
+            // Kiểm tra đã có seller chưa
             $seller = Seller::where('user_id', $userId)->first();
 
-            if ($seller) {
-                // Trường hợp nâng cấp từ personal sang business
-                if ($seller->seller_type === 'personal' && $request->seller_type === 'business' && !$seller->business) {
-                    // Thêm thông tin doanh nghiệp vào bảng business_sellers
-                    $licensePath = $request->hasFile('business_license')
-                        ? $request->file('business_license')->store('licenses', 'public')
-                        : null;
-
-                    $seller->business()->create([
-                        'tax_code' => $request->tax_code,
-                        'company_name' => $request->company_name,
-                        'company_address' => $request->company_address,
-                        'business_license' => $licensePath,
-                        'representative_name' => $request->representative_name,
-                        'representative_phone' => $request->representative_phone,
-                    ]);
-
-                    // Cập nhật seller_type thành business
-                    $seller->update([
-                        'seller_type' => 'business',
-                        'verification_status' => 'pending' // Đặt lại trạng thái để chờ xác minh
-                    ]);
-
-                    return response()->json([
-                        'message' => 'Nâng cấp thành công lên doanh nghiệp! Vui lòng chờ xác minh.',
-                        'data' => $seller->load('business')
-                    ], 200);
+            // ====== TRƯỜNG HỢP NÂNG CẤP PERSONAL → BUSINESS ======
+            if ($seller && $seller->seller_type === 'personal' && $request->seller_type === 'business' && !$seller->business) {
+                // Upload business license
+                $licensePath = null;
+                if ($request->hasFile('business_license') && $request->file('business_license')->isValid()) {
+                    $file = $request->file('business_license');
+                    $filename = 'seller-documents/business/' . time() . '_' . Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) . '.' . $file->getClientOriginalExtension();
+                    Storage::disk('r2')->put($filename, file_get_contents($file));
+                    $licensePath = $filename;
                 }
 
-                // Nếu không phải trường hợp nâng cấp hợp lệ, trả về lỗi
+                $seller->business()->create([
+                    'tax_code' => $request->tax_code,
+                    'company_name' => $request->company_name,
+                    'company_address' => $request->company_address,
+                    'business_license' => $licensePath,
+                    'representative_name' => $request->representative_name,
+                    'representative_phone' => $request->representative_phone,
+                ]);
+
+                $seller->update([
+                    'seller_type' => 'business',
+                    'verification_status' => 'pending'
+                ]);
+
+                return response()->json([
+                    'message' => 'Nâng cấp thành công lên doanh nghiệp! Vui lòng chờ xác minh.',
+                    'data' => $seller->load('business')
+                ], 200);
+            }
+
+            // Nếu seller đã tồn tại không được tạo mới
+            if ($seller) {
                 return response()->json([
                     'message' => 'Tài khoản này đã đăng ký cửa hàng hoặc không thể nâng cấp.'
                 ], 409);
             }
 
-            // Trường hợp đăng ký mới
-            // Generate unique store slug
+            // ====== ĐĂNG KÝ MỚI ======
             $storeSlug = Str::slug($request->store_name) . '-' . uniqid();
 
-            // Handle document upload
-            $documentPath = $request->hasFile('document')
-                ? $request->file('document')->store('documents', 'public')
-                : null;
+            // Upload giấy tờ cá nhân nếu có
+            $documentPath = null;
+            $cccdFront = null;
+            $cccdBack = null;
+            if ($request->hasFile('document') && $request->file('document')->isValid()) {
+                $file = $request->file('document');
+                $filename = 'seller-documents/personal/' . time() . '_' . Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) . '.' . $file->getClientOriginalExtension();
+                Storage::disk('r2')->put($filename, file_get_contents($file));
+                $documentPath = $filename;
+
+                // Upload CCCD mặt trước
+                if ($request->hasFile('cccd_front') && $request->file('cccd_front')->isValid()) {
+                    $cccdFront = $request->file('cccd_front')->store('seller-documents', 'r2');
+                }
+
+                // Upload CCCD mặt sau
+                if ($request->hasFile('cccd_back') && $request->file('cccd_back')->isValid()) {
+                    $cccdBack = $request->file('cccd_back')->store('seller-documents', 'r2');
+                }
+            }
 
             // Tạo seller mới
             $seller = Seller::create([
@@ -215,15 +284,21 @@ public function update(Request $request, $id)
                 'personal_address' => $request->seller_type === 'personal' ? $request->personal_address : null,
                 'phone_number' => $request->seller_type === 'personal' ? $request->phone_number : null,
                 'document' => $documentPath,
+                'cccd_front' => $cccdFront,
+                'cccd_back' => $cccdBack,
                 'bio' => $request->bio,
                 'verification_status' => 'pending'
             ]);
 
-            // Tạo thông tin doanh nghiệp nếu là business
+            // Nếu là doanh nghiệp thì tạo thêm bảng phụ
             if ($request->seller_type === 'business') {
-                $licensePath = $request->hasFile('business_license')
-                    ? $request->file('business_license')->store('licenses', 'public')
-                    : null;
+                $licensePath = null;
+                if ($request->hasFile('business_license') && $request->file('business_license')->isValid()) {
+                    $file = $request->file('business_license');
+                    $filename = 'seller-documents/business/' . time() . '_' . Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) . '.' . $file->getClientOriginalExtension();
+                    Storage::disk('r2')->put($filename, file_get_contents($file));
+                    $licensePath = $filename;
+                }
 
                 $seller->business()->create([
                     'tax_code' => $request->tax_code,
@@ -247,7 +322,6 @@ public function update(Request $request, $id)
             ], 500);
         }
     }
-
         public function login(Request $request)
     {
         try {
