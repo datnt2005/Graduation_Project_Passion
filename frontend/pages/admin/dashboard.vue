@@ -1,5 +1,20 @@
 <!-- File: components/Dashboard.vue -->
 <template>
+  <!-- Cảnh báo sản phẩm gần hết hàng -->
+  <div v-if="showLowStockAlert && lowStockProducts.length" class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4 rounded relative">
+    <button @click="showLowStockAlert = false" class="absolute top-2 right-2 text-yellow-700 hover:text-yellow-900" aria-label="Đóng thông báo">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    </button>
+    <div class="font-semibold mb-2">Cảnh báo: Có {{ lowStockProducts.length }} sản phẩm gần hết hàng!</div>
+    <ul class="list-disc pl-5">
+      <li v-for="item in lowStockProducts" :key="item.id">
+        {{ item.product_name }} <span v-if="item.variant_name">({{ item.variant_name }})</span> - Số lượng còn: <b>{{ item.quantity }}</b>
+      </li>
+    </ul>
+  </div>
+
   <div class="overflow-x-auto">
     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 min-w-full">
       <!-- Thẻ thống kê động -->
@@ -50,7 +65,7 @@
         >
           <option value="revenue">Doanh Thu</option>
           <option value="profit">Lợi Nhuận</option>
-          <option value="all">Cả Hai</option>
+          <option value="all">Doanh thu và Lợi nhuận</option>
           <option value="inventory">Tồn Kho</option>
           <option value="orders">Tổng Đơn Hàng</option>
         </select>
@@ -75,8 +90,13 @@
 
   <!-- Bảng xếp hạng sản phẩm -->
   <div class="bg-white p-4 sm:p-6 rounded shadow mt-6 w-full overflow-x-auto">
-    <h2 class="text-lg sm:text-xl font-semibold text-gray-700">Danh sách tồn kho</h2>
-    <!-- Bộ lọc -->
+
+    <!-- Nút chuyển đổi -->
+    <div class="flex gap-2 mb-4">
+      <button @click="showInventoryList" :class="['px-4 py-2 rounded', !showBestSellers ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700']">Danh sách tồn kho</button>
+      <button @click="showBestSellersList" :class="['px-4 py-2 rounded', showBestSellers ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700']">Danh sách sản phẩm bán chạy</button>
+    </div>
+    <!-- Bộ lọc luôn hiển thị -->
     <div class="flex flex-wrap gap-3 mt-4">
       <input v-model="filters.keyword" type="text" placeholder="Tìm theo tên hoặc mã SP"
         class="border p-2 rounded flex-1 min-w-[150px] sm:min-w-[200px]">
@@ -98,38 +118,76 @@
       <button @click="resetFilters"
         class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 w-full sm:w-auto">Reset</button>
     </div>
-    <!-- Thông báo khi không có dữ liệu -->
-    <div v-if="loadingInventory" class="text-center text-gray-400 py-10">Đang tải dữ liệu...</div>
-    <div v-else-if="inventoryError" class="text-center text-red-500 py-10">{{ inventoryError }}</div>
-    <div v-else-if="!filteredData.length" class="text-center text-gray-400 py-10">Không tìm thấy sản phẩm nào</div>
-    <!-- Bảng dữ liệu -->
-    <div v-else class="overflow-x-auto mt-4">
-      <table class="min-w-[1200px] divide-y divide-gray-200">
-        <thead>
-          <tr>
-            <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Mã SP</th>
-            <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Tên sản phẩm</th>
-            <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Danh mục</th>
-            <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Số lượng tồn</th>
-            <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Biến thể</th>
-            <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Giá nhập</th>
-            <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Giá bán</th>
-            <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Trạng thái</th>
-          </tr>
-        </thead>
-        <tbody v-for="item in filteredData" :key="item.id" class="bg-white">
-          <tr>
-            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.variant_sku }}</td>
-            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.product_name }}</td>
-            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.category_name }}</td>
-            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.quantity }}</td>
-            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.variant_name }}</td>
-            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ formatNumber(item.cost_price) }}</td>
-            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ formatNumber(item.sell_price) }}</td>
-            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.status }}</td>
-          </tr>
-        </tbody>
-      </table>
+    <!-- Bảng tồn kho hoặc bảng bán chạy -->
+    <div v-if="!showBestSellers">
+      <!-- Thông báo khi không có dữ liệu -->
+      <div v-if="loadingInventory" class="text-center text-gray-400 py-10">Đang tải dữ liệu...</div>
+      <div v-else-if="inventoryError" class="text-center text-red-500 py-10">{{ inventoryError }}</div>
+      <div v-else-if="!filteredData.length" class="text-center text-gray-400 py-10">Không tìm thấy sản phẩm nào</div>
+      <!-- Bảng dữ liệu -->
+      <div v-else class="overflow-x-auto mt-4">
+        <table class="min-w-[1200px] divide-y divide-gray-200">
+          <thead>
+            <tr>
+              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Mã SP</th>
+              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Tên sản phẩm</th>
+              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Danh mục</th>
+              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Số lượng tồn</th>
+              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Biến thể</th>
+              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Giá nhập</th>
+              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Giá bán</th>
+              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Trạng thái</th>
+            </tr>
+          </thead>
+          <tbody v-for="item in filteredData" :key="item.id" class="bg-white">
+            <tr>
+              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.variant_sku }}</td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.product_name }}</td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.category_name }}</td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.quantity }}</td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.variant_name }}</td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ formatNumber(item.cost_price) }}</td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ formatNumber(item.sell_price) }}</td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.status }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div v-else>
+      <div v-if="loadingBestSellers" class="text-center text-gray-400 py-10">Đang tải dữ liệu sản phẩm bán chạy...</div>
+      <div v-else-if="bestSellersError" class="text-center text-red-500 py-10">{{ bestSellersError }}</div>
+      <div v-else-if="!bestSellers.length" class="text-center text-gray-400 py-10">Không có sản phẩm nào bán chạy</div>
+      <div v-else class="overflow-x-auto mt-4">
+        <table class="min-w-[1200px] divide-y divide-gray-200">
+          <thead>
+            <tr>
+              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Mã SP</th>
+              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Tên sản phẩm</th>
+              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Danh mục</th>
+              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Số lượng tồn</th>
+              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Tổng bán</th>
+              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Biến thể</th>
+              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Giá nhập</th>
+              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Giá bán</th>
+              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Trạng thái</th>
+            </tr>
+          </thead>
+          <tbody v-for="item in bestSellers" :key="item.id" class="bg-white">
+            <tr class="hover:bg-gray-50">
+              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.variant_sku || '-' }}</td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.product_name || '-' }}</td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.category_name || '-' }}</td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.quantity !== undefined ? formatNumber(item.quantity) : '-' }}</td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-bold">{{ formatNumber(item.total_sold) }}</td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.variant_name || '-' }}</td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.cost_price !== undefined ? formatNumber(item.cost_price) : '-' }}</td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.sell_price !== undefined ? formatNumber(item.sell_price) : '-' }}</td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.status || '-' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 </template>
@@ -415,6 +473,62 @@ function formatNumber(val) {
   if (typeof val === 'number') return val.toLocaleString('vi-VN', { maximumFractionDigits: 0 })
   if (!isNaN(val) && val !== null && val !== undefined && val !== '') return Number(val).toLocaleString('vi-VN', { maximumFractionDigits: 0 })
   return val || '0'
+}
+
+// Sản phẩm gần hết hàng
+const lowStockProducts = ref([])
+const loadingLowStock = ref(false)
+const lowStockError = ref('')
+const showLowStockAlert = ref(true)
+
+onMounted(async () => {
+  loadingLowStock.value = true
+  try {
+    const res = await fetch(`${apiBaseUrl}/inventory/low-stock`)
+    if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`)
+    lowStockProducts.value = await res.json()
+  } catch (e) {
+    lowStockError.value = 'Không thể tải dữ liệu sản phẩm gần hết hàng!'
+  } finally {
+    loadingLowStock.value = false
+  }
+})
+
+watch(lowStockProducts, (val) => {
+  if (val && val.length) {
+    showLowStockAlert.value = true
+    setTimeout(() => {
+      showLowStockAlert.value = false
+    }, 10000)
+  }
+})
+
+// Thêm biến trạng thái và dữ liệu cho bảng bán chạy
+const showBestSellers = ref(false)
+const bestSellers = ref([])
+const loadingBestSellers = ref(false)
+const bestSellersError = ref('')
+
+async function fetchBestSellers() {
+  loadingBestSellers.value = true
+  bestSellersError.value = ''
+  try {
+    const res = await fetch(`${apiBaseUrl}/inventory/best-sellers`)
+    if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`)
+    bestSellers.value = await res.json()
+  } catch (e) {
+    bestSellersError.value = 'Không thể tải dữ liệu sản phẩm bán chạy!'
+  } finally {
+    loadingBestSellers.value = false
+  }
+}
+
+function showInventoryList() {
+  showBestSellers.value = false
+}
+function showBestSellersList() {
+  showBestSellers.value = true
+  if (bestSellers.value.length === 0) fetchBestSellers()
 }
 
 definePageMeta({

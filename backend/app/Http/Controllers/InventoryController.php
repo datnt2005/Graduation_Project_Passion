@@ -98,4 +98,75 @@ class InventoryController extends Controller
             return false;
         }
     }
+
+    /**
+     * Lấy danh sách sản phẩm gần hết hàng (quantity <= 5)
+     */
+    public function lowStock()
+    {
+        $inventories = \App\Models\Inventory::with(['productVariant.product.categories'])
+            ->where('quantity', '>', 0)
+            ->where('quantity', '<=', 5)
+            ->get()
+            ->map(function($inv) {
+                $productVariant = $inv->productVariant;
+                $product = $productVariant?->product;
+                $categoryName = $product?->categories?->first()?->name;
+                return [
+                    'id' => $inv->id,
+                    'product_name' => $product ? $product->name : '',
+                    'variant_sku' => $productVariant ? $productVariant->sku : '',
+                    'variant_name' => $productVariant?->attributes?->pluck('name')->implode(', '),
+                    'quantity' => $inv->quantity,
+                    'location' => $inv->location,
+                    'last_updated' => $inv->last_updated,
+                    'cost_price' => $productVariant?->cost_price,
+                    'sell_price' => $productVariant?->sale_price ?? $productVariant?->price,
+                    'category_name' => $categoryName,
+                ];
+            });
+        return response()->json($inventories);
+    }
+
+    /**
+     * Lấy danh sách sản phẩm bán chạy nhất dựa theo số lượng bán ra (order_items)
+     */
+    public function bestSellers()
+    {
+        $bestSellers = \App\Models\OrderItem::select('product_variant_id', \DB::raw('SUM(quantity) as total_sold'))
+            ->whereHas('order', function($q) {
+                $q->where('status', 'delivered');
+            })
+            ->groupBy('product_variant_id')
+            ->orderByDesc('total_sold')
+            ->with(['productVariant.product.categories', 'productVariant.inventories'])
+            ->take(10)
+            ->get()
+            ->map(function($item) {
+                $variant = $item->productVariant;
+                $product = $variant?->product;
+                $categoryName = $product?->categories?->first()?->name;
+                // Lấy tổng tồn kho của variant
+                $quantity = $variant?->inventories?->sum('quantity');
+                // Lấy trạng thái tồn kho giống như list
+                $status = 'Hết hàng';
+                if ($quantity > 0 && $quantity <= 5) {
+                    $status = 'Gần hết';
+                } elseif ($quantity > 5) {
+                    $status = 'Còn hàng';
+                }
+                return [
+                    'product_name' => $product ? $product->name : '',
+                    'variant_name' => $variant?->attributes?->pluck('name')->implode(', '),
+                    'variant_sku' => $variant?->sku,
+                    'category_name' => $categoryName,
+                    'quantity' => $quantity,
+                    'cost_price' => $variant?->cost_price,
+                    'sell_price' => $variant?->sale_price ?? $variant?->price,
+                    'status' => $status,
+                    'total_sold' => $item->total_sold,
+                ];
+            });
+        return response()->json($bestSellers);
+    }
 }
