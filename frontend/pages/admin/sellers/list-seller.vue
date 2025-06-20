@@ -314,7 +314,7 @@ const toast = (type = 'success', message = '', timer = 2000) => {
 const fetchSellers = async () => {
   loading.value = true
   try {
-    const res = await axios.get(`${API}/sellers`)
+    const res = await axios.get(`${API}/admin/sellers`)
     sellers.value = res.data || []
   } catch {
     sellers.value = []

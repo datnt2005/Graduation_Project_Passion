@@ -33,7 +33,7 @@
                 d="M12 3l7.5 4.5v5.25c0 4.28-3.11 8.14-7.5 9-4.39-.86-7.5-4.72-7.5-9V7.5L12 3z" />
               <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4" />
             </svg>
-            Đã xác thực
+          Đã xác thực
           </span>
 
         </div>

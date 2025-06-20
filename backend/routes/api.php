@@ -183,8 +183,6 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 
-
-
     Route::get('/address', [AddressController::class, 'index']);
     Route::get('/address/{id}', [AddressController::class, 'show']);
     Route::post('/address', [AddressController::class, 'store']);
@@ -221,27 +219,27 @@ Route::apiResource('users', UserController::class);
 
 // api seller
 
-Route::middleware([HandleCors::class, 'api'])
-    ->prefix('sellers')
-    ->group(function () {
-        Route::get('/', [SellerController::class, 'index']);
-        Route::get('/store/{slug}', [SellerController::class, 'showStore']);
-         Route::post('/register', [SellerController::class, 'register'])
-              ->middleware('auth:sanctum');
-        Route::post('/login', [SellerController::class, 'login']);
-    });
-// Route::prefix('sellers')->group(function ()
-// {
-//     // lấy seller or business theo id
-//     Route::get('/{id}', [SellerController::class, 'getSellerById']);
-//     Route::get('/', [SellerController::class, 'index']);
-//     Route::post('/register', [SellerController::class, 'register'])->middleware('auth:sanctum');
-//     Route::post('/login', [SellerController::class, 'login']);
-//     Route::get('/', [SellerController::class, 'index'])->middleware('auth:sanctum');
-//     Route::get('/store/{slug}', [SellerController::class, 'showStore']);
-//     Route::put('/update/{id}', [SellerController::class, 'update']);
+// Route::middleware([HandleCors::class, 'api'])
+//     ->prefix('sellers')
+//     ->group(function () {
+//         Route::get('/', [SellerController::class, 'index']);
+//         Route::get('/store/{slug}', [SellerController::class, 'showStore']);
+//          Route::post('/register', [SellerController::class, 'register'])
+//               ->middleware('auth:sanctum');
+//         Route::post('/login', [SellerController::class, 'login']);
+//     });
 
-// });
+Route::prefix('sellers')->group(function ()
+{
+    // lấy seller or business theo id
+    Route::get('/{id}', [SellerController::class, 'getSellerById']);
+    Route::get('/', [SellerController::class, 'index']);
+    Route::post('/register', [SellerController::class, 'register'])->middleware('auth:sanctum');
+    Route::post('/login', [SellerController::class, 'login']);
+    Route::get('/', [SellerController::class, 'index'])->middleware('auth:sanctum');
+    Route::get('/store/{slug}', [SellerController::class, 'showStore']);
+    Route::put('/update/{id}', [SellerController::class, 'update']);
+});
 
 // Seller Follower
 Route::middleware('auth:sanctum')->group(function () {

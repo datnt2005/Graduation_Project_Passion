@@ -7,7 +7,6 @@
     class Seller extends Model
     {
         use HasFactory;
-
         protected $fillable = [
             'user_id', 'store_name', 'store_slug', 'seller_type', 'bio',
             'identity_card_number', 'date_of_birth', 'personal_address',
