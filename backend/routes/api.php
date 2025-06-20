@@ -17,6 +17,7 @@ use App\Http\Controllers\PaymentMethodController;
 use App\Http\Controllers\DiscountController;
 use App\Http\Controllers\GoogleAuthController;
 use App\Http\Controllers\ChatbotController;
+use App\Http\Controllers\NotificationController;
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Redis;
@@ -40,6 +41,16 @@ Route::prefix('categories')->group(function () {
     Route::delete('/{id}', [CategoryController::class, 'destroy']);
 });
 
+
+Route::prefix('notifications')->group(function () {
+    Route::get('/', [NotificationController::class, 'index']);
+    Route::post('/', [NotificationController::class, 'store']);
+    Route::get('/{id}', [NotificationController::class, 'show']);
+    Route::put('/{id}', [NotificationController::class, 'update']);
+    Route::post('/mark-read', [NotificationController::class, 'markAsRead']);
+    Route::delete('/{id}', [NotificationController::class, 'destroy']);
+    Route::post('/send-multiple', [NotificationController::class, 'sendMultiple']);
+}); 
 
 //tags
 Route::prefix('tags')->group(function () {
@@ -210,6 +221,8 @@ Route::apiResource('users', UserController::class);
 Route::post('users/batch-delete', [UserController::class, 'batchDelete']);
 Route::post('users/batch-add-role', [UserController::class, 'batchAddRole']);
 Route::post('users/batch-remove-role', [UserController::class, 'batchRemoveRole']);
+Route::get('/users/by-role/{role}', [UserController::class, 'getByRole']);
+
 
 Route::post('profile/update/{id}', [UserController::class, 'updateUser']);
 

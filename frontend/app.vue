@@ -20,7 +20,6 @@ router.afterEach(() => {
 <template>
   <div>
         <LoadingSpinner v-if="loading.isLoading" />
-
   </div>
   <NuxtLayout>
     <NuxtPage />
@@ -29,6 +28,4 @@ router.afterEach(() => {
 
 </template>
 
-<script setup>
-// The Notification component will be auto-imported by Nuxt
-</script>
+
