@@ -8,6 +8,7 @@
     "require": {
         "php": "^8.2",
         "aws/aws-sdk-php": "^3.343",
+        "google/cloud-vision": "^2.0",
         "intervention/image": "^3.11",
         "intervention/image-laravel": "*",
         "laravel-lang/lang": "^15.20",

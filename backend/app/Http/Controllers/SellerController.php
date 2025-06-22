@@ -12,6 +12,7 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Storage;
+use Google\Cloud\Vision\V1\ImageAnnotatorClient;
 
 
 class SellerController extends Controller
@@ -57,15 +58,93 @@ public function update(Request $request)
     $user = auth()->user();
     $seller = Seller::where('user_id', $user->id)->firstOrFail();
 
+    $validator = Validator::make($request->all(), [
+        'store_name' => 'required_if:seller_type,personal|string|max:255',
+        'store_slug' => 'nullable|string|max:255|regex:/^[a-z0-9-]+$/',
+        'seller_type' => 'required|in:personal,business',
+        'identity_card_number' => 'required_if:seller_type,personal|string|max:20',
+        'date_of_birth' => 'required_if:seller_type,personal|date',
+        'personal_address' => 'required_if:seller_type,personal|string',
+        'phone_number' => 'required_if:seller_type,personal|string|max:20',
+        'document' => 'nullable|file|mimes:jpg,png,pdf|max:4048',
+        'bio' => 'nullable|string',
+        'cccd_front' => 'required_if:seller_type,personal|file|mimes:jpg,jpeg,png|max:4096',
+        'cccd_back' => 'required_if:seller_type,personal|file|mimes:jpg,jpeg,png|max:4096',
+
+        // Business fields
+        'business' => 'required_if:seller_type,business|array',
+        'business.tax_code' => 'required_if:seller_type,business|string',
+        'business.company_name' => 'required_if:seller_type,business|string',
+        'business.company_address' => 'required_if:seller_type,business|string',
+        'business.representative_name' => 'required_if:seller_type,business|string',
+        'business.representative_phone' => 'required_if:seller_type,business|string|max:20',
+        'business.business_license' => 'nullable|file|mimes:jpg,png,pdf|max:4048',
+    ], [
+        'store_name.required_if' => 'Vui lòng nhập tên cửa hàng (áp dụng cho người bán cá nhân).',
+        'store_name.string' => 'Tên cửa hàng phải là chuỗi.',
+        'store_name.max' => 'Tên cửa hàng không được vượt quá 255 ký tự.',
+
+        'store_slug.regex' => 'Slug chỉ được chứa chữ thường, số và dấu gạch ngang.',
+
+        'seller_type.required' => 'Loại người bán là bắt buộc.',
+        'seller_type.in' => 'Loại người bán phải là "personal" hoặc "business".',
+
+        'identity_card_number.required_if' => 'Vui lòng nhập số CMND/CCCD.',
+        'identity_card_number.string' => 'Số CMND/CCCD phải là chuỗi.',
+        'identity_card_number.max' => 'Số CMND/CCCD không được vượt quá 20 ký tự.',
+
+        'date_of_birth.required_if' => 'Vui lòng nhập ngày sinh.',
+        'date_of_birth.date' => 'Ngày sinh không hợp lệ.',
+
+        'personal_address.required_if' => 'Vui lòng nhập địa chỉ cá nhân.',
+        'personal_address.string' => 'Địa chỉ phải là chuỗi.',
+
+        'phone_number.required_if' => 'Vui lòng nhập số điện thoại cá nhân.',
+        'phone_number.string' => 'Số điện thoại phải là chuỗi.',
+        'phone_number.max' => 'Số điện thoại không được vượt quá 20 ký tự.',
+
+        'document.file' => 'Tài liệu phải là tệp hợp lệ.',
+        'document.mimes' => 'Tài liệu phải có định dạng: jpg, png, hoặc pdf.',
+        'document.max' => 'Tài liệu không được vượt quá 4MB.',
+
+        'bio.string' => 'Giới thiệu phải là chuỗi văn bản.',
+
+        'cccd_front.required_if' => 'Vui lòng tải lên ảnh mặt trước CCCD.',
+        'cccd_front.file' => 'Ảnh mặt trước CCCD phải là tệp hợp lệ.',
+        'cccd_front.mimes' => 'Ảnh mặt trước CCCD phải có định dạng: jpg, jpeg hoặc png.',
+        'cccd_front.max' => 'Ảnh mặt trước CCCD không được vượt quá 4MB.',
+
+        'cccd_back.required_if' => 'Vui lòng tải lên ảnh mặt sau CCCD.',
+        'cccd_back.file' => 'Ảnh mặt sau CCCD phải là tệp hợp lệ.',
+        'cccd_back.mimes' => 'Ảnh mặt sau CCCD phải có định dạng: jpg, jpeg hoặc png.',
+        'cccd_back.max' => 'Ảnh mặt sau CCCD không được vượt quá 4MB.',
+
+        'business.tax_code.required_if' => 'Vui lòng nhập mã số thuế.',
+        'business.company_name.required_if' => 'Vui lòng nhập tên công ty.',
+        'business.company_address.required_if' => 'Vui lòng nhập địa chỉ công ty.',
+        'business.representative_name.required_if' => 'Vui lòng nhập tên người đại diện.',
+        'business.representative_phone.required_if' => 'Vui lòng nhập số điện thoại người đại diện.',
+        'business.representative_phone.max' => 'Số điện thoại người đại diện không được vượt quá 20 ký tự.',
+        'business.business_license.file' => 'Giấy phép kinh doanh phải là tệp hợp lệ.',
+        'business.business_license.mimes' => 'Giấy phép kinh doanh phải có định dạng: jpg, png, hoặc pdf.',
+        'business.business_license.max' => 'Giấy phép kinh doanh không được vượt quá 4MB.',
+    ]);
+
+    if ($validator->fails()) {
+        return response()->json([
+            'message' => 'Dữ liệu không hợp lệ',
+            'errors' => $validator->errors()
+        ], 422);
+    }
+
     $data = $request->only([
         'store_name', 'store_slug', 'seller_type', 'bio',
         'identity_card_number', 'date_of_birth',
         'personal_address', 'phone_number'
     ]);
 
-    // ======= Upload giấy tờ cá nhân lên R2 =======
+    // Upload document
     if ($request->hasFile('document') && $request->file('document')->isValid()) {
-        // Xóa file cũ nếu có
         if ($seller->document) {
             Storage::disk('r2')->delete($seller->document);
         }
@@ -73,16 +152,14 @@ public function update(Request $request)
         $file = $request->file('document');
         $filename = 'seller-documents/personal/' . time() . '_' . Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) . '.' . $file->getClientOriginalExtension();
 
-        $uploadResult = Storage::disk('r2')->put($filename, file_get_contents($file));
-
-        if ($uploadResult) {
+        if (Storage::disk('r2')->put($filename, file_get_contents($file))) {
             $data['document'] = $filename;
         } else {
             throw new \Exception('Không thể upload file giấy tờ cá nhân lên R2.');
         }
     }
 
-     // ======= Upload CCCD mặt trước =======
+    // CCCD front
     if ($request->hasFile('cccd_front') && $request->file('cccd_front')->isValid()) {
         if ($seller->cccd_front) {
             Storage::disk('r2')->delete($seller->cccd_front);
@@ -92,7 +169,7 @@ public function update(Request $request)
         $data['cccd_front'] = $cccdFrontPath;
     }
 
-    // ======= Upload CCCD mặt sau =======
+    // CCCD back
     if ($request->hasFile('cccd_back') && $request->file('cccd_back')->isValid()) {
         if ($seller->cccd_back) {
             Storage::disk('r2')->delete($seller->cccd_back);
@@ -102,15 +179,13 @@ public function update(Request $request)
         $data['cccd_back'] = $cccdBackPath;
     }
 
-
     $seller->update($data);
 
-    // ======= Upload giấy phép kinh doanh =======
+    // Business info
     if ($request->seller_type === 'business' && $request->has('business')) {
         $businessData = $request->input('business');
 
         if ($request->hasFile('business.business_license') && $request->file('business.business_license')->isValid()) {
-            // Xóa file cũ nếu có
             if ($seller->business?->business_license) {
                 Storage::disk('r2')->delete($seller->business->business_license);
             }
@@ -118,9 +193,7 @@ public function update(Request $request)
             $file = $request->file('business.business_license');
             $filename = 'seller-documents/business/' . time() . '_' . Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) . '.' . $file->getClientOriginalExtension();
 
-            $uploadResult = Storage::disk('r2')->put($filename, file_get_contents($file));
-
-            if ($uploadResult) {
+            if (Storage::disk('r2')->put($filename, file_get_contents($file))) {
                 $businessData['business_license'] = $filename;
             } else {
                 throw new \Exception('Không thể upload file giấy phép kinh doanh lên R2.');
@@ -133,7 +206,6 @@ public function update(Request $request)
         );
     }
 
-    // Lấy lại seller sau khi update
     $seller = Seller::with(['user:id,name,email', 'business'])->findOrFail($seller->id);
 
     return response()->json([
@@ -141,6 +213,7 @@ public function update(Request $request)
         'seller' => $seller
     ]);
 }
+
 
 
 
@@ -172,26 +245,82 @@ public function update(Request $request)
             }
 
             // Validation rules
-            $validator = Validator::make($request->all(), [
-                'store_name' => 'required_if:seller_type,personal|string|max:255',
-                'seller_type' => 'required|in:personal,business',
-                'identity_card_number' => 'required_if:seller_type,personal|string|max:20',
-                'date_of_birth' => 'required_if:seller_type,personal|date',
-                'personal_address' => 'required_if:seller_type,personal|string',
-                'phone_number' => 'required_if:seller_type,personal|string|max:20',
-                'document' => 'nullable|file|mimes:jpg,png,pdf|max:4048',
-                'bio' => 'nullable|string',
-                'tax_code' => 'required_if:seller_type,business|string',
-                'company_name' => 'required_if:seller_type,business|string',
-                'company_address' => 'required_if:seller_type,business|string',
-                'business_license' => 'required_if:seller_type,business|file|mimes:jpg,png,pdf|max:4048',
-                'representative_name' => 'required_if:seller_type,business|string',
-                'representative_phone' => 'required_if:seller_type,business|string|max:20',
-                'cccd_front' => 'nullable|file|mimes:jpg,jpeg,png|max:4096',
-                'cccd_back' => 'nullable|file|mimes:jpg,jpeg,png|max:4096',
-            ], [
+          $validator = Validator::make($request->all(), [
+                    'store_name' => 'required_if:seller_type,personal|string|max:255',
+                    'seller_type' => 'required|in:personal,business',
+                    'identity_card_number' => 'required_if:seller_type,personal|string|max:20',
+                    'date_of_birth' => 'required_if:seller_type,personal|date',
+                    'personal_address' => 'required_if:seller_type,personal|string',
+                    'phone_number' => 'required_if:seller_type,personal|string|max:20',
+                    'document' => 'nullable|file|mimes:jpg,png,pdf|max:4048',
+                    'bio' => 'nullable|string',
+                    'tax_code' => 'required_if:seller_type,business|string',
+                    'company_name' => 'required_if:seller_type,business|string',
+                    'company_address' => 'required_if:seller_type,business|string',
+                    'business_license' => 'required_if:seller_type,business|file|mimes:jpg,png,pdf|max:4048',
+                    'representative_name' => 'required_if:seller_type,business|string',
+                    'representative_phone' => 'required_if:seller_type,business|string|max:20',
+                    'cccd_front' => 'required|file|mimes:jpg,jpeg,png|max:4096',
+                    'cccd_back' => 'required|file|mimes:jpg,jpeg,png|max:4096',
+                ], [
+                    'store_name.required_if' => 'Vui lòng nhập tên cửa hàng (áp dụng cho người bán cá nhân).',
+                    'store_name.string' => 'Tên cửa hàng phải là chuỗi.',
+                    'store_name.max' => 'Tên cửa hàng không được vượt quá 255 ký tự.',
 
-            ]);
+                    'seller_type.required' => 'Loại người bán là bắt buộc.',
+                    'seller_type.in' => 'Loại người bán phải là "personal" hoặc "business".',
+
+                    'identity_card_number.required_if' => 'Vui lòng nhập số CMND/CCCD.',
+                    'identity_card_number.string' => 'Số CMND/CCCD phải là chuỗi.',
+                    'identity_card_number.max' => 'Số CMND/CCCD không được vượt quá 20 ký tự.',
+
+                    'date_of_birth.required_if' => 'Vui lòng nhập ngày sinh.',
+                    'date_of_birth.date' => 'Ngày sinh không hợp lệ.',
+
+                    'personal_address.required_if' => 'Vui lòng nhập địa chỉ cá nhân.',
+                    'personal_address.string' => 'Địa chỉ phải là chuỗi.',
+
+                    'phone_number.required_if' => 'Vui lòng nhập số điện thoại cá nhân.',
+                    'phone_number.string' => 'Số điện thoại phải là chuỗi.',
+                    'phone_number.max' => 'Số điện thoại không được vượt quá 20 ký tự.',
+
+                    'document.file' => 'Tài liệu phải là tệp hợp lệ.',
+                    'document.mimes' => 'Tài liệu phải có định dạng: jpg, png, hoặc pdf.',
+                    'document.max' => 'Tài liệu không được vượt quá 4MB.',
+
+                    'bio.string' => 'Giới thiệu phải là chuỗi văn bản.',
+
+                    'tax_code.required_if' => 'Vui lòng nhập mã số thuế.',
+                    'tax_code.string' => 'Mã số thuế phải là chuỗi.',
+
+                    'company_name.required_if' => 'Vui lòng nhập tên công ty.',
+                    'company_name.string' => 'Tên công ty phải là chuỗi.',
+
+                    'company_address.required_if' => 'Vui lòng nhập địa chỉ công ty.',
+                    'company_address.string' => 'Địa chỉ công ty phải là chuỗi.',
+
+                    'business_license.required_if' => 'Vui lòng tải lên giấy phép kinh doanh.',
+                    'business_license.file' => 'Giấy phép kinh doanh phải là tệp hợp lệ.',
+                    'business_license.mimes' => 'Giấy phép kinh doanh phải có định dạng: jpg, png, hoặc pdf.',
+                    'business_license.max' => 'Giấy phép kinh doanh không được vượt quá 4MB.',
+
+                    'representative_name.required_if' => 'Vui lòng nhập tên người đại diện.',
+                    'representative_name.string' => 'Tên người đại diện phải là chuỗi.',
+
+                    'representative_phone.required_if' => 'Vui lòng nhập số điện thoại người đại diện.',
+                    'representative_phone.string' => 'Số điện thoại người đại diện phải là chuỗi.',
+                    'representative_phone.max' => 'Số điện thoại người đại diện không được vượt quá 20 ký tự.',
+
+                    'cccd_front.required' => 'Vui lòng tải lên ảnh mặt trước CCCD.',
+                    'cccd_front.file' => 'Ảnh mặt trước CCCD phải là tệp hợp lệ.',
+                    'cccd_front.mimes' => 'Ảnh mặt trước CCCD phải có định dạng: jpg, jpeg hoặc png.',
+                    'cccd_front.max' => 'Ảnh mặt trước CCCD không được vượt quá 4MB.',
+
+                    'cccd_back.required' => 'Vui lòng tải lên ảnh mặt sau CCCD.',
+                    'cccd_back.file' => 'Ảnh mặt sau CCCD phải là tệp hợp lệ.',
+                    'cccd_back.mimes' => 'Ảnh mặt sau CCCD phải có định dạng: jpg, jpeg hoặc png.',
+                    'cccd_back.max' => 'Ảnh mặt sau CCCD không được vượt quá 4MB.',
+                ]);
 
             if ($validator->fails()) {
                 return response()->json([
@@ -199,6 +328,7 @@ public function update(Request $request)
                     'errors' => $validator->errors()
                 ], 422);
             }
+
 
             // Kiểm tra đã có seller chưa
             $seller = Seller::where('user_id', $userId)->first();
@@ -253,6 +383,23 @@ public function update(Request $request)
                 $filename = 'seller-documents/personal/' . time() . '_' . Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) . '.' . $file->getClientOriginalExtension();
                 Storage::disk('r2')->put($filename, file_get_contents($file));
                 $documentPath = $filename;
+
+                 // Gọi hàm OCR CCCD
+                list($extractedId, $error) = $this->extractCccdFromImage($file);
+                if ($error) {
+                    return response()->json(['message' => $error], 422);
+                }
+
+                // So khớp với số người dùng nhập
+                if ($extractedId !== $request->identity_card_number) {
+                    return response()->json(['message' => 'Số CCCD trong ảnh không khớp với thông tin nhập.'], 422);
+                }
+
+                // Kiểm tra CCCD đã được dùng chưa
+                if (Seller::where('identity_card_number', $extractedId)->exists()) {
+                    return response()->json(['message' => 'Số CCCD này đã được sử dụng để đăng ký tài khoản khác.'], 409);
+                }
+
 
                 // Upload CCCD mặt trước
                 if ($request->hasFile('cccd_front') && $request->file('cccd_front')->isValid()) {
@@ -314,6 +461,30 @@ public function update(Request $request)
             ], 500);
         }
     }
+
+        private function extractCccdFromImage($file)
+    {
+        putenv('GOOGLE_APPLICATION_CREDENTIALS=' . storage_path(env('GOOGLE_APPLICATION_CREDENTIALS')));
+        $imageAnnotator = new ImageAnnotatorClient();
+        $imageData = file_get_contents($file->getRealPath());
+        $response = $imageAnnotator->textDetection($imageData);
+        $texts = $response->getTextAnnotations();
+
+        if (count($texts) === 0) {
+            return [null, 'Không thể đọc được ảnh CCCD.'];
+        }
+
+        $fullText = $texts[0]->getDescription();
+        preg_match('/[0-9]{9,12}/', $fullText, $matches);
+        $extractedId = $matches[0] ?? null;
+
+        if (!$extractedId) {
+            return [null, 'Không tìm thấy số CCCD trong ảnh.'];
+        }
+
+        return [$extractedId, null];
+    }
+
         public function login(Request $request)
     {
         try {
