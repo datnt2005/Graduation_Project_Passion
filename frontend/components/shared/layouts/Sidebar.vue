@@ -3,7 +3,7 @@
     <ul class="space-y-2">
       <NuxtLink v-for="(item, index) in categories"
         :key="index"
-        :to="`/categories/${item.slug}`">
+        :to="`/shop/${item.slug}`">
       <li
         class="flex items-center gap-4 bg-white p-2 rounded-lg hover:bg-gray-200 transition-all cursor-pointer"
       >

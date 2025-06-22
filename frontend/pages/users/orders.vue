@@ -236,7 +236,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import SidebarProfile from '~/components/shared/Sidebar-profile.vue'
+import SidebarProfile from '~/components/shared/layouts/Sidebar-profile.vue'
 
 const tabs = [
   { label: 'Tất cả đơn', value: 'all' },

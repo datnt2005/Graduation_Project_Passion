@@ -18,7 +18,7 @@
 </template>
 
 <script setup>
-import Sidebar from '~/components/shared/Sidebar.vue'
+import Sidebar from '~/components/shared/layouts/Sidebar.vue'
 import Banner from '~/components/shared/Banner.vue'
 import Brands from '~/components/shared/Tags.vue'
 import Products from '~/components/shared/Products.vue'

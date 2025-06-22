@@ -122,6 +122,9 @@
                             Thêm thuộc tính mới
                           </button>
                         </div>
+                        <span v-if="errors.variants" class="text-red-500 text-xs mt-1 block">
+                          {{ errors.variants }}
+                        </span>
                         <div v-for="(variant, index) in formData.variants" :key="index" class="border p-4 rounded">
                           <div class="flex justify-between items-center mb-2">
                             <h3 class="font-semibold">Biến thể {{ index + 1 }}</h3>
@@ -893,10 +896,6 @@ const validateFormData = () => {
     isValid = false;
   }
 
-  if (!formData.description.trim()) {
-    errors.description = 'Mô tả sản phẩm phải là bắt buộc.';
-    isValid = false;
-  }
 
   // if (!formData.variants.length) {
   //   errors.variants = 'Phải có ít nhất một biến thể.';
@@ -904,8 +903,14 @@ const validateFormData = () => {
   // }
 
   formData.variants.forEach((variant, index) => {
+    const attrIds = variant.attributes.map(attr => attr.attribute_id).filter(Boolean);
+    const duplicateAttr = attrIds.length !== new Set(attrIds).size;
+    if (duplicateAttr) {
+      errors[`variants.${index}.attributes`] = 'Không được chọn trùng thuộc tính trong một biến thể.';
+      isValid = false;
+    }
     if (!Number.isFinite(variant.price) || variant.price < 0) {
-      errors[`variants.${index}.price`] = 'Giá gốc phải là số dương.';
+      errors[`variants.${index}.price`] = 'Giá phải là số dương.';
       isValid = false;
     }
 
@@ -913,13 +918,13 @@ const validateFormData = () => {
       variant.sale_price !== null &&
       (!Number.isFinite(variant.sale_price) || variant.sale_price < 0)
     ) {
-      errors[`variants.${index}.sale_price`] = 'Giá bán phải là số dương hoặc bằng 0.';
+      errors[`variants.${index}.sale_price`] = 'Giá khuyến mãi phải là số dương hoặc bằng 0.';
       isValid = false;
     } else if (
       variant.sale_price !== null &&
       variant.sale_price >= variant.price
     ) {
-      errors[`variants.${index}.sale_price`] = 'Giá bán phải nhỏ hơn giá gốc.';
+      errors[`variants.${index}.sale_price`] = 'Giá khuyến mãi phải nhỏ hơn giá gốc.';
       isValid = false;
     }
     if (!Number.isFinite(variant.cost_price) || variant.cost_price < 0) {
@@ -927,16 +932,8 @@ const validateFormData = () => {
       isValid = false;
     }
 
-    // if (!variant.attributes.length || variant.attributes.some(attr => !attr.attribute_id || !attr.value_id)) {
-    //   errors[`variants.${index}.attributes`] = 'Phải có ít nhất một thuộc tính hợp lệ.';
-    //   isValid = false;
-    // }
-    // if (!variant.inventory.length || variant.inventory.some(inv => !inv.location || !Number.isFinite(inv.quantity) || inv.quantity < 0)) {
-    //   errors[`variants.${index}.inventory`] = 'Phải có ít nhất một kho hàng hợp lệ với số lượng dương.';
-    //   isValid = false;
-    // }
   });
-  const attributeSets = formData.variants.map((variant, index) => ({
+const attributeSets = formData.variants.map((variant, index) => ({
     index: index,
     attributes: variant.attributes
       .sort((a, b) => a.attribute_id - b.attribute_id)
@@ -944,13 +941,13 @@ const validateFormData = () => {
       .join(',')
   }));
   const duplicates = attributeSets.reduce((acc, curr, i, arr) => {
-    if (arr.some((other, j) => i !== j && other.attributes === curr.attributes)) {
+    if (arr.some((other, j) => i !== j && other.attributes === curr.attributes && curr.attributes)) {
       acc.push(curr.index);
     }
     return acc;
   }, []);
   if (duplicates.length) {
-    errors.variants = `Các biến thể tại vị trí ${duplicates.map(i => i + 1).join(', ')} có thuộc tính trùng nhau.`;
+    errors.variants = `Các biến thể tại vị trí ${duplicates.map(i => i + 1).join(', ')} có thuộc tính trùng nhau. Vui lòng sửa đổi các thuộc tính để đảm bảo mỗi biến thể là duy nhất.`;
     isValid = false;
   }
 
