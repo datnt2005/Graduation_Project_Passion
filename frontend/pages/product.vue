@@ -87,7 +87,7 @@
 
 <script setup>
 import { ref } from 'vue'
-import Sidebar from '~/components/shared/Sidebar.vue'
+import Sidebar from '~/components/shared/layouts/Sidebar.vue'
 import Products from '~/components/shared/Products.vue'
 import ProductsShock from '~/components/shared/ProductsShock.vue'
 // search 

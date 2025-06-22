@@ -78,8 +78,8 @@ class ProductController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
-            'slug' => 'nullable|string|max:255|unique:products,slug',
-            'description' => 'required|string',
+            'slug' => 'nullable|string|max:255|unique:products,slug|regex:/^[a-zA-Z0-9-]+$/',
+            'description' => 'nullable|string',
             'status' => 'nullable|in:active,inactive,draft,trash',
             'categories' => 'nullable|array',
             'categories.*' => 'exists:categories,id',
@@ -102,7 +102,8 @@ class ProductController extends Controller
             'name.required' => 'Tên sản phẩm là bắt buộc.',
             'name.max' => 'Tên sản phẩm không được vượt quá 255 ký tự.',
             'slug.unique' => 'Slug đã tồn tại.',
-            'description.required' => 'Mô tả sản phẩm là bắt buộc.',
+            'slug.regex' => 'Slug chỉ được chứa chữ cái, số và dấu gạch ngang, không được chứa khoảng trắng hoặc ký tự đặc biệt.',
+            'slug.max' => 'Slug không được vuien quá 255 ký tự.',
             'categories.array' => 'Danh mục phải là một mảng.',
             'categories.*.exists' => 'Danh mục không hợp lệ.',
             'tags.array' => 'Thẻ phải là một mảng.',
@@ -139,7 +140,22 @@ class ProductController extends Controller
                 'errors' => $validator->errors()
             ], 422);
         }
-
+        if ($request->has('variants') && !empty($request->variants)) {
+            foreach ($request->variants as $index => $variant) {
+                if (!empty($variant['attributes'])) {
+                    $attributeIds = collect($variant['attributes'])
+                        ->pluck('attribute_id')
+                        ->filter()
+                        ->toArray();
+                    if (count($attributeIds) !== count(array_unique($attributeIds))) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => "Biến thể tại vị trí " . ($index + 1) . " có thuộc tính bị lặp (ví dụ: chọn 2 lần màu sắc).",
+                        ], 422);
+                    }
+                }
+            }
+        }
         // Kiểm tra thuộc tính trùng nhau nếu có biến thể và thuộc tính
         if ($request->has('variants') && !empty($request->variants)) {
             $attributeSets = collect($request->variants)->map(function ($variant, $index) {
@@ -303,8 +319,8 @@ class ProductController extends Controller
 
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255|unique:products,name,' . $id,
-            'slug' => 'nullable|string|max:255|unique:products,slug,' . $id,
-            'description' => 'required|string',
+            'slug' => 'nullable|string|max:255|unique:products,slug,' . $id . '|regex:/^[a-zA-Z0-9-]+$/',
+            'description' => 'nullable|string',
             'status' => 'nullable|in:active,inactive',
             'categories' => 'nullable|array',
             'categories.*' => 'exists:categories,id',
@@ -331,7 +347,8 @@ class ProductController extends Controller
             'name.max' => 'Tên sản phẩm không được vượt quá 255 ký tự.',
             'name.unique' => 'Tên sản phẩm đã tồn tại.',
             'slug.unique' => 'Slug đã tồn tại.',
-            'description.required' => 'Mô tả sản phẩm là bắt buộc.',
+            'slug.regex' => 'Slug chỉ được chứa các ký tự chữ số, chữ cái và dấu gạch ngang.',
+            'slug.max' => 'Slug không được vuien quá 255 ký tự.',
             'categories.array' => 'Danh mục phải là một mảng.',
             'categories.*.exists' => 'Danh mục không hợp lệ.',
             'tags.array' => 'Thẻ phải là một mảng.',
@@ -365,7 +382,22 @@ class ProductController extends Controller
                 'errors' => $validator->errors()
             ], 422);
         }
-
+        if ($request->has('variants') && !empty($request->variants)) {
+            foreach ($request->variants as $index => $variant) {
+                if (!empty($variant['attributes'])) {
+                    $attributeIds = collect($variant['attributes'])
+                        ->pluck('attribute_id')
+                        ->filter()
+                        ->toArray();
+                    if (count($attributeIds) !== count(array_unique($attributeIds))) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => "Biến thể tại vị trí " . ($index + 1) . " có thuộc tính bị lặp (ví dụ: chọn 2 lần màu sắc).",
+                        ], 422);
+                    }
+                }
+            }
+        }
         // Check for duplicate attributes only for variants with attributes
         if ($request->has('variants')) {
             $attributeSets = collect($request->variants)
@@ -558,51 +590,63 @@ class ProductController extends Controller
         }
     }
 
-    public function destroy($id)
-    {
-        $product = Product::find($id);
-        if (!$product) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Không tìm thấy sản phẩm.',
-            ], 404);
-        }
-
-        DB::beginTransaction();
-        try {
-            // Xóa hình ảnh sản phẩm
-            foreach ($product->productPic as $pic) {
-                Storage::disk('r2')->delete($pic->imagePath);
-                $pic->delete();
-            }
-
-            // Xóa ảnh biến thể
-            foreach ($product->productVariants as $variant) {
-                if ($variant->thumbnail) {
-                    Storage::disk('r2')->delete($variant->thumbnail);
-                }
-                $variant->inventories()->delete();
-                $variant->attributes()->detach();
-                $variant->delete();
-            }
-
-            $product->delete();
-
-            DB::commit();
-            $this->clearProductCache();
-            return response()->json([
-                'success' => true,
-                'message' => 'Xóa sản phẩm thành công.',
-            ], 200);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'message' => 'Xóa sản phẩm thất bại: ' . $e->getMessage(),
-                'error' => $e->getMessage()
-            ], 500);
-        }
+public function destroy($id)
+{
+    $product = Product::find($id);
+    if (!$product) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Không tìm thấy sản phẩm.',
+        ], 404);
     }
+
+    // Kiểm tra xem sản phẩm có liên kết với đơn hàng hay không
+    $hasOrders = $product->productVariants()
+        ->whereHas('orderItems') // Giả sử bạn có quan hệ orderItems trong ProductVariant
+        ->exists();
+
+    if ($hasOrders) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Không thể xóa sản phẩm đang có đơn hàng liên kết.',
+        ], 422); // HTTP 422 Unprocessable Entity
+    }
+
+    DB::beginTransaction();
+    try {
+        // Xóa hình ảnh sản phẩm
+        foreach ($product->productPic as $pic) {
+            Storage::disk('r2')->delete($pic->imagePath);
+            $pic->delete();
+        }
+
+        // Xóa ảnh biến thể và các liên kết
+        foreach ($product->productVariants as $variant) {
+            if ($variant->thumbnail) {
+                Storage::disk('r2')->delete($variant->thumbnail);
+            }
+            $variant->inventories()->delete();
+            $variant->attributes()->detach();
+            $variant->delete();
+        }
+
+        $product->delete();
+
+        DB::commit();
+        $this->clearProductCache();
+        return response()->json([
+            'success' => true,
+            'message' => 'Xóa sản phẩm thành công.',
+        ], 200);
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return response()->json([
+            'success' => false,
+            'message' => 'Xóa sản phẩm thất bại: ' . $e->getMessage(),
+            'error' => $e->getMessage()
+        ], 500);
+    }
+}
 
     protected function clearProductCache()
     {
@@ -939,66 +983,316 @@ class ProductController extends Controller
     public function getAllProducts(Request $request)
     {
         try {
-            $page = $request->get('page', 1);
+            // Validate request parameters
+            $validated = $request->validate([
+                'page' => 'integer|min:1',
+                'per_page' => 'integer|min:1|max:100',
+                'search' => 'nullable|string|max:255',
+                'price_min' => 'nullable|numeric|min:0',
+                'price_max' => 'nullable|numeric|min:0',
+                'brands' => 'nullable|array',
+                'brands.*' => 'string|max:255',
+                'category_id' => 'nullable|integer|exists:categories,id',
+            ]);
+
+            $page = (int) $request->get('page', 1);
             $search = trim($request->get('search', ''));
-            $perPage = $request->get('per_page', 10);
+            $perPage = (int) $request->get('per_page', 10);
+            $priceMin = $request->get('price_min', 0);
+            $priceMax = $request->get('price_max', 100000000);
+            $brands = $request->get('brands', null);
+            $categoryId = $request->get('category_id', null);
 
-            $cacheKey = 'shop_page_' . $page . '_perpage_' . $perPage . '_search_' . md5($search);
-            $ttl = 3600;
+            // Create cache key
+            $brandKey = is_array($brands) ? implode(',', $brands) : ($brands ?? '');
+            $cacheKey = 'shop_page_' . $page . '_perpage_' . $perPage . '_search_' . md5($search) . '_price_' . $priceMin . '_' . $priceMax . '_brands_' . md5($brandKey) . '_category_' . ($categoryId ?? 'none');
+            $ttl = 3600; // Cache for 1 hour
 
-            $products = Cache::store('redis')->tags(['products'])->remember($cacheKey, $ttl, function () use ($search, $perPage) {
-                return Product::with([
+            $products = Cache::store('redis')->tags(['products'])->remember($cacheKey, $ttl, function () use ($search, $perPage, $priceMin, $priceMax, $brands, $categoryId) {
+                $query = Product::with([
                     'categories',
                     'productPic',
-                    'productVariants',
                     'productVariants.inventories',
-                    'productVariants.orderItems', // Lấy sold từ order_items của variants
-                    'reviews'
+                    'productVariants.orderItems',
+                    'reviews',
+                    'seller',
+                    'tags',
                 ])
-                    ->where('status', 'active')
-                    ->when($search, function ($query) use ($search) {
-                        return $query->where('name', 'like', '%' . $search . '%');
-                    })
-                    ->orderBy('created_at', 'desc')
-                    ->paginate($perPage);
+                    ->where('status', 'active');
+
+                // Search by name or description
+                if ($search) {
+                    $query->where(function ($q) use ($search) {
+                        $q->where('name', 'like', '%' . $search . '%')
+                            ->orWhere('description', 'like', '%' . $search . '%');
+                    });
+                }
+
+                // Filter by category
+                if ($categoryId) {
+                    $query->whereHas('categories', function ($q) use ($categoryId) {
+                        $q->where('categories.id', $categoryId);
+                    });
+                }
+
+                // Filter by price
+                if ($priceMin !== null && $priceMax !== null) {
+                    $query->whereHas('productVariants', function ($q) use ($priceMin, $priceMax) {
+                        $q->where(function ($q2) use ($priceMin, $priceMax) {
+                            $q2->whereBetween('price', [$priceMin, $priceMax])
+                                ->orWhereBetween('sale_price', [$priceMin, $priceMax]);
+                        });
+                    });
+                }
+
+                // Filter by brands
+                if ($brands) {
+                    $brandArray = is_array($brands) ? $brands : explode(',', $brands);
+                    $query->whereHas('seller', function ($q) use ($brandArray) {
+                        $q->whereIn('store_name', $brandArray);
+                    });
+                }
+
+                // Sort by created_at
+                $query->orderBy('created_at', 'desc');
+
+                return $query->paginate($perPage);
             });
 
-            // Map lại format theo yêu cầu
+            // Format response
             $formatted = collect($products->items())->map(function ($product) {
                 $variant = $product->productVariants->first();
                 $price = $variant?->price ?? 0;
                 $discount = $variant?->sale_price ?? null;
+                $finalPrice = $discount ?? $price;
 
-                // Rating trung bình
+                // Average rating
                 $rating = round($product->reviews->avg('rating') ?? 0);
                 $stars = str_repeat('★', $rating) . str_repeat('☆', 5 - $rating);
 
-                // Tổng đã bán
+                // Total sold
                 $sold = $variant?->orderItems->sum('quantity') ?? 0;
                 $percent = ($discount && $price > 0)
                     ? round((($price - $discount) / $price) * 100)
                     : 0;
+
                 return [
-                    'name'     => $product->name,
-                    'slug'      => $product->slug,
-                    'image'    => $product->productPic?->first()?->imagePath  ?? $product->productVariants->first()?->thumbnail ?? null,
-                    'price'    => number_format($discount ?? $price, 0, ',', '.'),
-                    'discount' => $discount ? number_format($price, 0, ',', '.')  : null,
-                    'rating'   => $stars,
-                    'sold'     => number_format($sold),
-                    'brand'    => $product->seller->store_name ?? 'N/A',
-                    'percent'  => $percent,
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'slug' => $product->slug,
+                    'image' => $product->productPic?->first()?->imagePath ?? $variant?->thumbnail ?? '/default.jpg',
+                    'price' => number_format($finalPrice, 0, ',', '.'),
+                    'discount' => $discount ? number_format($price, 0, ',', '.') : null,
+                    'rating' => $stars,
+                    'sold' => number_format($sold),
+                    'brand' => $product->seller?->store_name ?? 'N/A',
+                    'percent' => $percent,
                     'categories' => $product->categories->pluck('name')->implode(', '),
-                    'tags'     => $product->tags->pluck('name')->implode(', '),
+                    'tags' => $product->tags->pluck('name')->implode(', '),
                 ];
             });
+
+            // Get unique brands
+            $brandSet = collect($formatted)->pluck('brand')->filter()->unique()->values();
 
             return response()->json([
                 'success' => true,
                 'message' => 'Lấy danh sách sản phẩm thành công.',
                 'data' => [
                     'products' => $formatted,
-                    'total'    => $products->total(),
+                    'brands' => $brandSet,
+                    'total' => $products->total(),
+                    'current_page' => $products->currentPage(),
+                    'last_page' => $products->lastPage(),
+                ],
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Dữ liệu đầu vào không hợp lệ.',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Đã xảy ra lỗi khi lấy danh sách sản phẩm.',
+                'error' => env('APP_DEBUG', false) ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    public function getProductBySlugCategory(Request $request, $slug = null)
+    {
+        try {
+            $page = (int) $request->get('page', 1);
+            $search = trim($request->get('search', ''));
+            $perPage = (int) $request->get('per_page', 24);
+            $priceMin = (float) $request->get('price_min', 0);
+            $priceMax = (float) $request->get('price_max', 100000000);
+            $brands = $request->get('brands', null);
+            $ratings = $request->get('ratings', null);
+            $onSale = $request->boolean('on_sale', false);
+            $sort = $request->get('sort', 'default');
+            $priceOrder = $request->get('price_order', '');
+
+            // 1. Handle category or search mode
+            $categoryIds = [];
+            $isSearchMode = $slug === 'search' || empty($slug);
+
+            if (!$isSearchMode) {
+                $parentCategory = Category::where('slug', $slug)->first();
+                if (!$parentCategory) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Không tìm thấy danh mục với slug: ' . $slug
+                    ], 404);
+                }
+                $categoryIds = $this->getAllCategoryChildrenIds($parentCategory);
+                $categoryIds[] = $parentCategory->id;
+            }
+
+            // 2. Cache key
+            $brandKey = is_array($brands) ? implode(',', $brands) : ($brands ?? '');
+            $ratingsKey = is_array($ratings) ? implode(',', $ratings) : ($ratings ?? '');
+            $keyHash = md5(json_encode([
+                $slug,
+                $search,
+                $page,
+                $perPage,
+                $priceMin,
+                $priceMax,
+                $brandKey,
+                $ratingsKey,
+                $onSale,
+                $sort,
+                $priceOrder
+            ]));
+            $cacheKey = "products_{$slug}_page_{$page}_per_{$perPage}_{$keyHash}";
+            $ttl = 3600; // 1 hour
+
+            // 3. Fetch products
+            $products = Cache::store('redis')->tags(['products'])->remember($cacheKey, $ttl, function () use (
+                $isSearchMode,
+                $categoryIds,
+                $search,
+                $perPage,
+                $priceMin,
+                $priceMax,
+                $brands,
+                $ratings,
+                $onSale,
+                $sort,
+                $priceOrder
+            ) {
+                $query = Product::with([
+                    'categories',
+                    'productPic',
+                    'productVariants.inventories',
+                    'productVariants.orderItems',
+                    'reviews',
+                    'tags',
+                    'seller'
+                ])->where('status', 'active');
+
+                // Category filter
+                if (!$isSearchMode && !empty($categoryIds)) {
+                    $query->whereHas('categories', fn($q) => $q->whereIn('categories.id', $categoryIds));
+                }
+
+                // Search filter
+                if ($search) {
+                    $query->where(function ($q) use ($search) {
+                        $q->where('name', 'like', '%' . $search . '%')
+                            ->orWhere('description', 'like', '%' . $search . '%')
+                            ->orWhereHas('tags', fn($q) => $q->where('name', 'like', '%' . $search . '%'));
+                    });
+                }
+
+                // Price filter
+                $query->whereHas('productVariants', fn($q) => $q->where(function ($q2) use ($priceMin, $priceMax) {
+                    $q2->whereBetween('price', [$priceMin, $priceMax])
+                        ->orWhereBetween('sale_price', [$priceMin, $priceMax]);
+                }));
+
+                // Brand filter (by seller store_name)
+                if ($brands) {
+                    $brandArray = is_array($brands) ? $brands : array_filter(explode(',', $brands));
+                    $query->whereHas('seller', function ($q) use ($brandArray) {
+                        $q->whereIn('store_name', $brandArray);
+                    });
+                }
+
+                // Rating filter
+                if ($ratings) {
+                    $ratingValues = is_array($ratings) ? $ratings : array_filter(explode(',', $ratings));
+                    $query->whereHas('reviews', fn($q) => $q->whereIn('rating', $ratingValues));
+                }
+
+                // On sale filter
+                if ($onSale) {
+                    $query->whereHas('productVariants', fn($q) => $q->whereNotNull('sale_price'));
+                }
+
+                // Sorting
+                if ($priceOrder === 'asc' || $priceOrder === 'desc') {
+                    $query->orderByRaw('(SELECT MIN(COALESCE(sale_price, price)) FROM product_variants WHERE product_variants.product_id = products.id) ' . $priceOrder);
+                } else {
+                    switch ($sort) {
+                        case 'newest':
+                            $query->orderBy('created_at', 'desc');
+                            break;
+                        case 'popular':
+                            $query->withCount('reviews')->orderBy('reviews_count', 'desc');
+                            break;
+                        case 'bestseller':
+                            $query->orderByRaw('(SELECT SUM(quantity) FROM order_items JOIN product_variants ON order_items.product_variant_id = product_variants.id WHERE product_variants.product_id = products.id) DESC');
+                            break;
+                        default:
+                            $query->orderBy('created_at', 'desc');
+                            break;
+                    }
+                }
+
+                return $query->paginate($perPage);
+            });
+
+            // 4. Format response
+            $formatted = collect($products->items())->map(function ($product) {
+                $variant = $product->productVariants->first();
+                $price = $variant?->price ?? 0;
+                $discount = $variant?->sale_price ?? null;
+                $finalPrice = $discount ?? $price;
+
+                $sold = $variant?->orderItems->sum('quantity') ?? 0;
+                $rating = round($product->reviews->avg('rating') ?? 0);
+                $percent = ($discount && $price > 0) ? round((($price - $discount) / $price) * 100) : 0;
+
+                return [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'slug' => $product->slug,
+                    'image' => $product->productPic->first()->imagePath ?? $variant?->thumbnail ?? '/default-image.jpg',
+                    'price' => number_format($finalPrice, 0, '.', ''),
+                    'discount' => $discount ? number_format($price, 0, '.', '') : null,
+                    'rating' => str_repeat('★', $rating) . str_repeat('☆', 5 - $rating),
+                    'sold' => $sold,
+                    'brand' => $product->seller?->store_name ?? 'N/A',
+                    'percent' => $percent,
+                    'categories' => $product->categories->pluck('name')->implode(', '),
+                    'tags' => $product->tags->pluck('name')->implode(','),
+                ];
+            });
+
+            // 5. Get brands
+            $brandsList = collect($formatted)->pluck('brand')->filter()->unique()->values();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Lấy danh sách sản phẩm thành công.',
+                'data' => [
+                    'products' => $formatted,
+                    'brands' => $brandsList,
+                    'total' => $products->total(),
                     'current_page' => $products->currentPage(),
                     'last_page' => $products->lastPage(),
                 ]
@@ -1012,150 +1306,220 @@ class ProductController extends Controller
         }
     }
 
-public function getProductBySlugCategory(Request $request, $slug)
-{
-    try {
-        $page       = (int) $request->get('page', 1);
-        $search     = trim($request->get('search', ''));
-        $perPage    = (int) $request->get('per_page', 12);
-        $priceMin   = $request->get('price_min', 0);
-        $priceMax   = $request->get('price_max', 100000000);
-        $brand      = $request->get('brands', null); // frontend gửi `brands`
-        $sort       = $request->get('sort', null);
-        $priceOrder = $request->get('price_order', ''); // frontend gửi `price_order`
+    public function getProducts(Request $request, $slug = null)
+    {
+        try {
+            // Validate request parameters
+            $validated = $request->validate([
+                'page' => 'integer|min:1',
+                'per_page' => 'integer|min:1|max:100',
+                'search' => 'nullable|string|max:255',
+                'price_min' => 'nullable|numeric|min:0',
+                'price_max' => 'nullable|numeric|min:0',
+                'brands' => 'nullable|string',
+                'ratings' => 'nullable|array',
+                'ratings.*' => 'integer|min:0|max:5',
+                'on_sale' => 'nullable|in:0,1,true,false', // Sửa để chấp nhận rõ ràng true/false
+                'sort' => 'nullable|in:default,popular,newest,bestseller',
+                'price_order' => 'nullable|in:asc,desc',
+                'category_id' => 'nullable|integer|exists:categories,id',
+            ]);
 
-        // 1. Lấy danh mục theo slug
-        $parentCategory = Category::where('slug', $slug)->first();
-        if (!$parentCategory) {
+            // Extract parameters
+            $page = (int) $request->get('page', 1);
+            $perPage = (int) $request->get('per_page', 24);
+            $search = trim($request->get('search', ''));
+            $priceMin = (float) $request->get('price_min', 0);
+            $priceMax = (float) $request->get('price_max', 100000000);
+            $brands = $request->get('brands') ? array_filter(explode(',', $request->get('brands'))) : [];
+            $ratings = $request->get('ratings', []);
+            $onSale = in_array($request->get('on_sale'), ['true', '1']); // Chuyển đổi rõ ràng
+            $sort = $request->get('sort', 'default');
+            $priceOrder = $request->get('price_order', '');
+            $isSearchMode = $slug === 'search' || empty($slug);
+
+            // Handle category
+            $categoryIds = [];
+            if (!$isSearchMode) {
+                $category = Category::where('slug', $slug)->first();
+                if (!$category) {
+                    Log::warning('Danh mục không tồn tại với slug: ' . $slug);
+                } else {
+                    $categoryIds = $this->getAllCategoryChildrenIds($category);
+                    $categoryIds[] = $category->id;
+                }
+            }
+
+            // Create cache key
+            $brandKey = is_array($brands) ? implode(',', $brands) : ($brands ?? '');
+            $ratingsKey = is_array($ratings) ? implode(',', $ratings) : ($ratings ?? '');
+            $keyHash = md5(json_encode([
+                $slug,
+                $search,
+                $page,
+                $perPage,
+                $priceMin,
+                $priceMax,
+                $brandKey,
+                $ratingsKey,
+                $onSale,
+                $sort,
+                $priceOrder,
+                $categoryIds
+            ]));
+            $cacheKey = "products_{$slug}_page_{$page}_per_{$perPage}_{$keyHash}";
+            $ttl = 3600; // Cache for 1 hour
+
+            // Fetch products
+            $products = Cache::store('redis')->tags(['products'])->remember($cacheKey, $ttl, function () use (
+                $isSearchMode,
+                $categoryIds,
+                $search,
+                $perPage,
+                $priceMin,
+                $priceMax,
+                $brands,
+                $ratings,
+                $onSale,
+                $sort,
+                $priceOrder
+            ) {
+                $query = Product::with([
+                    'categories',
+                    'productPic',
+                    'productVariants.inventories',
+                    'productVariants.orderItems',
+                    'reviews',
+                    'seller',
+                    'tags',
+                ])->where('status', 'active');
+
+                // Category filter
+                if (!$isSearchMode && !empty($categoryIds)) {
+                    $query->whereHas('categories', fn($q) => $q->whereIn('categories.id', $categoryIds));
+                }
+
+                // Search filter
+                if ($search) {
+                    $query->where(function ($q) use ($search) {
+                        $q->where('name', 'like', '%' . $search . '%')
+                            ->orWhere('description', 'like', '%' . $search . '%')
+                            ->orWhereHas('tags', fn($q) => $q->where('name', 'like', '%' . $search . '%'));
+                    });
+                }
+
+                // Price filter
+                $query->whereHas('productVariants', fn($q) => $q->where(function ($q2) use ($priceMin, $priceMax) {
+                    $q2->whereBetween('price', [$priceMin, $priceMax])
+                        ->orWhereBetween('sale_price', [$priceMin, $priceMax]);
+                }));
+
+                // Brand filter
+                if (!empty($brands)) {
+                    $query->whereHas('seller', fn($q) => $q->whereIn('store_name', $brands));
+                }
+
+                // Rating filter
+                if (!empty($ratings)) {
+                    $query->where(function ($q) use ($ratings) {
+                        if (in_array(0, $ratings)) {
+                            $q->whereDoesntHave('reviews')
+                                ->orWhereHas('reviews', fn($q2) => $q2->whereIn('rating', array_filter($ratings, fn($r) => $r > 0)));
+                        } else {
+                            $q->whereHas('reviews', fn($q2) => $q2->whereIn('rating', $ratings));
+                        }
+                    });
+                }
+
+                // On sale filter
+                if ($onSale) {
+                    $query->whereHas('productVariants', fn($q) => $q->whereNotNull('sale_price')->where('sale_price', '<', DB::raw('price')));
+                }
+
+                // Sorting
+                if ($priceOrder === 'asc' || $priceOrder === 'desc') {
+                    $query->orderByRaw('(SELECT MIN(COALESCE(sale_price, price)) FROM product_variants WHERE product_variants.product_id = products.id) ' . $priceOrder);
+                } else {
+                    switch ($sort) {
+                        case 'newest':
+                            $query->orderBy('created_at', 'desc');
+                            break;
+                        case 'popular':
+                            $query->withCount('reviews')->orderBy('reviews_count', 'desc');
+                            break;
+                        case 'bestseller':
+                            $query->orderByRaw('(SELECT SUM(quantity) FROM order_items JOIN product_variants ON order_items.product_variant_id = product_variants.id WHERE product_variants.product_id = products.id) DESC');
+                            break;
+                        default:
+                            $query->orderBy('created_at', 'desc');
+                            break;
+                    }
+                }
+
+                return $query->paginate($perPage);
+            });
+
+            // Format response
+            $formatted = collect($products->items())->map(function ($product) {
+                $variant = $product->productVariants->first();
+                $price = $variant?->price ?? 0;
+                $discount = $variant?->sale_price ?? null;
+                $finalPrice = $discount ?? $price;
+
+                $sold = $variant?->orderItems->sum('quantity') ?? 0;
+                $rating = round($product->reviews->avg('rating') ?? 0);
+                $percent = ($discount && $price > 0) ? round((($price - $discount) / $price) * 100) : 0;
+
+                return [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'slug' => $product->slug,
+                    'image' => $product->productPic->first()->imagePath ?? $variant?->thumbnail ?? '/default-image.jpg',
+                    'price' => number_format($finalPrice, 0, '.', ''),
+                    'discount' => $discount ? number_format($price, 0, '.', '') : null,
+                    'rating' => str_repeat('★', $rating) . str_repeat('☆', 5 - $rating),
+                    'sold' => $sold,
+                    'brand' => $product->seller?->store_name ?? 'N/A',
+                    'percent' => $percent,
+                    'categories' => $product->categories->pluck('name')->implode(', '),
+                    'tags' => $product->tags->pluck('name')->implode(', '),
+                ];
+            });
+
+            // Get unique brands
+            $brandsList = collect($formatted)->pluck('brand')->filter()->unique()->values();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Lấy danh sách sản phẩm thành công.',
+                'data' => [
+                    'products' => $formatted,
+                    'brands' => $brandsList,
+                    'total' => $products->total(),
+                    'current_page' => $products->currentPage(),
+                    'last_page' => $products->lastPage(),
+                ],
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('Validation Error: ' . json_encode($e->errors()));
             return response()->json([
                 'success' => false,
-                'message' => 'Không tìm thấy danh mục với slug: ' . $slug
-            ], 404);
+                'message' => 'Dữ liệu đầu vào không hợp lệ.',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Error fetching products: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Đã xảy ra lỗi khi lấy danh sách sản phẩm.',
+                'error' => env('APP_DEBUG', false) ? $e->getMessage() : null,
+            ], 500);
         }
-
-        // 2. Lấy ID danh mục con
-        $categoryIds = $this->getAllCategoryChildrenIds($parentCategory);
-        $categoryIds[] = $parentCategory->id;
-
-        // 3. Cache key
-        $brandKey = is_array($brand) ? implode(',', $brand) : $brand;
-        $keyHash = md5(json_encode([$search, $priceMin, $priceMax, $brandKey, $sort, $priceOrder]));
-        $cacheKey = "products_by_slug_{$slug}_page_{$page}_{$perPage}_{$keyHash}";
-        $ttl = 3600;
-
-        $products = Cache::store('redis')->tags(['products'])->remember($cacheKey, $ttl, function () use (
-            $search, $perPage, $categoryIds, $priceMin, $priceMax, $brand, $sort, $priceOrder
-        ) {
-            $query = Product::with([
-                'categories',
-                'productPic',
-                'productVariants.inventories',
-                'productVariants.orderItems',
-                'reviews',
-                'tags',
-                'seller'
-            ])
-                ->where('status', 'active')
-                ->whereHas('categories', fn($q) => $q->whereIn('categories.id', $categoryIds));
-
-            // Tìm kiếm
-            if ($search) {
-                $query->where('name', 'like', '%' . $search . '%');
-            }
-
-            // Lọc giá
-            if ($priceMin !== null && $priceMax !== null) {
-                $query->whereHas('productVariants', fn($q) =>
-                    $q->where(function ($q2) use ($priceMin, $priceMax) {
-                        $q2->whereBetween('price', [$priceMin, $priceMax])
-                           ->orWhereBetween('sale_price', [$priceMin, $priceMax]);
-                    })
-                );
-            }
-
-            // Lọc thương hiệu
-            if ($brand) {
-                $brands = is_array($brand) ? $brand : explode(',', $brand);
-                $query->whereHas('seller', fn($q) => $q->whereIn('store_name', $brands));
-            }
-
-            // Sắp xếp theo giá
-            if ($priceOrder === 'asc' || $priceOrder === 'desc') {
-                $query->orderByRaw('(SELECT MIN(COALESCE(sale_price, price)) FROM product_variants WHERE product_variants.product_id = products.id) ' . $priceOrder);
-            }
-
-            // Sắp xếp đặc biệt
-            switch ($sort) {
-                case 'newest':
-                    $query->orderBy('created_at', 'desc');
-                    break;
-                case 'popular':
-                    $query->withCount('reviews')->orderBy('reviews_count', 'desc');
-                    break;
-                case 'bestseller':
-                    // Không dùng `get()` giữa query
-                    $query->with(['productVariants.orderItems']);
-                    break;
-                default:
-                    $query->orderBy('created_at', 'desc');
-                    break;
-            }
-
-            return $query->paginate($perPage);
-        });
-
-        // 4. Format lại dữ liệu sản phẩm
-        $formatted = collect($products->items())->map(function ($product) {
-            $variant = $product->productVariants->first();
-            $price = $variant?->price ?? 0;
-            $discount = $variant?->sale_price ?? null;
-            $finalPrice = $discount ?? $price;
-
-            $sold = $variant?->orderItems->sum('quantity') ?? 0;
-            $rating = round($product->reviews->avg('rating') ?? 0);
-            $percent = ($discount && $price > 0)
-                ? round((($price - $discount) / $price) * 100)
-                : 0;
-
-            return [
-                'id'         => $product->id,
-                'name'       => $product->name,
-                'slug'       => $product->slug,
-                'image'      => $product->productPic->first()->imagePath ?? $variant?->thumbnail ?? '/default.jpg',
-                'price'      => number_format($finalPrice, 0, '.', ''),
-                'discount'   => $discount ? number_format($price, 0, '.', '') : null,
-                'rating'     => str_repeat('★', $rating) . str_repeat('☆', 5 - $rating),
-                'sold'       => $sold,
-                'brand'      => $product->seller->store_name ?? 'N/A',
-                'percent'    => $percent,
-                'categories' => $product->categories->pluck('name')->implode(', '),
-                'tags'       => $product->tags->pluck('name')->implode(', '),
-            ];
-        });
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Lấy danh sách sản phẩm thành công.',
-            'data'    => [
-                'products'     => $formatted,
-                'total'        => $products->total(),
-                'current_page' => $products->currentPage(),
-                'last_page'    => $products->lastPage(),
-            ]
-        ]);
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Đã xảy ra lỗi khi lấy danh sách sản phẩm.',
-            'error'   => env('APP_DEBUG') ? $e->getMessage() : null
-        ], 500);
     }
-}
-
     protected function getAllCategoryChildrenIds($category)
     {
         $ids = [];
-        foreach ($category->children as $child) {
+        foreach ($category->children() as $child) {
             $ids[] = $child->id;
             $ids = array_merge($ids, $this->getAllCategoryChildrenIds($child));
         }

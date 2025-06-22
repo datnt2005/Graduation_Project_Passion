@@ -166,7 +166,7 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
-import SidebarProfile from '~/components/shared/Sidebar-profile.vue';
+import SidebarProfile from '~/components/shared/layouts/Sidebar-profile.vue';
 
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBaseUrl
