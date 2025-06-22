@@ -44,7 +44,7 @@
               <label class="block font-semibold text-sm mb-1.5 text-gray-700">Tên cửa hàng</label>
               <input type="text"
                 class="w-full border border-gray-200 rounded-[9px] px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base bg-white outline-none transition-all placeholder-gray-400"
-                v-model="form.store_name" placeholder="Nhập tên shop hoặc tên hiển thị" required
+                v-model="form.store_name" placeholder="Nhập tên shop hoặc tên hiển thị" 
                 :class="{ 'border-red-500': errors.store_name }">
               <p v-if="errors.store_name" class="text-sm text-red-600 mt-1.5 flex items-center">
                 {{ errors.store_name }}
@@ -58,7 +58,7 @@
                 <label class="block font-semibold text-sm mb-1.5 text-gray-700">Số điện thoại</label>
                 <input type="text"
                   class="w-full border border-gray-200 rounded-[9px] px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base bg-white outline-none transition-all placeholder-gray-400"
-                  v-model="form.phone_number" placeholder="Nhập số điện thoại" required
+                  v-model="form.phone_number" placeholder="Nhập số điện thoại" 
                   :class="{ 'border-red-500': errors.phone_number }">
                 <p v-if="errors.phone_number" class="text-sm text-red-600 mt-1.5 flex items-center">
                   {{ errors.phone_number }}
@@ -70,7 +70,7 @@
                 <label class="block font-semibold text-sm mb-1.5 text-gray-700">Số CMND/CCCD</label>
                 <input type="text"
                   class="w-full border border-gray-200 rounded-[9px] px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base bg-white outline-none transition-all placeholder-gray-400"
-                  v-model="form.identity_card_number" placeholder="Nhập số CMND/CCCD" required
+                  v-model="form.identity_card_number" placeholder="Nhập số CMND/CCCD" 
                   :class="{ 'border-red-500': errors.identity_card_number }">
                 <p v-if="errors.identity_card_number" class="text-sm text-red-600 mt-1.5 flex items-center">
                   {{ errors.identity_card_number }}
@@ -98,6 +98,8 @@
                     <span class="mt-1 text-xs text-gray-500">{{ index === 0 ? 'Mặt trước' : 'Mặt sau' }}</span>
                   </div>
                 </div>
+                <!-- // validator -->
+               <p v-if="errors.cccdPreviews" class="text-sm text-red-600 mt-1.5 flex items-center">{{ errors.cccdPreviews }}</p>
               </div>
 
               <!-- Ngày sinh -->
@@ -105,7 +107,7 @@
                 <label class="block font-semibold text-sm mb-1.5 text-gray-700">Ngày sinh</label>
                 <input type="date"
                   class="w-full border border-gray-200 rounded-[9px] px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base bg-white outline-none transition-all placeholder-gray-400"
-                  v-model="form.date_of_birth" required :class="{ 'border-red-500': errors.date_of_birth }">
+                  v-model="form.date_of_birth"  :class="{ 'border-red-500': errors.date_of_birth }">
                 <p v-if="errors.date_of_birth" class="text-sm text-red-600 mt-1.5 flex items-center">
                   {{ errors.date_of_birth }}
                 </p>
@@ -116,7 +118,7 @@
                 <label class="block font-semibold text-sm mb-1.5 text-gray-700">Địa chỉ cá nhân</label>
                 <input type="text"
                   class="w-full border border-gray-200 rounded-[9px] px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base bg-white outline-none transition-all placeholder-gray-400"
-                  v-model="form.personal_address" placeholder="Nhập địa chỉ cá nhân" required
+                  v-model="form.personal_address" placeholder="Nhập địa chỉ cá nhân" 
                   :class="{ 'border-red-500': errors.personal_address }">
                 <p v-if="errors.personal_address" class="text-sm text-red-600 mt-1.5 flex items-center">
                   {{ errors.personal_address }}
@@ -165,7 +167,7 @@
                 <label class="block font-semibold text-sm mb-1.5 text-gray-700">Mã số thuế</label>
                 <input type="text"
                   class="w-full border border-gray-200 rounded-[9px] px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base bg-white outline-none transition-all placeholder-gray-400"
-                  v-model="form.tax_code" placeholder="Nhập mã số thuế" required
+                  v-model="form.tax_code" placeholder="Nhập mã số thuế" 
                   :class="{ 'border-red-500': errors.tax_code }">
                 <p v-if="errors.tax_code" class="text-sm text-red-600 mt-1.5 flex items-center">
                   {{ errors.tax_code }}
@@ -177,7 +179,7 @@
                 <label class="block font-semibold text-sm mb-1.5 text-gray-700">Tên công ty</label>
                 <input type="text"
                   class="w-full border border-gray-200 rounded-[9px] px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base bg-white outline-none transition-all placeholder-gray-400"
-                  v-model="form.company_name" placeholder="Nhập tên công ty" required
+                  v-model="form.company_name" placeholder="Nhập tên công ty" 
                   :class="{ 'border-red-500': errors.company_name }">
                 <p v-if="errors.company_name" class="text-sm text-red-600 mt-1.5 flex items-center">
                   {{ errors.company_name }}
@@ -189,7 +191,7 @@
                 <label class="block font-semibold text-sm mb-1.5 text-gray-700">Địa chỉ công ty</label>
                 <input type="text"
                   class="w-full border border-gray-200 rounded-[9px] px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base bg-white outline-none transition-all placeholder-gray-400"
-                  v-model="form.company_address" placeholder="Nhập địa chỉ công ty" required
+                  v-model="form.company_address" placeholder="Nhập địa chỉ công ty" 
                   :class="{ 'border-red-500': errors.company_address }">
                 <p v-if="errors.company_address" class="text-sm text-red-600 mt-1.5 flex items-center">
                   {{ errors.company_address }}
@@ -201,7 +203,7 @@
                 <label class="block font-semibold text-sm mb-1.5 text-gray-700">Tên người đại diện pháp lý</label>
                 <input type="text"
                   class="w-full border border-gray-200 rounded-[9px] px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base bg-white outline-none transition-all placeholder-gray-400"
-                  v-model="form.representative_name" placeholder="Nhập tên người đại diện pháp lý" required
+                  v-model="form.representative_name" placeholder="Nhập tên người đại diện pháp lý" 
                   :class="{ 'border-red-500': errors.representative_name }">
                 <p v-if="errors.representative_name" class="text-sm text-red-600 mt-1.5 flex items-center">
                   {{ errors.representative_name }}
@@ -213,7 +215,7 @@
                 <label class="block font-semibold text-sm mb-1.5 text-gray-700">Số điện thoại đại diện</label>
                 <input type="text"
                   class="w-full border border-gray-200 rounded-[9px] px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base bg-white outline-none transition-all placeholder-gray-400"
-                  v-model="form.representative_phone" placeholder="Nhập SĐT người đại diện" required
+                  v-model="form.representative_phone" placeholder="Nhập SĐT người đại diện" 
                   :class="{ 'border-red-500': errors.representative_phone }">
                 <p v-if="errors.representative_phone" class="text-sm text-red-600 mt-1.5 flex items-center">
                   {{ errors.representative_phone }}
@@ -281,6 +283,7 @@ const cccdPreviews = ref([]);
 const documentFile = ref(null);
 const documentPreview = ref('');
 const businessLicensePreview = ref('');
+
 
 const form = reactive({
   store_name: '',
@@ -391,13 +394,24 @@ function validateForm() {
   Object.assign(errors, {});
   const f = form;
 
-  if (!isUpgrading.value && (!f.store_name || f.store_name.length > 255)) {
-    errors.store_name = 'Tên cửa hàng là bắt buộc và không vượt quá 255 ký tự.';
+  if (!isUpgrading.value) {
+    if (!f.store_name) {
+      errors.store_name = 'Tên cửa hàng là bắt buộc.';
+    } else if (f.store_name.length > 255) {
+      errors.store_name = 'Tên cửa hàng không được vượt quá 255 ký tự.';
+    }
   }
+
+
+    // seller_type check
+  if (!['personal', 'business'].includes(f.seller_type)) {
+    errors.seller_type = 'Loại người bán không hợp lệ.';
+  }
+
 
   if (f.seller_type === 'personal' && !isUpgrading.value) {
     if (!f.phone_number || !/^[0-9]{10,15}$/.test(f.phone_number)) {
-      errors.phone_number = 'Số điện thoại không hợp lệ (10–15 số).';
+      errors.phone_number = 'Số điện thoại không hợp lệ (10–15 chữ số).';
     }
     if (!f.identity_card_number || f.identity_card_number.length > 20) {
       errors.identity_card_number = 'Số CMND/CCCD là bắt buộc và tối đa 20 ký tự.';
@@ -407,6 +421,9 @@ function validateForm() {
     }
     if (!f.personal_address) {
       errors.personal_address = 'Địa chỉ cá nhân là bắt buộc.';
+    }
+    if (!cccdPreviews.value.length || cccdPreviews.value.length !== 2) {
+      errors.cccdPreviews = 'Vui lòng chọn đúng 2 ảnh CCCD (mặt trước và mặt sau).';
     }
   } else if (f.seller_type === 'business') {
     if (!f.tax_code) errors.tax_code = 'Mã số thuế là bắt buộc.';
