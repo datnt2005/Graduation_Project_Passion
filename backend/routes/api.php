@@ -177,6 +177,13 @@ Route::delete('/reviews/{id}', [ReviewController::class, 'destroy']);   // Xóa 
 
 Route::get('/reviews', [ReviewController::class, 'index']); // Hiển thị đánh giá công khai
 
+Route::prefix('admin/reviews')->group(function () {
+    Route::get('/', [ReviewController::class, 'adminIndex']);
+    Route::get('/{id}', [ReviewController::class, 'adminShow']);
+    Route::put('/{id}', [ReviewController::class, 'adminUpdate']);
+    Route::delete('/{id}', [ReviewController::class, 'adminDestroy']);
+});
+
 // Các route yêu cầu đăng nhập
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/reviews', [ReviewController::class, 'store']);               // Gửi đánh giá

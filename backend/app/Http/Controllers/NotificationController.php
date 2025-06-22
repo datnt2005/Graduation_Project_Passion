@@ -183,48 +183,37 @@ class NotificationController extends Controller
         }
     }
 
-    // POST /notifications/send-multiple
+
     public function sendMultiple(Request $request)
-    {
-        $notificationIds = $request->input('ids');
-        $toRole = $request->input('to_role');
-        $toUserIds = $request->input('to_user_ids'); // array or null
+{
+    $notificationIds = $request->input('ids');
+    $toRole = $request->input('to_role');
+    $toUserIds = $request->input('to_user_ids');
 
-        $notifications = Notification::whereIn('id', $notificationIds)->get();
-
-        if ($toUserIds && is_array($toUserIds)) {
-            // Gửi cho danh sách user cụ thể
-            foreach ($toUserIds as $userId) {
-                foreach ($notifications as $notification) {
-                    Notification::create([
-                        'title' => $notification->title,
-                        'content' => $notification->content,
-                        'image_url' => $notification->image_url,
-                        'type' => $notification->type,
-                        'to_user_id' => $userId,
-                        'to_role' => null,
-                        'status' => 'sent',
-                    ]);
-                }
-            }
-        } elseif ($toRole) {
-            // Gửi cho toàn bộ người dùng theo role
-            $users = User::where('role', $toRole)->pluck('id');
-            foreach ($users as $userId) {
-                foreach ($notifications as $notification) {
-                    Notification::create([
-                        'title' => $notification->title,
-                        'content' => $notification->content,
-                        'image_url' => $notification->image_url,
-                        'type' => $notification->type,
-                        'to_user_id' => $userId,
-                        'to_role' => $toRole,
-                        'status' => 'sent',
-                    ]);
-                }
-            }
-        }
-
-        return response()->json(['message' => 'Đã gửi thông báo!']);
+    if (is_string($toUserIds)) {
+        $toUserIds = json_decode($toUserIds, true);
     }
+
+    // Nếu là mảng đối tượng như [{id: 3, name: 'Phattran'}] thì chỉ lấy id
+    if (is_array($toUserIds) && isset($toUserIds[0]['id'])) {
+        $toUserIds = array_map(fn($u) => $u['id'], $toUserIds);
+    }
+
+    $notifications = Notification::whereIn('id', $notificationIds)->get();
+
+    if ($notifications->isEmpty()) {
+        return response()->json(['message' => 'Không tìm thấy thông báo để cập nhật.'], 400);
+    }
+
+    foreach ($notifications as $notification) {
+        $notification->update([
+            'to_role'     => $toRole,
+            'to_user_id'  => $toUserIds[0] ?? null, // nếu chọn 1 người
+            'status'      => 'sent',
+        ]);
+    }
+
+    return response()->json(['message' => 'Đã gửi thông báo thành công.']);
+}
+
 }
