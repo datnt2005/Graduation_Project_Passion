@@ -238,106 +238,76 @@ public function update(Request $request)
     ]);
 }
 
-
-   public function showStore($slug)
-    {
-        $seller = Seller::with([
-            'user',
-            'business',
-            'products' => function ($query) {
-                $query->with(['productVariants', 'productPic', 'categories', 'tags']);
-            }
-        ])->where('store_slug', $slug)->firstOrFail();
-
-
-   public function register(Request $request)
+ public function register(Request $request)
     {
         try {
             $userId = auth()->id();
-
             if (!$userId) {
-                return response()->json([
-                    'message' => 'Bạn cần đăng nhập để đăng ký cửa hàng.'
-                ], 401);
+                return response()->json(['message' => 'Bạn cần đăng nhập để đăng ký cửa hàng.'], 401);
             }
 
             // Validation rules
-          $validator = Validator::make($request->all(), [
-                    'store_name' => 'required_if:seller_type,personal|string|max:255',
-                    'seller_type' => 'required|in:personal,business',
-                    'identity_card_number' => 'required_if:seller_type,personal|string|max:20',
-                    'date_of_birth' => 'required_if:seller_type,personal|date',
-                    'personal_address' => 'required_if:seller_type,personal|string',
-                    'phone_number' => 'required_if:seller_type,personal|string|max:20',
-                    'document' => 'nullable|file|mimes:jpg,png,pdf|max:4048',
-                    'bio' => 'nullable|string',
-                    'tax_code' => 'required_if:seller_type,business|string',
-                    'company_name' => 'required_if:seller_type,business|string',
-                    'company_address' => 'required_if:seller_type,business|string',
-                    'business_license' => 'required_if:seller_type,business|file|mimes:jpg,png,pdf|max:4048',
-                    'representative_name' => 'required_if:seller_type,business|string',
-                    'representative_phone' => 'required_if:seller_type,business|string|max:20',
-                    'cccd_front' => 'required|file|mimes:jpg,jpeg,png|max:4096',
-                    'cccd_back' => 'required|file|mimes:jpg,jpeg,png|max:4096',
-                ], [
-                    'store_name.required_if' => 'Vui lòng nhập tên cửa hàng (áp dụng cho người bán cá nhân).',
-                    'store_name.string' => 'Tên cửa hàng phải là chuỗi.',
-                    'store_name.max' => 'Tên cửa hàng không được vượt quá 255 ký tự.',
-
-                    'seller_type.required' => 'Loại người bán là bắt buộc.',
-                    'seller_type.in' => 'Loại người bán phải là "personal" hoặc "business".',
-
-                    'identity_card_number.required_if' => 'Vui lòng nhập số CMND/CCCD.',
-                    'identity_card_number.string' => 'Số CMND/CCCD phải là chuỗi.',
-                    'identity_card_number.max' => 'Số CMND/CCCD không được vượt quá 20 ký tự.',
-
-                    'date_of_birth.required_if' => 'Vui lòng nhập ngày sinh.',
-                    'date_of_birth.date' => 'Ngày sinh không hợp lệ.',
-
-                    'personal_address.required_if' => 'Vui lòng nhập địa chỉ cá nhân.',
-                    'personal_address.string' => 'Địa chỉ phải là chuỗi.',
-
-                    'phone_number.required_if' => 'Vui lòng nhập số điện thoại cá nhân.',
-                    'phone_number.string' => 'Số điện thoại phải là chuỗi.',
-                    'phone_number.max' => 'Số điện thoại không được vượt quá 20 ký tự.',
-
-                    'document.file' => 'Tài liệu phải là tệp hợp lệ.',
-                    'document.mimes' => 'Tài liệu phải có định dạng: jpg, png, hoặc pdf.',
-                    'document.max' => 'Tài liệu không được vượt quá 4MB.',
-
-                    'bio.string' => 'Giới thiệu phải là chuỗi văn bản.',
-
-                    'tax_code.required_if' => 'Vui lòng nhập mã số thuế.',
-                    'tax_code.string' => 'Mã số thuế phải là chuỗi.',
-
-                    'company_name.required_if' => 'Vui lòng nhập tên công ty.',
-                    'company_name.string' => 'Tên công ty phải là chuỗi.',
-
-                    'company_address.required_if' => 'Vui lòng nhập địa chỉ công ty.',
-                    'company_address.string' => 'Địa chỉ công ty phải là chuỗi.',
-
-                    'business_license.required_if' => 'Vui lòng tải lên giấy phép kinh doanh.',
-                    'business_license.file' => 'Giấy phép kinh doanh phải là tệp hợp lệ.',
-                    'business_license.mimes' => 'Giấy phép kinh doanh phải có định dạng: jpg, png, hoặc pdf.',
-                    'business_license.max' => 'Giấy phép kinh doanh không được vượt quá 4MB.',
-
-                    'representative_name.required_if' => 'Vui lòng nhập tên người đại diện.',
-                    'representative_name.string' => 'Tên người đại diện phải là chuỗi.',
-
-                    'representative_phone.required_if' => 'Vui lòng nhập số điện thoại người đại diện.',
-                    'representative_phone.string' => 'Số điện thoại người đại diện phải là chuỗi.',
-                    'representative_phone.max' => 'Số điện thoại người đại diện không được vượt quá 20 ký tự.',
-
-                    'cccd_front.required' => 'Vui lòng tải lên ảnh mặt trước CCCD.',
-                    'cccd_front.file' => 'Ảnh mặt trước CCCD phải là tệp hợp lệ.',
-                    'cccd_front.mimes' => 'Ảnh mặt trước CCCD phải có định dạng: jpg, jpeg hoặc png.',
-                    'cccd_front.max' => 'Ảnh mặt trước CCCD không được vượt quá 4MB.',
-
-                    'cccd_back.required' => 'Vui lòng tải lên ảnh mặt sau CCCD.',
-                    'cccd_back.file' => 'Ảnh mặt sau CCCD phải là tệp hợp lệ.',
-                    'cccd_back.mimes' => 'Ảnh mặt sau CCCD phải có định dạng: jpg, jpeg hoặc png.',
-                    'cccd_back.max' => 'Ảnh mặt sau CCCD không được vượt quá 4MB.',
-                ]);
+            $validator = Validator::make($request->all(), [
+                'store_name' => 'required_if:seller_type,personal|string|max:255',
+                'seller_type' => 'required|in:personal,business',
+                'identity_card_number' => 'required_if:seller_type,personal|string|max:20',
+                'date_of_birth' => 'required_if:seller_type,personal|date',
+                'personal_address' => 'required_if:seller_type,personal|string',
+                'phone_number' => 'required_if:seller_type,personal|string|max:20',
+                'document' => 'nullable|file|mimes:jpg,png,pdf|max:4048',
+                'bio' => 'nullable|string',
+                'tax_code' => 'required_if:seller_type,business|string',
+                'company_name' => 'required_if:seller_type,business|string',
+                'company_address' => 'required_if:seller_type,business|string',
+                'business_license' => 'required_if:seller_type,business|file|mimes:jpg,png,pdf|max:4048',
+                'representative_name' => 'required_if:seller_type,business|string',
+                'representative_phone' => 'required_if:seller_type,business|string|max:20',
+                'cccd_front' => 'required_if:seller_type,personal|file|mimes:jpg,jpeg,png|max:4096',
+                'cccd_back' => 'required_if:seller_type,personal|file|mimes:jpg,jpeg,png|max:4096',
+            ], [
+                'store_name.required_if' => 'Vui lòng nhập tên cửa hàng (áp dụng cho người bán cá nhân).',
+                'store_name.string' => 'Tên cửa hàng phải là chuỗi.',
+                'store_name.max' => 'Tên cửa hàng không được vượt quá 255 ký tự.',
+                'seller_type.required' => 'Loại người bán là bắt buộc.',
+                'seller_type.in' => 'Loại người bán phải là "personal" hoặc "business".',
+                'identity_card_number.required_if' => 'Vui lòng nhập số CMND/CCCD.',
+                'identity_card_number.string' => 'Số CMND/CCCD phải là chuỗi.',
+                'identity_card_number.max' => 'Số CMND/CCCD không được vượt quá 20 ký tự.',
+                'date_of_birth.required_if' => 'Vui lòng nhập ngày sinh.',
+                'date_of_birth.date' => 'Ngày sinh không hợp lệ.',
+                'personal_address.required_if' => 'Vui lòng nhập địa chỉ cá nhân.',
+                'personal_address.string' => 'Địa chỉ phải là chuỗi.',
+                'phone_number.required_if' => 'Vui lòng nhập số điện thoại cá nhân.',
+                'phone_number.string' => 'Số điện thoại phải là chuỗi.',
+                'phone_number.max' => 'Số điện thoại không được vượt quá 20 ký tự.',
+                'document.file' => 'Tài liệu phải là tệp hợp lệ.',
+                'document.mimes' => 'Tài liệu phải có định dạng: jpg, png, hoặc pdf.',
+                'document.max' => 'Tài liệu không được vượt quá 4MB.',
+                'bio.string' => 'Giới thiệu phải là chuỗi văn bản.',
+                'tax_code.required_if' => 'Vui lòng nhập mã số thuế.',
+                'tax_code.string' => 'Mã số thuế phải là chuỗi.',
+                'company_name.required_if' => 'Vui lòng nhập tên công ty.',
+                'company_name.string' => 'Tên công ty phải là chuỗi.',
+                'company_address.required_if' => 'Vui lòng nhập địa chỉ công ty.',
+                'company_address.string' => 'Địa chỉ công ty phải là chuỗi.',
+                'business_license.required_if' => 'Vui lòng tải lên giấy phép kinh doanh.',
+                'business_license.file' => 'Giấy phép kinh doanh phải là tệp hợp lệ.',
+                'business_license.mimes' => 'Giấy phép kinh doanh phải có định dạng: jpg, png, hoặc pdf.',
+                'business_license.max' => 'Giấy phép kinh doanh không được vượt quá 4MB.',
+                'representative_name.required_if' => 'Vui lòng nhập tên người đại diện.',
+                'representative_name.string' => 'Tên người đại diện phải là chuỗi.',
+                'representative_phone.required_if' => 'Vui lòng nhập số điện thoại người đại diện.',
+                'representative_phone.string' => 'Số điện thoại người đại diện phải là chuỗi.',
+                'representative_phone.max' => 'Số điện thoại người đại diện không được vượt quá 20 ký tự.',
+                'cccd_front.required_if' => 'Vui lòng tải lên ảnh mặt trước CCCD.',
+                'cccd_front.file' => 'Ảnh mặt trước CCCD phải là tệp hợp lệ.',
+                'cccd_front.mimes' => 'Ảnh mặt trước CCCD phải có định dạng: jpg, jpeg hoặc png.',
+                'cccd_front.max' => 'Ảnh mặt trước CCCD không được vượt quá 4MB.',
+                'cccd_back.required_if' => 'Vui lòng tải lên ảnh mặt sau CCCD.',
+                'cccd_back.file' => 'Ảnh mặt sau CCCD phải là tệp hợp lệ.',
+                'cccd_back.mimes' => 'Ảnh mặt sau CCCD phải có định dạng: jpg, jpeg hoặc png.',
+                'cccd_back.max' => 'Ảnh mặt sau CCCD không được vượt quá 4MB.',
+            ]);
 
             if ($validator->fails()) {
                 return response()->json([
@@ -346,18 +316,17 @@ public function update(Request $request)
                 ], 422);
             }
 
-
             // Kiểm tra đã có seller chưa
             $seller = Seller::where('user_id', $userId)->first();
 
-            // ====== TRƯỜNG HỢP NÂNG CẤP PERSONAL → BUSINESS ======
+            // TRƯỜNG HỢP NÂNG CẤP PERSONAL → BUSINESS
             if ($seller && $seller->seller_type === 'personal' && $request->seller_type === 'business' && !$seller->business) {
-                // Upload business license
                 $licensePath = null;
                 if ($request->hasFile('business_license') && $request->file('business_license')->isValid()) {
                     $file = $request->file('business_license');
                     $filename = 'seller-documents/business/' . time() . '_' . Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) . '.' . $file->getClientOriginalExtension();
                     Storage::disk('r2')->put($filename, file_get_contents($file));
+                    \Log::info('Uploaded business_license to R2: ' . $filename);
                     $licensePath = $filename;
                 }
 
@@ -388,45 +357,44 @@ public function update(Request $request)
                 ], 409);
             }
 
-            // ====== ĐĂNG KÝ MỚI ======
+            // ĐĂNG KÝ MỚI
             $storeSlug = Str::slug($request->store_name) . '-' . uniqid();
-
-            // Upload giấy tờ cá nhân nếu có
             $documentPath = null;
             $cccdFront = null;
             $cccdBack = null;
+
+            // Kiểm tra số CCCD đã được sử dụng
+            if ($request->seller_type === 'personal' && $request->identity_card_number) {
+                if (Seller::where('identity_card_number', $request->identity_card_number)->exists()) {
+                    return response()->json(['message' => 'Số CCCD này đã được sử dụng để đăng ký tài khoản khác.'], 409);
+                }
+            }
+
+            // Upload CCCD mặt trước
+            if ($request->hasFile('cccd_front') && $request->file('cccd_front')->isValid()) {
+                $cccdFrontFile = $request->file('cccd_front');
+                $filename = 'seller-documents/cccd/' . time() . '_front_' . Str::slug(pathinfo($cccdFrontFile->getClientOriginalName(), PATHINFO_FILENAME)) . '.' . $cccdFrontFile->getClientOriginalExtension();
+                Storage::disk('r2')->put($filename, file_get_contents($cccdFrontFile));
+                \Log::info('Uploaded cccd_front to R2: ' . $filename);
+                $cccdFront = $filename;
+            }
+
+            // Upload CCCD mặt sau
+            if ($request->hasFile('cccd_back') && $request->file('cccd_back')->isValid()) {
+                $cccdBackFile = $request->file('cccd_back');
+                $filename = 'seller-documents/cccd/' . time() . '_back_' . Str::slug(pathinfo($cccdBackFile->getClientOriginalName(), PATHINFO_FILENAME)) . '.' . $cccdBackFile->getClientOriginalExtension();
+                Storage::disk('r2')->put($filename, file_get_contents($cccdBackFile));
+                \Log::info('Uploaded cccd_back to R2: ' . $filename);
+                $cccdBack = $filename;
+            }
+
+            // Upload tài liệu bổ sung (nếu có)
             if ($request->hasFile('document') && $request->file('document')->isValid()) {
                 $file = $request->file('document');
                 $filename = 'seller-documents/personal/' . time() . '_' . Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) . '.' . $file->getClientOriginalExtension();
                 Storage::disk('r2')->put($filename, file_get_contents($file));
+                \Log::info('Uploaded document to R2: ' . $filename);
                 $documentPath = $filename;
-
-                 // Gọi hàm OCR CCCD
-                list($extractedId, $error) = $this->extractCccdFromImage($file);
-                if ($error) {
-                    return response()->json(['message' => $error], 422);
-                }
-
-                // So khớp với số người dùng nhập
-                if ($extractedId !== $request->identity_card_number) {
-                    return response()->json(['message' => 'Số CCCD trong ảnh không khớp với thông tin nhập.'], 422);
-                }
-
-                // Kiểm tra CCCD đã được dùng chưa
-                if (Seller::where('identity_card_number', $extractedId)->exists()) {
-                    return response()->json(['message' => 'Số CCCD này đã được sử dụng để đăng ký tài khoản khác.'], 409);
-                }
-
-
-                // Upload CCCD mặt trước
-                if ($request->hasFile('cccd_front') && $request->file('cccd_front')->isValid()) {
-                    $cccdFront = $request->file('cccd_front')->store('seller-documents', 'r2');
-                }
-
-                // Upload CCCD mặt sau
-                if ($request->hasFile('cccd_back') && $request->file('cccd_back')->isValid()) {
-                    $cccdBack = $request->file('cccd_back')->store('seller-documents', 'r2');
-                }
             }
 
             // Tạo seller mới
@@ -453,6 +421,7 @@ public function update(Request $request)
                     $file = $request->file('business_license');
                     $filename = 'seller-documents/business/' . time() . '_' . Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) . '.' . $file->getClientOriginalExtension();
                     Storage::disk('r2')->put($filename, file_get_contents($file));
+                    \Log::info('Uploaded business_license to R2: ' . $filename);
                     $licensePath = $filename;
                 }
 
@@ -478,121 +447,6 @@ public function update(Request $request)
             ], 500);
         }
     }
-
-        private function extractCccdFromImage($file)
-    {
-        putenv('GOOGLE_APPLICATION_CREDENTIALS=' . storage_path(env('GOOGLE_APPLICATION_CREDENTIALS')));
-        $imageAnnotator = new ImageAnnotatorClient();
-        $imageData = file_get_contents($file->getRealPath());
-        $response = $imageAnnotator->textDetection($imageData);
-        $texts = $response->getTextAnnotations();
-
-        if (count($texts) === 0) {
-            return [null, 'Không thể đọc được ảnh CCCD.'];
-        }
-
-        $fullText = $texts[0]->getDescription();
-        preg_match('/[0-9]{9,12}/', $fullText, $matches);
-        $extractedId = $matches[0] ?? null;
-
-        if (!$extractedId) {
-            return [null, 'Không tìm thấy số CCCD trong ảnh.'];
-        }
-
-        return [$extractedId, null];
-    }
-
-        public function login(Request $request)
-    {
-        try {
-            // B1: Validate dữ liệu đầu vào
-            $validator = Validator::make($request->all(), [
-                'email' => 'required|email',
-                'password' => 'required|string|min:6',
-            ], [
-                'email.required' => 'Vui lòng nhập email.',
-                'email.email' => 'Email không hợp lệ.',
-                'password.required' => 'Vui lòng nhập mật khẩu.',
-                'password.min' => 'Mật khẩu phải có ít nhất 6 ký tự.',
-            ]);
-
-            if ($validator->fails()) {
-                return response()->json(['errors' => $validator->errors()], 422);
-            }
-
-            // B2: Thử đăng nhập
-            $credentials = $request->only('email', 'password');
-
-            if (!Auth::attempt($credentials)) {
-                return response()->json(['message' => 'Sai tài khoản hoặc mật khẩu'], 401);
-            }
-
-            $user = Auth::user();
-
-            if ($user->role !== 'seller') {
-             return response()->json(['message' => 'Chỉ seller mới được đăng nhập hệ thống này.'], 403);
-                   }
-
-            // B3:  Kiểm tra vai trò và trạng thái của người dùng
-                if ($user->role === 'seller') {
-                    $seller = \App\Models\Seller::where('user_id', $user->id)->first();
-
-                    if (!$seller) {
-                        return response()->json([
-                            'message' => 'Bạn chưa đăng ký cửa hàng. Vui lòng hoàn tất hồ sơ để được xét duyệt.',
-                        ], 403);
-                    }
-
-                    // Nếu seller đã có mà status hoặc verification_status chưa đúng thì báo lỗi
-                        if (
-                        $seller->verification_status !== 'verified'
-                    ) {
-                        return response()->json([
-                            'message' => 'Tài khoản của bạn đang chờ admin xác nhận cửa hàng.',
-                        ], 403);
-                    }
-                }
-
-
-
-            // B4: Tạo token cho user
-            $token = $user->createToken('api_token')->plainTextToken;
-
-            // B5: Lưu Redis
-            $redisKey = 'user:session:' . $user->id;
-            $redisData = [
-                'user_id' => $user->id,
-                'email' => $user->email,
-                'name' => $user->name,
-                'role' => $user->role,
-                'status' => $user->status,
-                'avatar' => $user->avatar,
-                'store_slug' => $user->store_slug,
-                'token' => $token,
-                'logged_in_at' => now()->toDateTimeString(),
-            ];
-            Redis::setex($redisKey, 7200, json_encode($redisData)); // TTL 2 giờ
-
-            // B6: Ghi session tạm
-            session([
-                'user_id' => $user->id,
-                'user_role' => $user->role,
-                'user_name' => $user->name,
-            ]);
-
-            // B7: Trả response thành công
-            return response()->json([
-                'message' => 'Đăng nhập thành công!',
-                'token' => $token,
-                'user' => $user,
-                'store_slug' => $seller ? $seller->store_slug : null,
-
-            ]);
-        } catch (Exception $e) {
-            return response()->json(['message' => 'Lỗi hệ thống: ' . $e->getMessage()], 500);
-        }
-    }
-
 
 
  }
