@@ -1,4 +1,3 @@
-<!-- components/Notification.vue -->
 <template>
   <ClientOnly>
     <Teleport to="body">
@@ -11,7 +10,7 @@
         leave-to-class="transform opacity-0 scale-95"
       >
         <div
-          v-if="notification.show"
+          v-if="notification && notification.show"
           class="fixed bottom-4 right-4 bg-white rounded-lg shadow-xl border border-gray-200 p-4 flex items-center space-x-3 z-50"
         >
           <div class="flex-shrink-0">
@@ -40,7 +39,10 @@
             </svg>
           </div>
           <div class="flex-1">
-            <p class="text-sm font-medium" :class="notification.type === 'success' ? 'text-green-800' : 'text-red-800'">
+            <p
+              class="text-sm font-medium"
+              :class="notification.type === 'success' ? 'text-green-800' : 'text-red-800'"
+            >
               {{ notification.message }}
             </p>
           </div>
@@ -75,4 +77,4 @@
 import { useNotification } from '~/composables/useNotification'
 
 const { notification, hideNotification } = useNotification()
-</script> 
+</script>
