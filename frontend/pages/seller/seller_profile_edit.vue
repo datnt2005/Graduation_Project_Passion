@@ -213,11 +213,7 @@ onMounted(async () => {
     headers: { Authorization: `Bearer ${token}` }
   });
 
-<<<<<<< HEAD
   //  console.log('✅ Seller:', data.seller); 
-=======
-  //  console.log('✅ Seller:', data.seller); // 👈 thêm dòng này
->>>>>>> 60d7f43 (chau update register.vue seller and controllere sellerController)
   // console.log('✅ Front path:', data.seller.cccd_front);
   // console.log('✅ Back path:', data.seller.cccd_back);
 

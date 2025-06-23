@@ -307,7 +307,6 @@ const documentPreview = ref('');
 const businessLicensePreview = ref('');
 const logoSrc = ref('/images/SellerCenter2.png');
 
-
 const toast = (icon, title) => {
   Swal.fire({
     toast: true,
@@ -318,7 +317,7 @@ const toast = (icon, title) => {
     padding: '10px 20px',
     customClass: { popup: 'text-sm rounded-md shadow-md' },
     showConfirmButton: false,
-    timer: 1500,
+    timer: 3000,
     timerProgressBar: true,
     didOpen: (toastEl) => {
       toastEl.addEventListener('mouseenter', () => Swal.stopTimer());
@@ -383,10 +382,10 @@ async function checkSellerStatus() {
       console.warn('Endpoint /access-token not found. Skipping check.');
     } else if (error.response?.status === 401) {
       localStorage.removeItem('access_token');
-      toast('success', 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.') 
+      toast('error', 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
     } else {
-       toast("Error checking seller status:", errors.value.message);
-        console.error('Error checking seller status:', error);
+      toast('error', 'Lỗi khi kiểm tra trạng thái người bán');
+      console.error('Error checking seller status:', error);
     }
   }
 }
@@ -536,7 +535,7 @@ async function handleSubmit() {
 
   const token = localStorage.getItem('access_token');
   if (!token) {
-    alert('Bạn chưa đăng nhập!');
+    toast('error', 'Bạn chưa đăng nhập!');
     loading.value = false;
     return;
   }
@@ -548,8 +547,7 @@ async function handleSubmit() {
 
     const user = meRes?.data?.data;
     if (!user || !user.id) {
-      toast("Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.", errors.value.message);
-   
+      toast('error', 'Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.');
       loading.value = false;
       return;
     }
@@ -602,7 +600,7 @@ async function handleSubmit() {
     Object.assign(errors, res?.data?.errors || {});
     const message = res?.data?.message || res?.data?.error || 'Thất bại!';
     const detail = Object.values(errors).flat().join('\n');
-    alert(detail ? `${message}\n\n${detail}` : message);
+    toast('error', detail ? `${message}\n${detail}` : message);
     console.error('Error:', error);
   } finally {
     loading.value = false;
