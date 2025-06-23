@@ -1,4 +1,3 @@
-<!-- File: components/Dashboard.vue -->
 <template>
   <!-- Cảnh báo sản phẩm gần hết hàng -->
   <div v-if="showLowStockAlert && lowStockProducts.length" class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4 rounded relative">
@@ -22,8 +21,20 @@
       <div v-else-if="statsError" class="col-span-6 text-center py-8 text-red-500">{{ statsError }}</div>
       <template v-else>
         <div v-for="stat in dashboardStats.stats" :key="stat.key" class="bg-white p-4 rounded shadow text-center">
-          <h3 class="text-gray-500 text-sm">{{ stat.label }}</h3>
-          <p class="text-xl font-bold">{{ formatNumber(stat.value) }}</p>
+          <!-- Nếu là Tổng Người Dùng, dùng thẻ <a> -->
+          <a
+            v-if="stat.key === 'total_users'"
+            href="/admin/users/list-user"
+            class="block hover:bg-gray-100 transition"
+          >
+            <h3 class="text-gray-500 text-sm">{{ stat.label }}</h3>
+            <p class="text-xl font-bold">{{ formatNumber(stat.value) }}</p>
+          </a>
+          <!-- Các mục khác giữ nguyên -->
+          <div v-else>
+            <h3 class="text-gray-500 text-sm">{{ stat.label }}</h3>
+            <p class="text-xl font-bold">{{ formatNumber(stat.value) }}</p>
+          </div>
         </div>
       </template>
     </div>
@@ -90,7 +101,6 @@
 
   <!-- Bảng xếp hạng sản phẩm -->
   <div class="bg-white p-4 sm:p-6 rounded shadow mt-6 w-full overflow-x-auto">
-
     <!-- Nút chuyển đổi -->
     <div class="flex gap-2 mb-4">
       <button @click="showInventoryList" :class="['px-4 py-2 rounded', !showBestSellers ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700']">Danh sách tồn kho</button>
@@ -308,7 +318,7 @@ const combinedChartData = computed(() => {
   if (orderChartMode.value === 'orders') {
     datasets.push({
       label: 'Tổng Đơn Hàng',
-      data: chartDataApi.value.orderCount, // Sử dụng orderCount từ API
+      data: chartDataApi.value.orderCount,
       backgroundColor: '#6366f1',
       borderColor: '#6366f1',
       borderWidth: chartTypeMode.value === 'line' ? 2 : undefined,
@@ -352,7 +362,7 @@ const combinedChartOptions = computed(() => {
             ? 'Biểu Đồ Tổng Đơn Hàng'
             : chartMode.value === 'revenue' ? 'Biểu Đồ Doanh Thu' :
               chartMode.value === 'profit' ? 'Biểu Đồ Lợi Nhuận' :
-              'Biểu Đồ Doanh Thu & Lợi Nhuận',
+              'Biểu đồ Doanh Thu & Lợi Nhuận',
         font: { size: 16 },
         padding: { top: 10, bottom: 10 }
       }
