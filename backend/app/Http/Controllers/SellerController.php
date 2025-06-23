@@ -239,17 +239,6 @@ public function update(Request $request)
 }
 
 
-   public function showStore($slug)
-    {
-        $seller = Seller::with([
-            'user',
-            'business',
-            'products' => function ($query) {
-                $query->with(['productVariants', 'productPic', 'categories', 'tags']);
-            }
-        ])->where('store_slug', $slug)->firstOrFail();
-
-
    public function register(Request $request)
     {
         try {
