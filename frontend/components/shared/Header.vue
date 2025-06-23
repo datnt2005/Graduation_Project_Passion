@@ -2,25 +2,8 @@
   <div>
     <!-- Thanh trên cùng -->
     <header class="bg-[#1BA0E2] text-white text-sm py-2">
-      <div class="container mx-auto flex justify-between items-center px-4">
-        <div class="space-x-2">
-          <NuxtLink to="/Seller" class="hover:underline inline-flex items-center gap-1">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24"
-              stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h4l3 10h8l3-10h4" />
-            </svg>
-            Đăng ký bán hàng
-          </NuxtLink>
-          <a href="#" class="hover:underline inline-flex items-center gap-1">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24"
-              stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M17 20h5v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2h5" />
-            </svg>
-            Kết nối <font-awesome-icon :icon="['fab', 'facebook']" />
-            <font-awesome-icon :icon="['fab', 'instagram']" />
-          </a>
-        </div>
+      <div class="container mx-auto flex justify-end items-center px-4">
+  
         <div class="hidden sm:flex items-center space-x-4">
           <a href="#" class="hover:underline inline-flex items-center gap-1">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24"
@@ -750,7 +733,7 @@ function loginWithGoogle() {
   const left = window.screen.width / 2 - width / 2;
   const top = window.screen.height / 2 - height / 2;
 
-  const googleAuthUrl = 'http://localhost:8000/api/auth/google/redirect';
+  const googleAuthUrl = `${api}/auth/google/redirect`;
   const expectedOrigin = 'http://localhost:8000';
   const popup = window.open(
     googleAuthUrl,
@@ -771,7 +754,7 @@ function loginWithGoogle() {
       localStorage.setItem('access_token', event.data.token);
 
       try {
-        const res = await fetch('http://localhost:8000/api/me', {
+        const res = await fetch(`${api}/me`, {
           headers: {
             Authorization: `Bearer ${event.data.token}`,
           },
