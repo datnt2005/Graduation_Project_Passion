@@ -424,4 +424,183 @@ class ReviewController extends Controller
             'likes' => $review->likes()->count()
         ]);
     }
+
+    public function adminIndex()
+    {
+        try {
+            $reviews = Review::with([
+                'product:id,name',
+                'product.pics:id,product_id,imagePath',
+                'media',
+                'reply'
+            ])
+                ->withCount('likes')
+                ->whereNull('parent_id')
+                ->latest()
+                ->get()
+                ->map(function ($review) {
+                    $productImage = optional($review->product?->pics->first())->imagePath;
+
+                    return [
+                        'id' => $review->id,
+                        'product_name' => optional($review->product)->name,
+                        'product_image' => $productImage ? Storage::disk('r2')->url($productImage) : null,
+                        'content' => $review->content,
+                        'rating' => $review->rating,
+                        'status' => $review->status,
+                        'created_at' => $review->created_at,
+                        'likes_count' => $review->likes_count,
+                        'images' => $review->media
+                            ->where('media_type', 'image')
+                            ->map(fn($m) => Storage::disk('r2')->url($m->media_url))
+                            ->values(),
+                        'reply' => $review->reply ? [
+                            'id' => $review->reply->id,
+                            'content' => $review->reply->content,
+                        ] : null,
+                    ];
+                });
+            return response()->json(['data' => $reviews]);
+        } catch (\Exception $e) {
+            Log::error('Review fetch failed: ' . $e->getMessage());
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+
+    public function adminShow($id)
+    {
+        try {
+            $review = Review::with(['media', 'reply', 'product'])
+                ->withCount('likes') // 👈 Thêm dòng này để lấy likes_count
+                ->findOrFail($id);
+
+            return response()->json([
+                'id' => $review->id,
+                'product_id' => $review->product_id,
+                'product_name' => optional($review->product)->name ?? 'Không rõ',
+                'user_id' => $review->user_id,
+                'content' => $review->content,
+                'rating' => $review->rating,
+                'status' => $review->status,
+                'likes_count' => $review->likes_count, // 👈 Dùng đúng trường `likes_count`
+                'reply' => $review->reply ? [
+                    'id' => $review->reply->id,
+                    'content' => $review->reply->content,
+                    'created_at' => optional($review->reply->created_at)->toDateTimeString(),
+                ] : null,
+                'images' => $review->media
+                    ->where('media_type', 'image')
+                    ->map(fn($m) => [
+                        'id' => $m->id,
+                        'url' => Storage::disk('r2')->url($m->media_url),
+                    ])
+                    ->values(),
+                'videos' => $review->media
+                    ->where('media_type', 'video')
+                    ->map(fn($m) => Storage::disk('r2')->url($m->media_url))
+                    ->values(),
+                'created_at' => $review->created_at->toDateTimeString(),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('adminShow error: ' . $e->getMessage());
+            return response()->json(['error' => 'Không tìm thấy đánh giá'], 404);
+        }
+    }
+
+
+
+
+    public function adminUpdate(Request $request, $id)
+    {
+        $review = Review::with('media', 'reply')->findOrFail($id);
+
+        $validator = Validator::make($request->all(), [
+            'content' => 'required|string|min:10|max:1000',
+            'rating' => 'required|integer|min:1|max:5',
+            'status' => 'required|in:approved,pending,rejected',
+            'reply' => 'nullable|string|max:1000',
+            'kept_images' => 'nullable|array',
+            'kept_images.*' => 'integer',
+            'images.*' => 'nullable|image|max:2048',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        // Cập nhật fields
+        $review->update([
+            'content' => $request->content,
+            'rating' => $request->rating,
+            'status' => $request->status,
+        ]);
+
+        // Cập nhật hoặc tạo mới phản hồi
+        // Trong phần cập nhật hoặc tạo mới phản hồi
+        if ($request->filled('reply')) {
+            if ($review->reply) {
+                $review->reply->update([
+                    'content' => $request->input('reply'),
+                ]);
+            } else {
+                $review->reply()->create([
+                    'content' => $request->input('reply'),
+                    'user_id' => auth()->id(), // hoặc ID admin cố định
+                    'status' => 'approved',
+                ]);
+            }
+        }
+
+        // Xóa ảnh không giữ
+        $kept = $request->input('kept_images', []);
+        $review->media()->where('media_type', 'image')
+            ->whereNotIn('id', $kept)
+            ->each(function ($m) {
+                Storage::disk('r2')->delete($m->media_url);
+                $m->delete();
+            });
+
+        // Thêm ảnh mới
+        if ($files = $request->file('images')) {
+            foreach ($files as $file) {
+                $path = 'reviews/' . uniqid() . '.' . $file->extension();
+                Storage::disk('r2')->put($path, file_get_contents($file));
+                $review->media()->create([
+                    'media_url' => $path,
+                    'media_type' => 'image',
+                ]);
+            }
+        }
+
+        return response()->json(['message' => 'Cập nhật đánh giá thành công']);
+    }
+
+
+
+    public function adminDestroy($id)
+{
+    try {
+        $review = Review::with('media', 'reply')->findOrFail($id);
+
+        // Xóa media
+        foreach ($review->media as $media) {
+            Storage::disk('r2')->delete($media->media_url);
+            $media->delete();
+        }
+
+        // Xóa reply nếu có
+        if ($review->reply) {
+            $review->reply->delete();
+        }
+
+        $review->delete();
+
+        return response()->json(['message' => 'Xóa đánh giá thành công']);
+    } catch (\Exception $e) {
+        Log::error('Lỗi khi xóa đánh giá: ' . $e->getMessage());
+        return response()->json(['error' => 'Không thể xóa đánh giá'], 500);
+    }
+}
+
 }

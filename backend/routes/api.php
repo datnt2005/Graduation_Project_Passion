@@ -18,6 +18,7 @@ use App\Http\Controllers\DiscountController;
 use App\Http\Controllers\GoogleAuthController;
 use App\Http\Controllers\ChatbotController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\NotificationController;
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Redis;
@@ -41,6 +42,16 @@ Route::prefix('categories')->group(function () {
     Route::delete('/{id}', [CategoryController::class, 'destroy']);
 });
 
+
+Route::prefix('notifications')->group(function () {
+    Route::get('/', [NotificationController::class, 'index']);
+    Route::post('/', [NotificationController::class, 'store']);
+    Route::get('/{id}', [NotificationController::class, 'show']);
+    Route::put('/{id}', [NotificationController::class, 'update']);
+    Route::post('/mark-read', [NotificationController::class, 'markAsRead']);
+    Route::delete('/{id}', [NotificationController::class, 'destroy']);
+    Route::post('/send-multiple', [NotificationController::class, 'sendMultiple']);
+}); 
 
 //tags
 Route::prefix('tags')->group(function () {
@@ -167,6 +178,13 @@ Route::delete('/reviews/{id}', [ReviewController::class, 'destroy']);   // Xóa 
 
 Route::get('/reviews', [ReviewController::class, 'index']); // Hiển thị đánh giá công khai
 
+Route::prefix('admin/reviews')->group(function () {
+    Route::get('/', [ReviewController::class, 'adminIndex']);
+    Route::get('/{id}', [ReviewController::class, 'adminShow']);
+    Route::put('/{id}', [ReviewController::class, 'adminUpdate']);
+    Route::delete('/{id}', [ReviewController::class, 'adminDestroy']);
+});
+
 // Các route yêu cầu đăng nhập
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/reviews', [ReviewController::class, 'store']);               // Gửi đánh giá
@@ -211,6 +229,8 @@ Route::apiResource('users', UserController::class);
 Route::post('users/batch-delete', [UserController::class, 'batchDelete']);
 Route::post('users/batch-add-role', [UserController::class, 'batchAddRole']);
 Route::post('users/batch-remove-role', [UserController::class, 'batchRemoveRole']);
+Route::get('/users/by-role/{role}', [UserController::class, 'getByRole']);
+
 
 Route::post('profile/update/{id}', [UserController::class, 'updateUser']);
 

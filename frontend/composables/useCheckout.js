@@ -3,8 +3,7 @@ import Swal from 'sweetalert2'
 import { useCart } from '~/composables/useCart'
 import { usePayment } from '~/composables/usePayment'
 import { useDiscount } from '~/composables/useDiscount'
-
-export function useCheckout(config) {
+export function useCheckout(config, shippingRef, selectedShippingMethod, selectedAddress, provinces, districts, wards) {
   const { cartItems, cartTotal, loading, error, fetchCart } = useCart()
   const { paymentMethods, loading: paymentLoading, error: paymentError, fetchPaymentMethods, processPayment } = usePayment()
   const { discounts, selectedDiscounts, loading: discountLoading, error: discountError, fetchDiscounts, applyDiscount, removeDiscount, calculateDiscount } = useDiscount()
@@ -79,35 +78,47 @@ export function useCheckout(config) {
       showErrorNotification('Vui lòng chọn phương thức thanh toán')
       return
     }
-    try {
-      loading.value = true
-      error.value = null
-      const token = localStorage.getItem('access_token')
-      if (!token) {
-        window.location.href = '/auth/login'
-        return
+
+    const serviceId = selectedShippingMethod?.value || shippingRef?.value?.selectedMethod
+if (!serviceId) {
+  showErrorNotification('Vui lòng chọn hình thức giao hàng')
+  return
+}
+
+
+  try {
+    loading.value = true
+    error.value = null
+    const token = localStorage.getItem('access_token')
+    if (!token) {
+      window.location.href = '/auth/login'
+      return
+    }
+
+    const userResponse = await fetch(`${config.public.apiBaseUrl}/me`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json'
       }
-      const userResponse = await fetch(`${config.public.apiBaseUrl}/me`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json'
-        }
-      })
-      if (!userResponse.ok) throw new Error('Không thể lấy thông tin người dùng')
-      const { data: userData } = await userResponse.json()
-      if (!userData?.id) throw new Error('Không tìm thấy thông tin người dùng')
-      const orderData = {
-        user_id: userData.id,
-        address_id: 1,
-        payment_method: selectedPaymentMethod.value,
-        discount_id: selectedDiscounts.value?.[0]?.id || null,
-        items: cartItems.value.map(item => ({
-          product_id: item.productVariant?.product?.id,
-          product_variant_id: item.product_variant_id,
-          quantity: item.quantity,
-          price: item.price
-        }))
-      }
+    })
+
+    if (!userResponse.ok) throw new Error('Không thể lấy thông tin người dùng')
+    const { data: userData } = await userResponse.json()
+    if (!userData?.id) throw new Error('Không tìm thấy thông tin người dùng')
+
+    const orderData = {
+      user_id: userData.id,
+      address_id: selectedAddress.value?.id || null,
+      payment_method: selectedPaymentMethod.value,
+      service_id: serviceId, // ✅ đã định nghĩa đúng
+      discount_id: selectedDiscounts.value?.[0]?.id || null,
+      items: cartItems.value.map(item => ({
+        product_id: item.productVariant?.product?.id,
+        product_variant_id: item.product_variant_id,
+        quantity: item.quantity,
+        price: item.price
+      }))
+    }
       const orderResponse = await fetch(`${config.public.apiBaseUrl}/orders`, {
         method: 'POST',
         headers: {

@@ -143,4 +143,10 @@ class Order extends Model
 
         throw new \Exception('Đơn hàng chưa áp dụng mã giảm giá');
     }
+
+    public function shipping()
+{
+    return $this->hasOne(Shipping::class);
+}
+
 }
