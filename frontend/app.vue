@@ -3,6 +3,7 @@ import LoadingSpinner from '~/components/shared/LoadingSpinner.vue'
 import { useLoadingStore } from '~/stores/loading'
 import { useRouter } from 'vue-router'
 import ChatWidget from '~/components/chat/ChatWidget.vue'
+import Notification from '~/components/Notification.vue'
 
 const loading = useLoadingStore()
 const router = useRouter()
@@ -20,15 +21,13 @@ router.afterEach(() => {
 <template>
   <div>
         <LoadingSpinner v-if="loading.isLoading" />
-
   </div>
   <NuxtLayout>
     <NuxtPage />
+    <Notification />
   </NuxtLayout>
       <ChatWidget />
 
 </template>
 
-<script setup>
-// The Notification component will be auto-imported by Nuxt
-</script>
+
