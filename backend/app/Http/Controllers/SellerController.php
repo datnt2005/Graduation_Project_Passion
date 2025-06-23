@@ -231,6 +231,7 @@ public function update(Request $request)
         $isFollowing = $seller->followers()->where('user_id', $user->id)->exists();
     }
 
+
     return response()->json([
         'seller' => $seller,
         'followers_count' => $seller->followers()->count(),
@@ -239,6 +240,7 @@ public function update(Request $request)
 }
 
  public function register(Request $request)
+
     {
         try {
             $userId = auth()->id();
@@ -353,7 +355,7 @@ public function update(Request $request)
             // Nếu seller đã tồn tại không được tạo mới
             if ($seller) {
                 return response()->json([
-                    'message' => 'Tài khoản này đã đăng ký cửa hàng hoặc không thể nâng cấp.'
+                    'message' => 'Tài khoản này đã đăng ký cửa hàng không được đăng ký lại hoặc không thể nâng cấp.'
                 ], 409);
             }
 
