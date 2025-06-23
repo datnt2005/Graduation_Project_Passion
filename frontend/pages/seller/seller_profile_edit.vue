@@ -212,10 +212,6 @@ onMounted(async () => {
   const { data } = await axios.get(`${API}/sellers/seller/me`, {
     headers: { Authorization: `Bearer ${token}` }
   });
-  // console.log('✅ Front path:', data.seller.cccd_front);
-  // console.log('✅ Back path:', data.seller.cccd_back);
-
-
   form.value = { ...data.seller };
   form.value.business = data.seller.business || {};
 
