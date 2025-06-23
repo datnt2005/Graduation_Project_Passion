@@ -59,6 +59,9 @@ class Order extends Model
         return $this->hasMany(Payment::class);
     }
 
+    
+
+
     // Phương thức kiểm tra và áp dụng mã giảm giá
     public function applyDiscount($discountCode)
     {
@@ -140,4 +143,10 @@ class Order extends Model
 
         throw new \Exception('Đơn hàng chưa áp dụng mã giảm giá');
     }
+
+    public function shipping()
+{
+    return $this->hasOne(Shipping::class);
+}
+
 }

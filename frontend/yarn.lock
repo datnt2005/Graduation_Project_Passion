@@ -4341,6 +4341,11 @@ lru-cache@^5.1.1:
   dependencies:
     yallist "^3.0.2"
 
+lucide-vue-next@^0.518.0:
+  version "0.518.0"
+  resolved "https://registry.npmjs.org/lucide-vue-next/-/lucide-vue-next-0.518.0.tgz"
+  integrity sha512-x4Vb3rMtz7y389aSGa0icMlm+X9vcO0tJBcXpvzi0K1NQn1IUUoXH4ENWQoLB/ZWtpkL1r6MAiIL+ycFPBFP8Q==
+
 luxon@^3.2.1:
   version "3.6.1"
   resolved "https://registry.npmjs.org/luxon/-/luxon-3.6.1.tgz"
@@ -7051,6 +7056,11 @@ vue-devtools-stub@^0.1.0:
   resolved "https://registry.npmjs.org/vue-devtools-stub/-/vue-devtools-stub-0.1.0.tgz"
   integrity sha512-RutnB7X8c5hjq39NceArgXg28WZtZpGc3+J16ljMiYnFhKvd8hITxSWQSQ5bvldxMDU6gG5mkxl1MTQLXckVSQ==
 
+vue-multiselect@^3.2.0:
+  version "3.2.0"
+  resolved "https://registry.npmjs.org/vue-multiselect/-/vue-multiselect-3.2.0.tgz"
+  integrity sha512-ExI+IPvSbILbtaHrU0CgbBmfbD6yBpIWJKsGLPmuQMC7VWK8Nj1XSAI9eIt3n9/e+LSFYdt8VgfHxeS1O1OeVA==
+
 vue-router@^4.4.0, vue-router@^4.5.1:
   version "4.5.1"
   resolved "https://registry.npmjs.org/vue-router/-/vue-router-4.5.1.tgz"
@@ -7058,7 +7068,7 @@ vue-router@^4.4.0, vue-router@^4.5.1:
   dependencies:
     "@vue/devtools-api" "^6.6.4"
 
-"vue@^2.7.0 || ^3.2.25", "vue@^2.7.0 || ^3.5.11", vue@^3, vue@^3.0.0, "vue@^3.0.0-0 || ^2.7.0", vue@^3.0.11, vue@^3.2.0, vue@^3.2.25, vue@^3.3.4, vue@^3.5.0, vue@^3.5.14, "vue@>= 3.0.0 < 4", vue@>=3, vue@>=3.5.13, vue@3.5.14:
+"vue@^2.7.0 || ^3.2.25", "vue@^2.7.0 || ^3.5.11", vue@^3, vue@^3.0.0, "vue@^3.0.0-0 || ^2.7.0", vue@^3.0.11, vue@^3.2.0, vue@^3.2.25, vue@^3.3.4, vue@^3.5.0, vue@^3.5.14, "vue@>= 3.0.0 < 4", vue@>=3, vue@>=3.0.1, vue@>=3.5.13, vue@3.5.14:
   version "3.5.14"
   resolved "https://registry.npmjs.org/vue/-/vue-3.5.14.tgz"
   integrity sha512-LbOm50/vZFG6Mhy6KscQYXZMQ0LMCC/y40HDJPPvGFQ+i/lUH+PJHR6C3assgOQiXdl6tAfsXHbXYVBZZu65ew==

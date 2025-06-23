@@ -5,65 +5,13 @@
                 <div class="min-h-full max-w-6xl mx-auto">
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         <div class="lg:col-span-2 space-y-8">
-                            <!-- Error message -->
-                            <div v-if="error"
-                                class="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded mb-4">
-                                {{ error }}
-                            </div>
-
                             <!-- Loading state -->
                             <div v-if="loading" class="flex justify-center items-center py-8">
                                 <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                             </div>
-
-                            <section v-else class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                                <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center justify-between">
-                                    Chọn hình thức giao hàng
-                                    <span class="text-sm font-normal text-red-500">-35K</span>
-                                </h3>
-                                <div class="space-y-4">
-                                    <label
-                                        class="flex items-center space-x-3 cursor-pointer p-4 rounded-lg border border-gray-300 hover:border-blue-500 transition-colors duration-200">
-                                        <input type="radio" name="shipping_method" value="100039" checked
-                                            class="form-radio text-blue-600 h-5 w-5 shipping-method-radio">
-                                        <span class="text-gray-900 font-medium">GHN Tiết kiệm</span>
-                                        <span class="text-green-600 ml-auto font-semibold" id="fee-100039">Đang
-                                            tính...</span>
-                                    </label>
-
-                                    <label
-                                        class="flex items-center space-x-3 cursor-pointer p-4 rounded-lg border border-gray-300 hover:border-blue-500 transition-colors duration-200">
-                                        <input type="radio" name="shipping_method" value="53321"
-                                            class="form-radio text-blue-600 h-5 w-5 shipping-method-radio">
-                                        <span class="text-gray-900 font-medium">GHN Nhanh</span>
-                                        <span class="text-green-600 ml-auto font-semibold" id="fee-53321">Đang
-                                            tính...</span>
-                                    </label>
-                                    <div class="p-4 rounded-lg border border-blue-500 bg-blue-50">
-                                        <div class="flex items-center space-x-3 mb-2">
-                                            <input type="radio" name="shipping-method"
-                                                class="form-radio text-blue-600 h-5 w-5" disabled>
-                                            <span class="text-blue-800 font-medium">Giao tốc độ 2, trước 19h,
-                                                02/06</span>
-                                            <span class="ml-auto text-green-600 font-semibold">MIỄN PHÍ</span>
-                                        </div>
-                                        <div v-for="item in cartItems" :key="item.id"
-                                            class="flex items-start text-sm text-gray-700 mb-2">
-                                            <img :src="item.productVariant?.thumbnail ? `${mediaBaseUrl}${item.productVariant.thumbnail}` : '/images/default-product.jpg'"
-                                                :alt="item.productVariant?.product?.name"
-                                                class="w-16 h-16 rounded mr-3 flex-shrink-0">
-                                            <div>
-                                                <p class="font-semibold mb-1">{{ item.productVariant?.product?.name }}
-                                                </p>
-                                                <p class="text-gray-600">SL: {{ item.quantity }} <span
-                                                        class="ml-2 font-bold text-red-500">{{
-                                                        formatPrice(item.price) }}</span></p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </section>
-
+                            <!-- Trong checkout.vue -->
+                            <ShippingSelector ref="shippingRef" :address="selectedAddress"
+                                v-model:selectedMethod="selectedShippingMethod" />
                             <section class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                                 <div class="flex items-center mb-4">
                                     <input type="checkbox" id="promo-20k"
@@ -76,17 +24,13 @@
                                     </svg>
                                 </div>
                             </section>
+
                             <section class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                                 <h3 class="text-xl font-bold text-gray-800 mb-4">Chọn hình thức thanh toán</h3>
 
                                 <!-- Loading state -->
                                 <div v-if="paymentLoading" class="flex justify-center items-center py-4">
                                     <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                                </div>
-
-                                <!-- Error state -->
-                                <div v-else-if="paymentError" class="text-red-600 mb-4">
-                                    {{ paymentError }}
                                 </div>
 
                                 <!-- Payment methods -->
@@ -182,35 +126,8 @@
                         </div>
 
                         <div class="lg:col-span-1 space-y-8">
-                            <section v-if="selectedAddress"
-                                class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                                <div class="flex items-center justify-between mb-4">
-                                    <h3 class="text-xl font-bold text-gray-800">Giao tới</h3>
-                                    <NuxtLink href="/address" class="text-blue-600 text-sm font-medium">Thay đổi
-                                    </NuxtLink>
-                                </div>
-                                <div v-if="selectedAddress" class="space-y-1 text-sm text-gray-700">
-                                    <p class="font-semibold">
-                                        {{ selectedAddress.name }} - {{ selectedAddress.phone }}
-                                    </p>
-                                    <p>
-                                        {{ selectedAddress.detail }},
-                                        {{ getWardName(selectedAddress.ward_code, selectedAddress.district_id) }},
-                                        {{ getDistrictName(selectedAddress.district_id) }},
-                                        {{ getProvinceName(selectedAddress.province_id) }}
-                                    </p>
-                                </div>
-                                <div v-else class="text-sm text-gray-700">
-                                    <p>Chưa chọn địa chỉ giao hàng</p>
-                                    <NuxtLink href="/address" class="text-blue-600">Chọn địa chỉ</NuxtLink>
-                                </div>
-                            </section>
-                            <section v-else
-                                class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 text-gray-600 italic">
-                                Bạn chưa có địa chỉ giao hàng. <NuxtLink to="/address" class="text-blue-500 underline">
-                                    Thêm địa chỉ</NuxtLink>
-                            </section>
-
+                            <SelectedAddress :address="selectedAddress" :provinces="provinces" :districts="districts"
+                                :wards="wards" />
                             <section class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                                 <div class="flex items-center justify-between mb-4">
                                     <h3 class="text-xl font-bold text-gray-800">Khuyến mãi</h3>
@@ -224,11 +141,6 @@
                                 <!-- Loading state -->
                                 <div v-if="discountLoading" class="flex justify-center items-center py-4">
                                     <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                                </div>
-
-                                <!-- Error state -->
-                                <div v-if="discountError" class="text-red-600 mb-4">
-                                    {{ discountError }}
                                 </div>
 
                                 <!-- Selected discounts -->
@@ -252,7 +164,7 @@
                                                             `Giảm ${formatPrice(discount.discount_value)}đ` }}
                                                         <span v-if="discount.min_order_value" class="ml-1">
                                                             | Đơn tối thiểu {{
-                                                            formatPrice(discount.min_order_value) }}đ
+                                                                formatPrice(discount.min_order_value) }}đ
                                                         </span>
                                                     </p>
                                                 </div>
@@ -291,7 +203,7 @@
                                                             `Giảm ${formatPrice(discount.discount_value)}đ` }}
                                                         <span v-if="discount.min_order_value" class="ml-1">
                                                             | Đơn tối thiểu {{
-                                                            formatPrice(discount.min_order_value) }}đ
+                                                                formatPrice(discount.min_order_value) }}đ
                                                         </span>
                                                     </p>
                                                     <div class="mt-1 flex items-center text-xs text-gray-500">
@@ -368,8 +280,6 @@
                                     </button>
                                 </div>
                             </section>
-
-                            
                         </div>
                     </div>
                 </div>
@@ -380,32 +290,17 @@
     <!-- Thêm Notification Popup -->
     <ClientOnly>
         <Teleport to="body">
-            <Transition
-                enter-active-class="transition ease-out duration-200"
-                enter-from-class="transform opacity-0 scale-95"
-                enter-to-class="transform opacity-100 scale-100"
-                leave-active-class="transition ease-in duration-100"
-                leave-from-class="transform opacity-100 scale-100"
-                leave-to-class="transform opacity-0 scale-95"
-            >
-                <div
-                    v-if="showNotification"
-                    class="fixed bottom-4 right-4 bg-white rounded-lg shadow-xl border border-gray-200 p-4 flex items-center space-x-3 z-50"
-                >
+            <Transition enter-active-class="transition ease-out duration-200"
+                enter-from-class="transform opacity-0 scale-95" enter-to-class="transform opacity-100 scale-100"
+                leave-active-class="transition ease-in duration-100" leave-from-class="transform opacity-100 scale-100"
+                leave-to-class="transform opacity-0 scale-95">
+                <div v-if="showNotification"
+                    class="fixed bottom-4 right-4 bg-white rounded-lg shadow-xl border border-gray-200 p-4 flex items-center space-x-3 z-50">
                     <div class="flex-shrink-0">
-                        <svg
-                            class="h-6 w-6 text-green-400"
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                            />
+                        <svg class="h-6 w-6 text-green-400" xmlns="http://www.w3.org/2000/svg" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                     </div>
                     <div class="flex-1">
@@ -414,23 +309,12 @@
                         </p>
                     </div>
                     <div class="flex-shrink-0">
-                        <button
-                            @click="showNotification = false"
-                            class="inline-flex text-gray-400 hover:text-gray-500 focus:outline-none"
-                        >
-                            <svg
-                                class="h-5 w-5"
-                                xmlns="http://www.w3.org/2000/svg"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                            >
-                                <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    stroke-width="2"
-                                    d="M6 18L18 6M6 6l12 12"
-                                />
+                        <button @click="showNotification = false"
+                            class="inline-flex text-gray-400 hover:text-gray-500 focus:outline-none">
+                            <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M6 18L18 6M6 6l12 12" />
                             </svg>
                         </button>
                     </div>
@@ -441,182 +325,167 @@
 </template>
 
 <script setup>
-import axios from 'axios';
-import { useRoute } from 'vue-router';
-import { useRuntimeConfig } from '#app';
+import { ref, onMounted, nextTick, watch } from 'vue'
+import { useRoute } from 'vue-router'
+import { useRuntimeConfig } from '#app'
+import axios from 'axios'
+import Swal from 'sweetalert2'
 
-const config = useRuntimeConfig();
-const apiBase = config.public.apiBaseUrl;
+import SelectedAddress from '../components/shared/SelectedAddress.vue'
+import ShippingSelector from '../components/shared/ShippingSelector.vue'
+
+import { useCheckout } from '~/composables/useCheckout'
+
+const config = useRuntimeConfig()
+const apiBase = config.public.apiBaseUrl
 const mediaBaseUrl = config.public.mediaBaseUrl
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useCart } from '~/composables/useCart'
-import { usePayment } from '~/composables/usePayment'
-import { useDiscount } from '~/composables/useDiscount'
-
 const route = useRoute()
-const { cartItems, cartTotal, loading, error, fetchCart } = useCart()
-const { paymentMethods, loading: paymentLoading, error: paymentError, fetchPaymentMethods, processPayment } = usePayment()
-const { discounts, selectedDiscounts, loading: discountLoading, error: discountError, fetchDiscounts, applyDiscount, removeDiscount, calculateDiscount } = useDiscount()
 
+const shippingRef = ref(null)
+const selectedShippingMethod = ref(null)
+
+
+// Địa chỉ
 const selectedAddress = ref(null)
 const provinces = ref([])
 const districts = ref([])
 const wards = ref([])
-const selectedPaymentMethod = ref('')
-
-const baseUrl = `${apiBase}/shipping/calculate-fee`;
-
-const weight = 1000;
-const address_id = route.query.address_id;
-
-// Load tỉnh thành
 const loadProvinces = async () => {
-    try {
-        const res = await axios.get(`${apiBase}/ghn/provinces`);
-        provinces.value = res.data.data;
-    } catch (err) {
-        console.error('Không tải được provinces:', err);
-    }
-};
+    const res = await axios.get(`${apiBase}/ghn/provinces`)
+    provinces.value = res.data.data
+}
 
-// Load quận huyện
 const loadDistricts = async (province_id) => {
-    try {
-        const res = await axios.post(`${apiBase}/ghn/districts`, {
-            province_id
-        });
-        districts.value = Array.isArray(res.data.data) ? res.data.data : [];
-    } catch (err) {
-        console.error(`Lỗi tải districts với province_id=${province_id}:`, err);
-    }
-};
+    const res = await axios.post(`${apiBase}/ghn/districts`, { province_id })
+    districts.value = res.data.data || []
+}
 
-// Load xã phường
 const loadWards = async (district_id) => {
-    try {
-        const res = await axios.post(`${apiBase}/ghn/wards`, {
-            district_id
-        });
-        wards.value = Array.isArray(res.data.data) ? res.data.data : [];
-    } catch (err) {
-        console.error(`Lỗi tải wards với district_id=${district_id}:`, err);
-    }
-};
+    const res = await axios.post(`${apiBase}/ghn/wards`, { district_id })
+    wards.value = res.data.data || []
+}
 
-// Load địa chỉ đã chọn
 const loadSelectedAddress = async () => {
-    try {
-        await loadProvinces(); // luôn cần danh sách tỉnh
+    await loadProvinces()
+    const address_id = route.query.address_id
 
-        if (address_id) {
-            const res = await axios.get(`${apiBase}/address/${address_id}`);
-            selectedAddress.value = res.data.data;
-        } else {
-            // Nếu không có address_id, tìm địa chỉ mặc định của user
-            const userId = 3; // thay bằng user đang đăng nhập nếu cần
-            const res = await axios.get(`${apiBase}/address?user_id=${userId}`);
-            const addresses = res.data.data || [];
-
-            selectedAddress.value = addresses.find(addr => addr.is_default == 1);
-        }
-
-        // Nếu có địa chỉ, load districts và wards tương ứng
-        if (selectedAddress.value) {
-            await loadDistricts(selectedAddress.value.province_id);
-            await loadWards(selectedAddress.value.district_id);
-        }
-    } catch (err) {
-        console.error('Lỗi lấy địa chỉ:', err);
-    }
-};
-
-
-// Tính phí vận chuyển cho tất cả phương thức
-const calculateAllShippingFees = async () => {
-    if (!selectedAddress.value) return;
-
-    const { district_id: to_district_id, ward_code: to_ward_code } = selectedAddress.value;
-    const methods = document.querySelectorAll('.shipping-method-radio');
-
-    for (const radio of methods) {
-        const service_id = parseInt(radio.value);
-        const feeElement = document.getElementById('fee-' + service_id);
-
-        try {
-            const res = await fetch(baseUrl, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Accept": "application/json"
-                },
-                body: JSON.stringify({
-                    from_district_id: 1552,
-                    to_district_id,
-                    to_ward_code,
-                    service_id,
-                    weight,
-                    height: 20,
-                    length: 20,
-                    width: 20
-                })
-            });
-
-            const data = await res.json();
-            const fee = data?.data?.total ?? 0;
-
-            radio.dataset.fee = fee;
-            if (feeElement) {
-                feeElement.textContent = fee.toLocaleString('vi-VN') + 'đ';
-            }
-
-            if (radio.checked) {
-                const display = document.getElementById('shipping-fee-display');
-                if (display) {
-                    display.textContent = fee.toLocaleString('vi-VN') + 'đ';
-                }
-            }
-        } catch (err) {
-            console.error(`Lỗi tính phí ship cho service_id=${service_id}:`, err);
-            if (feeElement) {
-                feeElement.textContent = "Lỗi";
-            }
-        }
+    if (address_id) {
+        const res = await axios.get(`${apiBase}/address/${address_id}`)
+        selectedAddress.value = res.data.data
+    } else {
+        const userId = 3
+        const res = await axios.get(`${apiBase}/address?user_id=${userId}`)
+        selectedAddress.value = res.data.data.find(addr => addr.is_default == 1)
     }
 
-    document.querySelectorAll('.shipping-method-radio').forEach(radio => {
-        radio.addEventListener('change', () => {
-            const fee = parseInt(radio.dataset.fee || '0');
-            const display = document.getElementById('shipping-fee-display');
-            if (display) {
-                display.textContent = fee.toLocaleString('vi-VN') + 'đ';
-            }
-        });
-    });
-};
+    if (selectedAddress.value) {
+        await loadDistricts(selectedAddress.value.province_id)
+        await loadWards(selectedAddress.value.district_id)
+    }
+}
 
-const getProvinceName = (province_id) => {
-    const p = provinces.value.find(item => item.ProvinceID == province_id);
-    return p ? p.ProvinceName : '';
-};
+// Checkout logic
+const {
+    cartItems,
+    cartTotal,
+    loading,
+    error,
+    paymentMethods,
+    paymentLoading,
+    paymentError,
+    discounts,
+    selectedDiscounts,
+    discountLoading,
+    discountError,
+    fetchCart,
+    fetchPaymentMethods,
+    fetchDiscounts,
+    applyDiscount,
+    removeDiscount,
+    calculateDiscount,
+    selectedPaymentMethod,
+    showNotification,
+    notificationMessage,
+    showSuccessNotification,
+    formatPrice,
+    finalTotal,
+    formattedFinalTotal,
+    formattedCartTotal,
+    getPaymentMethodLabel,
+    placeOrder
+} = useCheckout(config, shippingRef, selectedShippingMethod, selectedAddress)
 
-const getDistrictName = (district_id) => {
-    const d = districts.value.find(item => item.DistrictID == district_id);
-    return d ? d.DistrictName : '';
-};
+// Ưu đãi thủ công
+const promotions = ref([])
 
-const getWardName = (ward_code, district_id) => {
-    const w = wards.value.find(item => item.WardCode == ward_code && item.DistrictID == district_id);
-    return w ? w.WardName : '';
-};
+const selectPromotion = (promotion) => {
+    const selectedCount = promotions.value.filter(p => p.selected).length
+    if (selectedCount >= 2 && !promotion.selected) {
+        alert('Chỉ được chọn tối đa 2 ưu đãi')
+        return
+    }
+    promotion.selected = !promotion.selected
+}
 
+const getBadgeClass = (badge) => {
+    const classes = {
+        'Hot': 'bg-red-500',
+        'New': 'bg-green-500',
+        'Best': 'bg-yellow-500',
+        'VIP': 'bg-purple-500'
+    }
+    return classes[badge] || 'bg-gray-500'
+}
+
+const formatDate = (date) => {
+    if (!date) return ''
+    const d = new Date(date)
+    return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}/${d.getFullYear()}`
+}
+
+// Toast
+const toast = (icon, title) => {
+    Swal.fire({
+        toast: true,
+        position: 'top',
+        icon,
+        title,
+        width: '350px',
+        padding: '10px 20px',
+        customClass: { popup: 'text-sm rounded-md shadow-md' },
+        showConfirmButton: false,
+        timer: 1500,
+        timerProgressBar: true,
+        didOpen: (toastEl) => {
+            toastEl.addEventListener('mouseenter', () => Swal.stopTimer())
+            toastEl.addEventListener('mouseleave', () => Swal.resumeTimer())
+        }
+    })
+}
+
+// Watch error
+watch(error, (val) => { if (val) toast('error', val) })
+watch(paymentError, (val) => { if (val) toast('error', val) })
+watch(discountError, (val) => { if (val) toast('error', val) })
+
+// Load all onMounted
 onMounted(async () => {
-    await loadSelectedAddress();
-    await nextTick();
-    calculateAllShippingFees();
-});
-
-
+    try {
+        await Promise.all([
+            fetchCart(),
+            fetchPaymentMethods(),
+            fetchDiscounts(),
+            loadSelectedAddress()
+        ])
+    } catch (err) {
+        console.error('Error during checkout load:', err)
+        toast('error', 'Lỗi khi tải dữ liệu thanh toán')
+    }
+    await nextTick()
+})
 </script>
+
+
 
 <style scoped>
 .form-radio {
