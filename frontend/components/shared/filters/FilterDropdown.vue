@@ -14,7 +14,12 @@
     <!-- Dropdown nội dung -->
     <div v-if="isOpen" class="absolute left-0 mt-2 w-60 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
       <div class="p-4">
-        <div class="flex flex-wrap gap-2">
+        <!-- Nội dung tùy chỉnh (cho giá) -->
+        <slot v-if="!items">
+          <!-- Nội dung mặc định sẽ được render từ parent (ví dụ: range slider) -->
+        </slot>
+        <!-- Nội dung cho thương hiệu -->
+        <div v-else class="flex flex-wrap gap-2">
           <button
             v-for="item in items"
             :key="item"
@@ -44,6 +49,6 @@ defineProps({
   items: Array,
   selected: Array,
   isOpen: Boolean
-})
-defineEmits(['toggle', 'clear', 'apply', 'toggle-open'])
+});
+defineEmits(['toggle', 'clear', 'apply', 'toggle-open']);
 </script>

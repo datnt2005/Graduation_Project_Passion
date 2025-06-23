@@ -109,7 +109,7 @@
 </template>
 
 <script setup>
-import SidebarProfile from '~/components/shared/Sidebar-profile.vue';
+import SidebarProfile from '~/components/shared/layouts/Sidebar-profile.vue';
 
 const route = useRoute();
 const orderId = computed(() => route.params.id);

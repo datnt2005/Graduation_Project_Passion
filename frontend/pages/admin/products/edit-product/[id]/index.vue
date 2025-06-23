@@ -71,16 +71,12 @@
 
                 <!-- Description -->
                 <label for="description" class="block text-sm text-gray-700 mb-1">Mô tả</label>
-                <Editor
-                    v-model="formData.description"
-                    api-key="rlas5j7eqa6dogiwnt1ld8iilzj3q074o4rw75lsxcygu1zd" 
-                    :init="{
-                      height: 300,
-                      menubar: false,
-                      plugins: 'lists link image preview code help table',
-                      toolbar: 'undo redo | formatselect | bold italic underline |alignjustify alignleft aligncenter alignright | bullist numlist |  | removeformat | preview | link image | code  | h1 h2 h3 h4 h5 h6  ',
-                    }"
-                  />
+                <Editor v-model="formData.description" api-key="rlas5j7eqa6dogiwnt1ld8iilzj3q074o4rw75lsxcygu1zd" :init="{
+                  height: 300,
+                  menubar: false,
+                  plugins: 'lists link image preview code help table',
+                  toolbar: 'undo redo | formatselect | bold italic underline |alignjustify alignleft aligncenter alignright | bullist numlist |  | removeformat | preview | link image | code  | h1 h2 h3 h4 h5 h6  ',
+                }" />
                 <span v-if="errors.description" class="text-red-500 text-xs mt-1">{{ errors.description }}</span>
 
                 <!-- Tabbed Content -->
@@ -123,6 +119,9 @@
                             Thêm thuộc tính mới
                           </button>
                         </div>
+                        <span v-if="errors.variants" class="text-red-500 text-xs mt-1 block">
+                          {{ errors.variants }}
+                        </span>
                         <div v-for="(variant, index) in formData.variants" :key="index" class="border p-4 rounded">
                           <div class="flex justify-between items-center mb-2">
                             <h3 class="font-semibold">Biến thể {{ index + 1 }}</h3>
@@ -311,7 +310,7 @@
                   @click="togglePanel('categories')" :aria-expanded="panels.categories"
                   aria-label="Toggle Product categories panel">
                   <span>Danh mục sản phẩm</span>
-                    <i class="fas" :class="panels.categories ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+                  <i class="fas" :class="panels.categories ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
                 </header>
                 <div v-if="panels.categories" class="p-4 text-xs">
                   <div v-if="apiErrors.categories" class="text-red-500 text-xs mb-2">
@@ -343,7 +342,7 @@
                     <div v-for="categoryId in formData.categories" :key="categoryId"
                       class="bg-gray-100 px-1.5 py-0.5 rounded flex items-center gap-1">
                       <span class="text-xs">
-                        {{ categories.find(c => c.id === categoryId)?.name || 'Danh mục không xác định' }}
+                        {{categories.find(c => c.id === categoryId)?.name || 'Danh mục không xác định'}}
                       </span>
                       <button @click="toggleCategory(categories.find(c => c.id === categoryId))"
                         class="text-gray-500 hover:text-gray-700 text-xs">
@@ -425,7 +424,7 @@
                   class="w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-sm placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Nhập tên thuộc tính (VD: Màu sắc)" />
                 <span v-if="newAttributeErrors.name" class="text-red-500 text-xs mt-1">{{ newAttributeErrors.name
-                  }}</span>
+                }}</span>
               </div>
               <!-- Attribute Values -->
               <div class="mb-4">
@@ -465,51 +464,45 @@
 
     <!-- Notification Popup -->
     <Teleport to="body">
-  <Transition
-    enter-active-class="transition ease-out duration-200"
-    enter-from-class="transform opacity-0 scale-95"
-    enter-to-class="transform opacity-100 scale-100"
-    leave-active-class="transition ease-in duration-200"
-    leave-from-class="transform opacity-100 scale-100"
-    leave-to-class="transform opacity-0 scale-95"
-  >
-    <div v-if="showNotification"
-      class="fixed bottom-4 right-4 rounded-lg shadow-xl border p-4 flex items-center space-x-3 z-50"
-      :class="notificationType === 'success' ? 'bg-white border-gray-200' : 'bg-red-50 border-red-200'"
-    >
-      <div class="flex-shrink-0">
-        <svg v-if="notificationType === 'success'" class="h-6 w-6 text-green-400" xmlns="http://www.w3.org/2000/svg"
-          fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M9 12l2 2 4-4m6 2a9 9 0 0-18 0 9 9 0 0118 0z" />
-        </svg>
-        <svg v-else class="h-6 w-6 text-red-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-          stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      </div>
+      <Transition enter-active-class="transition ease-out duration-200" enter-from-class="transform opacity-0 scale-95"
+        enter-to-class="transform opacity-100 scale-100" leave-active-class="transition ease-in duration-200"
+        leave-from-class="transform opacity-100 scale-100" leave-to-class="transform opacity-0 scale-95">
+        <div v-if="showNotification"
+          class="fixed bottom-4 right-4 rounded-lg shadow-xl border p-4 flex items-center space-x-3 z-50"
+          :class="notificationType === 'success' ? 'bg-white border-gray-200' : 'bg-red-50 border-red-200'">
+          <div class="flex-shrink-0">
+            <svg v-if="notificationType === 'success'" class="h-6 w-6 text-green-400" xmlns="http://www.w3.org/2000/svg"
+              fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M9 12l2 2 4-4m6 2a9 9 0 0-18 0 9 9 0 0118 0z" />
+            </svg>
+            <svg v-else class="h-6 w-6 text-red-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+              stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
 
-      <div class="flex-1">
-        <p class="text-sm font-medium" :class="notificationType === 'success' ? 'text-gray-900' : 'text-red-900'">
-          {{ notificationMessage }}
-        </p>
-      </div>
+          <div class="flex-1">
+            <p class="text-sm font-medium" :class="notificationType === 'success' ? 'text-gray-900' : 'text-red-900'">
+              {{ notificationMessage }}
+            </p>
+          </div>
 
-      <div class="flex-shrink-0">
-        <button @click="showNotification = false"
-          class="inline-flex text-gray-400 hover:text-gray-500 focus:outline-none">
-          <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-            stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-    </div>
-  </Transition>
-</Teleport>
+          <div class="flex-shrink-0">
+            <button @click="showNotification = false"
+              class="inline-flex text-gray-400 hover:text-gray-500 focus:outline-none">
+              <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
 
-</div>
+  </div>
 
 </template>
 
@@ -549,7 +542,7 @@ const fileInput = ref(null);
 const removedImages = ref([]);
 const config = useRuntimeConfig();
 const apiBase = config.public.apiBaseUrl;
-const mediaBase = config.public.mediaBaseUrl ;
+const mediaBase = config.public.mediaBaseUrl;
 const newAttribute = reactive({
   name: '',
   values: [''],
@@ -630,7 +623,7 @@ const fetchProduct = async () => {
         file: null
       })) : [];
     console.log('Processed images:', formData.images);
-    
+
     formData.variants = product.product_variants?.length ?
       product.product_variants.map(variant => ({
         id: variant.id,
@@ -691,7 +684,6 @@ const fetchCategories = async () => {
     }
   } catch (error) {
     console.error('Error fetching categories:', error);
-    apiErrors.categories = 'Không thể tải danh mục. Vui lòng kiểm tra kết nối hoặc API.';
   }
 };
 
@@ -716,7 +708,6 @@ const fetchTags = async () => {
     }
   } catch (error) {
     console.error('Error fetching tags:', error);
-    apiErrors.tags = 'Không thể tải thẻ. Vui lòng kiểm tra kết nối hoặc API.';
   }
 };
 
@@ -988,24 +979,24 @@ const validateFormData = () => {
     isValid = false;
   }
 
-  if (!formData.description.trim()) {
-    errors.description = 'Mô tả sản phẩm là bắt buộc.';
-    isValid = false;
-  }
+
 
   if (formData.status && !['active', 'inactive', 'trash'].includes(formData.status)) {
     errors.status = 'Trạng thái không hợp lệ.';
     isValid = false;
   }
 
-  if (!formData.variants.length) {
-    errors.variants = 'Phải có ít nhất một biến thể.';
-    isValid = false;
-  }
+
 
   formData.variants.forEach((variant, index) => {
-    if (!Number.isFinite(variant.price) || variant.price <= 0) {
-      errors[`variants.${index}.price`] = 'Giá gốc phải là số dương.';
+    const attrIds = variant.attributes.map(attr => attr.attribute_id).filter(Boolean);
+    const duplicateAttr = attrIds.length !== new Set(attrIds).size;
+    if (duplicateAttr) {
+      errors[`variants.${index}.attributes`] = 'Không được chọn trùng thuộc tính trong một biến thể.';
+      isValid = false;
+    }
+    if (!Number.isFinite(variant.price) || variant.price < 0) {
+      errors[`variants.${index}.price`] = 'Giá phải là số dương.';
       isValid = false;
     }
 
@@ -1027,17 +1018,6 @@ const validateFormData = () => {
       errors[`variants.${index}.cost_price`] = 'Giá vốn phải là số dương hoặc bằng 0.';
       isValid = false;
     }
-
-    if (!variant.attributes.length || variant.attributes.some(attr => !attr.attribute_id || !attr.value_id)) {
-      errors[`variants.${index}.attributes`] = 'Phải có ít nhất một thuộc tính hợp lệ.';
-      isValid = false;
-    }
-
-    if (!variant.inventory.length || variant.inventory.some(inv => (!inv.quantity && inv.quantity !== 0) || inv.quantity < 0)) {
-      errors[`variants.${index}.inventory`] = 'Phải có ít nhất một kho hàng hợp lệ với số lượng không âm.';
-      isValid = false;
-    }
-
     variant.inventory.forEach((inv, i) => {
       if (inv.location && inv.location.length > 255) {
         errors[`variants.${index}.inventory.${i}.location`] = 'Vị trí không được vượt quá 255 ký tự.';
@@ -1056,14 +1036,14 @@ const validateFormData = () => {
   }));
 
   const duplicates = attributeSets.reduce((acc, curr, i, arr) => {
-    if (arr.some((other, j) => i !== j && other.attributes === curr.attributes)) {
+    if (arr.some((other, j) => i !== j && other.attributes === curr.attributes && curr.attributes)) {
       acc.push(curr.index);
     }
     return acc;
   }, []);
 
   if (duplicates.length) {
-    errors.variants = `Các biến thể tại vị trí ${duplicates.map(i => i + 1).join(', ')} có thuộc tính trùng lặp. Vui lòng sửa đổi các thuộc tính để đảm bảo mỗi biến thể là duy nhất.`;
+    errors.variants = `Các biến thể tại vị trí ${duplicates.map(i => i + 1).join(', ')} có thuộc tính trùng nhau. Vui lòng sửa đổi các thuộc tính để đảm bảo mỗi biến thể là duy nhất.`;
     isValid = false;
   }
 
@@ -1092,26 +1072,45 @@ const updateProduct = async () => {
     formDataToSend.append('tags[]', tagId);
   });
 
-  formData.variants.forEach((variant, index) => {
+  // Filter valid variants
+  const validVariants = formData.variants.filter(variant =>
+    variant.price !== null && Number.isFinite(variant.price) &&
+    variant.cost_price !== null && Number.isFinite(variant.cost_price)
+  );
+
+  validVariants.forEach((variant, index) => {
     if (variant.id) {
       formDataToSend.append(`variants[${index}][id]`, variant.id);
     }
     formDataToSend.append(`variants[${index}][price]`, variant.price.toFixed(2));
-    if (variant.sale_price !== null) {
+    if (variant.sale_price !== null && Number.isFinite(variant.sale_price)) {
       formDataToSend.append(`variants[${index}][sale_price]`, variant.sale_price.toFixed(2));
     }
     formDataToSend.append(`variants[${index}][cost_price]`, variant.cost_price.toFixed(2));
-    variant.attributes.forEach((attr, i) => {
-      formDataToSend.append(`variants[${index}][attributes][${i}][attribute_id]`, attr.attribute_id);
-      formDataToSend.append(`variants[${index}][attributes][${i}][value_id]`, attr.value_id);
-    });
 
-    variant.inventory.forEach((inv, i) => {
+    // Only include valid attributes
+    const validAttributes = variant.attributes.filter(attr => attr.attribute_id && attr.value_id);
+    if (validAttributes.length > 0) {
+      validAttributes.forEach((attr, i) => {
+        formDataToSend.append(`variants[${index}][attributes][${i}][attribute_id]`, attr.attribute_id);
+        formDataToSend.append(`variants[${index}][attributes][${i}][value_id]`, attr.value_id);
+      });
+    }
+
+    // Filter valid inventory
+    const validInventory = variant.inventory.filter(inv =>
+      Number.isFinite(inv.quantity) && inv.quantity >= 0
+    );
+    validInventory.forEach((inv, i) => {
+      if (inv.id) {
+        formDataToSend.append(`variants[${index}][inventory][${i}][id]`, inv.id);
+      }
       formDataToSend.append(`variants[${index}][inventory][${i}][quantity]`, inv.quantity);
-      if (inv.location.trim()) {
+      if (inv.location && inv.location.trim()) {
         formDataToSend.append(`variants[${index}][inventory][${i}][location]`, inv.location.trim());
       }
     });
+
     if (variant.thumbnailFile) {
       formDataToSend.append(`variants[${index}][thumbnail]`, variant.thumbnailFile);
     }
@@ -1123,12 +1122,15 @@ const updateProduct = async () => {
     }
   });
 
-  removedImages.value.forEach((imageId, index) => {
+  removedImages.value.forEach(imageId => {
     formDataToSend.append('removed_images[]', imageId);
   });
 
   // Debug FormData
-  console.log('FormData entries:', Array.from(formDataToSend.entries()));
+  console.log('FormData entries:');
+  for (let [key, value] of formDataToSend.entries()) {
+    console.log(`${key}: ${value instanceof File ? value.name : value}`);
+  }
 
   formDataToSend.append('_method', 'PUT');
 
@@ -1152,17 +1154,16 @@ const updateProduct = async () => {
         });
       }
       showNotificationMessage(data.message || 'Có lỗi xảy ra khi cập nhật sản phẩm.', 'error');
-      // Reset removedImages if deletion fails
       if (data.errors && Object.keys(data.errors).some(key => key.startsWith('removed_images'))) {
         removedImages.value = [];
-        fetchProduct(); // Reload images
+        fetchProduct();
       }
     }
   } catch (error) {
     console.error('Error updating product:', error);
     showNotificationMessage('Có lỗi kết nối khi cập nhật sản phẩm.', 'error');
     removedImages.value = [];
-    fetchProduct(); // Reload images
+    fetchProduct();
   } finally {
     loading.value = false;
   }
