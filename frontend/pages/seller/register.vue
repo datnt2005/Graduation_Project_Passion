@@ -506,6 +506,7 @@ async function handleSubmit() {
 
     alert(response.data.message || 'Thành công!');
     resetFormData();
+    router.push('/seller/SellerRegisterSuccess');
   } catch (error) {
     const res = error.response;
     Object.assign(errors, res?.data?.errors || {});

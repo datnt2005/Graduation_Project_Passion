@@ -17,6 +17,8 @@ use App\Http\Controllers\PaymentMethodController;
 use App\Http\Controllers\DiscountController;
 use App\Http\Controllers\GoogleAuthController;
 use App\Http\Controllers\ChatbotController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\NotificationController;
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\Middleware\HandleCors;
@@ -27,6 +29,7 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\SellerController;
 use App\Http\Controllers\AdminSellerController;
+use App\Http\Controllers\SellerFollowerController;
 
 
 
@@ -41,6 +44,16 @@ Route::prefix('categories')->group(function () {
     Route::delete('/{id}', [CategoryController::class, 'destroy']);
 });
 
+
+Route::prefix('notifications')->group(function () {
+    Route::get('/', [NotificationController::class, 'index']);
+    Route::post('/', [NotificationController::class, 'store']);
+    Route::get('/{id}', [NotificationController::class, 'show']);
+    Route::put('/{id}', [NotificationController::class, 'update']);
+    Route::post('/mark-read', [NotificationController::class, 'markAsRead']);
+    Route::delete('/{id}', [NotificationController::class, 'destroy']);
+    Route::post('/send-multiple', [NotificationController::class, 'sendMultiple']);
+}); 
 
 //tags
 Route::prefix('tags')->group(function () {
@@ -158,6 +171,8 @@ Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 
 // Reviews
 
+
+
 Route::get('/reviews', [ReviewController::class, 'index']);        // ?product_id=...
 Route::post('/reviews', [ReviewController::class, 'store']);           // Gửi đánh giá
 Route::put('/reviews/{id}', [ReviewController::class, 'update']);     // Cập nhật đánh giá
@@ -166,6 +181,13 @@ Route::post('/reviews/{id}/reply', [ReviewController::class, 'reply']); // Trả
 Route::delete('/reviews/{id}', [ReviewController::class, 'destroy']);   // Xóa đánh giá
 
 Route::get('/reviews', [ReviewController::class, 'index']); // Hiển thị đánh giá công khai
+
+Route::prefix('admin/reviews')->group(function () {
+    Route::get('/', [ReviewController::class, 'adminIndex']);
+    Route::get('/{id}', [ReviewController::class, 'adminShow']);
+    Route::put('/{id}', [ReviewController::class, 'adminUpdate']);
+    Route::delete('/{id}', [ReviewController::class, 'adminDestroy']);
+});
 
 // Các route yêu cầu đăng nhập
 Route::middleware('auth:sanctum')->group(function () {
@@ -178,8 +200,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/reviews/{id}', [ReviewController::class, 'destroy']);      // Xóa đánh giá
 
 });
-
-
 
 
     Route::get('/address', [AddressController::class, 'index']);
@@ -211,6 +231,8 @@ Route::apiResource('users', UserController::class);
 Route::post('users/batch-delete', [UserController::class, 'batchDelete']);
 Route::post('users/batch-add-role', [UserController::class, 'batchAddRole']);
 Route::post('users/batch-remove-role', [UserController::class, 'batchRemoveRole']);
+Route::get('/users/by-role/{role}', [UserController::class, 'getByRole']);
+
 
 Route::post('profile/update/{id}', [UserController::class, 'updateUser']);
 
@@ -226,9 +248,9 @@ Route::apiResource('users', UserController::class);
 //         Route::get('/store/{slug}', [SellerController::class, 'showStore']);
 //          Route::post('/register', [SellerController::class, 'register'])
 //               ->middleware('auth:sanctum');
-
 //         Route::post('/login', [SellerController::class, 'login']);
 //     });
+
 Route::prefix('sellers')->group(function ()
 {
     // lấy seller or business theo id
@@ -240,7 +262,14 @@ Route::prefix('sellers')->group(function ()
     Route::get('/', [SellerController::class, 'index'])->middleware('auth:sanctum');
     Route::get('/store/{slug}', [SellerController::class, 'showStore']);
     Route::post('/update', [SellerController::class, 'update'])->middleware('auth:sanctum');
+});
 
+// Seller Follower
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/sellers/{id}/follow', [SellerFollowerController::class, 'follow']);
+    Route::post('/sellers/{id}/unfollow', [SellerFollowerController::class, 'unfollow']);
+    Route::get('/my-followed-sellers', [SellerFollowerController::class, 'myFollows']);
+    Route::get('/sellers/{id}/followers', [SellerFollowerController::class, 'followersOfSeller']);
 });
 
 
@@ -271,4 +300,16 @@ Route::prefix('cart')->group(function () {
     Route::delete('/redis/{cartId}', [CartController::class, 'clearRedisCart']);
     Route::post('/redis/{cartId}/merge', [CartController::class, 'mergeRedisCart'])->middleware('auth:sanctum');
 });
+
+// Dashboard stats
+Route::prefix('dashboard')->group(function () {
+    Route::get('/stats', [DashboardController::class, 'stats']);
+    Route::get('/stats-list', [DashboardController::class, 'statsList']);
+    Route::get('/revenue-chart', [DashboardController::class, 'revenueChart']);
+    Route::get('/revenue-profit-chart', [DashboardController::class, 'revenueProfitChart']);
+});
+
+Route::get('inventory/list', [App\Http\Controllers\InventoryController::class, 'list']);
+Route::get('inventory/low-stock', [App\Http\Controllers\InventoryController::class, 'lowStock']);
+Route::get('inventory/best-sellers', [App\Http\Controllers\InventoryController::class, 'bestSellers']);
 

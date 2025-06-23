@@ -39,12 +39,12 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useRuntimeConfig } from '#imports'
-import { useCart } from '~/composables/useCart' // Thêm dòng này
+import { useCart } from '~/composables/useCart'
 
 const route = useRoute()
 const router = useRouter()
 const config = useRuntimeConfig()
-const { clearCart } = useCart() // Thêm dòng này
+const { clearCart } = useCart()
 
 const loading = ref(true)
 const success = ref(false)
@@ -80,19 +80,10 @@ onMounted(async () => {
     return
   }
 
-  const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 5000)
-
+  // Sử dụng GET và truyền params lên query string
+  const queryString = new URLSearchParams(vnpParams).toString();
   try {
-    const res = await fetch(`${config.public.apiBaseUrl}/payments/vnpay/return`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(vnpParams),
-      signal: controller.signal
-    })
-    clearTimeout(timeoutId)
+    const res = await fetch(`${config.public.apiBaseUrl}/payments/vnpay/return?${queryString}`)
 
     if (!res.ok) {
       throw new Error(`HTTP error! Status: ${res.status}`)
@@ -129,7 +120,6 @@ onMounted(async () => {
       transactionId.value = data.transaction_id || vnpParams.vnp_TransactionNo || '-'
     }
   } catch (err) {
-    clearTimeout(timeoutId)
     console.error('Fetch error:', err)
     loading.value = false
     success.value = false
