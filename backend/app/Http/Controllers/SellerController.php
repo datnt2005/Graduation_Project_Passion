@@ -234,6 +234,7 @@ public function update(Request $request)
     }
 
   public function register(Request $request)
+
     {
         try {
             $userId = auth()->id();
@@ -442,8 +443,6 @@ public function update(Request $request)
             ], 500);
         }
     }
-
-
 
 
  }
