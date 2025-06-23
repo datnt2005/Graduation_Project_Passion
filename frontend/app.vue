@@ -14,7 +14,7 @@ router.beforeEach((to, from, next) => {
 })
 
 router.afterEach(() => {
-  setTimeout(() => loading.stop(), 600)  
+  setTimeout(() => loading.stop(), 600)
 })
 </script>
 
@@ -29,5 +29,3 @@ router.afterEach(() => {
       <ChatWidget />
 
 </template>
-
-

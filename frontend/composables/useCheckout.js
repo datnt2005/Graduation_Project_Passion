@@ -3,9 +3,6 @@ import Swal from 'sweetalert2'
 import { useCart } from '~/composables/useCart'
 import { usePayment } from '~/composables/usePayment'
 import { useDiscount } from '~/composables/useDiscount'
-
-
-
 export function useCheckout(config, shippingRef, selectedShippingMethod, selectedAddress, provinces, districts, wards) {
   const { cartItems, cartTotal, loading, error, fetchCart } = useCart()
   const { paymentMethods, loading: paymentLoading, error: paymentError, fetchPaymentMethods, processPayment } = usePayment()
@@ -81,6 +78,7 @@ export function useCheckout(config, shippingRef, selectedShippingMethod, selecte
       showErrorNotification('Vui lòng chọn phương thức thanh toán')
       return
     }
+
     const serviceId = selectedShippingMethod?.value || shippingRef?.value?.selectedMethod
 if (!serviceId) {
   showErrorNotification('Vui lòng chọn hình thức giao hàng')

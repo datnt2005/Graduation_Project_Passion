@@ -59,6 +59,9 @@ class Order extends Model
         return $this->hasMany(Payment::class);
     }
 
+    
+
+
     // Phương thức kiểm tra và áp dụng mã giảm giá
     public function applyDiscount($discountCode)
     {
