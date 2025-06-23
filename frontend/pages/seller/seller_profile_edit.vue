@@ -213,7 +213,7 @@ onMounted(async () => {
     headers: { Authorization: `Bearer ${token}` }
   });
 
-  //  console.log('✅ Seller:', data.seller); // 👈 thêm dòng này
+  //  console.log('✅ Seller:', data.seller); 
   // console.log('✅ Front path:', data.seller.cccd_front);
   // console.log('✅ Back path:', data.seller.cccd_back);
 
