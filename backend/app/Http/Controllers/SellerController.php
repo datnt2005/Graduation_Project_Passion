@@ -231,7 +231,6 @@ public function update(Request $request)
         $isFollowing = $seller->followers()->where('user_id', $user->id)->exists();
     }
 
-
     return response()->json([
         'seller' => $seller,
         'followers_count' => $seller->followers()->count(),
