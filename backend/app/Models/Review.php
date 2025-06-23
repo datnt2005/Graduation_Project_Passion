@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Product;
 
 class Review extends Model
 {
@@ -39,5 +40,9 @@ class Review extends Model
     public function media()
     {
         return $this->hasMany(ReviewMedia::class, 'review_id');
-    }   
+    }
+    public function product()
+    {
+        return $this->belongsTo(Product::class, 'product_id');
+    }
 }

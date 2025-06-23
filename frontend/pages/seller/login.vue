@@ -166,7 +166,6 @@
 <script setup>
 import { ref } from "vue";
 import axios from "axios";
-import Swal from 'sweetalert2'
 import { useRouter } from 'vue-router'
 const router = useRouter()
 const form = ref({
@@ -184,30 +183,9 @@ const errors = ref({
   message: "",
 });
 
-const toast = (icon, title) => {
-  Swal.fire({
-    toast: true,
-    position: 'top-end',
-    icon,
-    title,
-    width: '350px',
-    padding: '10px 20px',
-    customClass: { popup: 'text-sm rounded-md shadow-md' },
-    showConfirmButton: false,
-    timer: 1500,
-    timerProgressBar: true,
-    didOpen: (toastEl) => {
-      toastEl.addEventListener('mouseenter', () => Swal.stopTimer());
-      toastEl.addEventListener('mouseleave', () => Swal.resumeTimer());
-    }
-  });
-};
-
-
 async function handleSubmit() {
   loading.value = true;
   errors.value = { email: "", password: "", message: "" };
-
   try {
     const response = await axios.post(
       "http://localhost:8000/api/sellers/login",
@@ -215,16 +193,14 @@ async function handleSubmit() {
     );
     const token = response.data.token;
     const slug = response.data.store_slug; 
-    console.log("Login response data:", response.data);
+      console.log("Login response data:", response.data);
     localStorage.setItem("token", token);
-
-    toast('success', 'Đăng nhập thành công!')
 
     // 👉 Điều hướng tới trang cửa hàng theo slug
    if (slug) {
     router.push(`/seller/${slug}`);
     } else {
-    console.error("Không tìm thấy store_slug trong response", response.data);
+      toast('error', 'Không tìm thấy cửa hàng tương ứng với tài khoản này.');
     }
 
   } catch (error) {
@@ -237,10 +213,8 @@ async function handleSubmit() {
       error.response?.status === 403
     ) {
       errors.value.message = error.response.data.message;
-        toast("error", errors.value.message);
     } else {
       errors.value.message = "Lỗi hệ thống. Vui lòng thử lại sau.";
-       toast("error", errors.value.message);
     }
   } finally {
     loading.value = false;

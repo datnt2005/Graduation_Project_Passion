@@ -214,26 +214,32 @@ public function update(Request $request)
     ]);
 }
 
+ public function showStore($slug)
+{
+    $seller = Seller::with([
+        'user',
+        'business',
+        'products' => function ($query) {
+            $query->with(['productVariants', 'productPic', 'categories', 'tags']);
+        }
+    ])->where('store_slug', $slug)->firstOrFail();
 
+    $isFollowing = false;
+    $user = auth('sanctum')->user(); // dùng sanctum thay vì auth()->check()
 
-
-
-   public function showStore($slug)
-    {
-        $seller = Seller::with([
-            'user',
-            'business',
-            'products' => function ($query) {
-                $query->with(['productVariants', 'productPic', 'categories', 'tags']);
-            }
-        ])->where('store_slug', $slug)->firstOrFail();
-
-        return response()->json([
-            'seller' => $seller,
-        ]);
+    if ($user && $user->id !== $seller->user_id) {
+        $isFollowing = $seller->followers()->where('user_id', $user->id)->exists();
     }
 
-  public function register(Request $request)
+    return response()->json([
+        'seller' => $seller,
+        'followers_count' => $seller->followers()->count(),
+        'is_following' => $isFollowing,
+    ]);
+}
+
+
+ public function register(Request $request)
 
     {
         try {
@@ -443,6 +449,8 @@ public function update(Request $request)
             ], 500);
         }
     }
+
+
 
 
  }

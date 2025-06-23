@@ -42,14 +42,17 @@ class TagController extends Controller
     // Tạo mới tag (API)
     public function store(Request $request)
     {
+        // Xác thực dữ liệu đầu vào
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
-            'slug' => 'nullable|unique:tags,slug',
+            'slug' => 'nullable|string|max:255|unique:tags,slug|regex:/^[a-zA-Z0-9-]+$/',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
         ], [
             'name.required' => 'Tên thẻ là bắt buộc.',
             'name.max' => 'Tên thẻ không được vượt quá 255 ký tự.',
             'slug.unique' => 'Slug đã tồn tại.',
+            'slug.regex' => 'Slug chỉ được chứa chữ cái, số và dấu gạch ngang, không được chứa khoảng trắng hoặc ký tự đặc biệt.',
+            'slug.max' => 'Slug không được vượt quá 255 ký tự.',
             'image.image' => 'Tệp phải là hình ảnh.',
             'image.mimes' => 'Hình ảnh phải có định dạng jpeg, png, jpg, gif, svg hoặc webp.',
             'image.max' => 'Hình ảnh không được vượt quá 2MB.',
@@ -63,27 +66,24 @@ class TagController extends Controller
             ], 422);
         }
 
-        $slug = $request->slug ?? Str::slug($request->name);
-        if (Tag::where('slug', $slug)->exists()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Slug đã tồn tại.',
-            ], 422);
+        // Tạo slug: nếu không có slug trong request, tự động tạo từ name
+        $slug = $request->filled('slug') ? $request->slug : Str::slug($request->name);
+
+        // Lưu thẻ vào cơ sở dữ liệu
+        $imagePath = null;
+        if ($request->hasFile('image')) {
+            $file = $request->file('image');
+            $filename = 'tags/' . time() . '_' . $file->getClientOriginalName();
+            Storage::disk('r2')->put($filename, file_get_contents($file));
+            $imagePath = $filename;
         }
 
-        $imagePath = null;
-
-    if ($request->hasFile('image')) {
-        $file = $request->file('image');
-        $filename = 'tags/' . time() . '_' . $file->getClientOriginalName();
-        Storage::disk('r2')->put($filename, file_get_contents($file));
-        $imagePath = $filename;
-    }
         $tag = Tag::create([
             'name' => $request->name,
             'slug' => $slug,
             'image' => $imagePath,
         ]);
+
         return response()->json([
             'success' => true,
             'message' => 'Tạo thẻ thành công.',
@@ -94,6 +94,7 @@ class TagController extends Controller
     // Cập nhật tag (API)
     public function update(Request $request, $id)
     {
+        // Tìm thẻ theo ID
         $tag = Tag::find($id);
 
         if (!$tag) {
@@ -103,14 +104,17 @@ class TagController extends Controller
             ], 404);
         }
 
+        // Xác thực dữ liệu đầu vào
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
-            'slug' => 'nullable|unique:tags,slug,' . $id,
+            'slug' => 'nullable|string|max:255|unique:tags,slug,' . $id . '|regex:/^[a-zA-Z0-9-]+$/',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
         ], [
             'name.required' => 'Tên thẻ là bắt buộc.',
             'name.max' => 'Tên thẻ không được vượt quá 255 ký tự.',
             'slug.unique' => 'Slug đã tồn tại.',
+            'slug.regex' => 'Slug chỉ được chứa chữ cái, số và dấu gạch ngang, không được chứa khoảng trắng hoặc ký tự đặc biệt.',
+            'slug.max' => 'Slug không được vượt quá 255 ký tự.',
             'image.image' => 'Tệp phải là hình ảnh.',
             'image.mimes' => 'Hình ảnh phải có định dạng jpeg, png, jpg, gif, svg hoặc webp.',
             'image.max' => 'Hình ảnh không được vượt quá 2MB.',
@@ -123,24 +127,29 @@ class TagController extends Controller
                 'errors' => $validator->errors(),
             ], 422);
         }
-        $slug = $request->slug ?? Str::slug($request->name);
-        if (Tag::where('slug', $slug)->where('id', '!=', $id)->exists()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Slug đã tồn tại.',
-            ], 422);
-        }
-        $imagePath = $tag->image;
 
+        // Tạo slug: nếu không có slug trong request, tự động tạo từ name
+        $slug = $request->filled('slug') ? $request->slug : Str::slug($request->name);
+
+        // Xử lý hình ảnh
+        $imagePath = $tag->image;
         if ($request->hasFile('image')) {
+            // Xóa hình ảnh cũ nếu có
+            if ($imagePath && Storage::disk('r2')->exists($imagePath)) {
+                Storage::disk('r2')->delete($imagePath);
+            }
+
+            // Lưu hình ảnh mới
             $file = $request->file('image');
             $filename = 'tags/' . time() . '_' . $file->getClientOriginalName();
             Storage::disk('r2')->put($filename, file_get_contents($file));
             $imagePath = $filename;
         }
+
+        // Cập nhật thẻ
         $tag->update([
             'name' => $request->name,
-            'slug' => $request->slug ?? Str::slug($request->name),
+            'slug' => $slug,
             'image' => $imagePath,
         ]);
 

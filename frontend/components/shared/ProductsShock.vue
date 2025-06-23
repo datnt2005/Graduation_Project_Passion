@@ -30,7 +30,7 @@
 </template>
 
 <script setup>
-import Filters from '~/components/shared/Filters.vue'
+import Filters from '~/components/shared/filters/Filters.vue'
 
 const products = [
   {

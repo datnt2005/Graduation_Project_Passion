@@ -1,25 +1,29 @@
-import { ref } from 'vue'
+import { reactive } from 'vue'
+
+const notification = reactive({
+  show: false,
+  type: 'success', // hoặc 'error'
+  message: ''
+})
 
 export const useNotification = () => {
-  const showNotification = ref(false)
-  const notificationMessage = ref('')
-  const notificationType = ref('success')
-
   const showMessage = (message: string, type: 'success' | 'error' = 'success') => {
-    console.log('Showing notification:', { message, type })
-    notificationMessage.value = message
-    notificationType.value = type
-    showNotification.value = true
+    notification.message = message
+    notification.type = type
+    notification.show = true
 
     setTimeout(() => {
-      showNotification.value = false
+      notification.show = false
     }, 3000)
   }
 
-  return {
-    showNotification,
-    notificationMessage,
-    notificationType,
-    showMessage
+  const hideNotification = () => {
+    notification.show = false
   }
-} 
+
+  return {
+    notification,
+    showMessage,
+    hideNotification
+  }
+}

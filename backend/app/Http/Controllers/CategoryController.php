@@ -63,16 +63,19 @@ class CategoryController extends Controller
 
     public function store(Request $request)
     {
+        // Xác thực dữ liệu đầu vào
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'parent_id' => 'nullable|exists:categories,id',
-            'slug' => 'nullable|unique:categories,slug',
+            'slug' => 'nullable|string|max:255|unique:categories,slug|regex:/^[a-zA-Z0-9-]+$/',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
         ], [
             'name.required' => 'Tên danh mục là bắt buộc.',
             'name.max' => 'Tên danh mục không được vượt quá 255 ký tự.',
             'parent_id.exists' => 'Danh mục cha không tồn tại.',
             'slug.unique' => 'Slug đã tồn tại.',
+            'slug.regex' => 'Slug chỉ được chứa chữ cái, số và dấu gạch ngang, không được chứa khoảng trắng hoặc ký tự đặc biệt.',
+            'slug.max' => 'Slug không được vượt quá 255 ký tự.',
             'image.image' => 'Tệp phải là hình ảnh.',
             'image.mimes' => 'Hình ảnh phải có định dạng jpeg, png, jpg, gif, svg hoặc webp.',
             'image.max' => 'Hình ảnh không được vượt quá 2MB.',
@@ -87,14 +90,10 @@ class CategoryController extends Controller
         }
 
         try {
-            $slug = $request->slug ?? Str::slug($request->name);
-            if (Category::where('slug', $slug)->exists()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Slug đã tồn tại.',
-                ], 422);
-            }
+            // Tạo slug: nếu không có slug trong request, tự động tạo từ name
+            $slug = $request->filled('slug') ? $request->slug : Str::slug($request->name);
 
+            // Xử lý hình ảnh
             $imagePath = null;
             if ($request->hasFile('image')) {
                 $file = $request->file('image');
@@ -103,6 +102,7 @@ class CategoryController extends Controller
                 $imagePath = $filename;
             }
 
+            // Tạo danh mục
             $category = Category::create([
                 'name' => $request->name,
                 'slug' => $slug,
@@ -132,6 +132,7 @@ class CategoryController extends Controller
     public function update(Request $request, $id)
     {
         try {
+            // Tìm danh mục
             $category = Category::find($id);
 
             if (!$category) {
@@ -141,16 +142,19 @@ class CategoryController extends Controller
                 ], 404);
             }
 
+            // Xác thực dữ liệu đầu vào
             $validator = Validator::make($request->all(), [
                 'name' => 'required|string|max:255',
                 'parent_id' => 'nullable|exists:categories,id',
-                'slug' => 'nullable|unique:categories,slug,' . $id,
+                'slug' => 'nullable|string|max:255|unique:categories,slug,' . $id . '|regex:/^[a-zA-Z0-9-]+$/',
                 'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
             ], [
                 'name.required' => 'Tên danh mục là bắt buộc.',
                 'name.max' => 'Tên danh mục không được vượt quá 255 ký tự.',
                 'parent_id.exists' => 'Danh mục cha không tồn tại.',
                 'slug.unique' => 'Slug đã tồn tại.',
+                'slug.regex' => 'Slug chỉ được chứa chữ cái, số và dấu gạch ngang, không được chứa khoảng trắng hoặc ký tự đặc biệt.',
+                'slug.max' => 'Slug không được vượt quá 255 ký tự.',
                 'image.image' => 'Tệp phải là hình ảnh.',
                 'image.mimes' => 'Hình ảnh phải có định dạng jpeg, png, jpg, gif, svg hoặc webp.',
                 'image.max' => 'Hình ảnh không được vượt quá 2MB.',
@@ -164,29 +168,25 @@ class CategoryController extends Controller
                 ], 422);
             }
 
-            $slug = $request->slug ?? Str::slug($request->name);
-            if (Category::where('slug', $slug)->where('id', '!=', $id)->exists()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Slug đã tồn tại.',
-                ], 422);
-            }
+            // Tạo slug: nếu không có slug trong request, tự động tạo từ name
+            $slug = $request->filled('slug') ? $request->slug : Str::slug($request->name);
 
+            // Xử lý hình ảnh
             $imagePath = $category->image;
-
             if ($request->hasFile('image')) {
-                $file = $request->file('image');
-                $filename = 'categories/' . time() . '_' . $file->getClientOriginalName();
-                Storage::disk('r2')->put($filename, file_get_contents($file));
-
-                // Delete old image if exists
+                // Xóa hình ảnh cũ nếu có
                 if ($imagePath && Storage::disk('r2')->exists($imagePath)) {
                     Storage::disk('r2')->delete($imagePath);
                 }
 
+                // Lưu hình ảnh mới
+                $file = $request->file('image');
+                $filename = 'categories/' . time() . '_' . $file->getClientOriginalName();
+                Storage::disk('r2')->put($filename, file_get_contents($file));
                 $imagePath = $filename;
             }
 
+            // Cập nhật danh mục
             $category->update([
                 'name' => $request->name,
                 'slug' => $slug,
@@ -315,9 +315,6 @@ class CategoryController extends Controller
         }
     }
 
-    /**
-     * Clear all category-related cache keys (tagged and non-tagged)
-     */
     protected function clearCategoryCache()
     {
         try {
@@ -342,5 +339,101 @@ class CategoryController extends Controller
         } catch (\Exception $e) {
             Log::error('Lỗi khi xóa cache danh mục: ' . $e->getMessage());
         }
+    }
+
+    public function showAllCategoryParent()
+    {
+        try {
+            $categories = Cache::store('redis')->tags(['categories'])->remember('categories:only_parents', 3600, function () {
+                return Category::whereNull('parent_id')->get()->toArray();
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Lấy danh sách danh mục cha thành công.',
+                'categories' => $categories,
+            ], 200);
+        } catch (\Exception $e) {
+            Log::error('Lỗi khi lấy danh sách danh mục cha: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Đã xảy ra lỗi khi lấy danh sách danh mục cha.',
+                'error' => env('APP_DEBUG', false) ? $e->getMessage() : null
+            ], 500);
+        }
+    }
+
+    public function getCategoryTree(Request $request)
+    {
+        try {
+            $search = trim($request->query('search', ''));
+            $slug = $request->query('slug', null);
+            $cacheKey = $slug ? "categories:tree_children_of:$slug" : "categories:tree_all" . ($search ? "_search_$search" : '');
+            $ttl = 3600;
+
+            $categories = Cache::store('redis')->tags(['categories'])->remember($cacheKey, $ttl, function () use ($slug, $search) {
+                if ($slug) {
+                    $parent = Category::where('slug', $slug)->first();
+                    if (!$parent) {
+                        return null;
+                    }
+                    return $this->buildCategoryTree($parent->id, $search);
+                } else {
+                    return $this->buildCategoryTree(null, $search);
+                }
+            });
+
+            if ($categories === null) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không tìm thấy danh mục cha với slug: ' . $slug,
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $slug ? 'Lấy danh sách danh mục con thành công.' : 'Lấy danh sách danh mục thành công.',
+                'data' => [
+                    'categories' => $categories,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Lỗi khi lấy cây danh mục: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Đã xảy ra lỗi khi lấy cây danh mục.',
+                'error' => env('APP_DEBUG', false) ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    private function buildCategoryTree($parentId = null, $search = '')
+    {
+        $query = Category::with('children')
+            ->where('parent_id', $parentId)
+            ->orderBy('name', 'asc');
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', '%' . $search . '%')
+                  ->orWhere('slug', 'like', '%' . $search . '%');
+            });
+        }
+
+        $categories = $query->get();
+
+        return $categories->map(function ($category) use ($search) {
+            $children = $this->buildCategoryTree($category->id, $search);
+            return [
+                'id' => $category->id,
+                'name' => $category->name,
+                'slug' => $category->slug,
+                'image' => $category->image,
+                'children' => $children,
+            ];
+        })->filter(function ($category) use ($search) {
+            return !empty($category['children']) || stripos($category['name'], $search) !== false || stripos($category['slug'], $search) !== false;
+        })->values()->toArray();
     }
 }

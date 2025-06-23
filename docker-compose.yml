@@ -23,5 +23,4 @@ services:
       - redis_data:/data
 
 volumes:
-  minio_data:
   redis_data:

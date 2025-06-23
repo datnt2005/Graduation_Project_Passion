@@ -44,7 +44,7 @@ class AttributeController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255|unique:attributes,name',
-            'slug' => 'nullable|string|max:255|unique:attributes,slug',
+            'slug' => 'nullable|string|max:255|unique:attributes,slug|regex:/^[a-zA-Z0-9-]+$/',
             'values' => 'nullable|array',
             'values.*.value' => 'required|string|max:255',
         ], [
@@ -52,6 +52,8 @@ class AttributeController extends Controller
             'name.max' => 'Tên thuộc tính không được vượt quá 255 ký tự.',
             'name.unique' => 'Tên thuộc tính đã tồn tại.',
             'slug.unique' => 'Slug đã tồn tại.',
+            'slug.regex' => 'Slug chỉ được chứa chữ cái, số và dấu gạch ngang, không được chứa khoảng trắng hoặc ký tự đặc biệt.',
+            'slug.max' => 'Slug không được vượt quá 255 ký tự.',
             'values.*.value.required' => 'Giá trị thuộc tính là bắt buộc.',
             'values.*.value.max' => 'Giá trị thuộc tính không được vượt quá 255 ký tự.',
         ]);
@@ -108,7 +110,7 @@ class AttributeController extends Controller
 
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255|unique:attributes,name,' . $id,
-            'slug' => 'nullable|string|max:255|unique:attributes,slug,' . $id,
+            'slug' => 'nullable|string|max:255|unique:attributes,slug,' . $id . '|regex:/^[a-zA-Z0-9-]+$/',
             'values' => 'nullable|array',
             'values.*.value' => 'required|string|max:255',
         ], [
@@ -116,6 +118,8 @@ class AttributeController extends Controller
             'name.max' => 'Tên thuộc tính không được vượt quá 255 ký tự.',
             'name.unique' => 'Tên thuộc tính đã tồn tại.',
             'slug.unique' => 'Slug đã tồn tại.',
+            'slug.regex' => 'Slug chỉ được chứa chữ cái, số và dấu gạch ngang, không được chứa khoảng trắng hoặc ký tự đặc biệt.',
+            'slug.max' => 'Slug không được vượt quá 255 ký tự.',
             'values.*.value.required' => 'Giá trị thuộc tính là bắt buộc.',
             'values.*.value.max' => 'Giá trị thuộc tính không được vượt quá 255 ký tự.',
         ]);

@@ -144,15 +144,40 @@
           </NuxtLink>
         </li>
 
-        <!-- Thông báo -->
+        <!-- Notifications -->
+        <!-- Thông báo (Dropdown) -->
         <li class="pt-2 border-t border-gray-800">
-          <NuxtLink to="#" class="flex items-center px-4 py-2 hover:bg-gray-800 gap-3 rounded" @click="$emit('close')">
-            <svg class="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <button @click="toggleNotification"
+            class="flex items-center w-full px-4 py-2 hover:bg-gray-800 focus:outline-none rounded"
+            :class="notificationActive ? 'bg-gray-800 text-green-400 font-bold' : ''">
+            <svg class="w-4 h-4 mr-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+              stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round"
                 d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V4a2 2 0 00-4 0v1.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
             </svg>
             Thông báo
-          </NuxtLink>
+            <svg class="w-4 h-4 ml-auto transform transition-transform" :class="{ 'rotate-180': notificationOpen }"
+              fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          <ul v-show="notificationOpen" class="pl-11 mt-1 space-y-0.5 text-gray-300 text-[13px]">
+            <li>
+              <NuxtLink to="/seller/notifications/list-notifications" class="block py-1 hover:text-white rounded"
+                :class="route.path === '/seller/notifications/list-notifications' ? 'text-green-400 font-bold' : ''"
+                @click="$emit('close')">Tất cả</NuxtLink>
+            </li>
+            <li>
+              <NuxtLink to="/seller/notifications/list-from-user" class="block py-1 hover:text-white rounded"
+                :class="route.path === '/seller/notifications/list-from-user' ? 'text-green-400 font-bold' : ''"
+                @click="$emit('close')">Từ người dùng</NuxtLink>
+            </li>
+            <li>
+              <NuxtLink to="/seller/notifications/list-from-seller" class="block py-1 hover:text-white rounded"
+                :class="route.path === '/seller/notifications/list-from-seller' ? 'text-green-400 font-bold' : ''"
+                @click="$emit('close')">Từ người bán</NuxtLink>
+            </li>
+          </ul>
         </li>
 
         <!-- Cài đặt -->
