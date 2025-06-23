@@ -6,6 +6,12 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Payment;
 use App\Models\PaymentMethod;
+use App\Models\Discount;
+use App\Models\DiscountUser;
+use App\Models\Shipping;
+use App\Models\ShippingMethod;
+use App\Models\Address;
+use App\Services\GHNService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -48,18 +54,18 @@ class OrderController extends Controller
             // Sắp xếp
             $sortBy = $request->input('sort_by', 'created_at');
             $sortOrder = $request->input('sort_order', 'desc');
-            
+
             // Validate sort columns to prevent SQL injection
             $allowedSortColumns = ['created_at', 'id', 'status', 'total_price'];
             $sortBy = in_array($sortBy, $allowedSortColumns) ? $sortBy : 'created_at';
-            
+
             $query->orderBy($sortBy, $sortOrder);
 
             // Phân trang
             $perPage = (int)$request->input('per_page', 10);
             // Ensure perPage is between 1 and 100
             $perPage = max(1, min(100, $perPage));
-            
+
             $orders = $query->paginate($perPage);
 
             if ($orders->isEmpty()) {
@@ -131,7 +137,6 @@ class OrderController extends Controller
                     'total' => $orders->total(),
                 ],
             ]);
-
         } catch (\Exception $e) {
             \Log::error('Order index error: ' . $e->getMessage());
             return response()->json([
@@ -156,6 +161,8 @@ class OrderController extends Controller
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.price' => 'required|numeric|min:0',
             'payment_method' => 'required|string|in:COD,VNPAY,MOMO',
+            'address_id' => 'required|exists:addresses,id',
+            'service_id' => 'required|integer|min:1',
         ], [
             'user_id.required' => 'ID người dùng là bắt buộc',
             'user_id.exists' => 'ID người dùng không tồn tại',
@@ -174,15 +181,19 @@ class OrderController extends Controller
             'items.*.price.min' => 'Giá phải lớn hơn hoặc bằng 0',
             'payment_method.required' => 'Phương thức thanh toán là bắt buộc',
             'payment_method.in' => 'Phương thức thanh toán không hợp lệ',
+            'address_id.required' => 'Địa chỉ là bắt buộc',
+            'address_id.exists' => 'Địa chỉ không tồn tại',
+            'service_id.required' => 'Phương thức giao hàng là bắt buộc',
+            'service_id.integer' => 'Phương thức giao hàng không hợp lệ',
         ]);
 
         try {
             DB::beginTransaction();
 
-            // Create order
+            // Tạo đơn hàng
             $order = Order::create([
                 'user_id' => $request->user_id,
-                'address_id' => $request->address_id ?? null,
+                'address_id' => $request->address_id,
                 'discount_id' => $request->discount_id,
                 'note' => $request->note ?? '',
                 'status' => 'pending',
@@ -191,10 +202,10 @@ class OrderController extends Controller
                 'final_price' => 0,
             ]);
 
-            // Create order items
+            // Order items
             $totalPrice = 0;
             foreach ($request->items as $item) {
-                $orderItem = OrderItem::create([
+                OrderItem::create([
                     'order_id' => $order->id,
                     'product_id' => $item['product_id'],
                     'product_variant_id' => $item['product_variant_id'] ?? null,
@@ -204,64 +215,38 @@ class OrderController extends Controller
                 $totalPrice += $item['price'] * $item['quantity'];
             }
 
-            // Calculate discount if discount_id is provided
+            // Discount
             $discountPrice = 0;
             if ($request->discount_id) {
-                \Log::info('Processing discount', [
-                    'discount_id' => $request->discount_id,
-                    'total_price' => $totalPrice
-                ]);
-                
-                $discount = \App\Models\Discount::find($request->discount_id);
+                $discount = Discount::find($request->discount_id);
                 if ($discount) {
-                    \Log::info('Found discount', [
-                        'discount' => $discount->toArray()
-                    ]);
-                    
-                    if ($discount->discount_type === 'percentage') {
-                        $discountPrice = $totalPrice * ($discount->discount_value / 100);
-                    } else {
-                        $discountPrice = $discount->discount_value;
-                    }
-                    
-                    // Ensure discount doesn't exceed total price
+                    $discountPrice = $discount->discount_type === 'percentage'
+                        ? $totalPrice * ($discount->discount_value / 100)
+                        : $discount->discount_value;
                     $discountPrice = min($discountPrice, $totalPrice);
-                    
-                    \Log::info('Calculated discount', [
-                        'discount_price' => $discountPrice,
-                        'final_price' => $totalPrice - $discountPrice
-                    ]);
-                    
-                    // Update discount usage
-                    \App\Models\DiscountUser::create([
+
+                    DiscountUser::create([
                         'discount_id' => $discount->id,
                         'user_id' => $request->user_id,
-                        'is_used' => true
-                    ]);
-                } else {
-                    \Log::warning('Discount not found', [
-                        'discount_id' => $request->discount_id
+                        'is_used' => true,
                     ]);
                 }
             }
 
-            // Calculate final price
             $finalPrice = $totalPrice - $discountPrice;
 
-            // Update order prices
             $order->update([
                 'total_price' => $totalPrice,
                 'discount_price' => $discountPrice,
                 'final_price' => $finalPrice,
             ]);
 
-            // Create payment method if not exists
+            // Payment
             $paymentMethod = PaymentMethod::firstOrCreate(
                 ['name' => $request->payment_method],
                 ['status' => 'active']
             );
 
-            // Create payment
             Payment::create([
                 'order_id' => $order->id,
                 'payment_method_id' => $paymentMethod->id,
@@ -269,16 +254,44 @@ class OrderController extends Controller
                 'status' => 'pending'
             ]);
 
+            // Giao hàng
+            $address = Address::find($request->address_id);
+            $ghn = new GHNService();
+
+            // Lưu ý: bạn cần sửa GHNService để truyền service_id vào payload
+            $ghnOrder = $ghn->createShippingOrder($order, $address, $request->service_id, $request->payment_method);
+
+            // Shipping method
+            $shippingMethod = ShippingMethod::firstOrCreate(
+                ['id' => $request->service_id],
+                ['name' => $ghnOrder['service_type_id'] ?? 'GHN', 'carrier' => 'GHN', 'estimated_days' => 3, 'cost' => $ghnOrder['total_fee'] ?? 0]
+            );
+
+            // Shipping
+            Shipping::create([
+                'order_id' => $order->id,
+                'shipping_method_id' => $shippingMethod->id,
+                'estimated_delivery' => $ghnOrder['expected_delivery_time'] ?? null,
+                'shipping_fee' => $ghnOrder['total_fee'] ?? 0,
+                'tracking_code' => $ghnOrder['order_code'] ?? null,
+                'status' => 'pending',
+            ]);
+
             DB::commit();
 
-            // Load relationships
-            $order->load(['orderItems.product', 'orderItems.productVariant', 'user', 'address', 'payments.paymentMethod']);
+            $order->load([
+                'orderItems.product',
+                'orderItems.productVariant',
+                'user',
+                'address',
+                'payments.paymentMethod',
+                'shipping.shippingMethod'
+            ]);
 
             return response()->json([
                 'message' => 'Đơn hàng đã được tạo thành công',
                 'data' => $this->formatOrderResponse($order)
             ], 201);
-
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
@@ -286,6 +299,7 @@ class OrderController extends Controller
             ], 500);
         }
     }
+
 
     /**
      * Display the specified resource.
@@ -299,7 +313,6 @@ class OrderController extends Controller
             return response()->json([
                 'data' => $this->formatOrderResponse($order)
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Có lỗi xảy ra khi lấy thông tin đơn hàng: ' . $e->getMessage()
@@ -343,7 +356,7 @@ class OrderController extends Controller
 
             // Tìm đơn hàng
             $order = Order::find($id);
-            
+
             // Kiểm tra nếu đơn hàng không tồn tại
             if (!$order) {
                 return response()->json([
@@ -414,7 +427,6 @@ class OrderController extends Controller
 
             \Log::info('Order updated successfully', $responseData);
             return response()->json($responseData);
-
         } catch (\Exception $e) {
             \Log::error('Order update error', [
                 'order_id' => $id,
@@ -457,7 +469,6 @@ class OrderController extends Controller
             return response()->json([
                 'message' => 'Xóa đơn hàng thành công'
             ]);
-
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
@@ -584,7 +595,6 @@ class OrderController extends Controller
                     'final_price' => number_format($result['final_price'], 0, '', ',') . ' đ'
                 ]
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -619,12 +629,41 @@ class OrderController extends Controller
                     'final_price' => number_format($result['final_price'], 0, '', ',') . ' đ'
                 ]
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage()
             ], 400);
         }
+    }
+
+    /**
+     * Thống kê dashboard cho admin
+     */
+    public function dashboardStats()
+    {
+        // Tổng người dùng
+        $totalUsers = \App\Models\User::count();
+        // Tổng đơn hàng
+        $totalOrders = \App\Models\Order::count();
+        // Tổng kênh bán hàng (giả sử là tổng số seller)
+        $totalSellers = \App\Models\User::where('role', 'seller')->count();
+        // Doanh thu từ người bán (tổng final_price các đơn hàng của seller, trạng thái delivered)
+        $sellerRevenue = \App\Models\Order::whereHas('user', function($q){
+            $q->where('role', 'seller');
+        })->where('status', 'delivered')->sum('final_price');
+        // Tổng doanh thu (tổng final_price các đơn hàng trạng thái delivered)
+        $totalRevenue = \App\Models\Order::where('status', 'delivered')->sum('final_price');
+        // Tổng thu thập (giả sử là tổng discount_price các đơn hàng delivered)
+        $totalDiscount = \App\Models\Order::where('status', 'delivered')->sum('discount_price');
+
+        return response()->json([
+            'total_users' => $totalUsers,
+            'total_orders' => $totalOrders,
+            'total_sellers' => $totalSellers,
+            'seller_revenue' => $sellerRevenue,
+            'total_revenue' => $totalRevenue,
+            'total_discount' => $totalDiscount,
+        ]);
     }
 }

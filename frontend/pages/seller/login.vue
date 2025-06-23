@@ -186,7 +186,6 @@ const errors = ref({
 async function handleSubmit() {
   loading.value = true;
   errors.value = { email: "", password: "", message: "" };
-
   try {
     const response = await axios.post(
       "http://localhost:8000/api/sellers/login",
@@ -194,14 +193,14 @@ async function handleSubmit() {
     );
     const token = response.data.token;
     const slug = response.data.store_slug; 
-    console.log("Login response data:", response.data);
+      console.log("Login response data:", response.data);
     localStorage.setItem("token", token);
 
     // 👉 Điều hướng tới trang cửa hàng theo slug
    if (slug) {
     router.push(`/seller/${slug}`);
     } else {
-    console.error("Không tìm thấy store_slug trong response", response.data);
+      toast('error', 'Không tìm thấy cửa hàng tương ứng với tài khoản này.');
     }
 
   } catch (error) {

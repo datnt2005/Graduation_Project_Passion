@@ -136,7 +136,7 @@
                 Hủy bỏ
               </button>
               <button @click="submitForm" class="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600">
-                Giao đến địa chỉ này
+                Thêm địa chỉ
               </button>
             </div>
 

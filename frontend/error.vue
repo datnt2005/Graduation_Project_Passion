@@ -22,20 +22,32 @@
     </p>
 
     <!-- Nút -->
-    <NuxtLink
-      to="/"
-      class="mt-6 px-6 py-3 bg-[#1BA0E2] text-white font-semibold rounded-full shadow hover:bg-[#1591cc] transition animate-fade-in-slide delay-500"
-    >
-      Quay lại trang chủ
-    </NuxtLink>
+   <button
+  @click="goBack"
+  class="mt-6 px-6 py-3 bg-[#1BA0E2] text-white font-semibold rounded-full shadow hover:bg-[#1591cc] transition animate-fade-in-slide delay-500"
+>
+  Quay lại trang trước
+</button>
+
   </div>
 
   <Footer />
 </template>
 
 <script setup>
-import Header from '~/components/shared/layouts/Header.vue'
-import Footer from '~/components/shared/layouts/Footer.vue'
+import Header from '~/components/shared/Header.vue'
+import Footer from '~/components/shared/Footer.vue'
+import { useRouter } from 'vue-router'
+const router = useRouter()
+
+const goBack = () => {
+  if (window.history.length > 1) {
+    router.back()
+  } else {
+    router.push('/')
+  }
+}
+
 </script>
 
 <style scoped>
