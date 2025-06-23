@@ -1,25 +1,29 @@
-import Swal from 'sweetalert2'
+import { reactive } from 'vue'
+
+const notification = reactive({
+  show: false,
+  type: 'success', // hoặc 'error'
+  message: ''
+})
 
 export const useNotification = () => {
   const showMessage = (message: string, type: 'success' | 'error' = 'success') => {
-    Swal.fire({
-      toast: true,
-      position: 'top',
-      icon: type,
-      title: message,
-      width: '350px',
-      padding: '10px 20px',
-      customClass: { popup: 'text-sm rounded-md shadow-md' },
-      showConfirmButton: false,
-      timer: 1500,
-      timerProgressBar: true,
-      didOpen: (toastEl) => {
-        toastEl.addEventListener('mouseenter', () => Swal.stopTimer());
-        toastEl.addEventListener('mouseleave', () => Swal.resumeTimer());
-      }
-    });
+    notification.message = message
+    notification.type = type
+    notification.show = true
+
+    setTimeout(() => {
+      notification.show = false
+    }, 3000)
   }
+
+  const hideNotification = () => {
+    notification.show = false
+  }
+
   return {
-    showMessage
+    notification,
+    showMessage,
+    hideNotification
   }
 }

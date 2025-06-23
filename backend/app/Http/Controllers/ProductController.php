@@ -24,7 +24,6 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Log;
 use Illuminate\Support\Facades\Cache;
 
 class ProductController extends Controller
@@ -65,7 +64,6 @@ class ProductController extends Controller
                 'data' => $products
             ], 200);
         } catch (\Exception $e) {
-            Log::error('Lỗi khi lấy danh sách sản phẩm: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Đã xảy ra lỗi khi lấy danh sách sản phẩm.',
@@ -668,9 +666,8 @@ public function destroy($id)
                 }
             } while ($cursor != 0);
 
-            \Log::info('Đã xóa cache sản phẩm thành công.');
         } catch (\Exception $e) {
-            \Log::error('Lỗi khi xóa cache sản phẩm: ' . $e->getMessage());
+
         }
     }
     private function generateSKU($productName, $categories, $attributes, $productId = null)
@@ -904,7 +901,6 @@ public function destroy($id)
                 ],
             ], 200);
         } catch (\Exception $e) {
-            \Log::error('Error fetching product by slug: ' . $e->getMessage(), ['slug' => $slug]);
             return response()->json([
                 'success' => false,
                 'message' => 'Đã xảy ra lỗi khi lấy thông tin sản phẩm. Vui lòng thử lại sau.',
@@ -1343,7 +1339,6 @@ public function destroy($id)
             if (!$isSearchMode) {
                 $category = Category::where('slug', $slug)->first();
                 if (!$category) {
-                    Log::warning('Danh mục không tồn tại với slug: ' . $slug);
                 } else {
                     $categoryIds = $this->getAllCategoryChildrenIds($category);
                     $categoryIds[] = $category->id;
@@ -1501,14 +1496,12 @@ public function destroy($id)
                 ],
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
-            Log::error('Validation Error: ' . json_encode($e->errors()));
             return response()->json([
                 'success' => false,
                 'message' => 'Dữ liệu đầu vào không hợp lệ.',
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
-            Log::error('Error fetching products: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Đã xảy ra lỗi khi lấy danh sách sản phẩm.',

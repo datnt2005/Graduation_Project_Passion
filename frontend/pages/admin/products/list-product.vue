@@ -94,6 +94,7 @@
           <option value="inactive" v-if="filterTrash !== 'trash'">Vô hiệu hóa</option>
           <option value="trash" v-if="filterTrash !== 'trash'">Thêm vào thùng rác</option>
           <option value="restore" v-if="filterTrash === 'trash'">Khôi phục</option>
+          <option value="delete" v-if="filterTrash === 'trash'">Xóa</option>
         </select>
         <button @click="applyBulkAction" :disabled="!selectedAction || selectedProducts.length === 0 || loading" :class="[
           'px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-150',
