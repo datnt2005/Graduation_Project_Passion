@@ -1,4 +1,3 @@
-
 <template>
   <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#eaf1fd] to-[#f4f7fd] px-2 py-6">
     <div
@@ -6,7 +5,7 @@
       <!-- Bên trái: Branding -->
       <div class="hidden md:flex flex-col justify-center items-center w-1/2 p-12 bg-transparent">
         <div class="mb-10 flex flex-col items-center">
-          <img src="/images/SellerCenter2.png" alt="Passion Logo">
+            <img src="/images/SellerCenter2.png" alt="Passion Logo">
         </div>
         <div class="text-2xl font-bold text-gray-900 mb-2 text-center">
           Đăng ký bán hàng cùng <strong class="text-blue-600 font-extrabold">Passion</strong>
@@ -39,7 +38,7 @@
           </div>
 
           <!-- FORM ĐĂNG KÝ -->
-          <form @submit.prevent="handleSubmit" class="space-y-3">
+          <form @submit.prevent="handleSubmit" class="space-y-3" :class="{ 'pointer-events-none opacity-60': loading }">
             <!-- Tên cửa hàng -->
             <div>
               <label class="block font-semibold text-sm mb-1.5 text-gray-700">Tên cửa hàng</label>
@@ -80,27 +79,45 @@
 
               <!-- Ảnh CCCD/CMND -->
               <div class="mb-2">
-                <label class="block font-semibold text-sm mb-1.5 text-gray-700">Ảnh CCCD/CMND <span
-                    class="text-gray-500 font-normal">(2 mặt)</span></label>
+                <label class="block font-semibold text-sm mb-1.5 text-gray-700">
+                  Ảnh CCCD/CMND <span class="text-gray-500 font-normal">(2 mặt)</span>
+                </label>
+
+                <!-- Ảnh mặt trước -->
                 <label
                   class="flex items-center gap-3 px-3 py-2 rounded-lg border border-gray-200 bg-[#f8fafc] cursor-pointer transition hover:border-[#1BA0E2] hover:bg-[#f1f8fd]">
                   <svg class="w-5 h-5 text-[#1BA0E2]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round"
                       d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.586-6.586a2 2 0 10-2.828-2.828z" />
                   </svg>
-                  <span class="flex-1 text-sm text-gray-400">Chọn 2 ảnh CCCD/CMND (mặt trước & mặt sau)</span>
-                  <span
-                    class="ml-3 text-[#fff] bg-[#1BA0E2] px-3 py-1 rounded font-semibold text-sm hover:bg-[#1780B6] transition">Chọn file</span>
-                  <input type="file" class="hidden" accept="image/*" multiple @change="onCccdFiles">
+                  <span class="text-sm text-gray-600">{{ form.cccd_front ? form.cccd_front.name : 'Ảnh CCCD Mặt trước' }}</span>
+                  <input type="file" accept="image/*" class="hidden" @change="onFileChange($event, 'front')" name="cccd_front" />
                 </label>
-                <div class="mt-2 grid grid-cols-2 gap-3">
-                  <div v-for="(preview, index) in cccdPreviews" :key="index" class="flex flex-col items-center">
-                    <img :src="preview" class="max-h-32 rounded-lg border border-gray-200 shadow" :alt="'CCCD mặt ' + (index === 0 ? 'trước' : 'sau')" />
-                    <span class="mt-1 text-xs text-gray-500">{{ index === 0 ? 'Mặt trước' : 'Mặt sau' }}</span>
+                <p v-if="errors.cccd_front" class="text-sm text-red-600 mt-1.5 flex items-center">{{ errors.cccd_front }}</p>
+
+                <!-- Ảnh mặt sau -->
+                <label
+                  class="mt-3 flex items-center gap-3 px-3 py-2 rounded-lg border border-gray-200 bg-[#f8fafc] cursor-pointer transition hover:border-[#1BA0E2] hover:bg-[#f1f8fd]">
+                  <svg class="w-5 h-5 text-[#1BA0E2]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.586-6.586a2 2 0 10-2.828-2.828z" />
+                  </svg>
+                  <span class="text-sm text-gray-600">{{ form.cccd_back ? form.cccd_back.name : 'Ảnh CCCD Mặt sau' }}</span>
+                  <input type="file" accept="image/*" class="hidden" @change="onFileChange($event, 'back')" name="cccd_back" />
+                </label>
+                <p v-if="errors.cccd_back" class="text-sm text-red-600 mt-1.5 flex items-center">{{ errors.cccd_back }}</p>
+
+                <!-- Preview -->
+                <div class="mt-4 grid grid-cols-2 gap-3">
+                  <div v-if="cccdFrontPreview" class="flex flex-col items-center">
+                    <img :src="cccdFrontPreview" class="max-h-32 w-full rounded-lg border shadow" alt="CCCD mặt trước" />
+                    <span class="mt-1 text-xs text-gray-500">Mặt trước</span>
+                  </div>
+                  <div v-if="cccdBackPreview" class="flex flex-col items-center">
+                    <img :src="cccdBackPreview" class="max-h-32 w-full rounded-lg border shadow" alt="CCCD mặt sau" />
+                    <span class="mt-1 text-xs text-gray-500">Mặt sau</span>
                   </div>
                 </div>
-                <!-- // validator -->
-               <p v-if="errors.cccdPreviews" class="text-sm text-red-600 mt-1.5 flex items-center">{{ errors.cccdPreviews }}</p>
               </div>
 
               <!-- Ngày sinh -->
@@ -108,7 +125,7 @@
                 <label class="block font-semibold text-sm mb-1.5 text-gray-700">Ngày sinh</label>
                 <input type="date"
                   class="w-full border border-gray-200 rounded-[9px] px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base bg-white outline-none transition-all placeholder-gray-400"
-                  v-model="form.date_of_birth"  :class="{ 'border-red-500': errors.date_of_birth }">
+                  v-model="form.date_of_birth" :class="{ 'border-red-500': errors.date_of_birth }">
                 <p v-if="errors.date_of_birth" class="text-sm text-red-600 mt-1.5 flex items-center">
                   {{ errors.date_of_birth }}
                 </p>
@@ -143,14 +160,14 @@
                     <path stroke-linecap="round" stroke-linejoin="round"
                       d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.586-6.586a2 2 0 10-2.828-2.828z" />
                   </svg>
-                  <span class="flex-1 text-sm truncate text-gray-700" v-if="documentFile">{{ documentFile.name }}</span>
+                  <span class="flex-1 text-sm truncate text-gray-700" v-if="form.document">{{ form.document.name }}</span>
                   <span class="flex-1 text-sm text-gray-400" v-else>Chọn file ảnh/PDF bổ sung (nếu có)</span>
                   <span
                     class="ml-3 text-[#fff] bg-[#1BA0E2] px-3 py-1 rounded font-semibold text-sm hover:bg-[#1780B6] transition">Chọn file</span>
                   <input type="file" class="hidden" accept="image/*,application/pdf" @change="onDocumentFile">
                 </label>
                 <div v-if="documentPreview" class="mt-2">
-                  <img v-if="isImage(documentPreview)" :src="documentPreview" class="max-h-32 rounded-lg border border-gray-200 shadow" alt="Tài liệu" />
+                  <img v-if="isImage(form.document)" :src="documentPreview" class="max-h-32 rounded-lg border border-gray-200 shadow" alt="Tài liệu" />
                   <div v-else class="flex items-center gap-2 text-sm text-gray-600 mt-1">
                     <svg class="w-5 h-5 text-[#1BA0E2]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
@@ -238,8 +255,11 @@
                     class="ml-3 text-[#fff] bg-[#1BA0E2] px-3 py-1 rounded font-semibold text-sm hover:bg-[#1780B6] transition">Chọn file</span>
                   <input type="file" class="hidden" accept="image/*,application/pdf" @change="onBusinessLicenseFile">
                 </label>
+                <p v-if="errors.business_license" class="text-sm text-red-600 mt-1.5 flex items-center">
+                  {{ errors.business_license }}
+                </p>
                 <div v-if="businessLicensePreview" class="mt-2">
-                  <img v-if="isImage(businessLicensePreview)" :src="businessLicensePreview" class="max-h-32 rounded-lg border border-gray-200 shadow" alt="Giấy phép kinh doanh" />
+                  <img v-if="isImage(form.business_license)" :src="businessLicensePreview" class="max-h-32 rounded-lg border border-gray-200 shadow" alt="Giấy phép kinh doanh" />
                   <div v-else class="flex items-center gap-2 text-sm text-gray-600 mt-1">
                     <svg class="w-5 h-5 text-[#1BA0E2]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
@@ -267,10 +287,10 @@
     </div>
   </div>
 </template>
-
 <script setup>
-import { ref, reactive, watch, onMounted } from 'vue';
+import { ref, reactive, watch, onMounted, onUnmounted } from 'vue';
 import axios from 'axios';
+import Swal from 'sweetalert2';
 
 const config = useRuntimeConfig();
 const API = config.public.apiBaseUrl;
@@ -279,12 +299,32 @@ const sellerType = ref('personal');
 const isHover = ref(false);
 const loading = ref(false);
 const errors = reactive({});
-const isUpgrading = ref(false); // Biến xác định trạng thái nâng cấp
-const cccdPreviews = ref([]);
+const isUpgrading = ref(false);
+const cccdFrontPreview = ref(null);
+const cccdBackPreview = ref(null);
 const documentFile = ref(null);
 const documentPreview = ref('');
 const businessLicensePreview = ref('');
+const logoSrc = ref('/images/SellerCenter2.png');
 
+const toast = (icon, title) => {
+  Swal.fire({
+    toast: true,
+    position: 'top-end',
+    icon,
+    title,
+    width: '350px',
+    padding: '10px 20px',
+    customClass: { popup: 'text-sm rounded-md shadow-md' },
+    showConfirmButton: false,
+    timer: 3000,
+    timerProgressBar: true,
+    didOpen: (toastEl) => {
+      toastEl.addEventListener('mouseenter', () => Swal.stopTimer());
+      toastEl.addEventListener('mouseleave', () => Swal.resumeTimer());
+    }
+  });
+};
 
 const form = reactive({
   store_name: '',
@@ -293,6 +333,8 @@ const form = reactive({
   identity_card_number: '',
   date_of_birth: '',
   personal_address: '',
+  cccd_front: null,
+  cccd_back: null,
   document: null,
   bio: '',
   tax_code: '',
@@ -308,86 +350,129 @@ onMounted(async () => {
   await checkSellerStatus();
 });
 
+// Thu hồi URL preview để tránh rò rỉ bộ nhớ
+function revokeObjectURLs() {
+  if (cccdFrontPreview.value) URL.revokeObjectURL(cccdFrontPreview.value);
+  if (cccdBackPreview.value) URL.revokeObjectURL(cccdBackPreview.value);
+  if (documentPreview.value && isImage(documentFile.value)) URL.revokeObjectURL(documentPreview.value);
+  if (businessLicensePreview.value && isImage(form.business_license)) URL.revokeObjectURL(businessLicensePreview.value);
+}
+
+onUnmounted(revokeObjectURLs);
+
 async function checkSellerStatus() {
   try {
     const token = localStorage.getItem('access_token');
     if (!token) return;
 
-    const res = await axios.get(`${API}/sellers/me`, {
+    console.log('Checking seller status with token:', token.slice(0, 10) + '...');
+    const res = await axios.get(`${API}/access-token`, {
       headers: { Authorization: `Bearer ${token}` }
     });
 
-    const seller = res?.data?.data;
+    const seller = res.data?.data;
     if (seller && seller.seller_type === 'personal') {
       isUpgrading.value = true;
       sellerType.value = 'business';
-      form.store_name = seller.store_name; // Tái sử dụng store_name
+      form.store_name = seller.id;
       form.seller_type = 'business';
     }
   } catch (error) {
-    console.error('Error checking seller status:', error);
+    if (error.response?.status === 404) {
+      console.warn('Endpoint /access-token not found. Skipping check.');
+    } else if (error.response?.status === 401) {
+      localStorage.removeItem('access_token');
+      toast('error', 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+    } else {
+      toast('error', 'Lỗi khi kiểm tra trạng thái người bán');
+      console.error('Error checking seller status:', error);
+    }
   }
 }
 
 watch(sellerType, (newType) => {
   form.seller_type = newType;
+  // Chỉ reset các trường liên quan đến sellerType mới
   resetFormData();
 });
 
 function resetFormData() {
+  revokeObjectURLs();
   Object.assign(errors, {});
-  cccdPreviews.value = [];
-  documentFile.value = null;
-  documentPreview.value = '';
-  businessLicensePreview.value = '';
-
+  // Không reset toàn bộ form để giữ dữ liệu đã nhập khi submit thất bại
   if (sellerType.value === 'business') {
+    // Chỉ reset các trường personal nếu chuyển sang business
     form.phone_number = '';
     form.identity_card_number = '';
     form.date_of_birth = '';
     form.personal_address = '';
+    form.cccd_front = null;
+    form.cccd_back = null;
     form.document = null;
     form.bio = '';
+    cccdFrontPreview.value = null;
+    cccdBackPreview.value = null;
+    documentFile.value = null;
+    documentPreview.value = '';
   } else if (!isUpgrading.value) {
+    // Chỉ reset các trường business nếu chuyển sang personal
     form.tax_code = '';
     form.company_name = '';
     form.company_address = '';
     form.representative_name = '';
     form.representative_phone = '';
     form.business_license = null;
+    businessLicensePreview.value = '';
   }
+  // Giữ lại store_name và các trường khác không liên quan
 }
 
 function isImage(file) {
-  return file && file.startsWith('data:image');
+  return file && file.type.startsWith('image/');
 }
 
-function onCccdFiles(event) {
-  const files = event.target.files;
-  cccdPreviews.value = [];
-  if (files.length > 0) {
-    form.document = files[0];
-    cccdPreviews.value.push(URL.createObjectURL(files[0]));
-    if (files[1]) {
-      cccdPreviews.value.push(URL.createObjectURL(files[1]));
+function validateFile(file, maxSizeMB = 5) {
+  if (!file) return false;
+  const validTypes = ['image/jpeg', 'image/png'];
+  if (!validTypes.includes(file.type)) {
+    errors.file = 'File phải là ảnh JPEG hoặc PNG.';
+    return false;
+  }
+  if (file.size > maxSizeMB * 1024 * 1024) {
+    errors.file = `File không được vượt quá ${maxSizeMB}MB.`;
+    return false;
+  }
+  return true;
+}
+
+function onFileChange(event, side) {
+  console.log('onFileChange called with side:', side);
+  const file = event.target.files[0];
+  if (file && validateFile(file)) {
+    if (side === 'front') {
+      form.cccd_front = file;
+      cccdFrontPreview.value = URL.createObjectURL(file);
+    } else if (side === 'back') {
+      form.cccd_back = file;
+      cccdBackPreview.value = URL.createObjectURL(file);
     }
   }
 }
 
 function onDocumentFile(event) {
   const file = event.target.files[0];
-  if (file) {
+  if (file && validateFile(file)) {
     documentFile.value = file;
     form.document = file;
-    documentPreview.value = file.type.startsWith('image/') ? URL.createObjectURL(file) : file.name;
+    documentPreview.value = isImage(file) ? URL.createObjectURL(file) : file.name;
   }
 }
 
 function onBusinessLicenseFile(event) {
   const file = event.target.files[0];
-  if (file) {
+  if (file && validateFile(file)) {
     form.business_license = file;
-    businessLicensePreview.value = file.type.startsWith('image/') ? URL.createObjectURL(file) : file.name;
+    businessLicensePreview.value = isImage(file) ? URL.createObjectURL(file) : file.name;
   }
 }
 
@@ -403,16 +488,13 @@ function validateForm() {
     }
   }
 
-
-    // seller_type check
   if (!['personal', 'business'].includes(f.seller_type)) {
     errors.seller_type = 'Loại người bán không hợp lệ.';
   }
 
-
   if (f.seller_type === 'personal' && !isUpgrading.value) {
-    if (!f.phone_number || !/^[0-9]{10,15}$/.test(f.phone_number)) {
-      errors.phone_number = 'Số điện thoại không hợp lệ (10–15 chữ số).';
+    if (!f.phone_number || !/^0[0-9]{9,10}$/.test(f.phone_number)) {
+      errors.phone_number = 'Số điện thoại không hợp lệ (10–11 chữ số, bắt đầu bằng 0).';
     }
     if (!f.identity_card_number || f.identity_card_number.length > 20) {
       errors.identity_card_number = 'Số CMND/CCCD là bắt buộc và tối đa 20 ký tự.';
@@ -423,15 +505,18 @@ function validateForm() {
     if (!f.personal_address) {
       errors.personal_address = 'Địa chỉ cá nhân là bắt buộc.';
     }
-    if (!cccdPreviews.value.length || cccdPreviews.value.length !== 2) {
-      errors.cccdPreviews = 'Vui lòng chọn đúng 2 ảnh CCCD (mặt trước và mặt sau).';
+    if (!f.cccd_front) {
+      errors.cccd_front = 'Vui lòng chọn ảnh CCCD mặt trước.';
+    }
+    if (!f.cccd_back) {
+      errors.cccd_back = 'Vui lòng chọn ảnh CCCD mặt sau.';
     }
   } else if (f.seller_type === 'business') {
     if (!f.tax_code) errors.tax_code = 'Mã số thuế là bắt buộc.';
     if (!f.company_name) errors.company_name = 'Tên công ty là bắt buộc.';
     if (!f.company_address) errors.company_address = 'Địa chỉ công ty là bắt buộc.';
     if (!f.representative_name) errors.representative_name = 'Tên người đại diện là bắt buộc.';
-    if (!f.representative_phone || !/^[0-9]{10,15}$/.test(f.representative_phone)) {
+    if (!f.representative_phone || !/^0[0-9]{9,10}$/.test(f.representative_phone)) {
       errors.representative_phone = 'Số điện thoại người đại diện không hợp lệ.';
     }
     if (!f.business_license) errors.business_license = 'Giấy phép kinh doanh là bắt buộc.';
@@ -441,13 +526,16 @@ function validateForm() {
 }
 
 async function handleSubmit() {
-  if (!validateForm()) return;
+  if (!validateForm()) {
+    loading.value = false;
+    return;
+  }
   loading.value = true;
   Object.assign(errors, {});
 
   const token = localStorage.getItem('access_token');
   if (!token) {
-    alert('Bạn chưa đăng nhập!');
+    toast('error', 'Bạn chưa đăng nhập!');
     loading.value = false;
     return;
   }
@@ -459,7 +547,7 @@ async function handleSubmit() {
 
     const user = meRes?.data?.data;
     if (!user || !user.id) {
-      alert('Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.');
+      toast('error', 'Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.');
       loading.value = false;
       return;
     }
@@ -470,7 +558,6 @@ async function handleSubmit() {
     formData.append('user_id', user.id);
 
     if (isUpgrading.value) {
-      // Gửi dữ liệu cho nâng cấp
       formData.append('tax_code', f.tax_code);
       formData.append('company_name', f.company_name);
       formData.append('company_address', f.company_address);
@@ -478,13 +565,14 @@ async function handleSubmit() {
       formData.append('representative_phone', f.representative_phone);
       if (f.business_license) formData.append('business_license', f.business_license);
     } else {
-      // Gửi dữ liệu cho đăng ký mới
       formData.append('store_name', f.store_name);
       if (f.seller_type === 'personal') {
         formData.append('phone_number', f.phone_number);
         formData.append('identity_card_number', f.identity_card_number);
         formData.append('date_of_birth', f.date_of_birth);
         formData.append('personal_address', f.personal_address);
+        if (f.cccd_front) formData.append('cccd_front', f.cccd_front);
+        if (f.cccd_back) formData.append('cccd_back', f.cccd_back);
         if (f.document) formData.append('document', f.document);
         if (f.bio) formData.append('bio', f.bio);
       } else {
@@ -504,7 +592,7 @@ async function handleSubmit() {
       }
     });
 
-    alert(response.data.message || 'Thành công!');
+    toast('success', response.data.message || 'Thành công!');
     resetFormData();
     router.push('/seller/SellerRegisterSuccess');
   } catch (error) {
@@ -512,12 +600,10 @@ async function handleSubmit() {
     Object.assign(errors, res?.data?.errors || {});
     const message = res?.data?.message || res?.data?.error || 'Thất bại!';
     const detail = Object.values(errors).flat().join('\n');
-    alert(detail ? `${message}\n\n${detail}` : message);
+    toast('error', detail ? `${message}\n${detail}` : message);
     console.error('Error:', error);
   } finally {
     loading.value = false;
   }
 }
 </script>
-
-
