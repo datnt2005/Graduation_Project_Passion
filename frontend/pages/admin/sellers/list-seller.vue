@@ -77,12 +77,12 @@
                 </div>
               </td>
               <td class="py-3 px-4 text-gray-800 text-sm font-normal">{{ user.email }}</td>
-              <td class="py-3 px-4 text-gray-800 text-sm font-normal">{{ user.phone || '-' }}</td>
+              <td class="py-3 px-4 text-gray-800 text-sm font-normal">{{ user.seller?.phone_number || '-' }}</td>
               <td class="py-3 px-4 text-center">
                 <span
                   class="inline-block px-3 py-1 text-xs rounded-full font-medium bg-[#f5f6fa] text-gray-700 border border-gray-200"
                   :class="user.status === 'active' ? '' : 'text-gray-400'">{{ user.status === 'active' ? 'Hoạt động' :
-                  'Không hoạt động' }}</span>
+                    'Không hoạt động' }}</span>
               </td>
               <td class="py-3 px-4 text-center">
                 <button @click="openDetail(user)"
@@ -105,166 +105,162 @@
       </div>
 
       <!-- Modal xem chi tiết Seller với tab -->
-     <!-- Modal Chi tiết Seller -->
-<!-- Modal Chi tiết Seller với giao diện mới giống ảnh Daddy gửi -->
-<div v-if="detailModal"
-  class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 font-sans backdrop-blur-sm">
-  <div
-    class="bg-white rounded-xl shadow-xl w-full max-w-3xl relative animate-fadeIn p-6 md:p-8 transition-all duration-300">
+      <!-- Modal Chi tiết Seller -->
+      <!-- Modal Chi tiết Seller với giao diện mới giống ảnh Daddy gửi -->
+      <div v-if="detailModal"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 font-sans backdrop-blur-sm">
+        <div
+          class="bg-white rounded-xl shadow-xl w-full max-w-3xl relative animate-fadeIn p-6 md:p-8 transition-all duration-300">
 
-    <!-- Header -->
-    <div class="border-b border-gray-200 pb-4">
-      <div class="flex items-center justify-between">
-        <div>
-          <h3 class="text-2xl font-bold text-[#1564ff]">Chi tiết Seller</h3>
-          <p class="text-gray-500 text-sm mt-1">Xem thông tin chi tiết & xác minh seller</p>
-        </div>
-        <button @click="closeDetail"
-          class="text-gray-400 hover:text-black text-xl transition-colors duration-200">✕</button>
-      </div>
+          <!-- Header -->
+          <div class="border-b border-gray-200 pb-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="text-2xl font-bold text-[#1564ff]">Chi tiết Seller</h3>
+                <p class="text-gray-500 text-sm mt-1">Xem thông tin chi tiết & xác minh seller</p>
+              </div>
+              <button @click="closeDetail"
+                class="text-gray-400 hover:text-black text-xl transition-colors duration-200">✕</button>
+            </div>
 
-      <!-- Tabs -->
-      <div class="flex border rounded-lg overflow-hidden mt-5">
-        <button
-          class="flex-1 py-2 text-sm font-medium text-center transition-all"
-          :class="tab === 'info' ? 'bg-white text-[#1564ff] shadow font-semibold' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
-          @click="tab = 'info'">
-          <i class="mr-1">👤</i> Thông tin cơ bản
-        </button>
-        <button
-          class="flex-1 py-2 text-sm font-medium text-center transition-all"
-          :class="tab === 'verify' ? 'bg-white text-[#1564ff] shadow font-semibold' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
-          @click="tab = 'verify'">
-          <i class="mr-1">📄</i> Giấy tờ & Xác minh
-        </button>
-      </div>
-    </div>
-
-    <!-- Tab: Thông tin -->
-    <div v-if="tab === 'info'" class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-      <!-- Avatar -->
-      <div class="flex flex-col items-center border rounded-lg p-4">
-        <div class="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center text-xl font-bold">
-            {{ getInitials(currentDetail.name) }}
-        </div>
-        <div class="mt-3 text-lg font-semibold text-gray-800">{{ currentDetail.name || '-' }}</div>
-        <div class="mt-1 text-sm">
-          <span
-            class="inline-block rounded-full px-2 py-0.5 text-xs font-medium"
-            :class="currentDetail.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-500'">
-            {{ currentDetail.status === 'active' ? 'Đang hoạt động' : 'Không hoạt động' }}
-          </span>
-        </div>
-        <div class="mt-2 text-sm text-gray-500">
-          <i class="mr-1">🏪</i>{{ currentDetail.seller?.store_name || '-' }}
-        </div>
-      </div>
-
-      <!-- Thông tin chi tiết -->
-      <div class="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4 border rounded-lg p-4">
-        <div class="text-sm"><strong>CCCD:</strong> {{ currentDetail.seller?.identity_card_number || '-' }}</div>
-        <div class="text-sm"><strong>Ngày sinh:</strong> {{ currentDetail.seller?.date_of_birth || '-' }}</div>
-        <div class="text-sm"><strong>Số điện thoại:</strong> {{ currentDetail.phone || '-' }}</div>
-        <div class="text-sm"><strong>Email:</strong> {{ currentDetail.email || '-' }}</div>
-        <div class="text-sm sm:col-span-2"><strong>Địa chỉ:</strong> {{ currentDetail.seller?.personal_address || '-' }}</div>
-        <div class="text-sm sm:col-span-2"><strong>Giới thiệu:</strong> {{ currentDetail.seller?.bio || '-' }}</div>
-      </div>
-    </div>
-
-    <!-- Tab: Giấy tờ & Xác minh -->
-    <div v-else-if="tab === 'verify'" class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-      <!-- Ảnh giấy tờ -->
-      <div class="border rounded-lg p-4">
-        <div class="font-semibold text-gray-700 mb-2">Ảnh CCCD/Giấy tờ</div>
-        <div v-if="currentDetail.seller?.document"
-          class="aspect-square border border-gray-300 rounded-lg flex items-center justify-center cursor-pointer overflow-hidden"
-          @click="enlargeImage(currentDetail.seller.document)">
-          <img :src="getDocUrl(currentDetail.seller.document)" class="object-contain max-w-full max-h-full" />
-        </div>
-        <div v-else class="aspect-square border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-gray-400 text-5xl">
-          <i>📷</i>
-        </div>
-      </div>
-
-      <!-- Trạng thái xác minh -->
-      <div class="border rounded-lg p-4 flex flex-col justify-between">
-        <div>
-          <div class="font-semibold text-gray-700 mb-2">Trạng thái xác minh</div>
-          <div class="mb-3">
-            <span v-if="currentDetail.seller?.verification_status === 'verified'"
-              class="inline-block bg-green-100 text-green-700 text-xs font-semibold px-3 py-1 rounded-full">
-              ✅ Đã xác minh
-            </span>
-            <span v-else-if="currentDetail.seller?.verification_status === 'rejected'"
-              class="inline-block bg-red-100 text-red-700 text-xs font-semibold px-3 py-1 rounded-full">
-              ❌ Đã bị từ chối
-            </span>
-            <span v-else
-              class="inline-block bg-yellow-100 text-yellow-700 text-xs font-semibold px-3 py-1 rounded-full">
-              ⏳ Chờ xác minh
-            </span>
+            <!-- Tabs -->
+            <div class="flex border rounded-lg overflow-hidden mt-5">
+              <button class="flex-1 py-2 text-sm font-medium text-center transition-all"
+                :class="tab === 'info' ? 'bg-white text-[#1564ff] shadow font-semibold' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                @click="tab = 'info'">
+                <i class="mr-1">👤</i> Thông tin cơ bản
+              </button>
+              <button class="flex-1 py-2 text-sm font-medium text-center transition-all"
+                :class="tab === 'verify' ? 'bg-white text-[#1564ff] shadow font-semibold' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                @click="tab = 'verify'">
+                <i class="mr-1">📄</i> Giấy tờ & Xác minh
+              </button>
+            </div>
           </div>
 
-          <div v-if="currentDetail.seller?.verification_status === 'rejected'"
-            class="bg-red-50 text-red-700 text-sm border border-red-200 rounded p-3">
-            Seller này đã bị từ chối xác minh. Vui lòng xem xét lý do và liên hệ lại nếu cần.
-          </div>
-          <div v-else-if="currentDetail.seller?.verification_status !== 'verified'"
-            class="bg-blue-50 text-blue-700 text-sm border border-blue-200 rounded p-3">
-            Seller này đang chờ được xác minh. Vui lòng kiểm tra thông tin và giấy tờ trước khi phê duyệt.
-          </div>
-        </div>
+          <!-- Tab: Thông tin -->
+          <div v-if="tab === 'info'" class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+            <!-- Avatar -->
+            <div class="flex flex-col items-center border rounded-lg p-4">
+              <div class="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center text-xl font-bold">
+                {{ getInitials(currentDetail.name) }}
+              </div>
+              <div class="mt-3 text-lg font-semibold text-gray-800">{{ currentDetail.name || '-' }}</div>
+              <div class="mt-1 text-sm">
+                <span class="inline-block rounded-full px-2 py-0.5 text-xs font-medium"
+                  :class="currentDetail.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-500'">
+                  {{ currentDetail.status === 'active' ? 'Đang hoạt động' : 'Không hoạt động' }}
+                </span>
+              </div>
+              <div class="mt-2 text-sm text-gray-500">
+                <i class="mr-1">🏪</i>{{ currentDetail.seller?.store_name || '-' }}
+              </div>
+            </div>
 
-        <!-- Buttons -->
-        <div class="flex gap-3 mt-6"
-          v-if="currentDetail.seller?.verification_status !== 'verified' && currentDetail.seller?.verification_status !== 'rejected'">
-          <button
-            @click="approveSeller(currentDetail.id)"
-            :disabled="loadingApprove"
-            class="flex-1 py-2 rounded bg-blue-700 hover:bg-blue-900 text-white font-semibold text-sm transition"
-            :class="{ 'opacity-60 cursor-not-allowed': loadingApprove }">
-            {{ loadingApprove ? 'Đang duyệt...' : 'Duyệt seller' }}
-          </button>
+            <!-- Thông tin chi tiết -->
+            <div class="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4 border rounded-lg p-4">
+              <div class="text-sm"><strong>CCCD:</strong> {{ currentDetail.seller?.identity_card_number || '-' }}</div>
+              <div class="text-sm"><strong>Ngày sinh:</strong> {{ currentDetail.seller?.date_of_birth || '-' }}</div>
+              <div class="text-sm"><strong>Số điện thoại:</strong> {{ currentDetail.seller?.phone_number || '-' }}</div>
+              <div class="text-sm"><strong>Email:</strong> {{ currentDetail.email || '-' }}</div>
+              <div class="text-sm sm:col-span-2"><strong>Địa chỉ:</strong> {{ currentDetail.seller?.personal_address ||
+                '-' }}
+              </div>
+              <div class="text-sm sm:col-span-2"><strong>Giới thiệu:</strong> {{ currentDetail.seller?.bio || '-' }}
+              </div>
+            </div>
+          </div>
 
-          <button
-            @click="openReject(currentDetail)"
-            class="flex-1 py-2 rounded bg-red-400 hover:bg-red-600 text-white font-semibold text-sm transition">
-            Từ chối
-          </button>
+          <!-- Tab: Giấy tờ & Xác minh -->
+          <div v-else-if="tab === 'verify'" class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+            <!-- Ảnh giấy tờ -->
+            <div class="border rounded-lg p-4">
+              <div class="font-semibold text-gray-700 mb-2">Ảnh CCCD/Giấy tờ</div>
+              <div v-if="currentDetail.seller?.document"
+                class="aspect-square border border-gray-300 rounded-lg flex items-center justify-center cursor-pointer overflow-hidden"
+                @click="enlargeImage(currentDetail.seller.document)">
+                <img :src="getDocUrl(currentDetail.seller.document)" class="object-contain max-w-full max-h-full" />
+              </div>
+              <div v-else
+                class="aspect-square border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-gray-400 text-5xl">
+                <i>📷</i>
+              </div>
+            </div>
+
+            <!-- Trạng thái xác minh -->
+            <div class="border rounded-lg p-4 flex flex-col justify-between">
+              <div>
+                <div class="font-semibold text-gray-700 mb-2">Trạng thái xác minh</div>
+                <div class="mb-3">
+                  <span v-if="currentDetail.seller?.verification_status === 'verified'"
+                    class="inline-block bg-green-100 text-green-700 text-xs font-semibold px-3 py-1 rounded-full">
+                    ✅ Đã xác minh
+                  </span>
+                  <span v-else-if="currentDetail.seller?.verification_status === 'rejected'"
+                    class="inline-block bg-red-100 text-red-700 text-xs font-semibold px-3 py-1 rounded-full">
+                    ❌ Đã bị từ chối
+                  </span>
+                  <span v-else
+                    class="inline-block bg-yellow-100 text-yellow-700 text-xs font-semibold px-3 py-1 rounded-full">
+                    ⏳ Chờ xác minh
+                  </span>
+                </div>
+
+                <div v-if="currentDetail.seller?.verification_status === 'rejected'"
+                  class="bg-red-50 text-red-700 text-sm border border-red-200 rounded p-3">
+                  Seller này đã bị từ chối xác minh. Vui lòng xem xét lý do và liên hệ lại nếu cần.
+                </div>
+                <div v-else-if="currentDetail.seller?.verification_status !== 'verified'"
+                  class="bg-blue-50 text-blue-700 text-sm border border-blue-200 rounded p-3">
+                  Seller này đang chờ được xác minh. Vui lòng kiểm tra thông tin và giấy tờ trước khi phê duyệt.
+                </div>
+              </div>
+
+              <!-- Buttons -->
+              <div class="flex gap-3 mt-6"
+                v-if="currentDetail.seller?.verification_status !== 'verified' && currentDetail.seller?.verification_status !== 'rejected'">
+                <button @click="approveSeller(currentDetail.seller.id)" :disabled="loadingApprove"
+                  class="flex-1 py-2 rounded bg-blue-700 hover:bg-blue-900 text-white font-semibold text-sm transition"
+                  :class="{ 'opacity-60 cursor-not-allowed': loadingApprove }">
+                  {{ loadingApprove ? 'Đang duyệt...' : 'Duyệt seller' }}
+                </button>
+
+                <button @click="openReject(currentDetail)"
+                  class="flex-1 py-2 rounded bg-red-400 hover:bg-red-600 text-white font-semibold text-sm transition">
+                  Từ chối
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Modal ảnh -->
+          <div v-if="imagePreview" class="fixed inset-0 z-60 flex items-center justify-center bg-black bg-opacity-70"
+            @click="imagePreview = null">
+            <img :src="imagePreview" alt="Preview"
+              class="max-h-[90vh] max-w-[90vw] rounded-xl shadow-lg border-4 border-white" />
+          </div>
+
+          <!-- Modal từ chối -->
+          <div v-if="rejectModal" class="fixed inset-0 z-60 flex items-center justify-center bg-black bg-opacity-50">
+            <div class="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 relative animate-fadeIn">
+              <button class="absolute top-3 right-3 text-gray-400 hover:text-black" @click="closeReject">✕</button>
+              <h3 class="text-lg font-bold mb-4 text-red-700">Nhập lý do từ chối</h3>
+              <textarea v-model="rejectReason" rows="4"
+                class="w-full border border-gray-300 rounded px-3 py-2 mb-3 focus:ring-2 focus:ring-red-500 focus:outline-none"
+                placeholder="Nhập lý do từ chối seller này..."></textarea>
+              <div class="flex justify-end gap-2">
+                <button @click="closeReject" class="px-4 py-1 rounded bg-gray-200 hover:bg-gray-300">Hủy</button>
+                <button @click="submitReject" :disabled="!rejectReason.trim() || loadingReject"
+                  class="px-4 py-1 rounded bg-red-600 hover:bg-red-700 text-white font-semibold"
+                  :class="{ 'opacity-60 cursor-not-allowed': !rejectReason.trim() || loadingReject }">
+                  {{ loadingReject ? 'Đang từ chối...' : 'Xác nhận' }}
+                </button>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
-    </div>
-
-    <!-- Modal ảnh -->
-    <div v-if="imagePreview" class="fixed inset-0 z-60 flex items-center justify-center bg-black bg-opacity-70"
-      @click="imagePreview = null">
-      <img :src="imagePreview" alt="Preview" class="max-h-[90vh] max-w-[90vw] rounded-xl shadow-lg border-4 border-white" />
-    </div>
-
-    <!-- Modal từ chối -->
-    <div v-if="rejectModal" class="fixed inset-0 z-60 flex items-center justify-center bg-black bg-opacity-50">
-      <div class="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 relative animate-fadeIn">
-        <button class="absolute top-3 right-3 text-gray-400 hover:text-black" @click="closeReject">✕</button>
-        <h3 class="text-lg font-bold mb-4 text-red-700">Nhập lý do từ chối</h3>
-        <textarea v-model="rejectReason" rows="4"
-          class="w-full border border-gray-300 rounded px-3 py-2 mb-3 focus:ring-2 focus:ring-red-500 focus:outline-none"
-          placeholder="Nhập lý do từ chối seller này..."></textarea>
-        <div class="flex justify-end gap-2">
-          <button @click="closeReject" class="px-4 py-1 rounded bg-gray-200 hover:bg-gray-300">Hủy</button>
-          <button @click="submitReject"
-            :disabled="!rejectReason.trim() || loadingReject"
-            class="px-4 py-1 rounded bg-red-600 hover:bg-red-700 text-white font-semibold"
-            :class="{ 'opacity-60 cursor-not-allowed': !rejectReason.trim() || loadingReject }">
-            {{ loadingReject ? 'Đang từ chối...' : 'Xác nhận' }}
-          </button>
-        </div>
-      </div>
-    </div>
-
-  </div>
-</div>
-
-
       <!-- end Modal -->
     </div>
   </div>
@@ -292,6 +288,7 @@ const rejectReason = ref('')
 const imagePreview = ref(null)
 const loadingApprove = ref(false);
 const loadingReject = ref(false);
+const getSellerId = (user) => user?.seller?.id
 
 const config = useRuntimeConfig();
 const API = config.public.apiBaseUrl;
@@ -302,7 +299,7 @@ const toast = (type = 'success', message = '', timer = 2000) => {
   Swal.fire({
     toast: true,
     position: 'bottom-end',
-    icon: type, 
+    icon: type,
     title: message,
     showConfirmButton: false,
     timer: timer,
@@ -317,11 +314,11 @@ const toast = (type = 'success', message = '', timer = 2000) => {
 const fetchSellers = async () => {
   loading.value = true
   try {
-    const res = await axios.get(`${API}/sellers`)
+    const res = await axios.get(`${API}/admin/sellers`)
     sellers.value = res.data || []
   } catch {
     sellers.value = []
-   toast('error', 'Không thể tải danh sách seller. Vui lòng thử lại sau!')
+    toast('error', 'Không thể tải danh sách seller. Vui lòng thử lại sau!')
   } finally {
     loading.value = false
   }
@@ -372,8 +369,8 @@ const getColor = (name) => {
 }
 
 // Duyệt seller
-const approveSeller = async (id) => {
- const result = await Swal.fire({
+const approveSeller = async (sellerId) => {
+  const result = await Swal.fire({
     title: '<strong>Duyệt seller?</strong>',
     html: `
       <div class="text-sm text-gray-600">Hành động này sẽ xác minh và kích hoạt seller.</div>
@@ -392,15 +389,11 @@ const approveSeller = async (id) => {
       htmlContainer: 'mt-1',
     }
   })
-
   if (!result.isConfirmed) return
-
-
-
   loadingApprove.value = true
   try {
     loading.value = true
-    await axios.post(`${API}/admin/sellers/${id}/verify`)
+await axios.post(`${API}/admin/sellers/${sellerId}/verify`)
     await fetchSellers()
     detailModal.value = false
     toast('success', 'Seller đã được duyệt!')
@@ -411,8 +404,8 @@ const approveSeller = async (id) => {
   }
 }
 // Từ chối seller
-const openReject = (seller) => {
-  rejectSellerId.value = seller.id
+const openReject = (user) => {
+  rejectSellerId.value = user.seller?.id
   rejectReason.value = ''
   rejectModal.value = true
 }
@@ -530,5 +523,4 @@ table {
     padding-bottom: 1rem;
   }
 }
-
 </style>

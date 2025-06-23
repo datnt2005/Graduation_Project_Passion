@@ -168,39 +168,45 @@ class UserController extends Controller
         return new UserResource($user);
     }
 
-    public function update(Request $request, User $user)
-    {
-        try {
-            $validator = Validator::make($request->all(), [
-                'name'     => 'sometimes|required|string|max:255',
-                'password' => [
-                    'sometimes',
-                    'required',
-                    'string',
-                    'min:6',
-                    'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).+$/'
-                ],
-                'old_password' => 'required_with:password|string',
-                'avatar'  => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
-                'role'    => 'sometimes|required|in:user,seller,admin',
-                'status'  => 'sometimes|required|in:active,inactive,banned',
-            ], [
-                'password.regex' => 'Mật khẩu phải chứa ít nhất 1 chữ hoa, 1 chữ thường, 1 số và 1 ký tự đặc biệt.',
-                'name.required' => 'Tên không được để trống.',
-                'name.max' => 'Tên không được vượt quá 255 ký tự.',
-                'avatar.image' => 'Ảnh đại diện phải là file ảnh.',
-                'avatar.mimes' => 'Ảnh đại diện phải có định dạng jpeg, png, jpg, gif, svg hoặc webp.',
-                'avatar.max' => 'Ảnh đại diện không được vượt quá 2MB.',
-                'role.required' => 'Vai trò không được để trống.',
-                'role.in' => 'Vai trò không hợp lệ.',
-                'status.required' => 'Trạng thái không được để trống.',
-                'status.in' => 'Trạng thái không hợp lệ.',
-                'old_password.required_with' => 'Vui lòng nhập mật khẩu cũ để đổi mật khẩu.'
-            ]);
+public function update(Request $request, User $user)
+{
+    try {
+        $validator = Validator::make($request->all(), [
+            'name'     => 'sometimes|required|string|max:255',
+            'password' => [
+                'sometimes',
+                'required',
+                'string',
+                'min:6',
+                'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).+$/'
+            ],
+            'avatar'  => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
+            'role'    => 'sometimes|required|in:user,seller,admin',
+            'status'  => 'sometimes|required|in:active,inactive,banned',
+        ], [
+            'password.regex' => 'Mật khẩu phải chứa ít nhất 1 chữ hoa, 1 chữ thường, 1 số và 1 ký tự đặc biệt.',
+            'name.required' => 'Tên không được để trống.',
+            'name.max' => 'Tên không được vượt quá 255 ký tự.',
+            'avatar.image' => 'Ảnh đại diện phải là file ảnh.',
+            'avatar.mimes' => 'Ảnh đại diện phải có định dạng jpeg, png, jpg, gif, svg hoặc webp.',
+            'avatar.max' => 'Ảnh đại diện không được vượt quá 2MB.',
+            'role.required' => 'Vai trò không được để trống.',
+            'role.in' => 'Vai trò không hợp lệ.',
+            'status.required' => 'Trạng thái không được để trống.',
+            'status.in' => 'Trạng thái không hợp lệ.',
+        ]);
 
-            if ($validator->fails()) {
-                return response()->json(['errors' => $validator->errors()], 422);
-            }
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $data = $validator->validated();
+
+        // Đổi mật khẩu (nếu có)
+       if (isset($data['password'])) {
+            $data['password'] = Hash::make($data['password']);
+        }
+
 
             $data = $validator->validated();
 

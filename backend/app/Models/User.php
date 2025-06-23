@@ -40,4 +40,14 @@ class User extends Authenticatable
         {
             return $this->avatar ? Storage::disk('r2')->url($this->avatar) : null;
         }
+
+        public function followedSellers()
+        {
+            return $this->belongsToMany(Seller::class, 'seller_followers')
+            ->withTimestamps();
+        }
+        public function isFollowingSeller($sellerId)
+        {
+           return $this->followedSellers()->where('seller_id', $sellerId)->exists();
+        }
     }

@@ -5,18 +5,17 @@ namespace App\Http\Controllers;
 use App\Models\Seller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
+use App\Models\User;
 
 class AdminSellerController extends Controller
 {
     // Xem danh sách seller chờ duyệt
-    public function index(){
-
-         $sellers = Seller::with('user')
-            ->where('verification_status', 'pending')
-            ->get();
-
-        return response()->json($sellers);
-    }
+  public function index(){
+     $sellers = User::whereHas('seller')
+                    ->with('seller.business')
+                    ->get();
+            return response()->json($sellers);
+  }
 
     // Xem chi tiết 1 seller
     public function show($id)

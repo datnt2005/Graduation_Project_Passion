@@ -20,7 +20,7 @@
       </div>
       <div v-else class="w-full h-full flex items-center justify-center text-gray-400">
         Không có ảnh sản phẩm
-      </div>
+      </div>  
     </div>
 
     <!-- Thumbnails -->
@@ -106,6 +106,7 @@
   </div>
 </template>
 <script setup>
+
 import { ref, watch, onMounted, onUnmounted } from 'vue';
 
 const props = defineProps({

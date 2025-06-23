@@ -65,7 +65,6 @@
                 -{{ product.discountPercent }}%
               </div>
             </div>
-
             <ProductOptions @update:selected="handleSelectedOptions" />
 
             <div class="flex space-x-4 mt-6">

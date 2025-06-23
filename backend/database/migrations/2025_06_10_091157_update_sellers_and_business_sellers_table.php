@@ -49,6 +49,7 @@ return new class extends Migration
 
         // Update bảng business_sellers
         Schema::table('business_sellers', function (Blueprint $table) {
+
             if (!Schema::hasColumn('business_sellers', 'representative_name')) {
                 $table->string('representative_name')->nullable()->after('business_license');
             }
@@ -85,19 +86,19 @@ return new class extends Migration
     public function down(): void
     {
         // Rollback bảng sellers
-        Schema::table('sellers', function (Blueprint $table) {
-            $table->dropColumn([
-                'seller_type',
-                'identity_card_number',
-                'date_of_birth',
-                'personal_address',
-                'phone_number',
-                'identity_card_file',
-                'verified_at',
-                'deleted_at',
-            ]);
+        // Schema::table('sellers', function (Blueprint $table) {
+        //     $table->dropColumn([
+        //         'seller_type',
+        //         'identity_card_number',
+        //         'date_of_birth',
+        //         'personal_address',
+        //         'phone_number',
+        //         'identity_card_file',
+        //         'verified_at',
+        //         'deleted_at',
+        //     ]);
             // $table->renameColumn('identity_card_file', 'document');
-        });
+        // });
 
         // Rollback bảng business_sellers
         Schema::table('business_sellers', function (Blueprint $table) {

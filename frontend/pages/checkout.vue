@@ -350,7 +350,6 @@ const selectedAddress = ref(null)
 const provinces = ref([])
 const districts = ref([])
 const wards = ref([])
-
 const loadProvinces = async () => {
     const res = await axios.get(`${apiBase}/ghn/provinces`)
     provinces.value = res.data.data

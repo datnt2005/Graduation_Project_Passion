@@ -22,6 +22,7 @@
     "compressorjs": "^1.2.1",
     "defu": "^6.1.4",
     "dompurify": "^3.2.6",
+    "html2pdf.js": "^0.10.3",
     "localStorage": "^1.0.4",
     "lucide-vue-next": "^0.518.0",
     "nuxt": "^3.17.4",
