@@ -17,8 +17,8 @@
       <ul class="space-y-1">
         <!-- Dashboard -->
         <li>
-          <NuxtLink to="/admin/dashboard" class="flex items-center px-4 py-2 hover:bg-gray-800 rounded"
-            :class="route.path === '/admin/dashboard' ? 'bg-gray-800 text-green-400 font-bold' : 'text-white'"
+          <NuxtLink to="/seller/dashboard" class="flex items-center px-4 py-2 hover:bg-gray-800 rounded"
+            :class="route.path === '/seller/dashboard' ? 'bg-gray-800 text-green-400 font-bold' : 'text-white'"
             @click="$emit('close')">
             <svg class="w-4 h-4 mr-3 text-gray-400" fill="none" stroke="currentColor" stroke-width="2"
               viewBox="0 0 24 24">
@@ -92,8 +92,8 @@
                 @click="$emit('close')">Thuộc tính</NuxtLink>
             </li>
             <li>
-              <NuxtLink to="/admin/categories/list-category" class="block py-1 hover:text-white rounded"
-                :class="route.path.startsWith('/admin/categories') ? 'text-green-400 font-bold' : ''"
+              <NuxtLink to="/seller/categories/list-category" class="block py-1 hover:text-white rounded"
+                :class="route.path.startsWith('/seller/categories') ? 'text-green-400 font-bold' : ''"
                 @click="$emit('close')">Danh mục</NuxtLink>
             </li>
             <li>
