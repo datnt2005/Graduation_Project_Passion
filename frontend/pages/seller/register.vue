@@ -290,6 +290,7 @@
 <script setup>
 import { ref, reactive, watch, onMounted, onUnmounted } from 'vue';
 import axios from 'axios';
+import Swal from 'sweetalert2';
 
 const config = useRuntimeConfig();
 const API = config.public.apiBaseUrl;
@@ -305,6 +306,25 @@ const documentFile = ref(null);
 const documentPreview = ref('');
 const businessLicensePreview = ref('');
 const logoSrc = ref('/images/SellerCenter2.png');
+
+const toast = (icon, title) => {
+  Swal.fire({
+    toast: true,
+    position: 'top-end',
+    icon,
+    title,
+    width: '350px',
+    padding: '10px 20px',
+    customClass: { popup: 'text-sm rounded-md shadow-md' },
+    showConfirmButton: false,
+    timer: 3000,
+    timerProgressBar: true,
+    didOpen: (toastEl) => {
+      toastEl.addEventListener('mouseenter', () => Swal.stopTimer());
+      toastEl.addEventListener('mouseleave', () => Swal.resumeTimer());
+    }
+  });
+};
 
 const form = reactive({
   store_name: '',
@@ -362,8 +382,9 @@ async function checkSellerStatus() {
       console.warn('Endpoint /access-token not found. Skipping check.');
     } else if (error.response?.status === 401) {
       localStorage.removeItem('access_token');
-      alert('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+      toast('error', 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
     } else {
+      toast('error', 'Lỗi khi kiểm tra trạng thái người bán');
       console.error('Error checking seller status:', error);
     }
   }
@@ -514,7 +535,7 @@ async function handleSubmit() {
 
   const token = localStorage.getItem('access_token');
   if (!token) {
-    alert('Bạn chưa đăng nhập!');
+    toast('error', 'Bạn chưa đăng nhập!');
     loading.value = false;
     return;
   }
@@ -526,7 +547,7 @@ async function handleSubmit() {
 
     const user = meRes?.data?.data;
     if (!user || !user.id) {
-      alert('Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.');
+      toast('error', 'Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.');
       loading.value = false;
       return;
     }
@@ -571,14 +592,15 @@ async function handleSubmit() {
       }
     });
 
-    alert(response.data.message || 'Thành công!');
+    toast('success', response.data.message || 'Thành công!');
     resetFormData();
+    router.push('/seller/SellerRegisterSuccess');
   } catch (error) {
     const res = error.response;
     Object.assign(errors, res?.data?.errors || {});
     const message = res?.data?.message || res?.data?.error || 'Thất bại!';
     const detail = Object.values(errors).flat().join('\n');
-    alert(detail ? `${message}\n\n${detail}` : message);
+    toast('error', detail ? `${message}\n${detail}` : message);
     console.error('Error:', error);
   } finally {
     loading.value = false;
