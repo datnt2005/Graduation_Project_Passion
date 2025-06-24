@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-=======
-
->>>>>>> 60d7f43 (chau update register.vue seller and controllere sellerController)
 <template>
   <div class="bg-[#eaeff0] min-h-screen p-6">
     <div ref="sellerProfile" class="max-w-6xl mx-auto space-y-6">

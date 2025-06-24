@@ -3,10 +3,6 @@
     <!-- Thanh trên cùng -->
     <header class="bg-[#1BA0E2] text-white text-sm py-2">
       <div class="container mx-auto flex justify-end items-center px-4">
-<<<<<<< HEAD:frontend/components/shared/Header.vue
-  
-=======
->>>>>>> 92f3ea7 (update test case):frontend/components/shared/layouts/Header.vue
         <div class="hidden sm:flex items-center space-x-4">
           <a href="#" class="hover:underline inline-flex items-center gap-1">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24"

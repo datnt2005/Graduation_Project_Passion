@@ -212,6 +212,10 @@ onMounted(async () => {
   const { data } = await axios.get(`${API}/sellers/seller/me`, {
     headers: { Authorization: `Bearer ${token}` }
   });
+  // console.log('✅ Front path:', data.seller.cccd_front);
+  // console.log('✅ Back path:', data.seller.cccd_back);
+
+
   form.value = { ...data.seller };
   form.value.business = data.seller.business || {};
 
@@ -260,44 +264,55 @@ async function submitForm() {
   try {
     const payload = new FormData();
 
+    // Gửi các field đơn (không gửi preview, file, business)
+    const ignore = ['cccd_front', 'cccd_back', 'cccd_front_preview', 'cccd_back_preview', 'business'];
     for (const key in form.value) {
-      if (['business', 'cccd_front_preview', 'cccd_back_preview'].includes(key)) continue;
-      payload.append(key, form.value[key]);
+      if (!ignore.includes(key)) {
+        payload.append(key, form.value[key] ?? '');
+      }
     }
 
+    // Gửi file CCCD mặt trước
     if (form.value.cccd_front instanceof File) {
       payload.append('cccd_front', form.value.cccd_front);
     }
 
+    // Gửi file CCCD mặt sau
     if (form.value.cccd_back instanceof File) {
       payload.append('cccd_back', form.value.cccd_back);
     }
 
-    if (form.value.business) {
-      for (const key in form.value.business) {
-        if (key !== 'business_license_preview') {
-          payload.append(`business[${key}]`, form.value.business[key]);
-        }
+    // Gửi business info (nếu có)
+    for (const key in form.value.business) {
+      if (key === 'business_license_preview') continue;
+      const val = form.value.business[key];
+      if (val instanceof File) {
+        payload.append(`business[${key}]`, val);
+      } else {
+        payload.append(`business[${key}]`, val ?? '');
       }
     }
 
     await axios.post(`${API}/sellers/update`, payload, {
       headers: {
         Authorization: `Bearer ${token}`,
-        'Content-Type': 'multipart/form-data',
+        'Content-Type': 'multipart/form-data'
       },
     });
 
     toast('success', 'Hồ sơ đã được cập nhật!');
     router.push('/seller/seller_profile');
-
-  } catch (error) {
-    console.error('Lỗi khi cập nhật hồ sơ:', error);
-    toast('error', 'Không thể cập nhật hồ sơ!');
-  } finally {
+  }catch (error) {
+  const errors = error.response?.data?.errors || {};
+  const firstError = Object.values(errors)?.[0]?.[0] || 'Có lỗi xảy ra';
+  toast('error', firstError);
+}
+ finally {
     isSubmitting.value = false;
   }
 }
+
+
 
 
 definePageMeta({
