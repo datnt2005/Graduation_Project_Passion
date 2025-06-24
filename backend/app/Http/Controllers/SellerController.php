@@ -56,7 +56,11 @@ class SellerController extends Controller
             'store_name' => 'required_if:seller_type,personal|string|max:255',
             'store_slug' => 'nullable|string|max:255|regex:/^[a-z0-9-]+$/',
             'seller_type' => 'required|in:personal,business',
-            'identity_card_number' => 'required_if:seller_type,personal|string|max:20',
+'identity_card_number' => [
+    'required_if:seller_type,personal',
+    'string',
+    'regex:/^\d{9}$|^\d{12}$/'
+],
             'date_of_birth' => 'required_if:seller_type,personal|date',
             'personal_address' => 'required_if:seller_type,personal|string',
             'phone_number' => [
@@ -91,9 +95,8 @@ class SellerController extends Controller
             'seller_type.required' => 'Loại người bán là bắt buộc.',
             'seller_type.in' => 'Loại người bán phải là "personal" hoặc "business".',
 
-            'identity_card_number.required_if' => 'Vui lòng nhập số CMND/CCCD.',
-            'identity_card_number.string' => 'Số CMND/CCCD phải là chuỗi.',
-            'identity_card_number.max' => 'Số CMND/CCCD không được vượt quá 20 ký tự.',
+            'identity_card_number.regex' => 'Số CMND/CCCD không hợp lệ. Vui lòng nhập đúng 9 hoặc 12 chữ số.',
+
 
             'date_of_birth.required_if' => 'Vui lòng nhập ngày sinh.',
             'date_of_birth.date' => 'Ngày sinh không hợp lệ.',
