@@ -239,12 +239,8 @@ public function update(Request $request)
 }
 
 
-<<<<<<< HEAD
- public function register(Request $request)
 
-=======
    public function register(Request $request)
->>>>>>> 5efcc14 (master marge can fix)
     {
         try {
             $userId = auth()->id();
