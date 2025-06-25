@@ -10,7 +10,6 @@
         </button>
       </div>
 
-      <!-- Filter Bar -->
       <div class="bg-gray-200 px-4 py-3 flex flex-wrap items-center gap-3 text-sm text-gray-700">
         <div class="flex items-center gap-2">
           <span class="font-bold">Tất cả</span>
@@ -19,7 +18,7 @@
         <div class="ml-auto flex flex-wrap gap-2 items-center">
           <div class="relative">
             <input v-model="searchQuery" type="text" placeholder="Tìm kiếm tên cửa hàng, email, sđt..."
-              class="pl-8 pr-3 py-1.5 rounded-md border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 w-full sm:w-64 bg-[#f5f6fa]" />
+              class="pl-8 pr-3 py-1.5 rounded-md border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 w-64" />
             <svg class="absolute left-2.5 top-2 h-4 w-4 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
               <path fill-rule="evenodd"
                 d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
@@ -27,6 +26,18 @@
             </svg>
           </div>
         </div>
+      </div>
+
+      <!-- action -->
+      <div
+        class="bg-gray-200 px-4 py-3 flex flex-wrap items-center gap-3 text-sm text-gray-700 border-t border-gray-300">
+        <select v-model="filterVerifyStatus"
+          class="rounded-md border border-gray-300 py-1.5 pl-3 pr-8 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+          <option value="">Lọc theo trạng thái</option>
+          <option value="pending">Chờ xác minh</option>
+          <option value="verified">Đã xác minh</option>
+          <option value="rejected">Đã từ chối</option>
+        </select>
       </div>
 
       <!-- Table -->
@@ -44,58 +55,41 @@
           </thead>
           <tbody>
             <tr v-for="(user, idx) in filteredSellers" :key="user.id" class="border-b group hover:bg-[#f5f6fa]">
-              <td class="py-3 px-4 text-gray-800 text-sm font-normal">{{ idx + 1 }}</td>
-              <td class="py-3 px-4">
-                <div class="flex items-center gap-3">
-                  <span class="w-9 h-9 rounded-full flex items-center justify-center font-semibold text-base"
-                    :style="`background:${getColor(user.seller?.store_name)}`">
-                    {{ getInitials(user.seller?.store_name) }}
-                  </span>
-                  <div>
-                    <div class="font-semibold text-gray-900">{{ user.seller?.store_name || '-' }}</div>
-
-                    <template v-if="user.seller?.verification_status === 'verified'">
-                      <span
-                        class="inline-block mt-1 px-2 py-0.5 text-xs rounded bg-green-100 text-green-700 font-semibold">
-                        Đã xác minh
-                      </span>
-                    </template>
-
-                    <template v-else-if="user.seller?.verification_status === 'rejected'">
-                      <span class="inline-block mt-1 px-2 py-0.5 text-xs rounded bg-red-100 text-red-700 font-semibold">
-                        Đã bị từ chối
-                      </span>
-                    </template>
-
-                    <template v-else>
-                      <span
-                        class="inline-block mt-1 px-2 py-0.5 text-xs rounded bg-yellow-100 text-yellow-700 font-semibold">
-                        Chờ xác minh
-                      </span>
-                    </template>
-                  </div>
-                </div>
+              <!-- STT -->
+              <td class="py-3 px-4 text-gray-600 font-semibold">
+                {{ idx + 1 }}
               </td>
-              <td class="py-3 px-4 text-gray-800 text-sm font-normal">{{ user.email }}</td>
-              <td class="py-3 px-4 text-gray-800 text-sm font-normal">{{ user.seller?.phone_number || '-' }}</td>
+
+              <!-- Tên cửa hàng -->
+              <td class="py-3 px-4 text-gray-800 text-sm font-normal">
+                {{ user.seller?.store_name || '-' }}
+              </td>
+
+              <!-- Email -->
+              <td class="py-3 px-4 text-gray-800 text-sm font-normal">
+                {{ user.email }}
+              </td>
+
+              <!-- SĐT -->
+              <td class="py-3 px-4 text-gray-800 text-sm font-normal">
+                {{ user.seller?.phone_number || '-' }}
+              </td>
+
+              <!-- Trạng thái -->
               <td class="py-3 px-4 text-center">
                 <span
                   class="inline-block px-3 py-1 text-xs rounded-full font-medium bg-[#f5f6fa] text-gray-700 border border-gray-200"
-                  :class="user.status === 'active' ? '' : 'text-gray-400'">{{ user.status === 'active' ? 'Hoạt động' :
-                    'Không hoạt động' }}</span>
+                  :class="user.status === 'active' ? '' : 'text-gray-400'">
+                  {{ user.status === 'active' ? 'Đang hoạt động' : 'Không hoạt động' }}
+                </span>
               </td>
+
+              <!-- Hành động -->
               <td class="py-3 px-4 text-center">
-                <button @click="openDetail(user)"
-                  class="inline-flex items-center gap-2 px-4 py-1.5 rounded-lg border border-[#1564ff] text-[#1564ff] font-semibold text-sm bg-white hover:bg-[#eaf2ff] shadow transition"
-                  style="box-shadow: 0 1px 3px 0 rgba(21,100,255,0.08);">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" />
-                    <circle cx="12" cy="12" r="3" stroke="currentColor" />
-                  </svg>
+                <button @click="openDetail(user)" class="text-blue-600 hover:underline text-sm font-medium">
                   Xem chi tiết
                 </button>
               </td>
-
             </tr>
             <tr v-if="filteredSellers.length === 0">
               <td colspan="6" class="text-center py-6 text-gray-400">Không có seller nào!</td>
@@ -289,6 +283,8 @@ const imagePreview = ref(null)
 const loadingApprove = ref(false);
 const loadingReject = ref(false);
 const getSellerId = (user) => user?.seller?.id
+const filterVerifyStatus = ref('')
+
 
 const config = useRuntimeConfig();
 const API = config.public.apiBaseUrl;
@@ -325,16 +321,26 @@ const fetchSellers = async () => {
 }
 onMounted(fetchSellers)
 
-// Tìm kiếm theo tên cửa hàng/email/sđt
+
+
 const filteredSellers = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
-  if (!q) return sellers.value
-  return sellers.value.filter(user =>
-    (user.seller?.store_name && user.seller.store_name.toLowerCase().includes(q)) ||
-    (user.email && user.email.toLowerCase().includes(q)) ||
-    (user.phone && user.phone.toLowerCase().includes(q))
-  )
+  const status = filterVerifyStatus.value
+
+  return sellers.value.filter(user => {
+    const matchSearch =
+      !q ||
+      (user.seller?.store_name && user.seller.store_name.toLowerCase().includes(q)) ||
+      (user.email && user.email.toLowerCase().includes(q)) ||
+      (user.phone && user.phone.toLowerCase().includes(q))
+
+    const matchStatus =
+      !status || user.seller?.verification_status === status
+
+    return matchSearch && matchStatus
+  })
 })
+
 
 // Modal chi tiết
 const openDetail = (user) => {
@@ -393,7 +399,7 @@ const approveSeller = async (sellerId) => {
   loadingApprove.value = true
   try {
     loading.value = true
-await axios.post(`${API}/admin/sellers/${sellerId}/verify`)
+    await axios.post(`${API}/admin/sellers/${sellerId}/verify`)
     await fetchSellers()
     detailModal.value = false
     toast('success', 'Seller đã được duyệt!')
