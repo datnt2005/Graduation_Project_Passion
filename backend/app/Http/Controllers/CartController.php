@@ -20,8 +20,7 @@ class CartController extends Controller
     public function index(Request $request)
     {
         try {
-            \Log::info('Cart index accessed');
-            
+
             if (!Auth::check()) {
                 return response()->json([
                     'success' => false,
@@ -30,7 +29,11 @@ class CartController extends Controller
                 ], 401);
             }
 
-            $cart = Cart::with(['items.productVariant.product'])
+            $cart = Cart::with([
+                'items.productVariant.product.seller',
+                'items.productVariant.attributes.values', // Sửa mối quan hệ
+                'items.productVariant.product.productPic'
+            ])
                 ->where('user_id', Auth::id())
                 ->where('status', 'active')
                 ->first();
@@ -40,49 +43,91 @@ class CartController extends Controller
                     'success' => true,
                     'message' => 'Giỏ hàng trống',
                     'data' => [
-                        'items' => [],
+                        'stores' => [],
                         'total' => 0
                     ]
                 ]);
             }
 
-            $total = $cart->items->sum(function ($item) {
-                return $item->price * $item->quantity;
+            // Nhóm items theo cửa hàng (seller)
+            $itemsByStore = $cart->items->groupBy(function ($item) {
+                return $item->productVariant->product->seller->id ?? 0;
             });
 
-            // Debug log
-            \Log::info('Cart items:', $cart->items->toArray());
+            $formattedStores = $itemsByStore->map(function ($items, $sellerId) {
+                $seller = $items->first()->productVariant->product->seller;
 
-            $formattedItems = $cart->items->map(function($item) {
-                $variant = $item->productVariant;
-                $product = $variant ? $variant->product : null;
-                
-                return [
-                    'id' => $item->id,
-                    'quantity' => $item->quantity,
-                    'price' => $item->price,
-                    'product_variant_id' => $item->product_variant_id,
-                    'productVariant' => [
-                        'id' => $variant ? $variant->id : null,
-                        'thumbnail' => $variant ? $variant->thumbnail : null,
+                $storeItems = $items->map(function ($item) {
+                    $variant = $item->productVariant;
+                    $product = $variant->product;
+
+                    // Lấy thuộc tính và giá trị
+                    $attributes = $variant->attributes->map(function ($attr) {
+                        $value = $attr->pivot->value_id
+                            ? $attr->values->find($attr->pivot->value_id)
+                            : null;
+                        return [
+                            'attribute' => $attr->name,
+                            'value' => $value ? $value->value : null
+                        ];
+                    });
+
+                    return [
+                        'id' => $item->id,
+                        'quantity' => $item->quantity,
+                        'price' => number_format($item->price, 0, ',', '.'),
+                        'sale_price' => $variant->sale_price ? number_format($variant->sale_price, 0, ',', '.') : null,
+                        'product_variant_id' => $item->product_variant_id,
+                        'stock' => $variant->quantity ?? 0,
+                        'productVariant' => [
+                            'id' => $variant->id,
+                            'sku' => $variant->sku,
+                            'thumbnail' => $variant->thumbnail
+                                ? config('app.media_base_url') . $variant->thumbnail
+                                : ($product->productPic->first()
+                                    ? config('app.media_base_url') . $product->productPic->first()->imagePath
+                                    : '/default.jpg'),
+                            'attributes' => $attributes
+                        ],
                         'product' => [
-                            'id' => $product ? $product->id : null,
-                            'name' => $product ? $product->name : 'Sản phẩm không xác định'
+                            'id' => $product->id,
+                            'name' => $product->name,
+                            'slug' => $product->slug,
+                            'images' => $product->productPic->map(function ($pic) {
+                                return config('app.media_base_url') . $pic->imagePath;
+                            })->toArray()
                         ]
-                    ]
+                    ];
+                });
+
+                $storeTotal = $storeItems->sum(function ($item) {
+                    $price = $item['sale_price'] ? (float) str_replace('.', '', $item['sale_price']) : (float) str_replace('.', '', $item['price']);
+                    return $price * $item['quantity'];
+                });
+
+                return [
+                    'seller_id' => $seller->id,
+                    'store_name' => $seller->store_name ?? 'N/A',
+                    'store_url' => "/seller/{$seller->store_slug}",
+                    'items' => $storeItems,
+                    'store_total' => number_format($storeTotal, 0, ',', '.')
                 ];
+            })->values();
+
+            $cartTotal = $formattedStores->sum(function ($store) {
+                return (float) str_replace('.', '', $store['store_total']);
             });
 
             return response()->json([
                 'success' => true,
                 'message' => 'Lấy giỏ hàng thành công',
                 'data' => [
-                    'items' => $formattedItems,
-                    'total' => $total
+                    'stores' => $formattedStores,
+                    'total' => number_format($cartTotal, 0, ',', '.')
                 ]
             ]);
         } catch (\Exception $e) {
-            \Log::error('Error in cart index: ' . $e->getMessage(), [
+            Log::error('Error in cart index: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString()
             ]);
             return response()->json([

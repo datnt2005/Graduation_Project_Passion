@@ -204,6 +204,7 @@
       </table>
     </div>
   </div>
+  <Pagination :currentPage="currentPage" :lastPage="lastPage" @change="fetchProducts" />
 
   <!-- Dropdown Portal -->
   <Teleport to="body">
@@ -352,6 +353,8 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
+import Pagination from '~/components/admin-ui/Pagination.vue';
+
 
 definePageMeta({
   layout: 'default-admin'
@@ -388,6 +391,9 @@ const confirmAction = ref(null);
 const config = useRuntimeConfig();
 const apiBase = config.public.apiBaseUrl || 'http://localhost:8000/api';
 const mediaBase = config.public.mediaBaseUrl || 'http://localhost:8000';
+const currentPage = ref(1);
+const lastPage = ref(1);
+const perPage = 10;
 
 // Fetch product counts (total, instock, trash)
 const fetchProductCounts = async () => {
@@ -421,26 +427,25 @@ const fetchProductCounts = async () => {
 };
 
 // Fetch products from API
-const fetchProducts = async () => {
+const fetchProducts = async (page = 1) => {
   try {
     loading.value = true;
-    const endpoint = filterTrash.value === 'trash' ? `${apiBase}/products/trash` : `${apiBase}/products`;
+    currentPage.value = page;
+    const endpoint = filterTrash.value === 'trash'
+      ? `${apiBase}/products/trash?page=${page}&per_page=${perPage}`
+      : `${apiBase}/products?page=${page}&per_page=${perPage}`;
     const response = await fetch(endpoint, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
+      headers: { 'Content-Type': 'application/json' }
     });
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     const data = await response.json();
-    console.log('API Response:', data); // Debug API response
     products.value = data.data?.data || data.data || data || [];
+    lastPage.value = data.data?.last_page || 1;
+    currentPage.value = data.data?.current_page || page;
     if (!products.value.length) {
       showNotificationMessage(filterTrash.value === 'trash' ? 'Không có sản phẩm nào trong thùng rác' : 'Không có sản phẩm nào');
     }
-    // Update counts after fetching products
     await fetchProductCounts();
   } catch (error) {
     console.error('Error fetching products:', error);

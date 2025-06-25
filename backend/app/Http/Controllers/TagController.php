@@ -11,14 +11,24 @@ use Illuminate\Support\Facades\Storage;
 class TagController extends Controller
 {
     // Lấy danh sách tag (API)
-    public function index()
-    {
-        return response()->json([
-            'success' => true,
-            'message' => 'Lấy danh sách thẻ thành công.',
-            'tags' => Tag::all(),
-        ], 200);
-    }
+public function index(Request $request)
+{
+    $perPage = $request->input('per_page', 10); // Mặc định 10, có thể truyền ?per_page=15 nếu muốn
+
+    $tags = Tag::paginate($perPage);
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Lấy danh sách thẻ thành công.',
+        'data' => [
+            'tags' => $tags->items(),
+            'current_page' => $tags->currentPage(),
+            'last_page' => $tags->lastPage(),
+            'total' => $tags->total(),
+        ],
+    ], 200);
+}
+
 
     // Lấy thông tin tag theo ID (API)
     public function show($id)

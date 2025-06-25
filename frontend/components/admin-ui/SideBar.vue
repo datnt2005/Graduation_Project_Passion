@@ -101,9 +101,6 @@
                 :class="route.path.startsWith('/admin/tags') ? 'text-green-400 font-bold' : ''" @click="$emit('close')">
                 Thẻ sản phẩm</NuxtLink>
             </li>
-            <li>
-              <NuxtLink to="#" class="block py-1 hover:text-white rounded" @click="$emit('close')">Đánh giá</NuxtLink>
-            </li>
           </ul>
         </li>
 

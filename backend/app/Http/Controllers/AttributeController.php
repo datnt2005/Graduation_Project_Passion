@@ -11,15 +11,24 @@ use Illuminate\Support\Facades\Validator;
 
 class AttributeController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $attributes = Attribute::with('values')->get();
+        try {
+            $perPage = $request->get('per_page', 10); // Mặc định 10
+            $attributes = Attribute::with('values')->paginate($perPage);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Lấy danh sách thuộc tính thành công.',
-            'data' => $attributes,
-        ], 200);
+            return response()->json([
+                'success' => true,
+                'message' => 'Lấy danh sách thuộc tính thành công.',
+                'data' => $attributes, // Laravel trả về: data, current_page, last_page, total,...
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Đã xảy ra lỗi khi lấy danh sách thuộc tính.',
+                'error' => env('APP_DEBUG') ? $e->getMessage() : null
+            ], 500);
+        }
     }
 
     public function show($id)
@@ -202,7 +211,7 @@ class AttributeController extends Controller
         if (!$attribute) {
             return response()->json([
                 'success' => false,
-                'message' => 'Không tìm thấy thuộc tính.',                
+                'message' => 'Không tìm thấy thuộc tính.',
             ], 404);
         }
 

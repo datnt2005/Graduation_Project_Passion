@@ -1,30 +1,58 @@
-import { ref } from 'vue'
-import { useRedisCart } from './useRedisCart'
+import { ref, computed } from 'vue';
+import { useRuntimeConfig } from '#app';
+import { useRedisCart } from './useRedisCart';
+
+// Define interfaces for cart data
+interface Attribute {
+  attribute: string;
+  value: string;
+}
+
+interface ProductVariant {
+  id: number;
+  sku: string;
+  thumbnail: string;
+  attributes: Attribute[];
+}
+
+interface Product {
+  id: number;
+  name: string;
+  slug: string;
+  images: string[];
+}
 
 interface CartItem {
-  id: number
-  quantity: number
-  price: number
-  product_variant_id: number
-  productVariant: {
-    id: number
-    thumbnail: string
-    product: {
-      id: number
-      name: string
-    }
-  }
+  id: number;
+  quantity: number;
+  price: string;
+  sale_price: string | null;
+  product_variant_id: number;
+  stock: number;
+  productVariant: ProductVariant;
+  product: Product;
+}
+
+interface Store {
+  seller_id: number;
+  store_name: string;
+  store_url: string;
+  items: CartItem[];
+  store_total: string;
+}
+
+interface Cart {
+  stores: Store[];
+  total: string;
 }
 
 export const useCart = () => {
-  const cartItems = ref<CartItem[]>([])
-  const cartTotal = ref<number>(0)
-  const loading = ref<boolean>(false)
-  const error = ref<string | null>(null)
-  const selectedItems = ref<Set<number>>(new Set())
-  const selectAll = ref<boolean>(false)
-  const config = useRuntimeConfig()
-  const mediaBaseUrl = config.public.mediaBaseUrl
+  const cart = ref<Cart>({ stores: [], total: '0' });
+  const loading = ref<boolean>(false);
+  const error = ref<string | null>(null);
+  const selectedItems = ref<Set<number>>(new Set());
+  const config = useRuntimeConfig();
+  const apiBaseUrl = config.public.apiBaseUrl;
 
   // Use Redis cart composable
   const {
@@ -35,347 +63,318 @@ export const useCart = () => {
     updateRedisQuantity,
     removeFromRedisCart,
     clearRedisCart,
-    mergeWithUserCart
-  } = useRedisCart()
+    mergeWithUserCart,
+  } = useRedisCart();
 
-  // Calculate total based on current items
-  const calculateTotal = () => {
-    cartTotal.value = cartItems.value.reduce((total, item) => {
-      return total + (item.price * item.quantity)
-    }, 0)
-  }
+  // Compute total number of items
+  const totalItems = computed(() => {
+    return cart.value.stores.reduce((sum, store) => sum + store.items.length, 0);
+  });
 
-  // Toggle select all items
-  const toggleSelectAll = () => {
-    selectAll.value = !selectAll.value
-    if (selectAll.value) {
-      cartItems.value.forEach(item => selectedItems.value.add(item.id))
-    } else {
-      selectedItems.value.clear()
+  // Get all item IDs in the cart
+  const allItemIds = computed(() => {
+    return cart.value.stores.flatMap(store => store.items.map(item => item.id));
+  });
+
+  // Handle select all
+  const selectAll = computed({
+    get: () => {
+      if (!totalItems.value) return false;
+      return allItemIds.value.every(id => selectedItems.value.has(id));
+    },
+    set: (value: boolean) => {
+      selectedItems.value = new Set(value ? allItemIds.value : []);
+    },
+  });
+
+  // Sync selected items after cart updates
+  const syncSelectedItems = () => {
+    const validIds = new Set(allItemIds.value);
+    const newSelected = new Set([...selectedItems.value].filter(id => validIds.has(id)));
+    if (newSelected.size !== selectedItems.value.size) {
+      selectedItems.value = newSelected;
     }
-  }
+  };
 
-  // Toggle select single item
-  const toggleSelectItem = (itemId: number) => {
-    if (selectedItems.value.has(itemId)) {
-      selectedItems.value.delete(itemId)
-      selectAll.value = false
-    } else {
-      selectedItems.value.add(itemId)
-      selectAll.value = cartItems.value.every(item => selectedItems.value.has(item.id))
-    }
-  }
-
+  // Fetch cart data
   const fetchCart = async () => {
-    const token = localStorage.getItem('access_token')
+    const token = localStorage.getItem('access_token');
     if (!token) {
-      // Use Redis cart for non-authenticated users
-      await fetchRedisCart()
-      cartItems.value = redisCartItems.value
-      cartTotal.value = redisCartTotal.value
-      return
+      await fetchRedisCart();
+      cart.value = {
+        stores: redisCartItems.value.length
+          ? [{
+              seller_id: 0,
+              store_name: 'Khách',
+              store_url: '/store/guest',
+              items: redisCartItems.value,
+              store_total: redisCartTotal.value,
+            }]
+          : [],
+        total: redisCartTotal.value,
+      };
+      syncSelectedItems();
+      return;
     }
 
-    loading.value = true
-    error.value = null
+    loading.value = true;
+    error.value = null;
 
     try {
-      console.log('Fetching cart from:', `${config.public.apiBaseUrl}/cart`)
-      const res = await fetch(`${config.public.apiBaseUrl}/cart`, {
+      const res = await fetch(`${apiBaseUrl}/cart`, {
         method: 'GET',
         headers: {
-          'Accept': 'application/json',
+          Accept: 'application/json',
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
           'X-Requested-With': 'XMLHttpRequest',
-          'Origin': window.location.origin
+          Origin: window.location.origin,
         },
-        credentials: 'include'
-      })
+        credentials: 'include',
+      });
 
-      console.log('Cart response status:', res.status)
-      
       if (!res.ok) {
         if (res.status === 401) {
-          console.log('Unauthorized: Token expired or invalid')
-          error.value = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
-          localStorage.removeItem('access_token')
-          // Fallback to Redis cart when session expires
-          await fetchRedisCart()
-          cartItems.value = redisCartItems.value
-          cartTotal.value = redisCartTotal.value
-          return
+          error.value = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+          localStorage.removeItem('access_token');
+          await fetchRedisCart();
+          cart.value = {
+            stores: redisCartItems.value.length
+              ? [{
+                  seller_id: 0,
+                  store_name: 'Khách',
+                  store_url: '/store/guest',
+                  items: redisCartItems.value,
+                  store_total: redisCartTotal.value,
+                }]
+              : [],
+            total: redisCartTotal.value,
+          };
+          syncSelectedItems();
+          return;
         }
-        
-        const errorData = await res.json().catch(() => ({}))
-        console.error('API Error:', errorData)
-        throw new Error(errorData.message || 'Lỗi khi lấy giỏ hàng')
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Lỗi khi lấy giỏ hàng');
       }
 
-      const data = await res.json()
-      console.log('Cart data:', data)
-      
+      const data = await res.json();
       if (data.success) {
-        cartItems.value = data.data.items || []
-        calculateTotal()
+        cart.value = {
+          stores: data.data.stores || [],
+          total: data.data.total || '0',
+        };
+        syncSelectedItems();
       } else {
-        throw new Error(data.message || 'Lỗi khi lấy giỏ hàng')
+        throw new Error(data.message || 'Lỗi khi lấy giỏ hàng');
       }
     } catch (err: any) {
-      console.error('Cart fetch error:', err)
-      error.value = err.message || 'Không thể lấy dữ liệu giỏ hàng'
-      // Fallback to Redis cart on error
-      await fetchRedisCart()
-      cartItems.value = redisCartItems.value
-      cartTotal.value = redisCartTotal.value
+      error.value = err.message || 'Không thể lấy dữ liệu giỏ hàng';
+      await fetchRedisCart();
+      cart.value = {
+        stores: redisCartItems.value.length
+          ? [{
+              seller_id: 0,
+              store_name: 'Khách',
+              store_url: '/store/guest',
+              items: redisCartItems.value,
+              store_total: redisCartTotal.value,
+            }]
+          : [],
+        total: redisCartTotal.value,
+      };
+      syncSelectedItems();
     } finally {
-      loading.value = false
+      loading.value = false;
     }
-  }
+  };
 
+  // Update item quantity
   const updateQuantity = async (itemId: number, newQuantity: number) => {
-    const token = localStorage.getItem('access_token')
+    const token = localStorage.getItem('access_token');
     if (!token) {
-      // Use Redis cart for non-authenticated users
-      await updateRedisQuantity(itemId, newQuantity)
-      cartItems.value = redisCartItems.value
-      cartTotal.value = redisCartTotal.value
-      return
+      await updateRedisQuantity(itemId, newQuantity);
+      await fetchCart();
+      return;
     }
-
-    // Find the item
-    const itemIndex = cartItems.value.findIndex(item => item.id === itemId)
-    if (itemIndex === -1) return
-
-    // Store old quantity for rollback if needed
-    const oldQuantity = cartItems.value[itemIndex].quantity
-
-    // Optimistic update
-    cartItems.value[itemIndex].quantity = newQuantity
-    calculateTotal()
 
     try {
-      const res = await fetch(`${config.public.apiBaseUrl}/cart/items/${itemId}`, {
+      const res = await fetch(`${apiBaseUrl}/cart/items/${itemId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ quantity: newQuantity })
-      })
+        body: JSON.stringify({ quantity: newQuantity }),
+      });
 
       if (!res.ok) {
-        // Rollback on error
-        cartItems.value[itemIndex].quantity = oldQuantity
-        calculateTotal()
-
         if (res.status === 401) {
-          error.value = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
-          localStorage.removeItem('access_token')
-          // Fallback to Redis cart when session expires
-          await updateRedisQuantity(itemId, newQuantity)
-          cartItems.value = redisCartItems.value
-          cartTotal.value = redisCartTotal.value
-          return
+          error.value = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+          localStorage.removeItem('access_token');
+          await updateRedisQuantity(itemId, newQuantity);
+          await fetchCart();
+          return;
         }
-        throw new Error('Lỗi khi cập nhật số lượng')
+        throw new Error('Lỗi khi cập nhật số lượng');
       }
 
-      const data = await res.json()
+      const data = await res.json();
       if (!data.success) {
-        // Rollback on error
-        cartItems.value[itemIndex].quantity = oldQuantity
-        calculateTotal()
-        throw new Error(data.message || 'Lỗi khi cập nhật số lượng')
+        throw new Error(data.message || 'Lỗi khi cập nhật số lượng');
       }
-    } catch (err: any) {
-      console.error('Lỗi:', err)
-      error.value = err.message || 'Không thể cập nhật số lượng'
-      setTimeout(() => {
-        error.value = null
-      }, 3000)
-    }
-  }
 
+      await fetchCart();
+    } catch (err: any) {
+      error.value = err.message || 'Không thể cập nhật số lượng';
+      setTimeout(() => {
+        error.value = null;
+      }, 3000);
+    }
+  };
+
+  // Remove item
   const removeItem = async (itemId: number) => {
-    const token = localStorage.getItem('access_token')
+    const token = localStorage.getItem('access_token');
+    selectedItems.value.delete(itemId);
+
     if (!token) {
-      // Use Redis cart for non-authenticated users
-      await removeFromRedisCart(itemId)
-      cartItems.value = redisCartItems.value
-      cartTotal.value = redisCartTotal.value
-      return
+      await removeFromRedisCart(itemId);
+      await fetchCart();
+      return;
     }
-
-    // Find the item
-    const itemIndex = cartItems.value.findIndex(item => item.id === itemId)
-    if (itemIndex === -1) return
-
-    // Store item for rollback if needed
-    const removedItem = cartItems.value[itemIndex]
-
-    // Optimistic update
-    cartItems.value.splice(itemIndex, 1)
-    calculateTotal()
 
     try {
-      const res = await fetch(`${config.public.apiBaseUrl}/cart/items/${itemId}`, {
+      const res = await fetch(`${apiBaseUrl}/cart/items/${itemId}`, {
         method: 'DELETE',
         headers: {
-          Authorization: `Bearer ${token}`
-        }
-      })
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       if (!res.ok) {
-        // Rollback on error
-        cartItems.value.splice(itemIndex, 0, removedItem)
-        calculateTotal()
-
         if (res.status === 401) {
-          error.value = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
-          localStorage.removeItem('access_token')
-          // Fallback to Redis cart when session expires
-          await removeFromRedisCart(itemId)
-          cartItems.value = redisCartItems.value
-          cartTotal.value = redisCartTotal.value
-          return
+          error.value = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+          localStorage.removeItem('access_token');
+          await removeFromRedisCart(itemId);
+          await fetchCart();
+          return;
         }
-        throw new Error('Lỗi khi xóa sản phẩm')
+        throw new Error('Lỗi khi xóa sản phẩm');
       }
-    } catch (err: any) {
-      console.error('Lỗi:', err)
-      error.value = err.message || 'Không thể xóa sản phẩm'
-      setTimeout(() => {
-        error.value = null
-      }, 3000)
-    }
-  }
 
+      await fetchCart();
+    } catch (err: any) {
+      error.value = err.message || 'Không thể xóa sản phẩm';
+      setTimeout(() => {
+        error.value = null;
+      }, 3000);
+    }
+  };
+
+  // Clear cart
   const clearCart = async () => {
-    const token = localStorage.getItem('access_token')
+    const token = localStorage.getItem('access_token');
+    selectedItems.value.clear();
     if (!token) {
-      // Use Redis cart for non-authenticated users
-      await clearRedisCart()
-      cartItems.value = []
-      cartTotal.value = 0
-      return
+      await clearRedisCart();
+      cart.value = { stores: [], total: '0' };
+      return;
     }
-
-    // Store items for rollback if needed
-    const oldItems = [...cartItems.value]
-
-    // Optimistic update
-    cartItems.value = []
-    cartTotal.value = 0
 
     try {
-      const res = await fetch(`${config.public.apiBaseUrl}/cart`, {
+      const res = await fetch(`${apiBaseUrl}/cart`, {
         method: 'DELETE',
         headers: {
-          Authorization: `Bearer ${token}`
-        }
-      })
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       if (!res.ok) {
-        // Rollback on error
-        cartItems.value = oldItems
-        calculateTotal()
-
         if (res.status === 401) {
-          error.value = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
-          localStorage.removeItem('access_token')
-          // Fallback to Redis cart when session expires
-          await clearRedisCart()
-          cartItems.value = []
-          cartTotal.value = 0
-          return
+          error.value = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+          localStorage.removeItem('access_token');
+          await clearRedisCart();
+          cart.value = { stores: [], total: '0' };
+          return;
         }
-        throw new Error('Lỗi khi xóa giỏ hàng')
+        throw new Error('Lỗi khi xóa giỏ hàng');
       }
+
+      await fetchCart();
     } catch (err: any) {
-      console.error('Lỗi:', err)
-      error.value = err.message || 'Không thể xóa giỏ hàng'
+      error.value = err.message || 'Không thể xóa giỏ hàng';
       setTimeout(() => {
-        error.value = null
-      }, 3000)
+        error.value = null;
+      }, 3000);
     }
-  }
+  };
 
   // Add item to cart
   const addItem = async (productVariantId: number, quantity: number) => {
-    const token = localStorage.getItem('access_token')
+    const token = localStorage.getItem('access_token');
     if (!token) {
-      // Use Redis cart for non-authenticated users
-      await addToRedisCart(productVariantId, quantity)
-      cartItems.value = redisCartItems.value
-      cartTotal.value = redisCartTotal.value
-      return
+      await addToRedisCart(productVariantId, quantity);
+      await fetchCart();
+      return;
     }
 
-    loading.value = true
-    error.value = null
+    loading.value = true;
+    error.value = null;
 
     try {
-      const res = await fetch(`${config.public.apiBaseUrl}/cart/add`, {
+      const res = await fetch(`${apiBaseUrl}/cart/add`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ product_variant_id: productVariantId, quantity })
-      })
+        body: JSON.stringify({ product_variant_id: productVariantId, quantity }),
+      });
 
       if (!res.ok) {
         if (res.status === 401) {
-          error.value = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
-          localStorage.removeItem('access_token')
-          // Fallback to Redis cart when session expires
-          await addToRedisCart(productVariantId, quantity)
-          cartItems.value = redisCartItems.value
-          cartTotal.value = redisCartTotal.value
-          return
+          error.value = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+          localStorage.removeItem('access_token');
+          await addToRedisCart(productVariantId, quantity);
+          await fetchCart();
+          return;
         }
-        throw new Error('Lỗi khi thêm vào giỏ hàng')
+        throw new Error('Lỗi khi thêm vào giỏ hàng');
       }
 
-      const data = await res.json()
+      const data = await res.json();
       if (data.success) {
-        await fetchCart()
+        await fetchCart();
       } else {
-        throw new Error(data.message || 'Lỗi khi thêm vào giỏ hàng')
+        throw new Error(data.message || 'Lỗi khi thêm vào giỏ hàng');
       }
     } catch (err: any) {
-      console.error('Lỗi:', err)
-      error.value = err.message || 'Không thể thêm vào giỏ hàng'
-      // Fallback to Redis cart on error
-      await addToRedisCart(productVariantId, quantity)
-      cartItems.value = redisCartItems.value
-      cartTotal.value = redisCartTotal.value
+      error.value = err.message || 'Không thể thêm vào giỏ hàng';
+      await addToRedisCart(productVariantId, quantity);
+      await fetchCart();
     } finally {
-      loading.value = false
+      loading.value = false;
     }
-  }
+  };
 
-  // Merge Redis cart with user cart after login
+  // Merge Redis cart with user cart
   const mergeCart = async () => {
-    await mergeWithUserCart()
-    await fetchCart()
-  }
+    await mergeWithUserCart();
+    await fetchCart();
+  };
 
   return {
-    cartItems,
-    cartTotal,
+    cart,
     loading,
     error,
     selectedItems,
     selectAll,
+    totalItems,
     fetchCart,
     updateQuantity,
     removeItem,
     clearCart,
-    toggleSelectAll,
-    toggleSelectItem,
     addItem,
-    mergeCart
-  }
-}
+    mergeCart,
+  };
+};
