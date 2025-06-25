@@ -30,6 +30,7 @@ use App\Http\Controllers\CartController;
 use App\Http\Controllers\SellerController;
 use App\Http\Controllers\AdminSellerController;
 use App\Http\Controllers\SellerFollowerController;
+use App\Http\Controllers\UserOrderController;
 
 
 
@@ -55,7 +56,7 @@ Route::prefix('notifications')->group(function () {
     Route::post('/mark-read', [NotificationController::class, 'markAsRead']);
     Route::delete('/{id}', [NotificationController::class, 'destroy']);
     Route::post('/send-multiple', [NotificationController::class, 'sendMultiple']);
-}); 
+});
 
 //tags
 Route::prefix('tags')->group(function () {
@@ -113,6 +114,13 @@ Route::prefix('order-items')->group(function () {
     Route::post('/', [OrderItemController::class, 'store']);
     Route::put('/{id}', [OrderItemController::class, 'update']);
     Route::delete('/{id}', [OrderItemController::class, 'destroy']);
+});
+
+// user Orrderss
+Route::middleware('auth:sanctum')->prefix('user/orders')->controller(UserOrderController::class)->group(function () {
+    Route::get('/', 'index');
+    Route::post('{order}/cancel', 'cancel');
+    Route::get('{order}/reorder', 'reorder');
 });
 
 // Payments
