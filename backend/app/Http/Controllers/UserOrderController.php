@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class UserOrderController extends Controller
 {
@@ -38,7 +39,7 @@ class UserOrderController extends Controller
                     'order_items' => $order->orderItems->map(function ($item) {
                         return [
                             'id' => $item->id,
-                            'product' => optional($item->product)->only(['id', 'name', 'thumbnail']),
+                            'product' => optional($item->product)->only(['id', 'name', 'thumbnail', 'slug']),
                             'variant' => optional($item->productVariant)->only(['id', 'name']),
                             'quantity' => $item->quantity,
                             'price' => number_format($item->price, 0, '', ',') . ' đ',
@@ -60,7 +61,6 @@ class UserOrderController extends Controller
     }
 
     // show đơn hàng
-
     public function show(Order $order)
     {
         // 1. Kiểm tra quyền truy cập
@@ -105,7 +105,7 @@ class UserOrderController extends Controller
             'items' => $order->orderItems->map(function ($item) {
                 $product = $item->product;
                 $image = optional($product->productPic->first())->url;
-
+                $slug = $item->slug ?? $product->slug;
                 return [
                     'product_name' => $product->name ?? '',
                     'variant' => $item->productVariant->name ?? '',
@@ -113,6 +113,7 @@ class UserOrderController extends Controller
                     'quantity' => $item->quantity,
                     'price' => $item->price,
                     'total' => $item->quantity * $item->price,
+                    'slug' => $slug,
                 ];
             })->values(),
 
@@ -145,24 +146,4 @@ class UserOrderController extends Controller
         return response()->json(['message' => 'Đã hủy đơn hàng thành công']);
     }
 
-    // Mua lại đơn hàng
-    public function reorder(Order $order)
-    {
-        if ($order->user_id !== Auth::id()) {
-            return response()->json(['message' => 'Không có quyền thực hiện'], 403);
-        }
-
-        $items = $order->orderItems->map(function ($item) {
-            return [
-                'product_id' => $item->product_id,
-                'variant_id' => $item->product_variant_id,
-                'quantity' => $item->quantity,
-            ];
-        });
-
-        return response()->json([
-            'message' => 'Lấy danh sách sản phẩm mua lại thành công',
-            'items' => $items,
-        ]);
-    }
 }

@@ -55,9 +55,9 @@
                 <tr v-for="(order, index) in filteredOrders" :key="order.id" class="hover:bg-gray-50 border-t">
                   <td class="px-4 py-3">{{ index + 1 }}</td>
                   <td class="px-4 py-3 font-semibold text-blue-600">#ORD{{ String(order.id).padStart(3, '0') }}</td>
-                 <td class="px-4 py-3 text-gray-800">
-                  {{ order.user?.name || '---' }}
-                </td>
+                  <td class="px-4 py-3 text-gray-800">
+                    {{ order.user?.name || '---' }}
+                  </td>
                   <td class="px-4 py-3">{{ order.address?.phone || '-' }}</td>
                   <td class="px-4 py-3">
                     <span :class="statusClass(order.status)"
@@ -76,11 +76,13 @@
                         @click="confirmCancel(order.id)">
                         <i class="fas fa-times-circle"></i> Hủy
                       </button>
-                      <button v-if="order.status === 'cancelled'"
-                        class="text-xs px-3 py-1 text-orange-600 hover:bg-orange-50 flex items-center gap-1"
-                        @click="reorder(order.id)">
+                      <router-link v-if="order.status === 'cancelled' && order.order_items?.[0]?.product?.slug"
+                        :to="`/products/${order.order_items[0].product.slug}`"
+                        class="text-xs px-3 py-1 text-orange-600 hover:bg-orange-50 flex items-center gap-1">
                         <i class="fas fa-undo-alt"></i> Mua lại
-                      </button>
+                      </router-link>
+
+
                       <button class="text-xs px-3 py-1 text-gray-600 hover:bg-gray-50 flex items-center gap-1"
                         @click="printOrder(order.id)">
                         <i class="fas fa-print"></i> In hóa đơn
@@ -121,11 +123,12 @@
                   @click="confirmCancel(order.id)">
                   <i class="fas fa-times-circle"></i> Hủy
                 </button>
-                <button v-if="order.status === 'cancelled'"
-                  class="text-xs px-3 py-1 text-orange-600 hover:bg-orange-50 flex items-center gap-1"
-                  @click="reorder(order.id)">
+                <router-link v-if="order.status === 'cancelled' && order.order_items?.[0]?.product?.id"
+                  :to="`/products/${order.order_items[0].product.slug}`"
+                  class="text-xs px-3 py-1 text-orange-600 hover:bg-orange-50 flex items-center gap-1">
                   <i class="fas fa-undo-alt"></i> Mua lại
-                </button>
+                </router-link>
+
                 <button class="text-xs px-3 py-1 text-gray-600 hover:bg-gray-50 flex items-center gap-1"
                   @click="printOrder(order.id)">
                   <i class="fas fa-print"></i> In hóa đơn
@@ -566,7 +569,9 @@ const printOrder = (id) => {
 // Computed
 const filteredOrders = computed(() => {
   if (selectedTab.value === 'all') return orders.value
+
   return orders.value.filter(o => o.status === selectedTab.value)
+
 })
 
 // Lifecycle
@@ -576,7 +581,7 @@ onMounted(async () => {
     await Promise.all([
       loadProvinces(),
       loadDistricts(),
-      loadWards()
+      loadWards(),
     ])
   }
 })
