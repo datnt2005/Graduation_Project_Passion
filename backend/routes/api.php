@@ -121,6 +121,7 @@ Route::middleware('auth:sanctum')->prefix('user/orders')->controller(UserOrderCo
     Route::get('/', 'index');
     Route::post('{order}/cancel', 'cancel');
     Route::get('{order}/reorder', 'reorder');
+    Route::get('/{order}', 'show');
 });
 
 // Payments
