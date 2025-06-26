@@ -3,10 +3,11 @@ import Swal from 'sweetalert2'
 import { useCart } from '~/composables/useCart'
 import { usePayment } from '~/composables/usePayment'
 import { useDiscount } from '~/composables/useDiscount'
+
 export function useCheckout(config, shippingRef, selectedShippingMethod, selectedAddress, provinces, districts, wards) {
   const { cartItems, cartTotal, loading, error, fetchCart } = useCart()
   const { paymentMethods, loading: paymentLoading, error: paymentError, fetchPaymentMethods, processPayment } = usePayment()
-  const { discounts, selectedDiscounts, loading: discountLoading, error: discountError, fetchDiscounts, applyDiscount, removeDiscount, calculateDiscount } = useDiscount()
+  const { discounts, selectedDiscounts, loading: discountLoading, error: discountError, fetchDiscounts, applyDiscount, removeDiscount, calculateDiscount, getShippingDiscount } = useDiscount()
 
   const selectedPaymentMethod = ref('')
 
@@ -27,7 +28,7 @@ export function useCheckout(config, shippingRef, selectedShippingMethod, selecte
         toastEl.addEventListener('mouseleave', () => Swal.resumeTimer());
       }
     });
-  }
+  } 
   const showErrorNotification = (message) => {
     Swal.fire({
       toast: true,
@@ -47,17 +48,39 @@ export function useCheckout(config, shippingRef, selectedShippingMethod, selecte
     });
   }
 
+  const parsePrice = (priceStr) => {
+    return Number(priceStr.replace(/[^\d]/g, '')) || 0;
+  };
+
   const formatPrice = (price) => {
     if (!price) return '0'
     return price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')
   }
 
-  const finalTotal = computed(() => {
-    const couponDiscount = calculateDiscount(cartTotal.value || 0)
-    const total = Math.max(0, (cartTotal.value || 0) - couponDiscount)
-    return total
+const finalTotal = computed(() => {
+  const baseTotal = cartTotal.value
+  const productDiscount = calculateDiscount(baseTotal)
+  const shippingDiscount = getShippingDiscount(baseTotal)
+
+  const rawShippingFee = parsePrice(shippingRef.value?.fees?.[selectedShippingMethod.value] || '0đ')
+  const finalShippingFee = Math.max(0, rawShippingFee - shippingDiscount)
+
+  return Math.max(0, baseTotal - productDiscount + finalShippingFee)
+})
+
+  const rawShippingFee = computed(() => {
+    const raw = shippingRef.value?.fees?.[selectedShippingMethod.value]
+    return raw ? Number(String(raw).replace(/[^\d]/g, '')) : 0
   })
-  const formattedFinalTotal = computed(() => formatPrice(finalTotal.value) + ' đ')
+
+  const formattedFinalTotal = computed(() =>
+    formatPrice(finalTotal.value) + ' đ'
+  )
+  const finalShippingFee = computed(() => {
+    const discount = getShippingDiscount(cartTotal.value)
+    return Math.max(0, rawShippingFee.value - discount)
+  })
+
   const formattedCartTotal = computed(() => formatPrice(cartTotal.value) + ' đ')
 
   const getPaymentMethodLabel = (methodName) => {
@@ -80,10 +103,10 @@ export function useCheckout(config, shippingRef, selectedShippingMethod, selecte
     }
 
     const serviceId = selectedShippingMethod?.value || shippingRef?.value?.selectedMethod
-if (!serviceId) {
-  showErrorNotification('Vui lòng chọn hình thức giao hàng')
-  return
-}
+  if (!serviceId) {
+    showErrorNotification('Vui lòng chọn hình thức giao hàng')
+    return
+  }
 
 
   try {
@@ -116,6 +139,7 @@ if (!serviceId) {
         product_id: item.productVariant?.product?.id,
         product_variant_id: item.product_variant_id,
         quantity: item.quantity,
+        // attribute_value: item.value,
         price: item.price
       }))
     }
@@ -168,9 +192,15 @@ if (!serviceId) {
     fetchDiscounts,
     applyDiscount,
     removeDiscount,
+    formatPrice,
     calculateDiscount,
+    getShippingDiscount,
+    rawShippingFee,
+    finalShippingFee,
     selectedPaymentMethod,
     formatPrice,
+    parsePrice,
+    finalShippingFee,
     finalTotal,
     formattedFinalTotal,
     formattedCartTotal,

@@ -1,9 +1,10 @@
 <template>
   <aside class="hidden md:block w-1/6 bg-white p-2 rounded shadow-sm">
     <ul class="space-y-2">
-      <li
-        v-for="(item, index) in categories"
+      <NuxtLink v-for="(item, index) in categories"
         :key="index"
+        :to="`/shop/${item.slug}`">
+      <li
         class="flex items-center gap-4 bg-white p-2 rounded-lg hover:bg-gray-200 transition-all cursor-pointer"
       >
         <img
@@ -13,6 +14,7 @@
         />
         <span class="text-sm font-medium">{{ item.name }}</span>
       </li>
+    </NuxtLink>
     </ul>
     <ul class="mt-4 space-y-2">
       <li>
@@ -54,7 +56,7 @@ const categories = ref([]);
 
 const fetchCategories = async function() {
   try{
-    const response = await fetch(`${apiBase}/categories`, {
+    const response = await fetch(`${apiBase}/categories/parents`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

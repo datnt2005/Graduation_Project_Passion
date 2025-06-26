@@ -7,6 +7,9 @@ composer install
 composer require illuminate/filesystem
 php artisan migrate
 
+# frontend
+npm install vue-slider-component
+
 # Chạy queue worker (giúp gửi mail nhanh, xử lý job nền)
 php artisan queue:work
 

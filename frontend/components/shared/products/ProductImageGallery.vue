@@ -1,117 +1,137 @@
 <template>
-  <div class="flex flex-col items-center md:items-start md:w-[480px]">
-    <!-- Main image -->
+  <div class="flex flex-col items-center md:items-start w-full max-w-[480px] mx-auto">
+    <!-- Main Image -->
     <div
-      class="w-[480px] h-[480px] border border-gray-200 relative overflow-hidden"
+      class="relative w-full h-[300px] sm:h-[400px] md:h-[480px] bg-white border border-gray-200 rounded-xl shadow-md overflow-hidden group transition-all duration-300 hover:shadow-lg"
       role="region"
       aria-label="Product image gallery"
       ref="mainImageContainer"
-      @click="toggleZoom"
+      @click="openLightbox"
       @mousemove="handleMouseMove"
       @mouseleave="handleMouseLeave"
       :class="{ 'cursor-magnify': !isZooming, 'cursor-zoom-out': isZooming }"
-      :aria-pressed="isZooming"
       tabindex="0"
-      @keydown.enter="toggleZoom"
+      @keydown.enter="openLightbox"
     >
       <img
-        v-if="images.length"
-        :src="`${mediaBase}${images[currentIndex].src}`"
-        :alt="images[currentIndex].alt"
-        class="w-full h-full object-contain transition-transform duration-200"
-        :class="{ 'scale-200': isZooming }"
+        v-if="images.length > 0"
+        :src="`${mediaBase}${images[currentImage].src}`"
+        :alt="images[currentImage].alt || 'Ảnh sản phẩm'"
+        class="w-full h-full object-contain p-6 transition-transform duration-300"
+        :class="{ 'scale-200': isZooming, 'group-hover:scale-105': !isZooming }"
         :style="zoomStyle"
+        @error="handleImageError(currentImage)"
         loading="lazy"
         ref="mainImage"
       />
       <div
-        v-else
-        class="w-full h-full flex items-center justify-center text-gray-500"
+        v-if="images.length > 0"
+        class="absolute bottom-3 right-3 bg-gray-900 bg-opacity-60 text-white text-xs px-2 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200"
       >
-        Không có hình ảnh
+        Phóng to
+      </div>
+      <div
+        v-else
+        class="w-full h-full flex items-center justify-center text-gray-400 text-lg"
+      >
+        Không có ảnh sản phẩm
       </div>
     </div>
+
     <!-- Thumbnails -->
     <div
-      class="mt-4 flex items-center space-x-2 overflow-x-auto thumbs w-full max-w-[480px]"
-      @mouseenter="isGalleryHovered = true; $emit('pause-auto-slide')"
-      @mouseleave="isGalleryHovered = false; $emit('start-auto-slide')"
+      v-if="images.length > 0"
+      class="mt-4 flex items-center gap-2 w-full max-w-[480px]"
+      @mouseenter="pauseAutoSlide"
+      @mouseleave="startAutoSlide"
     >
       <button
-        @click="$emit('prev-image')"
-        :disabled="!images.length || currentIndex === 0"
-        class="w-8 h-24 border border-gray-300 rounded-md text-gray-600 hover:bg-gray-100 flex items-center justify-center"
-        aria-label="Previous image"
+        @click="prevImage"
+        :disabled="currentImage === 0"
+        class="w-10 h-16 bg-white border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-100 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+        aria-label="Ảnh trước"
+        type="button"
       >
         <i class="fas fa-chevron-left"></i>
       </button>
-      <img
-        v-for="(img, index) in images"
-        :key="img.src"
-        :src="`${mediaBase}${img.src}`"
-        :alt="img.alt"
-        :class="[
-          'w-16 h-24 object-cover rounded-md cursor-pointer border',
-          currentIndex === index ? 'border-red-500' : 'border-transparent',
-        ]"
-        @click="$emit('update:current-index', index)"
-        loading="lazy"
-        role="button"
-        :aria-label="`Select image ${index + 1}`"
-      />
+
+      <div class="flex-1 flex gap-2 overflow-x-auto thumbs scroll-smooth hide-scrollbar">
+        <img
+          v-for="(img, index) in images"
+          :key="img.src"
+          :src="`${mediaBase}${img.src}`"
+          :alt="img.alt || `Ảnh thu nhỏ ${index + 1}`"
+          class="min-w-[64px] w-16 h-16 object-cover rounded-lg cursor-pointer border transition-all duration-200 hover:scale-105 hover:shadow-md"
+          :class="{
+            'border-blue-500 ring-2 ring-blue-200': index === currentImage,
+            'border-gray-200 hover:border-gray-400': index !== currentImage,
+          }"
+          @click="setCurrentImage(index)"
+          @mouseover="setCurrentImage(index)"
+          @error="handleImageError(index)"
+          loading="lazy"
+          role="button"
+          :aria-label="`Chọn ảnh ${index + 1}`"
+        />
+      </div>
+
       <button
-        @click="$emit('next-image')"
-        :disabled="!images.length || currentIndex === images.length - 1"
-        class="w-8 h-24 border border-gray-300 rounded-md text-gray-600 hover:bg-gray-100 flex items-center justify-center"
-        aria-label="Next image"
+        @click="nextImage"
+        :disabled="currentImage === images.length - 1"
+        class="w-10 h-16 bg-white border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-100 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+        aria-label="Ảnh tiếp theo"
+        type="button"
       >
         <i class="fas fa-chevron-right"></i>
       </button>
     </div>
 
-    <!-- Full-screen modal -->
+    <!-- Lightbox -->
     <div
-      v-if="isModalOpen"
-      class="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center"
+      v-if="isLightboxOpen && images.length > 0"
+      class="fixed inset-0 bg-black bg-opacity-85 z-50 flex items-center justify-center animate-fade-in"
       role="dialog"
       aria-label="Full-screen image gallery"
       tabindex="-1"
-      ref="modal"
+      ref="lightbox"
+      @click.self="closeLightbox"
       @keydown.left="prevImage"
       @keydown.right="nextImage"
-      @keydown.escape="closeModal"
+      @keydown.escape="closeLightbox"
     >
-      <div class="relative w-full h-full flex items-center justify-center">
-        <img
-          :src="`${mediaBase}${images[currentIndex].src}`"
-          :alt="images[currentIndex].alt"
-          class="max-w-[90%] max-h-[90%] object-contain"
-          loading="lazy"
-        />
-        <!-- Close button -->
+      <div class="relative max-w-5xl w-full px-4">
         <button
-          class="absolute top-4 right-4 text-white text-2xl bg-gray-800 bg-opacity-50 rounded-full w-10 h-10 flex items-center justify-center hover:bg-opacity-75"
-          @click="closeModal"
-          aria-label="Close full-screen view"
+          class="absolute top-4 right-4 text-white text-2xl bg-gray-900 bg-opacity-60 rounded-full w-10 h-10 flex items-center justify-center hover:bg-opacity-80 transition-all duration-200"
+          @click="closeLightbox"
+          aria-label="Đóng lightbox"
+          type="button"
         >
           <i class="fas fa-times"></i>
         </button>
-        <!-- Navigation buttons -->
+        <img
+          :src="`${mediaBase}${images[currentImage].src}`"
+          :alt="images[currentImage].alt || 'Ảnh sản phẩm'"
+          class="w-full h-auto max-h-[85vh] object-contain rounded-xl"
+          @error="handleImageError(currentImage)"
+          loading="lazy"
+        />
         <button
           v-if="images.length > 1"
-          class="absolute left-4 text-white text-2xl bg-gray-800 bg-opacity-50 rounded-full w-10 h-10 flex items-center justify-center hover:bg-opacity-75"
+          class="absolute left-4 top-1/2 transform -translate-y-1/2 text-white text-2xl bg-gray-900 bg-opacity-60 rounded-full w-10 h-10 flex items-center justify-center hover:bg-opacity-80 transition-all duration-200"
           @click="prevImage"
-          :disabled="currentIndex === 0"
-          aria-label="Previous image in full-screen"
+          :disabled="currentImage === 0"
+          aria-label="Ảnh trước trong lightbox"
+          type="button"
         >
           <i class="fas fa-chevron-left"></i>
         </button>
         <button
           v-if="images.length > 1"
-          class="absolute right-4 text-white text-2xl bg-gray-800 bg-opacity-50 rounded-full w-10 h-10 flex items-center justify-center hover:bg-opacity-75"
+          class="absolute right-4 top-1/2 transform -translate-y-1/2 text-white text-2xl bg-gray-900 bg-opacity-60 rounded-full w-10 h-10 flex items-center justify-center hover:bg-opacity-80 transition-all duration-200"
           @click="nextImage"
-          :disabled="currentIndex === images.length - 1"
-          aria-label="Next image in full-screen"
+          :disabled="currentImage === images.length - 1"
+          aria-label="Ảnh tiếp theo trong lightbox"
+          type="button"
         >
           <i class="fas fa-chevron-right"></i>
         </button>
@@ -121,31 +141,51 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 
 const props = defineProps({
   images: { type: Array, required: true },
   mediaBase: { type: String, required: true },
-  currentIndex: { type: Number, required: true },
+  currentIndex: { type: Number, default: 0 },
 });
 
 const emit = defineEmits([
   'update:current-index',
-  'next-image',
-  'prev-image',
   'start-auto-slide',
   'pause-auto-slide',
 ]);
 
-const isGalleryHovered = ref(false);
+const currentImage = ref(props.currentIndex);
+const isLightboxOpen = ref(false);
 const isZooming = ref(false);
-const isModalOpen = ref(false);
 const mainImageContainer = ref(null);
 const mainImage = ref(null);
-const modal = ref(null);
-const mousePosition = ref({ x: 0, y: 0 });
+const lightbox = ref(null);
+const mousePosition = ref({ x: 50, y: 50 });
+const localImages = ref([...props.images]);
 
-// Compute zoom style based on mouse position
+watch(
+  () => props.images,
+  (newVal) => {
+    localImages.value = [...newVal];
+    if (currentImage.value >= newVal.length) {
+      currentImage.value = 0;
+    }
+  },
+  { immediate: true }
+);
+
+watch(
+  () => props.currentIndex,
+  (newVal) => {
+    currentImage.value = newVal;
+  }
+);
+
+watch(currentImage, (val) => {
+  emit('update:current-index', val);
+});
+
 const zoomStyle = computed(() => {
   if (!isZooming.value) return {};
   const { x, y } = mousePosition.value;
@@ -154,19 +194,28 @@ const zoomStyle = computed(() => {
   };
 });
 
-// Toggle zoom on click
-function toggleZoom() {
-  isZooming.value = !isZooming.value;
-  if (!isZooming.value) {
-    mousePosition.value = { x: 50, y: 50 }; // Reset to center
-  } else {
-    // Open modal on second click while zooming
-    openModal();
-    isZooming.value = false;
+function setCurrentImage(index) {
+  if (localImages.value && localImages.value.length > index) {
+    currentImage.value = index;
   }
 }
 
-// Handle mouse movement for zoom
+function nextImage() {
+  if (!localImages.value || localImages.value.length === 0) return;
+  if (currentImage.value < localImages.value.length - 1) {
+    currentImage.value++;
+  } else {
+    currentImage.value = 0;
+  }
+}
+
+function prevImage() {
+  if (!localImages.value || localImages.value.length === 0) return;
+  if (currentImage.value > 0) {
+    currentImage.value--;
+  }
+}
+
 function handleMouseMove(event) {
   if (!isZooming.value) return;
   const rect = mainImageContainer.value.getBoundingClientRect();
@@ -178,7 +227,6 @@ function handleMouseMove(event) {
   };
 }
 
-// Reset zoom on mouse leave
 function handleMouseLeave() {
   if (isZooming.value) {
     isZooming.value = false;
@@ -186,38 +234,63 @@ function handleMouseLeave() {
   }
 }
 
-// Open full-screen modal
-function openModal() {
-  isModalOpen.value = true;
-  // Focus modal for keyboard navigation
+function openLightbox() {
+  isLightboxOpen.value = true;
   nextTick(() => {
-    if (modal.value) modal.value.focus();
+    if (lightbox.value) lightbox.value.focus();
   });
 }
 
-// Close full-screen modal
-function closeModal() {
-  isModalOpen.value = false;
+function closeLightbox() {
+  isLightboxOpen.value = false;
+  isZooming.value = false;
 }
 
-// Navigate to previous image in modal
-function prevImage() {
-  if (props.currentIndex > 0) {
-    emit('update:current-index', props.currentIndex - 1);
+function pauseAutoSlide() {
+  emit('pause-auto-slide');
+}
+
+function startAutoSlide() {
+  emit('start-auto-slide');
+}
+
+function handleImageError(index) {
+  if (localImages.value && localImages.value.length > index) {
+    localImages.value[index] = { ...localImages.value[index], src: '/fallback.jpg' };
   }
 }
 
-// Navigate to next image in modal
-function nextImage() {
-  if (props.currentIndex < props.images.length - 1) {
-    emit('update:current-index', props.currentIndex + 1);
+let interval;
+onMounted(() => {
+  interval = setInterval(nextImage, 4000);
+  window.addEventListener('keydown', handleKey);
+});
+
+onUnmounted(() => {
+  clearInterval(interval);
+  window.removeEventListener('keydown', handleKey);
+});
+
+function handleKey(e) {
+  if (!isLightboxOpen.value) return;
+  if (e.key === 'Escape') {
+    closeLightbox();
   }
+  if (e.key === 'ArrowRight') nextImage();
+  if (e.key === 'ArrowLeft') prevImage();
 }
+
+defineExpose({ currentImage });
 </script>
 
 <style scoped>
 .thumbs::-webkit-scrollbar {
   display: none;
+}
+
+.thumbs {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 .cursor-magnify {
@@ -228,37 +301,56 @@ function nextImage() {
   cursor: zoom-out;
 }
 
-/* Ensure modal is full-screen */
-.fixed.inset-0 {
-  z-index: 50;
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
-/* Smooth transitions for zoom */
-.scale-200 {
-  transform: scale(2);
+.animatefade-in {
+  animation: fade-in 0.3s ease-in-out;
 }
 
-/* Responsive adjustments */
+button {
+  transition: background-color 0.2s, opacity 0.2s, transform 0.2s;
+}
+
+img {
+  transition: transform 0.3s, border-color 0.2s;
+}
+
 @media (max-width: 768px) {
-  .w-\[480px\] {
-    width: 100%;
-    height: 300px;
+  .w-full.max-w-\[480px\] {
+    max-width: 100%;
   }
 
   .h-\[480px\] {
-    height: 300px;
+    height: 320px;
   }
 
   .w-16 {
     width: 3.5rem;
   }
 
-  .h-24 {
-    height: 4.5rem;
+  .h-16 {
+    height: 3.5rem;
   }
 
-  .w-8 {
-    width: 2rem;
+  .w-10 {
+    width: 2.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .h-\[480px\] {
+    height: 280px;
+  }
+
+  .p-6 {
+    padding: 1rem;
   }
 }
 </style>

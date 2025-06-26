@@ -169,7 +169,7 @@ const editAddress = ref(null)
 
 
 const form = ref({
-  user_id: 3,
+  user_id: 1,
   name: '',
   phone: '',
   province_id: '',
@@ -240,7 +240,7 @@ const calculateShippingFee = async () => {
 const submitForm = async () => {
   try {
     const payload = {
-      user_id: 3,
+      user_id: 1,
       name: form.value.name,
       phone: form.value.phone,
       province_id: form.value.province_id,
@@ -292,20 +292,16 @@ const getWardName = (ward_code, district_id) => {
 console.log('wards', wards.value)
 console.log('districts', districts.value)
 
-
-
 // Mảng địa chỉ
 const addresses = ref([])
 
 // Load địa chỉ
 const loadAddresses = async () => {
   try {
-    const res = await axios.get(`${apiBase}/address?user_id=3`)
+    const res = await axios.get(`${apiBase}/address?user_id=1`)
     addresses.value = res.data.data || []
-
     const provinceIds = [...new Set(addresses.value.map(a => a.province_id))]
     const districtIds = [...new Set(addresses.value.map(a => a.district_id))]
-
     for (const pid of provinceIds) {
       const resDistricts = await axios.post(`${apiBase}/ghn/districts`, {
         province_id: pid
@@ -382,8 +378,6 @@ const startEditAddress = async (address) => {
   await loadDistricts()
   await loadWards()
 }
-
-
 
 
 // Toggle form

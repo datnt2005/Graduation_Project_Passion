@@ -36,6 +36,8 @@ use App\Http\Controllers\SellerFollowerController;
 // Category
 Route::prefix('categories')->group(function () {
     Route::get('/', [CategoryController::class, 'index']);
+    Route::get('/parents', [CategoryController::class, 'showAllCategoryParent']);
+    Route::get('/tree', [CategoryController::class, 'getCategoryTree']);
     Route::get('/{id}', [CategoryController::class, 'show']);
     Route::get('/{id}/children', [CategoryController::class, 'children']);
     Route::get('/{id}/parents', [CategoryController::class, 'parents']);
@@ -53,7 +55,7 @@ Route::prefix('notifications')->group(function () {
     Route::post('/mark-read', [NotificationController::class, 'markAsRead']);
     Route::delete('/{id}', [NotificationController::class, 'destroy']);
     Route::post('/send-multiple', [NotificationController::class, 'sendMultiple']);
-}); 
+});
 
 //tags
 Route::prefix('tags')->group(function () {
@@ -87,6 +89,8 @@ Route::prefix('products')->group(function () {
     Route::delete('/{id}', [ProductController::class, 'destroy']);
     Route::get('/slug/{slug}', [ProductController::class, 'showBySlug']);
     Route::post('/change-status/{id}', [ProductController::class, 'changeStatus']);
+    Route::get('/category/{slug}', [ProductController::class, 'getProductBySlugCategory']);
+    Route::get('/search/{slug?}', [ProductController::class, 'getProducts']);
 });
 
 // Orders
@@ -221,8 +225,6 @@ Route::post('/ghn/districts', [GHNController::class, 'getDistricts']);
 Route::post('/ghn/wards', [GHNController::class, 'getWards']);
 Route::post('/shipping/calculate-fee', [GHNController::class, 'calculateFee']);
 Route::post('/ghn/services', [GHNController::class, 'getServices']);
-
-
 
 
 // crud user
