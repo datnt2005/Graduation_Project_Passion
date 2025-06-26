@@ -266,13 +266,17 @@ import { ref, computed, onMounted } from 'vue'
 import Swal from 'sweetalert2'
 import 'sweetalert2/dist/sweetalert2.min.css'
 import axios from 'axios'
-definePageMeta({
+definePageMeta({ 
   layout: 'default-admin'
 });
+
+import { useNotification } from '~/composables/useNotification'
+const { showNotification  } = useNotification()
+
 // State
 const sellers = ref([])
 const loading = ref(true)
-const searchQuery = ref('')
+const searchQuery = ref('') 
 const detailModal = ref(false)
 const currentDetail = ref(null)
 const tab = ref('info')
@@ -284,28 +288,14 @@ const loadingApprove = ref(false);
 const loadingReject = ref(false);
 const getSellerId = (user) => user?.seller?.id
 const filterVerifyStatus = ref('')
+ 
 
 
 const config = useRuntimeConfig();
 const API = config.public.apiBaseUrl;
 const mediaBase = config.public.mediaBaseUrl;
 
-// toast
-const toast = (type = 'success', message = '', timer = 2000) => {
-  Swal.fire({
-    toast: true,
-    position: 'bottom-end',
-    icon: type,
-    title: message,
-    showConfirmButton: false,
-    timer: timer,
-    timerProgressBar: true,
-    didOpen: (toast) => {
-      toast.addEventListener('mouseenter', Swal.stopTimer)
-      toast.addEventListener('mouseleave', Swal.resumeTimer)
-    }
-  })
-}
+ 
 // Lấy danh sách sellers
 const fetchSellers = async () => {
   loading.value = true
@@ -314,7 +304,8 @@ const fetchSellers = async () => {
     sellers.value = res.data || []
   } catch {
     sellers.value = []
-    toast('error', 'Không thể tải danh sách seller. Vui lòng thử lại sau!')
+    showNotification('Không thể tải danh sách seller. Vui lòng thử lại sau!', 'error')
+    
   } finally {
     loading.value = false
   }
@@ -402,9 +393,9 @@ const approveSeller = async (sellerId) => {
     await axios.post(`${API}/admin/sellers/${sellerId}/verify`)
     await fetchSellers()
     detailModal.value = false
-    toast('success', 'Seller đã được duyệt!')
-  } catch (e) {
-    toast('error', 'Lỗi khi duyệt seller! Vui lòng thử lại sau!')
+    showNotification('Seller đã được duyệt!', 'success')
+    } catch (e) {
+  showNotification('Lỗi khi duyệt seller! Vui lòng thử lại sau!', 'error')
   } finally {
     loadingApprove.value = false
   }
@@ -422,7 +413,7 @@ const closeReject = () => {
 }
 const submitReject = async () => {
   if (!rejectReason.value.trim()) {
-    toast('error', 'Vui lòng nhập lý do từ chối!')
+showNotification('error', 'Vui lòng nhập lý do từ chối!')
     return
   }
 
@@ -434,9 +425,9 @@ const submitReject = async () => {
     await fetchSellers()
     rejectModal.value = false
     detailModal.value = false
-    toast('success', 'Seller đã bị từ chối!')
+showNotification('Seller đã bị từ chối!', 'success')
   } catch (e) {
-    toast('error', 'Lỗi khi từ chối seller! Vui lòng thử lại sau!')
+showNotification('Lỗi khi duyệt seller! Vui lòng thử lại sau!', 'error')
   } finally {
     loadingReject.value = false
   }

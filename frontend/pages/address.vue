@@ -348,7 +348,7 @@ const deleteAddress = async (id) => {
 
 const resetForm = () => {
   form.value = {
-    user_id: 3,
+    user_id: 6,
     name: '',
     phone: '',
     province_id: '',

@@ -114,7 +114,7 @@
               </div>
               <div class="w-[90px] flex justify-center items-center space-x-1">
                 <button
-                  aria-label="Decrease quantity"
+                  aria-label="Decrease quantitưy"
                   class="border border-[#d9d9d9] rounded-l-sm w-6 h-6 text-[14px] font-semibold text-[#222222] disabled:opacity-50"
                   @click="updateQuantity(item.id, Number(item.quantity) - 1)"
                   :disabled="Number(item.quantity) <= 1 || loading"

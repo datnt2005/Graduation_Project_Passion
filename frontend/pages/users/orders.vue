@@ -76,17 +76,25 @@
                         @click="confirmCancel(order.id)">
                         <i class="fas fa-times-circle"></i> Hủy
                       </button>
-                      <router-link v-if="order.status === 'cancelled' && order.order_items?.[0]?.product?.slug"
-                        :to="`/products/${order.order_items[0].product.slug}`"
+                      <button v-if="order.status === 'cancelled'" @click="reorderToCart(order)"
                         class="text-xs px-3 py-1 text-orange-600 hover:bg-orange-50 flex items-center gap-1">
                         <i class="fas fa-undo-alt"></i> Mua lại
-                      </router-link>
-
-
-                      <button class="text-xs px-3 py-1 text-gray-600 hover:bg-gray-50 flex items-center gap-1"
-                        @click="printOrder(order.id)">
-                        <i class="fas fa-print"></i> In hóa đơn
                       </button>
+
+                     <div v-if="order.status === 'delivered'" class="flex gap-2">
+  <!-- Nút In hóa đơn -->
+  <button @click="printOrder(order.id)"
+    class="text-xs px-3 py-1 text-gray-600 hover:bg-gray-50 flex items-center gap-1">
+    <i class="fas fa-print"></i> In hóa đơn
+  </button>
+
+  <!-- Nút Tải PDF -->
+  <button @click="downloadPDF(order.id)"
+    class="text-xs px-3 py-1 text-blue-600 hover:bg-blue-50 flex items-center gap-1">
+    <i class="fas fa-file-pdf"></i> Tải PDF
+  </button>
+</div>
+
                     </div>
                   </td>
                 </tr>
@@ -107,11 +115,16 @@
               </div>
               <div class="text-sm text-gray-800 space-y-1">
                 <div><strong>Khách:</strong> {{ order.user?.name || '-' }}</div>
+
                 <div><strong>Điện thoại:</strong> {{ order.address?.phone || '-' }}</div>
-                <div><strong>Tổng tiền:</strong> <span class="text-green-600 font-medium">{{
-                  formatPrice(order.final_price) }}</span></div>
-                <div><strong>Ngày đặt:</strong> <span class="text-gray-500">{{ formatDate(order.created_at) }}</span>
+
+                <div>
+                  <strong>Tổng tiền: </strong>
+                  <span class="text-green-600 font-medium">
+                    {{ formatPrice(parseFloat(order.final_price) * 1000) }}
+                  </span>
                 </div>
+
               </div>
               <div class="mt-3 flex flex-wrap gap-2">
                 <button class="text-xs px-3 py-1 text-blue-600 hover:bg-blue-50 flex items-center gap-1"
@@ -123,16 +136,27 @@
                   @click="confirmCancel(order.id)">
                   <i class="fas fa-times-circle"></i> Hủy
                 </button>
-                <router-link v-if="order.status === 'cancelled' && order.order_items?.[0]?.product?.id"
-                  :to="`/products/${order.order_items[0].product.slug}`"
+
+                <button v-if="order.status === 'cancelled'" @click="reorderToCart(order)"
                   class="text-xs px-3 py-1 text-orange-600 hover:bg-orange-50 flex items-center gap-1">
                   <i class="fas fa-undo-alt"></i> Mua lại
-                </router-link>
-
-                <button class="text-xs px-3 py-1 text-gray-600 hover:bg-gray-50 flex items-center gap-1"
-                  @click="printOrder(order.id)">
-                  <i class="fas fa-print"></i> In hóa đơn
                 </button>
+
+
+              <div v-if="order.status === 'delivered'" class="flex gap-2">
+  <!-- Nút In hóa đơn -->
+  <button @click="printOrder(order.id)"
+    class="text-xs px-3 py-1 text-gray-600 hover:bg-gray-50 flex items-center gap-1">
+    <i class="fas fa-print"></i> In hóa đơn
+  </button>
+
+  <!-- Nút Tải PDF -->
+  <button @click="downloadPDF(order.id)"
+    class="text-xs px-3 py-1 text-blue-600 hover:bg-blue-50 flex items-center gap-1">
+    <i class="fas fa-file-pdf"></i> Tải PDF
+  </button>
+</div>
+
               </div>
             </div>
           </div>
@@ -226,8 +250,12 @@
                 <div v-for="item in selectedOrder?.items || []" :key="item.product_name + item.variant"
                   class="flex items-start justify-between p-4 border-b last:border-0">
                   <div class="flex gap-3">
-                    <img :src="item.image_url || '/placeholder-image.jpg'"
-                      class="w-12 h-12 object-cover rounded-md border" />
+
+                    <img
+                      :src="item.productVariant?.thumbnail ? `${mediaBaseUrl}${item.productVariant.thumbnail}` : `${mediaBaseUrl}products/images/product_default.jpg`"
+                      :alt="item.productVariant?.product?.name || 'Ảnh sản phẩm'"
+                      class="w-12 h-12 object-cover rounded-md border" width="60" />
+
                     <div class="space-y-1">
                       <p class="text-gray-800">{{ item.product_name || '-' }}</p>
                       <p class="text-xs text-gray-500">Phân loại: {{ item.variant || '---' }}</p>
@@ -247,7 +275,10 @@
                   class="px-4 py-3 text-sm text-gray-700 space-y-1">
                   <p>Phương thức: <span class="text-black">{{ payment.method || '-' }}</span></p>
                   <p>Số tiền: <span class="text-black">{{ formatPrice(payment.amount) }}</span></p>
-                  <p>Trạng thái: <span class="text-black">{{ payment.status || '-' }}</span></p>
+                  <p v-if="payment && payment.status">
+                    Trạng thái: <span class="text-black">{{ statusText(payment.status) }}</span>
+                  </p>
+
                 </div>
               </div>
 
@@ -266,6 +297,9 @@ import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 import SidebarProfile from '~/components/shared/layouts/Sidebar-profile.vue'
 import Swal from 'sweetalert2'
+import { useCartStore } from '~/stores/cart'
+import { useRouter } from 'vue-router'
+
 
 // State
 const orders = ref([])
@@ -277,6 +311,11 @@ const isDetailOpen = ref(false)
 const provinces = ref([])
 const districts = ref([])
 const wards = ref([])
+const cartStore = useCartStore()
+const router = useRouter()
+const config = useRuntimeConfig()
+const mediaBaseUrl = config.public.mediaBaseUrl
+const apiBase = config.public.apiBaseUrl
 
 // Tabs configuration
 const tabs = ref([
@@ -316,6 +355,56 @@ const formatPrice = (price) => {
     maximumFractionDigits: 0
   }).format(number)
 }
+  const toast = (icon, title) => {
+    Swal.fire({
+      toast: true,
+      position: 'top-end',
+      icon,
+      title,
+      width: '350px',
+      padding: '10px 20px',
+      customClass: { popup: 'text-sm rounded-md shadow-md' },
+      showConfirmButton: false,
+      timer: 1500,
+      timerProgressBar: true,
+      didOpen: (toastEl) => {
+        toastEl.addEventListener('mouseenter', () => Swal.stopTimer())
+        toastEl.addEventListener('mouseleave', () => Swal.resumeTimer())
+      }
+    })
+  }
+
+const reorderToCart = async (order) => {
+  const token = localStorage.getItem('access_token')
+  const item = order.order_items[0]
+
+  if (!item?.product?.id || !item?.quantity) {
+    
+    return
+  }
+
+  const availableStock = item.variant?.stock ?? item.product?.stock ?? 0
+  if (item.quantity > availableStock) {
+    toast('error',' Hết hàng vui lòng quay lại sau!')
+    return
+  }
+
+  try {
+    await axios.post(`${apiBase}/cart/add`, {
+      product_id: item.product.id,
+      product_variant_id: item.variant?.id || undefined,
+      quantity: item.quantity,
+    }, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+
+    router.push('/cart')
+  } catch (err) {
+    toast('error', 'Không thể thêm sản phẩm vào giỏ hàng!')
+  }
+}
+
+
 
 
 const formatDate = (date) => {
@@ -369,28 +458,22 @@ const fetchOrders = async () => {
     if (!token) throw new Error('Chưa đăng nhập')
 
     // Fetch user info
-    const userRes = await axios.get('http://localhost:8000/api/me', {
+  
+    const userRes = await axios.get(`${apiBase}/me`, {
       headers: { Authorization: `Bearer ${token}` }
     })
     user.value = userRes.data
 
     // Fetch orders
-    const { data } = await axios.get('http://localhost:8000/api/user/orders', {
+    const { data } = await axios.get(`${apiBase}/user/orders`, {
       headers: { Authorization: `Bearer ${token}` }
     })
     orders.value = Array.isArray(data.data) ? data.data : []
     updateTabCounts()
 
-    // Log dữ liệu để debug
-    console.log('Dữ liệu đơn hàng:', orders.value)
+ 
   } catch (err) {
-    console.error('Lỗi khi tải đơn hàng:', err)
-    Swal.fire({
-      icon: 'error',
-      title: 'Lỗi',
-      text: 'Không thể tải danh sách đơn hàng!',
-      confirmButtonColor: '#1BA0E2'
-    })
+    toast('error', 'Không thể tải đơn hàng!')
   } finally {
     isLoading.value = false
   }
@@ -399,32 +482,23 @@ const fetchOrders = async () => {
 const viewOrder = async (id) => {
   try {
     const token = localStorage.getItem('access_token')
-    const { data } = await axios.get(`http://localhost:8000/api/user/orders/${id}`, {
+    const { data } = await axios.get(`${apiBase}/user/orders/${id}`, {
       headers: { Authorization: `Bearer ${token}` }
     })
     selectedOrder.value = data
     isDetailOpen.value = true
-
-    // Log dữ liệu chi tiết để debug
-    console.log('Chi tiết đơn hàng:', data)
+ 
   } catch (err) {
-    console.error('Lỗi khi xem chi tiết đơn:', err)
-    Swal.fire({
-      icon: 'error',
-      title: 'Lỗi',
-      text: 'Không thể tải chi tiết đơn hàng!',
-      confirmButtonColor: '#1BA0E2'
-    })
+    toast('error', 'Không thể tải thông tin đơn hàng!')
   }
 }
 
 const loadProvinces = async () => {
   try {
-    const res = await axios.get('http://localhost:8000/api/ghn/provinces')
+    const res = await axios.get(`${apiBase}/ghn/provinces`)
     provinces.value = Array.isArray(res.data.data) ? res.data.data : []
-    console.log('Danh sách tỉnh:', provinces.value)
-  } catch (err) {
-    console.error('Lỗi khi tải danh sách tỉnh:', err)
+   } catch (err) {
+    toast('error', 'Lỗi khi tải danh sách tỉnh thành!')
   }
 }
 
@@ -432,14 +506,13 @@ const loadDistricts = async () => {
   try {
     const provinceIds = [...new Set(orders.value.map(o => o.address?.province_id).filter(id => id))]
     for (const provinceId of provinceIds) {
-      const res = await axios.post('http://localhost:8000/api/ghn/districts', { province_id: provinceId })
+      const res = await axios.post(`${apiBase}/ghn/districts`, { province_id: provinceId })
       if (Array.isArray(res.data.data)) {
         districts.value.push(...res.data.data.filter(d => !districts.value.some(existing => existing.DistrictID === d.DistrictID)))
       }
     }
-    console.log('Danh sách quận:', districts.value)
   } catch (err) {
-    console.error('Lỗi khi tải danh sách quận:', err)
+    toast('error', 'Lỗi khi tải danh sách quận huyện!')
   }
 }
 
@@ -447,14 +520,14 @@ const loadWards = async () => {
   try {
     const districtIds = [...new Set(orders.value.map(o => o.address?.district_id).filter(id => id))]
     for (const districtId of districtIds) {
-      const res = await axios.post('http://localhost:8000/api/ghn/wards', { district_id: districtId })
+      const res = await axios.post(`${apiBase}/ghn/wards`, { district_id: districtId })
       if (Array.isArray(res.data.data)) {
         wards.value.push(...res.data.data.filter(w => !wards.value.some(existing => existing.WardCode === w.WardCode)))
       }
     }
-    console.log('Danh sách phường:', wards.value)
+     
   } catch (err) {
-    console.error('Lỗi khi tải danh sách phường:', err)
+    toast('error', 'Lỗi khi tải danh sách phường xã!')
   }
 }
 
@@ -496,7 +569,7 @@ const confirmCancel = (orderId) => {
 const cancelOrder = async (id) => {
   try {
     const token = localStorage.getItem('access_token')
-    await axios.post(`http://localhost:8000/api/user/orders/${id}/cancel`, {}, {
+    await axios.post(`${apiBase}/user/orders/${id}/cancel`, {}, {
       headers: { Authorization: `Bearer ${token}` }
     })
     Swal.fire({
@@ -507,64 +580,72 @@ const cancelOrder = async (id) => {
     })
     await fetchOrders()
   } catch (err) {
-    console.error('Lỗi khi hủy đơn hàng:', err)
-    Swal.fire({
-      icon: 'error',
-      title: 'Lỗi',
-      text: 'Không thể hủy đơn hàng!',
-      confirmButtonColor: '#1BA0E2'
-    })
+   
+    toast('error', 'Không thể hủy đơn hàng!')
   }
 }
+ 
+// print
+const printOrder = (orderId) => {
+  window.open(`/users/print-order/${orderId}`, '_blank')
+}
 
-const reorder = async (id) => {
+// print pdf
+const downloadPDF = async (orderId) => {
   try {
     const token = localStorage.getItem('access_token')
-    if (!token) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'Chưa đăng nhập',
-        text: 'Vui lòng đăng nhập để thực hiện thao tác này.',
-        confirmButtonColor: '#1BA0E2'
-      })
-      return
-    }
-
-    await axios.post(`http://localhost:8000/api/user/orders/${id}/reorder`, {}, {
+    const res = await axios.get(`${apiBase}/user/orders/${orderId}`, {
       headers: { Authorization: `Bearer ${token}` }
     })
 
-    Swal.fire({
-      icon: 'success',
-      title: 'Thành công',
-      text: 'Đơn hàng đã được đặt lại!',
-      confirmButtonColor: '#1BA0E2'
-    })
+    const data = res.data
+    const content = `
+      <div style="font-family:sans-serif; font-size:13px;">
+        <h2 style="text-align:center">HÓA ĐƠN MUA HÀNG - #ORD${String(data.id).padStart(3, '0')}</h2>
+        <p><strong>Khách hàng:</strong> ${data.user.name}</p>
+        <p><strong>Email:</strong> ${data.user.email}</p>
+        <p><strong>Địa chỉ:</strong> ${data.address.detail}</p>
+        <p><strong>SĐT:</strong> ${data.address.phone}</p>
+        <hr />
+        <table style="width:100%; border-collapse: collapse;" border="1">
+          <thead><tr>
+            <th style="padding:4px;">Sản phẩm</th>
+            <th style="padding:4px;">SL</th>
+            <th style="padding:4px;">Đơn giá</th>
+            <th style="padding:4px;">Thành tiền</th>
+          </tr></thead>
+          <tbody>
+            ${data.items.map(item => `
+              <tr>
+                <td style="padding:4px;">${item.product_name}</td>
+                <td style="padding:4px; text-align:center;">${item.quantity}</td>
+                <td style="padding:4px; text-align:right;">${formatPrice(item.price)}</td>
+                <td style="padding:4px; text-align:right;">${formatPrice(item.total)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        <p style="text-align:right; font-weight:bold; margin-top:10px;">Tổng cộng: ${formatPrice(data.final_price)}</p>
+      </div>
+    `
 
-    await fetchOrders()
+    // ✅ Import html2pdf tại đây, chỉ chạy ở client
+    const html2pdf = (await import('html2pdf.js')).default
 
+    const opt = {
+      margin: 0.5,
+      filename: `HoaDon_${data.user.name.replace(/\s+/g, '_')}_ORD${String(data.id).padStart(3, '0')}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2 },
+      jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+    }
+
+    html2pdf().from(content).set(opt).save()
   } catch (err) {
-    console.error('Lỗi khi đặt lại đơn hàng:', err)
-    const message = err.response?.data?.message || 'Không thể đặt lại đơn hàng!'
-    Swal.fire({
-      icon: 'error',
-      title: 'Lỗi',
-      text: message,
-      confirmButtonColor: '#1BA0E2'
-    })
+    toast('error', 'Không thể tải hóa đơn PDF!')
   }
 }
 
-
-const printOrder = (id) => {
-  console.log(`In hóa đơn cho đơn hàng ID: ${id}`)
-  Swal.fire({
-    icon: ' info',
-    title: 'Chức năng in',
-    text: 'Chức năng in hóa đơn đang được phát triển!',
-    confirmButtonColor: '#1BA0E2'
-  })
-}
 
 // Computed
 const filteredOrders = computed(() => {
