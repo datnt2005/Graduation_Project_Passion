@@ -5,7 +5,8 @@
     <!-- Hiển thị bộ lọc đã chọn -->
     <div v-if="activeFilters.length" class="mb-4 flex flex-wrap gap-2">
       <span class="text-sm font-semibold text-gray-600">Bộ lọc đã chọn:</span>
-      <div v-for="filter in activeFilters" :key="filter.key" class="flex items-center gap-1 bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded">
+      <div v-for="filter in activeFilters" :key="filter.key"
+        class="flex items-center gap-1 bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded">
         <span>{{ filter.label }}</span>
         <button @click="removeFilter(filter)" class="text-red-500 hover:text-red-700">
           <i class="fas fa-times"></i>
@@ -14,7 +15,8 @@
     </div>
 
     <!-- Bộ lọc -->
-    <Filters @update:filters="handleFilterUpdate" :brands="brands" :priceMin="priceMin" :priceMax="priceMax" :priceRange="priceRange" />
+    <Filters @update:filters="handleFilterUpdate" :brands="brands" :priceMin="priceMin" :priceMax="priceMax"
+      :priceRange="priceRange" />
 
     <!-- Trạng thái tải -->
     <div v-if="loading" class="text-center py-4">
@@ -45,18 +47,16 @@
       </button>
       <template v-for="(page, i) in visiblePages" :key="i">
         <span v-if="page === '...'" class="px-3 py-1 text-gray-400 font-semibold select-none">...</span>
-        <button v-else class="px-3 py-1 rounded-full border transition font-semibold shadow-sm"
-                :class="page === pagination.current_page
-                  ? 'bg-[#1BA0E2] text-white border-[#1BA0E2] shadow-md scale-105'
-                  : 'bg-white border-gray-300 hover:bg-blue-50 hover:border-blue-400 text-gray-700'"
-                @click="changePage(page)">
+        <button v-else class="px-3 py-1 rounded-full border transition font-semibold shadow-sm" :class="page === pagination.current_page
+          ? 'bg-[#1BA0E2] text-white border-[#1BA0E2] shadow-md scale-105'
+          : 'bg-white border-gray-300 hover:bg-blue-50 hover:border-blue-400 text-gray-700'"
+          @click="() => handlePageClick(page)">
           {{ page }}
         </button>
       </template>
       <button
         class="px-3 py-1 rounded-full border border-gray-300 bg-white shadow-sm hover:bg-blue-50 hover:border-blue-400 transition disabled:opacity-50 disabled:cursor-not-allowed"
-        :disabled="pagination.current_page === pagination.last_page"
-        @click="changePage(pagination.current_page + 1)">
+        :disabled="pagination.current_page === pagination.last_page" @click="changePage(pagination.current_page + 1)">
         <i class="fas fa-chevron-right ml-1"></i>
       </button>
     </div>
@@ -86,7 +86,7 @@ const filters = ref({ brand: [] });
 const pagination = ref({
   current_page: 1,
   last_page: 1,
-  total: 0
+  total: 0,
 });
 
 // Fetch products from API
@@ -95,7 +95,7 @@ const fetchProducts = async (page = 1) => {
     loading.value = true;
     error.value = null;
 
-    let url = `${apiBase}/products/shop?page=${page}&per_page=10`;
+    let url = `${apiBase}/products/shop?page=${page}`;
 
     // Thêm tìm kiếm
     if (searchStore.query) {
@@ -135,9 +135,16 @@ const fetchProducts = async (page = 1) => {
     }));
 
     brands.value = data.data.brands || [];
-    pagination.value.current_page = data.data.current_page;
-    pagination.value.last_page = data.data.last_page;
-    pagination.value.total = data.data.total;
+    const { current_page, last_page, total } = data.data || {};
+
+    pagination.value = {
+      current_page: parseInt(current_page || 1),
+      last_page: parseInt(last_page || 1),
+      total: parseInt(total || 0),
+    };
+
+    // Debug log
+    console.log('Pagination:', pagination.value);
   } catch (err) {
     console.error('Error fetching products:', err);
     error.value = err.message || 'Không thể tải sản phẩm. Vui lòng thử lại sau.';
@@ -211,7 +218,16 @@ const visiblePages = computed(() => {
   return range;
 });
 
+// Đảm bảo không click vào dấu "..."
+const handlePageClick = (page) => {
+  if (typeof page === 'number') {
+    changePage(page);
+  }
+};
+
 const changePage = (page) => {
+  // Log để debug
+  // console.log('Change to page:', page, 'Current:', pagination.value.current_page, 'Last:', pagination.value.last_page);
   if (page !== pagination.value.current_page && page >= 1 && page <= pagination.value.last_page) {
     fetchProducts(page);
     window.scrollTo({ top: 0, behavior: 'smooth' });

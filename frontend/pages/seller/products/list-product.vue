@@ -4,7 +4,7 @@
       <!-- Header with Create Button -->
       <div class="bg-white px-4 py-4 flex items-center justify-between border-b border-gray-200">
         <h1 class="text-xl font-semibold text-gray-800">Quản lý sản phẩm</h1>
-        <button @click="router.push('/admin/products/create-product')"
+        <button @click="router.push('/seller/products/create-product')"
           class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-150">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24"
             stroke="currentColor">
@@ -52,14 +52,6 @@
             <option value="">Tất cả danh mục</option>
             <option v-for="category in categories" :key="category.id" :value="category.id">
               {{ category.name }}
-            </option>
-          </select>
-          <!-- Brand Filter -->
-          <select v-model="filterBrand"
-            class="rounded-md border border-gray-300 py-1.5 pl-3 pr-8 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
-            <option value="">Tất cả thương hiệu</option>
-            <option v-for="brand in brands" :key="brand.id" :value="brand.id">
-              {{ brand.store_name }}
             </option>
           </select>
           <!-- Tag Filter -->
@@ -144,7 +136,10 @@
               Ngày tạo
             </th>
             <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">
-              Thương hiệu
+              Trạng thái
+            </th>
+            <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">
+              Ghi chú
             </th>
             <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">
               Thao tác
@@ -185,10 +180,28 @@
               {{ formatDate(product.created_at) }}
             </td>
             <td class="border border-gray-300 px-3 py-2 text-left">
-              {{ product.seller?.store_name || '–' }}
-              <span v-if="product.is_admin_added === 1" class="text-xs text-gray-500">(Admin thêm sản phẩm)</span>
+              <span :class="{
+                'text-green-600': product.status === 'active',
+                'text-red-600': product.status === 'inactive',
+                'text-gray-500': product.status === 'draft',
+              }">
+                {{
+                  product.status === 'active'
+                    ? 'Hoạt động'
+                    : product.status === 'inactive'
+                      ? 'Không hoạt động'
+                      : product.status === 'draft'
+                        ? 'Nháp'
+                : 'Không xác định'
+                }}
+              </span>
 
             </td>
+            <td class="border border-gray-300 px-3 py-2 text-left">
+              <span v-if="product.is_admin_added === 1" class="text-xs text-gray-500">Admin thêm sản phẩm</span>
+              <span v-else class="text-xs text-gray-500">-</span>
+            </td>
+
             <td class="border border-gray-300 px-3 py-2 text-left">
               <div class="relative inline-block text-left">
                 <button @click="toggleDropdown(product.id)"
@@ -359,7 +372,7 @@ import Pagination from '~/components/Pagination.vue';
 
 
 definePageMeta({
-  layout: 'default-admin'
+  layout: 'default-seller'
 });
 
 const router = useRouter();
@@ -375,7 +388,6 @@ const filterCategory = ref('');
 const filterBrand = ref('');
 const filterTag = ref('');
 const categories = ref([]);
-const brands = ref([]);
 const tags = ref([]);
 const totalProducts = ref(0);
 const inStockProducts = ref(0);
@@ -400,11 +412,13 @@ const perPage = 10;
 // Fetch product counts (total, instock, trash)
 const fetchProductCounts = async () => {
   try {
+    const token = localStorage.getItem('access_token');
     // Fetch all products to get total count
-    const productsResponse = await fetch(`${apiBase}/products`, {
+    const productsResponse = await fetch(`${apiBase}/products/sellers`, {
       method: 'GET',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
       }
     });
     const productsData = await productsResponse.json();
@@ -413,10 +427,11 @@ const fetchProductCounts = async () => {
     inStockProducts.value = allProducts.filter(p => getStockStatus(p) === 'instock').length;
 
     // Fetch trashed products to get trash count
-    const trashResponse = await fetch(`${apiBase}/products/trash`, {
+    const trashResponse = await fetch(`${apiBase}/products/sellers/trash`, {
       method: 'GET',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
       }
     });
     const trashData = await trashResponse.json();
@@ -433,12 +448,16 @@ const fetchProducts = async (page = 1) => {
   try {
     loading.value = true;
     currentPage.value = page;
+    const token = localStorage.getItem('access_token');
+
     const endpoint = filterTrash.value === 'trash'
-      ? `${apiBase}/products/trash?page=${page}&per_page=${perPage}`
-      : `${apiBase}/products?page=${page}&per_page=${perPage}`;
+      ? `${apiBase}/products/sellers/trash?page=${page}&per_page=${perPage}`
+      : `${apiBase}/products/sellers?page=${page}&per_page=${perPage}`;
     const response = await fetch(endpoint, {
       method: 'GET',
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+       }
     });
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     const data = await response.json();
@@ -475,24 +494,6 @@ const fetchCategories = async () => {
   }
 };
 
-// Fetch brands
-const fetchBrands = async () => {
-  try {
-    const response = await fetch(`${apiBase}/sellers/verified`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
-    const data = await response.json();
-    brands.value = data.data || [];
-    
-  } catch (error) {
-    console.error('Error fetching brands:', error);
-    showNotificationMessage('Có lỗi xảy ra khi tải thương hiệu', 'error');
-  }
-};
-
 // Fetch tags
 const fetchTags = async () => {
   try {
@@ -505,7 +506,7 @@ const fetchTags = async () => {
     const data = await response.json();
     tags.value = data.data.tags || [];
     console.log('tags', tags.value);
-    
+
   } catch (error) {
     console.error('Error fetching tags:', error);
     showNotificationMessage('Có lỗi xảy ra khi tải thẻ', 'error');
@@ -631,7 +632,7 @@ const applyBulkAction = async () => {
 
 // Edit product
 const editProduct = (id) => {
-  router.push(`/admin/products/edit-product/${id}`);
+  router.push(`/seller/products/edit-product/${id}`);
 };
 
 // Move to trash
@@ -860,7 +861,6 @@ const showConfirmationDialog = (title, message, action) => {
 onMounted(() => {
   fetchProducts();
   fetchCategories();
-  fetchBrands();
   fetchTags();
   document.addEventListener('click', closeDropdown);
 });

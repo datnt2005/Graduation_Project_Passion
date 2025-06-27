@@ -80,17 +80,20 @@ Route::prefix('attributes')->group(function () {
 // Products
 Route::prefix('products')->group(function () {
     Route::get('/', [ProductController::class, 'index']);
+    Route::get('/sellers', [ProductController::class, 'getAllProductBySellers'])->middleware('auth:sanctum');
     Route::get('/trash', [ProductController::class, 'getTrash']);
     Route::get('/shop', [ProductController::class, 'getAllProducts']);
     Route::get('/{id}', [ProductController::class, 'show']);
-    Route::post('/', [ProductController::class, 'store']);
+    Route::post('/', [ProductController::class, 'store'])->middleware('auth:sanctum');
     Route::post('/import', [ProductController::class, 'import']);
-    Route::put('/{id}', [ProductController::class, 'update']);
+    Route::put('/{id}', [ProductController::class, 'update'])->middleware('auth:sanctum');
     Route::delete('/{id}', [ProductController::class, 'destroy']);
     Route::get('/slug/{slug}', [ProductController::class, 'showBySlug']);
-    Route::post('/change-status/{id}', [ProductController::class, 'changeStatus']);
+    Route::post('/change-status/{id}', [ProductController::class, 'changeStatus'])->middleware('auth:sanctum');
     Route::get('/category/{slug}', [ProductController::class, 'getProductBySlugCategory']);
     Route::get('/search/{slug?}', [ProductController::class, 'getProducts']);
+    Route::get('/sellers/trash', [ProductController::class, 'getTrashBySeller'])->middleware('auth:sanctum');
+
 });
 
 // Orders
@@ -264,6 +267,8 @@ Route::prefix('sellers')->group(function ()
     Route::get('/', [SellerController::class, 'index'])->middleware('auth:sanctum');
     Route::get('/store/{slug}', [SellerController::class, 'showStore']);
     Route::post('/update', [SellerController::class, 'update'])->middleware('auth:sanctum');
+    Route::get('/verified', [SellerController::class, 'getVerifiedSellers']);
+
 });
 
 // Seller Follower
@@ -293,14 +298,8 @@ Route::prefix('cart')->group(function () {
     Route::put('/items/{id}', [CartController::class, 'updateItem']);
     Route::delete('/items/{id}', [CartController::class, 'removeItem']);
     Route::delete('/', [CartController::class, 'clear']);
-
-    // Redis Cart Routes
-    Route::get('/redis/{cartId}', [CartController::class, 'getRedisCart']);
-    Route::post('/redis/{cartId}/add', [CartController::class, 'addToRedisCart']);
-    Route::put('/redis/{cartId}/items/{itemId}', [CartController::class, 'updateRedisCartItem']);
-    Route::delete('/redis/{cartId}/items/{itemId}', [CartController::class, 'removeRedisCartItem']);
-    Route::delete('/redis/{cartId}', [CartController::class, 'clearRedisCart']);
-    Route::post('/redis/{cartId}/merge', [CartController::class, 'mergeRedisCart'])->middleware('auth:sanctum');
+    Route::post('/select-items', [CartController::class, 'selectItems']);
+    Route::get('/selected-items', [CartController::class, 'getSelectedItems']);
 });
 
 // Dashboard stats
