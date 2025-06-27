@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DashboardController;
 
 
+
 // Dashboard stats
 Route::middleware(['auth:sanctum', 'checkRole:admin'])
     ->prefix('dashboard')

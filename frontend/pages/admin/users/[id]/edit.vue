@@ -168,6 +168,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { secureFetch } from '@/utils/secureFetch' 
 
 definePageMeta({ layout: 'default-admin' })
 
@@ -201,7 +202,7 @@ const formData = reactive({
 
 const fetchUser = async () => {
   try {
-    const res = await fetch(`${apiBase}/users/${userId}`)
+    const res = await secureFetch(`${apiBase}/users/${userId}`, {}, ['admin'])
     const data = await res.json()
     if (data && data.data) {
       Object.assign(formData, {
@@ -256,14 +257,15 @@ const handleSubmit = async () => {
       console.log('FormData gửi lên:', pair[0], pair[1]);
     }
 
-    const res = await fetch(`${apiBase}/users/${userId}`, {
+    const res = await secureFetch(`${apiBase}/users/${userId}`, {
       method: 'POST',  
       body: payload,
       headers: {
         'Accept': 'application/json',
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
-    });
+    },
+    ['admin']);
     const data = await res.json();
     if ((res.ok && data.data) || data.success) {
       success.value = true;

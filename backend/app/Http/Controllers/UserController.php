@@ -30,6 +30,8 @@ class UserController extends Controller
     {
         $ids = $request->input('ids', []);
         User::whereIn('id', $ids)->delete();
+            \Log::debug('Batch delete IDs:', $ids);
+
         return response()->json(['success' => true]);
     }
 

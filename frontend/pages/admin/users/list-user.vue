@@ -209,6 +209,7 @@ import { useRouter } from 'vue-router'
 definePageMeta({
   layout: 'default-admin'
 });
+import { secureFetch } from '@/utils/secureFetch' 
 
 const router = useRouter()
 const config = useRuntimeConfig()
@@ -231,7 +232,7 @@ const userToDelete = ref(null)
 const fetchUsers = async () => {
   loading.value = true
   try {
-    const res = await fetch(`${api}/users`)
+    const res = await secureFetch(`${api}/users`, {}, ['admin'])
     const json = await res.json()
     users.value = json.data.map(u => ({
       id: u.id,
@@ -299,11 +300,14 @@ const applyBulkAction = async () => {
     if (!role) return
 
     loading.value = true
-    await fetch(`${api}/users/batch-add-role`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: selectedUsers.value, role }),
-    })
+   await secureFetch(`${api}/users/batch-add-role`,
+   {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids: selectedUsers.value, role }),
+  },
+  ['admin'])
+
     await fetchUsers()
     notificationMessage.value = 'Đã cập nhật vai trò cho người dùng.'
     showNotification.value = true
@@ -358,19 +362,24 @@ const handleConfirmAction = async () => {
 
   // Bulk delete
   if (!userToDelete.value) {
-    await fetch(`${api}/users/batch-delete`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: selectedUsers.value }),
-    })
+      await secureFetch(`${api}/users/batch-delete`,
+   {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids: selectedUsers.value }),
+  },
+  ['admin']
+    )
     notificationMessage.value = 'Đã xóa người dùng đã chọn.'
     selectedUsers.value = []
     selectAll.value = false
     selectedAction.value = ''
   } else {
-    await fetch(`${api}/users/${userToDelete.value.id}`, {
+    await secureFetch(`${api}/users/${userToDelete.value.id}`, {
       method: 'DELETE'
-    })
+    },
+    ['admin'])
+    
     notificationMessage.value = 'Đã xóa người dùng.'
     userToDelete.value = null
   }

@@ -207,7 +207,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useRuntimeConfig } from '#imports'
 import { Bar, Line, Pie } from 'vue-chartjs'
 import { Chart as ChartJS, Title, Tooltip, Legend, BarElement, LineElement, PointElement, ArcElement, CategoryScale, LinearScale } from 'chart.js'
-
+import { secureFetch } from '@/utils/secureFetch' 
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend)
 
 const config = useRuntimeConfig()
@@ -221,37 +221,46 @@ const statsError = ref('')
 onMounted(async () => {
   loadingStats.value = true
   try {
-    const res = await fetch(`${apiBaseUrl}/dashboard/stats-list`)
-    if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`)
+    const res = await secureFetch(`${apiBaseUrl}/dashboard/stats-list`, {}, ['admin'])
+    if (!res.ok) throw new Error('Không lấy được dữ liệu thống kê')
     dashboardStats.value = await res.json()
   } catch (e) {
+    console.error(e)
     statsError.value = 'Không thể tải thống kê!'
   } finally {
     loadingStats.value = false
   }
 })
 
+
 // Biểu đồ doanh thu và lợi nhuận
 const chartType = ref('month')
 const chartLoading = ref(false)
 const chartError = ref('')
-const chartDataApi = ref({ labels: [], revenue: [], profit: [], orderCount: [] }) // Thêm orderCount
+const chartDataApi = ref({ labels: [], revenue: [], profit: [], orderCount: [] }) 
 
 async function fetchChartData(type = 'month') {
   chartLoading.value = true
   chartError.value = ''
+
   try {
     const url = new URL(`${apiBaseUrl}/dashboard/revenue-profit-chart`)
     url.searchParams.set('type', type)
-    const res = await fetch(url)
-    if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`)
+
+    const res = await secureFetch(url.toString(), {}, ['admin'])  
+
+    if (!res.ok) throw new Error('Không lấy được dữ liệu biểu đồ')
     chartDataApi.value = await res.json()
+
   } catch (e) {
+    console.error(e)
     chartError.value = 'Không thể tải dữ liệu biểu đồ!'
   } finally {
     chartLoading.value = false
   }
 }
+
+
 
 onMounted(() => {
   fetchChartData(chartType.value)
@@ -494,7 +503,7 @@ const showLowStockAlert = ref(true)
 onMounted(async () => {
   loadingLowStock.value = true
   try {
-    const res = await fetch(`${apiBaseUrl}/inventory/low-stock`)
+    const res = await secureFetch (`${apiBaseUrl}/inventory/low-stock`, {}, ['seller'])
     if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`)
     lowStockProducts.value = await res.json()
   } catch (e) {
@@ -523,7 +532,7 @@ async function fetchBestSellers() {
   loadingBestSellers.value = true
   bestSellersError.value = ''
   try {
-    const res = await fetch(`${apiBaseUrl}/inventory/best-sellers`)
+    const res = await secureFetch(`${apiBaseUrl}/inventory/best-sellers`, {}, ['admin'])
     if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`)
     bestSellers.value = await res.json()
   } catch (e) {

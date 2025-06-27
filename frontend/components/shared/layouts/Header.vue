@@ -515,7 +515,7 @@ function loginWithGoogle() {
             Authorization: `Bearer ${event.data.token}`,
           },
         })
-
+zz
         const data = await res.json()
 
         if (res.ok && data.data) {
