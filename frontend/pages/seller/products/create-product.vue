@@ -1,10 +1,10 @@
 <template>
-  <h1 class="text-xl font-semibold text-gray-800 px-6 pt-6">Cập nhật sản phẩm</h1>
+  <h1 class="text-xl font-semibold text-gray-800 px-6 pt-6">Thêm sản phẩm</h1>
   <div class="px-6 pb-4">
-    <nuxt-link to="/admin/products/list-product" class="text-gray-600 hover:underline text-sm">
+    <nuxt-link to="/seller/products/list-product" class="text-gray-600 hover:underline text-sm">
       Danh sách sản phẩm
     </nuxt-link>
-    <span class="text-gray-600 text-sm"> / Cập nhật sản phẩm</span>
+    <span class="text-gray-600 text-sm"> / Thêm sản phẩm</span>
   </div>
   <div class="flex min-h-screen bg-gray-100">
     <!-- Sidebar -->
@@ -50,7 +50,7 @@
     <!-- Main Content -->
     <main class="flex-1 p-6 bg-gray-100">
       <div class="max-w-[1200px] mx-auto">
-        <form @submit.prevent="updateProduct">
+        <form @submit.prevent="createProduct">
           <div class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4">
             <section class="space-y-4">
               <!-- Form Content -->
@@ -74,7 +74,7 @@
                 <Editor v-model="formData.description" api-key="rlas5j7eqa6dogiwnt1ld8iilzj3q074o4rw75lsxcygu1zd" :init="{
                   height: 300,
                   menubar: false,
-                  plugins: 'lists link image preview code help table',
+                  plugins: 'lists link image preview',
                   toolbar: 'undo redo | formatselect | bold italic underline |alignjustify alignleft aligncenter alignright | bullist numlist |  | removeformat | preview | link image | code  | h1 h2 h3 h4 h5 h6  ',
                 }" />
                 <span v-if="errors.description" class="text-red-500 text-xs mt-1">{{ errors.description }}</span>
@@ -290,7 +290,7 @@
                       <img :src="img.url" alt="Hình ảnh sản phẩm" class="w-full h-20 object-cover rounded" />
                       <button type="button"
                         class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
-                        @click="removeProductImage(index, img.id)">
+                        @click="removeProductImage(index)">
                         ×
                       </button>
                     </div>
@@ -300,8 +300,8 @@
               </section>
               <button type="submit"
                 class="bg-blue-700 text-white rounded px-4 py-2 text-sm font-semibold hover:bg-blue-800 transition-colors w-full"
-                :disabled="loading" aria-label="Cập nhật sản phẩm">
-                {{ loading ? 'Đang xử lý...' : 'Cập nhật sản phẩm' }}
+                :disabled="loading" aria-label="Thêm sản phẩm">
+                {{ loading ? 'Đang xử lý...' : 'Thêm sản phẩm' }}
               </button>
               <!-- Product Categories -->
               <section class="border border-gray-300 rounded-md shadow-sm bg-white">
@@ -341,9 +341,7 @@
                   <div v-if="formData.categories.length" class="flex flex-wrap gap-1.5">
                     <div v-for="categoryId in formData.categories" :key="categoryId"
                       class="bg-gray-100 px-1.5 py-0.5 rounded flex items-center gap-1">
-                      <span class="text-xs">
-                        {{categories.find(c => c.id === categoryId)?.name || 'Danh mục không xác định'}}
-                      </span>
+                      <span class="text-xs">{{categories.find(c => c.id === categoryId)?.name || 'Danh mục không xác định' }}</span>
                       <button @click="toggleCategory(categories.find(c => c.id === categoryId))"
                         class="text-gray-500 hover:text-gray-700 text-xs">
                         ×
@@ -398,36 +396,6 @@
                     </div>
                   </div>
                   <span v-if="errors.tags" class="text-red-500 text-xs mt-1 block">{{ errors.tags }}</span>
-                </div>
-              </section>
-
-              <!-- Thêm vào sau section "Product Tags" trong sidebar -->
-              <section class="border border-gray-300 rounded-md shadow-sm bg-white">
-                <header
-                  class="flex justify-between items-center px-4 py-3 border-b border-gray-300 font-semibold cursor-pointer select-none"
-                  @click="togglePanel('sellers')" :aria-expanded="panels.sellers"
-                  aria-label="Toggle Product sellers panel">
-                  <span>Người bán</span>
-                  <i class="fas" :class="panels.sellers ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
-                </header>
-                <div v-if="panels.sellers" class="p-4 text-xs">
-                  <div v-if="apiErrors.sellers" class="text-red-500 text-xs mb-2">
-                    {{ apiErrors.sellers }}
-                  </div>
-                  <div v-else-if="!sellers.length" class="text-gray-500 text-xs mb-2">
-                    Không có người bán nào để hiển thị.
-                  </div>
-                  <div v-else class="relative mb-3">
-                    <select v-model="formData.seller_id"
-                      class="w-full rounded border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                      @change="selectSeller">
-                      <option value="">Chọn người bán</option>
-                      <option v-for="seller in sellers" :key="seller.id" :value="seller.id">
-                        {{ seller.store_name }} (#{{ seller.id }})
-                      </option>
-                    </select>
-                    <span v-if="errors.seller_id" class="text-red-500 text-xs mt-1 block">{{ errors.seller_id }}</span>
-                  </div>
                 </div>
               </section>
             </div>
@@ -495,7 +463,7 @@
     <!-- Notification Popup -->
     <Teleport to="body">
       <Transition enter-active-class="transition ease-out duration-200" enter-from-class="transform opacity-0 scale-95"
-        enter-to-class="transform opacity-100 scale-100" leave-active-class="transition ease-in duration-200"
+        enter-to-class="transform opacity-100 scale-100" leave-active-class="transition ease-in duration-100"
         leave-from-class="transform opacity-100 scale-100" leave-to-class="transform opacity-0 scale-95">
         <div v-if="showNotification"
           class="fixed bottom-4 right-4 rounded-lg shadow-xl border p-4 flex items-center space-x-3 z-50"
@@ -504,7 +472,7 @@
             <svg v-if="notificationType === 'success'" class="h-6 w-6 text-green-400" xmlns="http://www.w3.org/2000/svg"
               fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M9 12l2 2 4-4m6 2a9 9 0 0-18 0 9 9 0 0118 0z" />
+                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <svg v-else class="h-6 w-6 text-red-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
               stroke="currentColor">
@@ -512,13 +480,11 @@
                 d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-
           <div class="flex-1">
             <p class="text-sm font-medium" :class="notificationType === 'success' ? 'text-gray-900' : 'text-red-900'">
               {{ notificationMessage }}
             </p>
           </div>
-
           <div class="flex-shrink-0">
             <button @click="showNotification = false"
               class="inline-flex text-gray-400 hover:text-gray-500 focus:outline-none">
@@ -531,27 +497,24 @@
         </div>
       </Transition>
     </Teleport>
-
   </div>
-
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
+import { useRouter } from 'vue-router';
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
 import { library } from '@fortawesome/fontawesome-svg-core';
 import { faChevronUp, faChevronDown } from '@fortawesome/free-solid-svg-icons';
-import Editor from '@tinymce/tinymce-vue';
+import Editor from '@tinymce/tinymce-vue'
 
 library.add(faChevronUp, faChevronDown);
 
 definePageMeta({
-  layout: 'default-admin'
+  layout: 'default-seller'
 });
 
 const router = useRouter();
-const route = useRoute();
 const activeTab = ref('general');
 const loading = ref(false);
 const showNotification = ref(false);
@@ -561,37 +524,32 @@ const activeDropdown = ref(null);
 const categorySearch = ref('');
 const tagSearch = ref('');
 const errors = reactive({});
-const apiErrors = reactive({
-  products: null,
-  categories: null,
-  tags: null,
-  attributes: null,
-  sellers: null
-});
-const showAddAttributeModal = ref(false);
 const fileInput = ref(null);
-const removedImages = ref([]);
 const config = useRuntimeConfig();
 const apiBase = config.public.apiBaseUrl;
 const mediaBase = config.public.mediaBaseUrl;
+
+const apiErrors = reactive({
+  categories: null,
+  tags: null,
+  attributes: null,
+});
+const showAddAttributeModal = ref(false);
 const newAttribute = reactive({
   name: '',
-  values: [''],
+  values: ['']
 });
 const newAttributeErrors = reactive({});
 
 const formData = reactive({
-  id: '',
   name: '',
   slug: '',
   description: '',
   status: 'active',
-  seller_id: '', // Thêm seller_id
   categories: [],
   tags: [],
   variants: [
     {
-      id: null,
       price: 0,
       sale_price: null,
       cost_price: 0,
@@ -601,20 +559,17 @@ const formData = reactive({
       thumbnailFile: null
     }
   ],
-  images: [],
+  images: []
 });
 
 const panels = ref({
   categories: true,
   tags: true,
-  sellers: true // Thêm sellers panel
 });
 
 const categories = ref([]);
 const tags = ref([]);
 const attributes = ref([]);
-const sellers = ref([]);
-
 // Extract array from various API response formats
 const extractArray = (data, key) => {
   if (Array.isArray(data)) return data;
@@ -622,79 +577,6 @@ const extractArray = (data, key) => {
   if (data.data && Array.isArray(data.data)) return data.data;
   if (data.data && data.data[key] && Array.isArray(data.data[key])) return data.data[key];
   return [];
-};
-
-// Fetch product data by ID
-const fetchProduct = async () => {
-  try {
-    loading.value = true;
-    const response = await fetch(`${apiBase}/products/${route.params.id}`, {
-      headers: { Accept: 'application/json' }
-    });
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.statusCode}: ${response.statusText}`);
-    }
-    const data = await response.json();
-    console.log('Product data:', data.data);
-    const product = data.data || data || {};
-
-    if (!product.id) {
-      throw new Error('Invalid product data');
-    }
-
-    // Populate formData
-    formData.id = product.id;
-    formData.name = product.name || '';
-    formData.slug = product.slug || '';
-    formData.description = product.description || '';
-    formData.status = product.status || 'active' || 'inactive' || 'trash';
-    formData.seller_id = product.seller_id || ''; // Thêm seller_id từ API
-    formData.categories = product.categories?.map(c => c.id) || [];
-    formData.tags = product.tags?.map(t => t.id) || [];
-    formData.images = product.product_pic?.length ?
-      product.product_pic.map(img => ({
-        id: img.id,
-        url: `${mediaBase}${img.imagePath}`,
-        file: null
-      })) : [];
-    console.log('Processed images:', formData.images);
-
-    formData.variants = product.product_variants?.length ?
-      product.product_variants.map(variant => ({
-        id: variant.id,
-        price: parseFloat(variant.price) || 0,
-        sale_price: variant.sale_price !== null ? parseFloat(variant.sale_price) : null,
-        cost_price: parseFloat(variant.cost_price) || 0,
-        thumbnail: variant.thumbnail ? `${mediaBase}${variant.thumbnail}` : null,
-        thumbnailFile: null,
-        attributes: variant.attributes?.map(attr => ({
-          attribute_id: attr.id,
-          value_id: attr.pivot.value_id,
-        })) || [{ attribute_id: '', value_id: '' }],
-        inventory: variant.inventories?.map(inv => ({
-          id: inv.id,
-          quantity: inv.quantity || 0,
-          location: inv.location || '',
-        })) || [{ quantity: 0, location: '' }],
-      })) : [
-        {
-          id: null,
-          price: 0,
-          sale_price: null,
-          cost_price: 0,
-          thumbnail: null,
-          thumbnailFile: null,
-          attributes: [{ attribute_id: '', value_id: '' }],
-          inventory: [{ quantity: 0, location: '' }],
-        }
-      ];
-  } catch (error) {
-    console.error('Error fetching product:', error);
-    showNotificationMessage('Không thể tải sản phẩm.', 'error');
-    router.push('/admin/products/list-product');
-  } finally {
-    loading.value = false;
-  }
 };
 
 // Fetch data with error handling
@@ -706,7 +588,7 @@ const fetchCategories = async () => {
     if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     const data = await response.json();
     console.log('Categories API response:', data);
-    const categoryArray = extractArray(data, 'data');
+    const categoryArray = data?.data?.data || [];
     if (categoryArray.length) {
       categories.value = categoryArray.map(item => ({
         id: item.id,
@@ -716,6 +598,8 @@ const fetchCategories = async () => {
       console.log('Processed categories:', categories.value);
     } else {
       throw new Error('Unexpected response format for categories');
+      console.log();
+
     }
   } catch (error) {
     console.error('Error fetching categories:', error);
@@ -777,29 +661,6 @@ const fetchAttributes = async () => {
   }
 };
 
-const fetchSellers = async () => {
-  try {
-    const response = await fetch(`${apiBase}/sellers/verified`, {
-      headers: { Accept: 'application/json' }
-    });
-    if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    const data = await response.json();
-    const sellerArray = extractArray(data, 'data');
-    if (sellerArray.length) {
-      sellers.value = sellerArray.map(item => ({
-        id: item.id,
-        store_name: item.store_name || item.title || 'Không có tên'
-      }));
-      // Thêm option "Passion" cho Admin
-      sellers.value.unshift({ id: 'passion', store_name: 'Passion (Admin)' });
-      apiErrors.sellers = null;
-    } else {
-      throw new Error('Unexpected response format for sellers');
-    }
-  } catch (error) {
-    console.error('Error fetching sellers:', error);
-  }
-};
 // Create new attribute
 const createAttribute = async () => {
   // Validate form
@@ -871,7 +732,7 @@ const createAttribute = async () => {
           newAttributeErrors[key] = Array.isArray(value) ? value[0] : value;
         });
       }
-    };
+    }
   } catch (error) {
     console.error('Error creating attribute:', error);
     showNotificationMessage('Có lỗi kết nối khi tạo thuộc tính.', 'error');
@@ -912,19 +773,19 @@ const getAttributeValues = (attributeId) => {
 
 // Vietnamese tone removal
 const removeVietnameseTones = (str) => {
-  str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ệ|Ậ|Ẫ|ă|ă|ắ|ặ|ẳ|Ắ/g, "a");
+  str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ệ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, "a");
   str = str.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g, "e");
   str = str.replace(/ì|í|ị|ỉ|ĩ/g, "i");
   str = str.replace(/ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ/g, "o");
   str = str.replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g, "u");
   str = str.replace(/ỳ|ý|ỵ|ỷ|ỹ/g, "y");
   str = str.replace(/đ/g, "d");
-  str = str.replace(/À/ | Á | Ạ | Ả | Ã | Â | Ầ | Ẩ | Ẫ | Ă | Ằ | Ắ | Ặ | Ẳ | Ẵ / g, "A");
+  str = str.replace(/À|Á|Ạ|Ả|Ã|Â|Ầ|Ấ|Ậ|Ẩ|Ẫ|Ă|Ằ|Ắ|Ặ|Ẳ|Ẵ/g, "A");
   str = str.replace(/È|É|Ẹ|Ẻ|Ẽ|Ê|Ề|Ế|Ệ|Ể|Ẽ/g, "E");
-  str = str.replace(/Ì|Í|Ị|Í|Ĩ/g, "I");
-  str = str.replace(/Ò|Ó|Ọ|Ỏ|Õ|Ô|Ồ|Ố|Ộ|Ổ|Ỗ|Ờ|Ớ|Ợ|Ở|Ợ/g, "O");
+  str = str.replace(/Ì|Í|Ị|Ĩ|Í/g, "I");
+  str = str.replace(/Ò|Ó|Ọ|Ỏ|Õ|Ô|Ồ|Ố|Ộ|Ổ|Ỗ|Ơ|Ờ|Ớ|Ợ|Ở|Ỡ/g, "O");
   str = str.replace(/Ù|Ú|Ụ|Ủ|Ũ|Ư|Ừ|Ứ|Ự|Ử|Ữ/g, "U");
-  str = str.replace(/Ỳ|Ý|Ỵ|Ỷ|Ỹ/g, "Y");
+  str = str.replace(/Ý|Ỳ|ỵ|Ỷ|Ỹ/g, "Y");
   str = str.replace(/Đ/g, "D");
   return str;
 };
@@ -944,7 +805,7 @@ const processFiles = (files) => {
   files.forEach((file) => {
     if (['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'image/svg+xml', 'image/webp'].includes(file.type) && file.size <= 4048 * 1024) {
       const url = URL.createObjectURL(file);
-      formData.images.push({ file, url, id: '' });
+      formData.images.push({ file, url });
       delete errors.images;
     } else {
       errors.images = 'Hình ảnh không hợp lệ hoặc vượt quá 4MB.';
@@ -956,11 +817,7 @@ const triggerFileInput = () => {
   fileInput.value.click();
 };
 
-const removeProductImage = (index, id) => {
-  if (id) {
-    removedImages.value.push(id);
-    console.log('Removed Images:', removedImages.value); // Debug
-  }
+const removeProductImage = (index) => {
   formData.images.splice(index, 1);
   if (!formData.images.length) delete errors.images;
 };
@@ -979,7 +836,6 @@ const handleVariantThumbnailUpload = (event, index) => {
 // Variant management
 const addVariant = () => {
   formData.variants.push({
-    id: null,
     price: 0,
     sale_price: null,
     cost_price: 0,
@@ -1017,13 +873,6 @@ const toggleTag = (tag) => {
     formData.tags.splice(index, 1);
   }
 };
-
-const selectSeller = (event) => {
-  formData.seller_id = event.target.value;
-  if (!formData.seller_id) errors.seller_id = 'Vui lòng chọn người bán.';
-  else delete errors.seller_id;
-};
-
 // Form validation
 const validateFormData = () => {
   Object.keys(errors).forEach(key => delete errors[key]);
@@ -1031,7 +880,7 @@ const validateFormData = () => {
   let isValid = true;
 
   if (!formData.name.trim()) {
-    errors.name = 'Tên sản phẩm là bắt buộc.';
+    errors.name = 'Tên sản phẩm phải là bắt buộc.';
     isValid = false;
   } else if (formData.name.length > 255) {
     errors.name = 'Tên sản phẩm không được vượt quá 255 ký tự.';
@@ -1042,19 +891,6 @@ const validateFormData = () => {
     errors.slug = 'Slug không được vượt quá 255 ký tự.';
     isValid = false;
   }
-
-  if (!formData.seller_id) { // Kiểm tra seller_id
-    errors.seller_id = 'Vui lòng chọn người bán.';
-    isValid = false;
-  }
-
-  if (formData.status && !['active', 'inactive', 'trash'].includes(formData.status)) {
-    errors.status = 'Trạng thái không hợp lệ.';
-    isValid = false;
-  }
-
-
-
   formData.variants.forEach((variant, index) => {
     const attrIds = variant.attributes.map(attr => attr.attribute_id).filter(Boolean);
     const duplicateAttr = attrIds.length !== new Set(attrIds).size;
@@ -1080,34 +916,25 @@ const validateFormData = () => {
       errors[`variants.${index}.sale_price`] = 'Giá khuyến mãi phải nhỏ hơn giá gốc.';
       isValid = false;
     }
-
     if (!Number.isFinite(variant.cost_price) || variant.cost_price < 0) {
       errors[`variants.${index}.cost_price`] = 'Giá vốn phải là số dương hoặc bằng 0.';
       isValid = false;
     }
-    variant.inventory.forEach((inv, i) => {
-      if (inv.location && inv.location.length > 255) {
-        errors[`variants.${index}.inventory.${i}.location`] = 'Vị trí không được vượt quá 255 ký tự.';
-        isValid = false;
-      }
-    });
-  });
 
+  });
   const attributeSets = formData.variants.map((variant, index) => ({
-    index,
+    index: index,
     attributes: variant.attributes
       .sort((a, b) => a.attribute_id - b.attribute_id)
-      .map(attr => `${attr.attribute_id}-${attr.value_id}`)
+      .map(attr => `${attr.attribute_id}:${attr.value_id}`)
       .join(',')
   }));
-
   const duplicates = attributeSets.reduce((acc, curr, i, arr) => {
     if (arr.some((other, j) => i !== j && other.attributes === curr.attributes && curr.attributes)) {
       acc.push(curr.index);
     }
     return acc;
   }, []);
-
   if (duplicates.length) {
     errors.variants = `Các biến thể tại vị trí ${duplicates.map(i => i + 1).join(', ')} có thuộc tính trùng nhau. Vui lòng sửa đổi các thuộc tính để đảm bảo mỗi biến thể là duy nhất.`;
     isValid = false;
@@ -1117,10 +944,10 @@ const validateFormData = () => {
 };
 
 // Form submission
-const updateProduct = async () => {
+const createProduct = async () => {
   if (!validateFormData()) {
     showNotificationMessage('Vui lòng kiểm tra lại dữ liệu.', 'error');
-    console.error('Form validation errors:', errors);
+    console.error('Form validation failed:', errors);
     return;
   }
 
@@ -1129,31 +956,29 @@ const updateProduct = async () => {
   if (formData.slug) formDataToSend.append('slug', formData.slug.trim());
   formDataToSend.append('description', formData.description.trim());
   formDataToSend.append('status', formData.status);
-  formDataToSend.append('seller_id', formData.seller_id); // Thêm seller_id
-
+  // Append categories as individual elements
   formData.categories.forEach(categoryId => {
     formDataToSend.append('categories[]', categoryId);
   });
 
+  // Append tags as individual elements
   formData.tags.forEach(tagId => {
     formDataToSend.append('tags[]', tagId);
   });
-
+  
+  // Only include variants with valid data
   const validVariants = formData.variants.filter(variant =>
-    variant.price !== null && Number.isFinite(variant.price) &&
-    variant.cost_price !== null && Number.isFinite(variant.cost_price)
+    variant.price !== null && Number.isFinite(variant.price) && variant.cost_price !== null && Number.isFinite(variant.cost_price)
   );
 
   validVariants.forEach((variant, index) => {
-    if (variant.id) {
-      formDataToSend.append(`variants[${index}][id]`, variant.id);
-    }
     formDataToSend.append(`variants[${index}][price]`, variant.price.toFixed(2));
     if (variant.sale_price !== null && Number.isFinite(variant.sale_price)) {
       formDataToSend.append(`variants[${index}][sale_price]`, variant.sale_price.toFixed(2));
     }
     formDataToSend.append(`variants[${index}][cost_price]`, variant.cost_price.toFixed(2));
 
+    // Only include valid attributes
     const validAttributes = variant.attributes.filter(attr => attr.attribute_id && attr.value_id);
     if (validAttributes.length > 0) {
       validAttributes.forEach((attr, i) => {
@@ -1162,13 +987,9 @@ const updateProduct = async () => {
       });
     }
 
-    const validInventory = variant.inventory.filter(inv =>
-      Number.isFinite(inv.quantity) && inv.quantity >= 0
-    );
+    // Only include valid inventory
+    const validInventory = variant.inventory.filter(inv => Number.isFinite(inv.quantity) && inv.quantity >= 0);
     validInventory.forEach((inv, i) => {
-      if (inv.id) {
-        formDataToSend.append(`variants[${index}][inventory][${i}][id]`, inv.id);
-      }
       formDataToSend.append(`variants[${index}][inventory][${i}][quantity]`, inv.quantity);
       if (inv.location && inv.location.trim()) {
         formDataToSend.append(`variants[${index}][inventory][${i}][location]`, inv.location.trim());
@@ -1181,55 +1002,45 @@ const updateProduct = async () => {
   });
 
   formData.images.forEach((img, index) => {
-    if (img.file) {
-      formDataToSend.append(`images[]`, img.file);
-    }
+    formDataToSend.append(`images[${index}]`, img.file);
   });
-
-  removedImages.value.forEach(imageId => {
-    formDataToSend.append('removed_images[]', imageId);
-  });
-
-  formDataToSend.append('_method', 'PUT');
-
+  
   try {
     loading.value = true;
+    console.log('Sending product creation request with payload:');
+    for (let [key, value] of formDataToSend.entries()) {
+      console.log(`${key}: ${value instanceof File ? value.name : value}`);
+    }
     const token = localStorage.getItem('access_token');
-    const response = await fetch(`${apiBase}/products/${formData.id}`, {
+    const response = await fetch(`${apiBase}/products`, {
       method: 'POST',
       body: formDataToSend,
-      headers: { Accept: 'application/json',
-                Authorization: `Bearer ${token}`
+      headers: { 
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`
        }
     });
     const data = await response.json();
-    console.log('Product update response:', data);
+    console.log('Product creation response:', data);
 
     if (response.ok && data.success) {
-      showNotificationMessage('Cập nhật sản phẩm thành công!', 'success');
-      setTimeout(() => router.push('/admin/products/list-product'), 1500);
+      showNotificationMessage('Tạo sản phẩm thành công!', 'success');
+      setTimeout(() => router.push('/seller/products/list-product'), 1500);
     } else {
       if (data.errors) {
         Object.entries(data.errors).forEach(([key, value]) => {
           errors[key] = Array.isArray(value) ? value[0] : value;
         });
       }
-      showNotificationMessage(data.message || 'Có lỗi xảy ra khi cập nhật sản phẩm.', 'error');
-      if (data.errors && Object.keys(data.errors).some(key => key.startsWith('removed_images'))) {
-        removedImages.value = [];
-        fetchProduct();
-      }
+      showNotificationMessage(data.message || 'Có lỗi xảy ra khi tạo sản phẩm.', 'error');
     }
   } catch (error) {
-    console.error('Error updating product:', error);
-    showNotificationMessage('Có lỗi kết nối khi cập nhật sản phẩm.', 'error');
-    removedImages.value = [];
-    fetchProduct();
+    console.error('Error creating product:', error);
+    showNotificationMessage('Có lỗi kết nối khi tạo sản phẩm.', 'error');
   } finally {
     loading.value = false;
   }
 };
-
 // Panel toggle
 const togglePanel = (panel) => {
   panels.value[panel] = !panels.value[panel];
@@ -1254,33 +1065,33 @@ const showNotificationMessage = (message, type) => {
 
 // Lifecycle hooks
 onMounted(async () => {
-  if (!route.params.id) {
-    showNotificationMessage('Không tìm thấy ID sản phẩm.', 'error');
-    router.push('/admin/products/list-product');
-    return;
+  try {
+    const config = await useRuntimeConfig();
+    if (config?.public?.apiBaseUrl) {
+      apiBase = config.public.apiBaseUrl;
+    }
+  } catch (e) {
+    console.warn('Runtime config not available, using fallback API base:', apiBase);
   }
-  console.log('Fetching product with ID:', route.params.id);
-  formData.id = route.params.id;
-  await Promise.allSettled([fetchProduct(), fetchCategories(), fetchTags(), fetchAttributes(), fetchSellers()]).then(([prodResult, catResult, tagResult, attrResult, sellerResult]) => {
-    console.log('Fetch results:', { prodResult, catResult, tagResult, attrResult, sellerResult });
-    console.log('API Errors:', apiErrors);
-    console.log('Product data:', formData);
+  await Promise.allSettled([fetchCategories(), fetchTags(), fetchAttributes()]).then(([catResult, tagResult, attrResult]) => {
+    console.log('Fetch results:', { catResult, tagResult, attrResult });
+    console.log('API Errors after fetch:', apiErrors);
     console.log('Categories:', categories.value.length);
     console.log('Tags:', tags.value.length);
     console.log('Attributes:', attributes.value.length);
-    console.log('Sellers:', sellers.value.length);
   });
   document.addEventListener('click', closeDropdowns);
 });
 
 onUnmounted(() => {
+  
   document.removeEventListener('click', closeDropdowns);
 });
 </script>
 
 <style scoped>
 .scrollbar-height {
-  -webkit-overflow-scrolling: touch;
+  -webkit-overflow-scrolling: auto touch;
   overflow-y: auto;
   -ms-overflow-style: none;
   scrollbar-width: none;

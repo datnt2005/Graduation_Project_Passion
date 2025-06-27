@@ -82,7 +82,7 @@
                 @click="$emit('close')">Tất cả sản phẩm</NuxtLink>
             </li>
             <li>
-              <NuxtLink to="/admin/products/create-product" class="block py-1 font-semibold text-white rounded"
+              <NuxtLink to="/admin/products/create-product" class="block py-1 font-semibold hover:text-white rounded"
                 :class="route.path.startsWith('/admin/products/create-product') ? 'text-green-400 font-bold' : ''"
                 @click="$emit('close')">Thêm sản phẩm</NuxtLink>
             </li>
@@ -100,9 +100,6 @@
               <NuxtLink to="/admin/tags/list-tag" class="block py-1 hover:text-white rounded"
                 :class="route.path.startsWith('/admin/tags') ? 'text-green-400 font-bold' : ''" @click="$emit('close')">
                 Thẻ sản phẩm</NuxtLink>
-            </li>
-            <li>
-              <NuxtLink to="#" class="block py-1 hover:text-white rounded" @click="$emit('close')">Đánh giá</NuxtLink>
             </li>
           </ul>
         </li>

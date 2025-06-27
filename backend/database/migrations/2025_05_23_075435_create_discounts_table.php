@@ -13,7 +13,7 @@ return new class extends Migration
             $table->string('name');
             $table->string('code', 50)->unique();
             $table->text('description')->nullable();
-            $table->enum('discount_type', ['percentage', 'fixed']);
+            $table->enum('discount_type', ['percentage', 'fixed','shipping_fee']);
             $table->decimal('discount_value', 10, 2);
             $table->integer('usage_limit')->nullable();
             $table->integer('used_count')->default(0);

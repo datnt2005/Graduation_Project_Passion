@@ -52,4 +52,8 @@ class Discount extends Model
     {
         return $this->hasMany(FlashSale::class);
     }
+    public function orders()
+    {
+        return $this->belongsToMany(Order::class, 'discount_order');
+    }
 }

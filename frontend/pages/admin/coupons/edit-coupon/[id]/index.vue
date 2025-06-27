@@ -125,6 +125,8 @@
                         >
                           <option value="fixed">Giảm giá cố định</option>
                           <option value="percentage">Giảm giá theo phần trăm</option>
+                          <option value="shipping_fee">Giảm giá vận chuyển</option>
+
                         </select>
                         <span v-if="errors.discount_type" class="text-red-500 text-xs mt-1">{{ errors.discount_type }}</span>
                       </div>
@@ -787,7 +789,7 @@ const validateForm = () => {
   if (!formData.discount_type) {
     errors.discount_type = 'Loại giảm giá không được để trống';
     isValid = false;
-  } else if (!['percentage', 'fixed'].includes(formData.discount_type)) {
+  } else if (!['percentage', 'fixed', 'shipping_fee'].includes(formData.discount_type)) {
     errors.discount_type = 'Loại giảm giá không hợp lệ';
     isValid = false;
   }

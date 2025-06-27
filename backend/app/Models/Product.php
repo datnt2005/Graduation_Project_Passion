@@ -10,10 +10,9 @@ class Product extends Model
 {
     use HasFactory;
     protected $table = 'products';
-    protected $fillable = ['seller_id', 'name', 'slug', 'description', 'status'];
-    public function productVariants()
-    {
-        return $this->hasMany(ProductVariant::class, 'product_id', 'id');
+    protected $fillable = [ 'seller_id', 'name', 'slug', 'description', 'status', 'is_admin_added'];
+    public function productVariants(){
+      return $this->hasMany(ProductVariant::class, 'product_id', 'id');
     }
 
     public function productPic()

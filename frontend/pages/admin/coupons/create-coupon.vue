@@ -132,6 +132,8 @@
                         >
                           <option value="fixed">Giảm giá cố định</option>
                           <option value="percentage">Giảm giá theo phần trăm</option>
+                          <option value="shipping_fee">Giảm giá vận chuyển</option>
+
                         </select>
                         <span v-if="errors.discount_type" class="text-red-500 text-xs mt-1">{{ errors.discount_type }}</span>
                       </div>
@@ -715,6 +717,13 @@ const validateForm = () => {
   if (formData.discount_type === 'percentage' && formData.discount_value > 100) {
     errors.discount_value = 'Giảm giá theo phần trăm không được vượt quá 100%';
     isValid = false;
+  }
+
+   if (formData.discount_type === 'shipping_fee') {
+    if (formData.discount_value < 5000 || formData.discount_value > 30000) {
+      errors.discount_value = 'Giảm phí vận chuyển phải từ 5.000đ đến 30.000đ';
+      isValid = false;
+    }
   }
 
   // Validate start_date

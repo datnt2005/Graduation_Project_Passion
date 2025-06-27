@@ -1,7 +1,7 @@
 <template>
   <h1 class="text-xl font-semibold text-gray-800 px-6 pt-6">Cập nhật sản phẩm</h1>
   <div class="px-6 pb-4">
-    <nuxt-link to="/admin/products/list-product" class="text-gray-600 hover:underline text-sm">
+    <nuxt-link to="/seller/products/list-product" class="text-gray-600 hover:underline text-sm">
       Danh sách sản phẩm
     </nuxt-link>
     <span class="text-gray-600 text-sm"> / Cập nhật sản phẩm</span>
@@ -400,36 +400,6 @@
                   <span v-if="errors.tags" class="text-red-500 text-xs mt-1 block">{{ errors.tags }}</span>
                 </div>
               </section>
-
-              <!-- Thêm vào sau section "Product Tags" trong sidebar -->
-              <section class="border border-gray-300 rounded-md shadow-sm bg-white">
-                <header
-                  class="flex justify-between items-center px-4 py-3 border-b border-gray-300 font-semibold cursor-pointer select-none"
-                  @click="togglePanel('sellers')" :aria-expanded="panels.sellers"
-                  aria-label="Toggle Product sellers panel">
-                  <span>Người bán</span>
-                  <i class="fas" :class="panels.sellers ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
-                </header>
-                <div v-if="panels.sellers" class="p-4 text-xs">
-                  <div v-if="apiErrors.sellers" class="text-red-500 text-xs mb-2">
-                    {{ apiErrors.sellers }}
-                  </div>
-                  <div v-else-if="!sellers.length" class="text-gray-500 text-xs mb-2">
-                    Không có người bán nào để hiển thị.
-                  </div>
-                  <div v-else class="relative mb-3">
-                    <select v-model="formData.seller_id"
-                      class="w-full rounded border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                      @change="selectSeller">
-                      <option value="">Chọn người bán</option>
-                      <option v-for="seller in sellers" :key="seller.id" :value="seller.id">
-                        {{ seller.store_name }} (#{{ seller.id }})
-                      </option>
-                    </select>
-                    <span v-if="errors.seller_id" class="text-red-500 text-xs mt-1 block">{{ errors.seller_id }}</span>
-                  </div>
-                </div>
-              </section>
             </div>
           </div>
         </form>
@@ -547,7 +517,7 @@ import Editor from '@tinymce/tinymce-vue';
 library.add(faChevronUp, faChevronDown);
 
 definePageMeta({
-  layout: 'default-admin'
+  layout: 'default-seller'
 });
 
 const router = useRouter();
@@ -566,7 +536,6 @@ const apiErrors = reactive({
   categories: null,
   tags: null,
   attributes: null,
-  sellers: null
 });
 const showAddAttributeModal = ref(false);
 const fileInput = ref(null);
@@ -607,13 +576,11 @@ const formData = reactive({
 const panels = ref({
   categories: true,
   tags: true,
-  sellers: true // Thêm sellers panel
 });
 
 const categories = ref([]);
 const tags = ref([]);
 const attributes = ref([]);
-const sellers = ref([]);
 
 // Extract array from various API response formats
 const extractArray = (data, key) => {
@@ -691,7 +658,7 @@ const fetchProduct = async () => {
   } catch (error) {
     console.error('Error fetching product:', error);
     showNotificationMessage('Không thể tải sản phẩm.', 'error');
-    router.push('/admin/products/list-product');
+    router.push('/seller/products/list-product');
   } finally {
     loading.value = false;
   }
@@ -777,29 +744,6 @@ const fetchAttributes = async () => {
   }
 };
 
-const fetchSellers = async () => {
-  try {
-    const response = await fetch(`${apiBase}/sellers/verified`, {
-      headers: { Accept: 'application/json' }
-    });
-    if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    const data = await response.json();
-    const sellerArray = extractArray(data, 'data');
-    if (sellerArray.length) {
-      sellers.value = sellerArray.map(item => ({
-        id: item.id,
-        store_name: item.store_name || item.title || 'Không có tên'
-      }));
-      // Thêm option "Passion" cho Admin
-      sellers.value.unshift({ id: 'passion', store_name: 'Passion (Admin)' });
-      apiErrors.sellers = null;
-    } else {
-      throw new Error('Unexpected response format for sellers');
-    }
-  } catch (error) {
-    console.error('Error fetching sellers:', error);
-  }
-};
 // Create new attribute
 const createAttribute = async () => {
   // Validate form
@@ -1207,7 +1151,7 @@ const updateProduct = async () => {
 
     if (response.ok && data.success) {
       showNotificationMessage('Cập nhật sản phẩm thành công!', 'success');
-      setTimeout(() => router.push('/admin/products/list-product'), 1500);
+      setTimeout(() => router.push('/seller/products/list-product'), 1500);
     } else {
       if (data.errors) {
         Object.entries(data.errors).forEach(([key, value]) => {
@@ -1256,19 +1200,18 @@ const showNotificationMessage = (message, type) => {
 onMounted(async () => {
   if (!route.params.id) {
     showNotificationMessage('Không tìm thấy ID sản phẩm.', 'error');
-    router.push('/admin/products/list-product');
+    router.push('/seller/products/list-product');
     return;
   }
   console.log('Fetching product with ID:', route.params.id);
   formData.id = route.params.id;
-  await Promise.allSettled([fetchProduct(), fetchCategories(), fetchTags(), fetchAttributes(), fetchSellers()]).then(([prodResult, catResult, tagResult, attrResult, sellerResult]) => {
-    console.log('Fetch results:', { prodResult, catResult, tagResult, attrResult, sellerResult });
+  await Promise.allSettled([fetchProduct(), fetchCategories(), fetchTags(), fetchAttributes()]).then(([prodResult, catResult, tagResult, attrResult]) => {
+    console.log('Fetch results:', { prodResult, catResult, tagResult, attrResult });
     console.log('API Errors:', apiErrors);
     console.log('Product data:', formData);
     console.log('Categories:', categories.value.length);
     console.log('Tags:', tags.value.length);
     console.log('Attributes:', attributes.value.length);
-    console.log('Sellers:', sellers.value.length);
   });
   document.addEventListener('click', closeDropdowns);
 });

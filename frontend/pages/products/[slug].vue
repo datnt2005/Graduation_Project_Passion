@@ -79,6 +79,9 @@ import ProductReviews from '../components/shared/reviews/ProductReviews.vue';
 import PhoneNumber from '../components/shared/products/PhoneNumber.vue';
 import { useToast } from '~/composables/useToast';
 
+import { useCart } from '~/composables/useCart';
+const { fetchCart } = useCart();
+
 const { toast } = useToast()
 const config = useRuntimeConfig();
 const route = useRoute();
@@ -397,6 +400,7 @@ async function addToCart() {
     toast('success', data.message || 'Thêm vào giỏ hàng thành công!');
     quantity.value = 1;
     validationMessage.value = '';
+    await fetchCart();
   } catch (err) {
     console.error('Add to cart error:', err);
     toast('error', err.message || 'Thêm vào giỏ hàng thất bại.');

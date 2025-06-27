@@ -286,15 +286,12 @@ const getWardName = (ward_code, district_id) => {
 
 // Danh sách địa chỉ
 const addresses = ref([])
-
 const loadAddresses = async () => {
   try {
     const res = await axios.get(`${apiBase}/address`, useAuthHeaders())
     addresses.value = res.data.data || []
-
     const provinceIds = [...new Set(addresses.value.map(a => a.province_id))]
     const districtIds = [...new Set(addresses.value.map(a => a.district_id))]
-
     for (const pid of provinceIds) {
       const resDistricts = await axios.post(`${apiBase}/ghn/districts`, {
         province_id: pid
@@ -360,7 +357,6 @@ const startEditAddress = async (address) => {
   await loadDistricts()
   await loadWards()
 }
-
 const toggleNewAddressForm = () => {
   showNewAddressForm.value = !showNewAddressForm.value
 }
