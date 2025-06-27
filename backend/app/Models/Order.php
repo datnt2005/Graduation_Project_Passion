@@ -49,6 +49,7 @@ class Order extends Model
         return $this->belongsTo(Discount::class)->withDefault();
     }
 
+
     public function orderItems()
     {
         return $this->hasMany(OrderItem::class);
@@ -59,7 +60,6 @@ class Order extends Model
         return $this->hasMany(Payment::class);
     }
 
-    
 
 
     // Phương thức kiểm tra và áp dụng mã giảm giá

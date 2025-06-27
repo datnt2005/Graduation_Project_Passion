@@ -238,8 +238,8 @@ public function update(Request $request)
     ]);
 }
 
-
  public function register(Request $request)
+
 
     {
         try {
@@ -449,7 +449,7 @@ public function update(Request $request)
             ], 500);
         }
     }
-//lấy danh sách sellers đã  xác minh
+
     public function getVerifiedSellers()
     {
         $sellers = Seller::where('verification_status', 'verified')->get();

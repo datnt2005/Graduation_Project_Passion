@@ -193,16 +193,14 @@ async function handleSubmit() {
     );
     const token = response.data.token;
     const slug = response.data.store_slug; 
-      console.log("Login response data:", response.data);
+    console.log("Login response data:", response.data);
     localStorage.setItem("token", token);
-
     // 👉 Điều hướng tới trang cửa hàng theo slug
    if (slug) {
     router.push(`/seller/${slug}`);
     } else {
       toast('error', 'Không tìm thấy cửa hàng tương ứng với tài khoản này.');
     }
-
   } catch (error) {
     if (error.response?.status === 422) {
       const resErrors = error.response.data.errors;

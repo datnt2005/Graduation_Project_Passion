@@ -55,7 +55,7 @@ Route::prefix('notifications')->group(function () {
     Route::post('/mark-read', [NotificationController::class, 'markAsRead']);
     Route::delete('/{id}', [NotificationController::class, 'destroy']);
     Route::post('/send-multiple', [NotificationController::class, 'sendMultiple']);
-}); 
+});
 
 //tags
 Route::prefix('tags')->group(function () {
@@ -228,8 +228,6 @@ Route::post('/ghn/districts', [GHNController::class, 'getDistricts']);
 Route::post('/ghn/wards', [GHNController::class, 'getWards']);
 Route::post('/shipping/calculate-fee', [GHNController::class, 'calculateFee']);
 Route::post('/ghn/services', [GHNController::class, 'getServices']);
-
-
 
 
 // crud user
