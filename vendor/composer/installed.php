@@ -119,9 +119,9 @@
             'dev_requirement' => false,
         ),
         'illuminate/filesystem' => array(
-            'pretty_version' => 'v12.17.0',
-            'version' => '12.17.0.0',
-            'reference' => '80fe8605cfa360fdbc85f67c19801a9657615aab',
+            'pretty_version' => 'v12.19.3',
+            'version' => '12.19.3.0',
+            'reference' => 'a5ec0cc347d46ff4aa3615c7739f321df3183fb7',
             'type' => 'library',
             'install_path' => __DIR__ . '/../illuminate/filesystem',
             'aliases' => array(),
