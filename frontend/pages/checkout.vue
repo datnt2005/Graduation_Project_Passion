@@ -545,14 +545,13 @@ import SelectedAddress from '../components/shared/SelectedAddress.vue'
 import ShippingSelector from '../components/shared/ShippingSelector.vue'
 import { useCheckout } from '~/composables/useCheckout'
 
+
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBaseUrl
 const mediaBaseUrl = config.public.mediaBaseUrl
 const route = useRoute()
-
 const shippingRef = ref(null)
 const selectedShippingMethod = ref(null)
-
 const manualCode = ref('')
 
 // Địa chỉ
@@ -568,8 +567,6 @@ const formattedShippingFee = computed(() => {
   const baseFee = parsePrice(rawFee);
   return formatPrice(baseFee);
 }); 
-
-
 
 const applyManualDiscount = () => {
   const code = manualCode.value.trim().toUpperCase()
@@ -680,6 +677,7 @@ const selectPromotion = (promotion) => {
     }
     promotion.selected = !promotion.selected
 }
+
 const getBadgeClass = (badge) => {
     const classes = {
         'Hot': 'bg-red-500',

@@ -107,8 +107,6 @@ const finalTotal = computed(() => {
     showErrorNotification('Vui lòng chọn hình thức giao hàng')
     return
   }
-
-
   try {
     loading.value = true
     error.value = null
