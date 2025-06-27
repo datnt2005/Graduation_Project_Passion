@@ -565,32 +565,52 @@ const loadWards = async (district_id) => {
 };
 
 const loadSelectedAddress = async () => {
-    try {
-        await loadProvinces();
-        const address_id = route.query.address_id;
-        let res;
-        if (address_id) {
-            res = await axios.get(`${apiBase}/address/${address_id}`);
-            selectedAddress.value = res.data.data;
-        } else {
-            const token = localStorage.getItem('access_token');
-            if (!token) {
-                toast('error', 'Vui lòng đăng nhập để chọn địa chỉ');
-                return;
-            }
-            res = await axios.get(`${apiBase}/address`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            selectedAddress.value = res.data.data.find((addr) => addr.is_default == 1);
-        }
-        if (selectedAddress.value) {
-            await loadDistricts(selectedAddress.value.province_id);
-            await loadWards(selectedAddress.value.district_id);
-        }
-    } catch (err) {
-        console.error('Error loading selected address:', err);
-        toast('error', 'Không thể tải địa chỉ giao hàng');
+  try {
+    // Load danh sách tỉnh trước
+    await loadProvinces();
+
+    const address_id = route.query.address_id;
+    const token = localStorage.getItem('access_token');
+
+    // Nếu không có token, thông báo lỗi và dừng lại
+    if (!token) {
+      toast('error', 'Vui lòng đăng nhập để chọn địa chỉ');
+      return;
     }
+
+    let res;
+
+    // Nếu có address_id truyền qua URL, thì load địa chỉ đó
+    if (address_id) {
+      res = await axios.get(`${apiBase}/address/${address_id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      selectedAddress.value = res.data?.data || null;
+    } else {
+      // Nếu không có, load danh sách địa chỉ và chọn địa chỉ mặc định
+      res = await axios.get(`${apiBase}/address`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const addresses = res.data?.data || [];
+      selectedAddress.value = addresses.find(addr => addr.is_default === 1) || addresses[0] || null;
+    }
+
+    // Nếu tìm được địa chỉ, load danh sách quận/huyện và phường/xã tương ứng
+    if (selectedAddress.value) {
+      await loadDistricts(selectedAddress.value.province_id);
+      await loadWards(selectedAddress.value.district_id);
+    } else {
+      toast('error', 'Không tìm thấy địa chỉ giao hàng phù hợp');
+    }
+  } catch (err) {
+    console.error('Lỗi khi tải địa chỉ:', err);
+    toast('error', 'Không thể tải địa chỉ giao hàng');
+  }
 };
 
 // Discount handling

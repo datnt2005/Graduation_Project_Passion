@@ -42,7 +42,7 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
   const cartItems = computed(() =>
     cart.value.stores
       .flatMap((store) => (store.items || []).filter((item) => selectedItems.value.has(item.id)))
-      .filter((item) => item && item.product_variant_id && item.quantity)
+      .filter((item) => item && item.id && item.quantity)
   );
 
   // Total based on selected items (reusing selectedTotal from useCart)
@@ -79,10 +79,10 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
 
   // Formatted price utilities
 
-const formatPrice = (price) => {
-  const parsed = parsePrice(price);
-  return parsed.toLocaleString('vi-VN');
-};
+  const formatPrice = (price) => {
+    const parsed = parsePrice(price);
+    return parsed.toLocaleString('vi-VN');
+  };
 
   const formattedTotal = computed(() => `${formatPrice(total.value)} đ`);
   const formattedFinalTotal = computed(() => `${formatPrice(finalTotal.value)} đ`);
@@ -103,117 +103,115 @@ const formatPrice = (price) => {
   };
 
   const placeOrder = async () => {
-    // Validate inputs
-    if (!cartItems.value.length) {
-      toast('error', 'Giỏ hàng trống hoặc chưa chọn sản phẩm');
-      return;
-    }
-    if (!selectedPaymentMethod.value) {
-      toast('error', 'Vui lòng chọn phương thức thanh toán');
-      return;
-    }
-    if (!selectedShippingMethod.value) {
-      toast('error', 'Vui lòng chọn hình thức giao hàng');
-      return;
-    }
-    if (!selectedAddress.value?.id) {
-      toast('error', 'Vui lòng chọn địa chỉ giao hàng');
+  if (!cartItems.value.length) {
+    toast('error', 'Giỏ hàng trống hoặc chưa chọn sản phẩm');
+    return;
+  }
+  if (!selectedPaymentMethod.value) {
+    toast('error', 'Vui lòng chọn phương thức thanh toán');
+    return;
+  }
+  if (!selectedShippingMethod.value) {
+    toast('error', 'Vui lòng chọn hình thức giao hàng');
+    return;
+  }
+  if (!selectedAddress.value?.id) {
+    toast('error', 'Vui lòng chọn địa chỉ giao hàng');
+    return;
+  }
+
+  loading.value = true;
+  error.value = null;
+
+  try {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      toast('error', 'Vui lòng đăng nhập để tiếp tục');
+      window.dispatchEvent(new CustomEvent('openLoginModal'));
       return;
     }
 
-    loading.value = true;
-    error.value = null;
+    const userResponse = await fetch(`${config.public.apiBaseUrl}/me`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
+      },
+    });
 
-    try {
-      const token = localStorage.getItem('access_token');
-      if (!token) {
-        toast('error', 'Vui lòng đăng nhập để tiếp tục');
+    if (!userResponse.ok) {
+      if (userResponse.status === 401) {
+        localStorage.removeItem('access_token');
         window.dispatchEvent(new CustomEvent('openLoginModal'));
-        return;
+        throw new Error('Phiên đăng nhập hết hạn');
       }
-
-      // Fetch user data
-      const userResponse = await fetch(`${config.public.apiBaseUrl}/me`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/json',
-        },
-      });
-
-      if (!userResponse.ok) {
-        if (userResponse.status === 401) {
-          localStorage.removeItem('access_token');
-          window.dispatchEvent(new CustomEvent('openLoginModal'));
-          throw new Error('Phiên đăng nhập hết hạn');
-        }
-        throw new Error('Không thể lấy thông tin người dùng');
-      }
-
-      const { data: userData } = await userResponse.json();
-      if (!userData?.id) {
-        throw new Error('Không tìm thấy thông tin người dùng');
-      }
-
-      // Prepare order data
-      const orderData = {
-        user_id: userData.id,
-        address_id: selectedAddress.value.id,
-        payment_method: selectedPaymentMethod.value,
-        service_id: selectedShippingMethod.value,
-        discount_id: selectedDiscounts.value?.[0]?.id || null,
-        items: cartItems.value.map((item) => {
-          if (!item.productVariant?.product?.id) {
-            throw new Error(`Sản phẩm không hợp lệ: ${item.id}`);
-          }
-          return {
-            product_id: item.productVariant.product.id,
-            product_variant_id: item.product_variant_id,
-            quantity: item.quantity,
-            price: parsePrice(item.sale_price || item.price),
-          };
-        }),
-      };
-
-      // Create order
-      const orderResponse = await fetch(`${config.public.apiBaseUrl}/orders`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(orderData),
-      });
-
-      if (!orderResponse.ok) {
-        const errorData = await orderResponse.json();
-        throw new Error(errorData.message || 'Lỗi khi tạo đơn hàng');
-      }
-
-      const { data: orderResult } = await orderResponse.json();
-
-      // Handle payment
-      if (selectedPaymentMethod.value === 'COD') {
-        await navigateTo(`/order-success/${orderResult.id}`);
-      } else {
-        const { url } = await processPayment(orderResult.id, selectedPaymentMethod.value);
-        if (url) {
-          window.location.href = url; // Use window.location for external payment URLs
-        } else {
-          throw new Error('Không nhận được URL thanh toán');
-        }
-      }
-
-      // Refresh cart after successful order
-      await fetchCart();
-    } catch (err) {
-      error.value = err.message || 'Có lỗi xảy ra khi đặt hàng';
-      toast('error', error.value);
-      console.error('Place order error:', err);
-    } finally {
-      loading.value = false;
+      throw new Error('Không thể lấy thông tin người dùng');
     }
-  };
+
+    const { data: userData } = await userResponse.json();
+    if (!userData?.id) throw new Error('Không tìm thấy thông tin người dùng');
+
+    // CHỖ QUAN TRỌNG NHẤT: lấy danh sách sản phẩm
+    const items = cartItems.value
+      .filter(item => item.productVariant && item.product)
+      .map(item => ({
+        product_id: item.product.id,
+        product_variant_id: item.productVariant.id,
+        quantity: item.quantity,
+        price: parsePrice(item.sale_price || item.price),
+      }));
+
+    if (!items.length) {
+      toast('error', 'Không có sản phẩm hợp lệ để đặt hàng');
+      return;
+    }
+
+    const orderData = {
+      user_id: userData.id,
+      address_id: selectedAddress.value.id,
+      payment_method: selectedPaymentMethod.value,
+      service_id: selectedShippingMethod.value,
+      discount_id: selectedDiscounts.value?.[0]?.id || null,
+      items,
+    };
+
+    const orderResponse = await fetch(`${config.public.apiBaseUrl}/orders`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(orderData),
+    });
+
+    if (!orderResponse.ok) {
+      const errorData = await orderResponse.json();
+      throw new Error(errorData.message || 'Lỗi khi tạo đơn hàng');
+    }
+
+    const { data: orderResult } = await orderResponse.json();
+
+    // Xử lý thanh toán
+    if (selectedPaymentMethod.value === 'COD') {
+      await navigateTo(`/order-success/${orderResult.id}`);
+    } else {
+      const { url } = await processPayment(orderResult.id, selectedPaymentMethod.value);
+      if (url) {
+        window.location.href = url;
+      } else {
+        throw new Error('Không nhận được URL thanh toán');
+      }
+    }
+
+    await fetchCart(); // Clear lại cart
+  } catch (err) {
+    error.value = err.message || 'Có lỗi xảy ra khi đặt hàng';
+    toast('error', error.value);
+    console.error('Place order error:', err);
+  } finally {
+    loading.value = false;
+  }
+};
 
   return {
     cartItems,
