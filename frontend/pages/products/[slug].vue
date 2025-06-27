@@ -63,7 +63,7 @@
                     </div>
                 </section>
 
-                <ProductReviews />
+                <ProductReviews v-if="product.id" :product-id="product.id" />
             </div>
         </main>
     </template>

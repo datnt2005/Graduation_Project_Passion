@@ -44,11 +44,12 @@
 
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-1">Nội dung</label>
-                  <Editor v-model="form.content" api-key="rlas5j7eqa6dogiwnt1ld8iilzj3q074o4rw75lsxcygu1zd" :init="{
+                  <Editor v-model="form.content" api-key="..." :init="{
                     height: 300,
                     menubar: false,
                     plugins: 'lists link image preview',
-                    toolbar: 'undo redo | formatselect | bold italic underline | alignjustify alignleft aligncenter alignright | bullist numlist | removeformat | preview | link image | code'
+                    toolbar: 'undo redo | formatselect | bold italic underline | alignjustify alignleft aligncenter alignright | bullist numlist | removeformat | preview | link image | code',
+                    entity_encoding: 'raw', // ✅ Cái này sẽ giữ nguyên ký tự
                   }" />
                   <span v-if="errors.content" class="text-red-500 text-xs mt-1">{{ errors.content }}</span>
                 </div>
@@ -125,8 +126,7 @@
 
                 <div class="pt-4 mt-4 border-t border-gray-200">
                   <div class="flex gap-2">
-                    <button type="submit"
-                      class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 text-sm"
+                    <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 text-sm"
                       :disabled="loading">
                       {{ loading ? 'Đang lưu...' : 'Cập nhật thông báo' }}
                     </button>
@@ -228,7 +228,7 @@ const updateNotification = async () => {
   try {
     const formData = new FormData()
     formData.append('title', form.value.title)
-    formData.append('content', form.value.content)
+    formData.append('content', String(form.value.content || '')) // ✅ Ép kiểu rõ ràng
     formData.append('to_role', form.value.to_role)
     formData.append('type', form.value.type)
     formData.append('link', form.value.link || '')
@@ -237,10 +237,11 @@ const updateNotification = async () => {
     }
 
     const token = localStorage.getItem('access_token')
+
     await axios.post(`${apiBase}/notifications/${id}?_method=PUT`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
-        Authorization: `Bearer ${token}`
+        'Authorization': `Bearer ${token}`
       }
     })
 
@@ -257,6 +258,5 @@ const updateNotification = async () => {
     loading.value = false
   }
 }
+
 </script>
-
-

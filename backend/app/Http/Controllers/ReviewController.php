@@ -214,6 +214,11 @@ class ReviewController extends Controller
     public function update(Request $request, $id)
     {
         $review = Review::findOrFail($id);
+        $user = Auth::user();
+
+        if (!$user || $review->user_id !== $user->id) {
+            return response()->json(['message' => 'Bạn không có quyền sửa đánh giá này.'], 403);
+        }
 
         $validator = Validator::make($request->all(), [
             'content' => 'required|string|min:10|max:1000',
@@ -231,14 +236,9 @@ class ReviewController extends Controller
             ], 422);
         }
 
-        if ($review->user_id !== $request->user()->id) {
-            return response()->json(['message' => 'Bạn không có quyền sửa đánh giá này.'], 403);
-        }
-
-        // Kiểm tra đã mua sản phẩm
         $hasPurchased = DB::table('orders')
             ->join('order_items', 'orders.id', '=', 'order_items.order_id')
-            ->where('orders.user_id', $request->user()->id)
+            ->where('orders.user_id', $user->id)
             ->where('orders.status', 'completed')
             ->where('order_items.product_id', $review->product_id)
             ->exists();
@@ -255,14 +255,12 @@ class ReviewController extends Controller
         try {
             $mediaUrls = [];
 
-            // Xoá ảnh không giữ lại
             $keptImageIds = $request->input('kept_images', []);
             $review->media()
                 ->where('media_type', 'image')
                 ->whereNotIn('id', $keptImageIds)
                 ->delete();
 
-            // Upload ảnh mới
             if ($request->hasFile('images')) {
                 foreach ($request->file('images') as $file) {
                     $filename = 'reviews/' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
@@ -271,7 +269,6 @@ class ReviewController extends Controller
                 }
             }
 
-            // Lưu media
             foreach ($mediaUrls as $media) {
                 $review->media()->create($media);
             }
@@ -290,9 +287,6 @@ class ReviewController extends Controller
             ], 500);
         }
     }
-
-
-
 
 
     // Xóa đánh giá
@@ -471,8 +465,8 @@ class ReviewController extends Controller
     public function adminShow($id)
     {
         try {
-            $review = Review::with(['media', 'reply', 'product'])
-                ->withCount('likes') // 👈 Thêm dòng này để lấy likes_count
+            $review = Review::with(['media', 'reply', 'product', 'user']) // 👈 Thêm 'user'
+                ->withCount('likes')
                 ->findOrFail($id);
 
             return response()->json([
@@ -480,10 +474,11 @@ class ReviewController extends Controller
                 'product_id' => $review->product_id,
                 'product_name' => optional($review->product)->name ?? 'Không rõ',
                 'user_id' => $review->user_id,
+                'user_name' => optional($review->user)->name ?? 'Không rõ', // 👈 THÊM DÒNG NÀY
                 'content' => $review->content,
                 'rating' => $review->rating,
                 'status' => $review->status,
-                'likes_count' => $review->likes_count, // 👈 Dùng đúng trường `likes_count`
+                'likes_count' => $review->likes_count,
                 'reply' => $review->reply ? [
                     'id' => $review->reply->id,
                     'content' => $review->reply->content,
@@ -509,8 +504,6 @@ class ReviewController extends Controller
     }
 
 
-
-
     public function adminUpdate(Request $request, $id)
     {
         $review = Review::with('media', 'reply')->findOrFail($id);
@@ -529,15 +522,14 @@ class ReviewController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        // Cập nhật fields
+        // Cập nhật đánh giá chính
         $review->update([
             'content' => $request->content,
             'rating' => $request->rating,
             'status' => $request->status,
         ]);
 
-        // Cập nhật hoặc tạo mới phản hồi
-        // Trong phần cập nhật hoặc tạo mới phản hồi
+        // Xử lý phản hồi
         if ($request->filled('reply')) {
             if ($review->reply) {
                 $review->reply->update([
@@ -546,13 +538,16 @@ class ReviewController extends Controller
             } else {
                 $review->reply()->create([
                     'content' => $request->input('reply'),
-                    'user_id' => auth()->id(), // hoặc ID admin cố định
+                    'user_id' => auth()->id() ?? 1,
                     'status' => 'approved',
+                    'product_id' => $review->product_id,   // ✅ THÊM
+                    'parent_id' => $review->id,
+                    'rating' => 0         // ✅ THÊM
                 ]);
             }
         }
 
-        // Xóa ảnh không giữ
+        // Xử lý ảnh bị xoá
         $kept = $request->input('kept_images', []);
         $review->media()->where('media_type', 'image')
             ->whereNotIn('id', $kept)
@@ -577,30 +572,28 @@ class ReviewController extends Controller
     }
 
 
-
     public function adminDestroy($id)
-{
-    try {
-        $review = Review::with('media', 'reply')->findOrFail($id);
+    {
+        try {
+            $review = Review::with('media', 'reply')->findOrFail($id);
 
-        // Xóa media
-        foreach ($review->media as $media) {
-            Storage::disk('r2')->delete($media->media_url);
-            $media->delete();
+            // Xóa media
+            foreach ($review->media as $media) {
+                Storage::disk('r2')->delete($media->media_url);
+                $media->delete();
+            }
+
+            // Xóa reply nếu có
+            if ($review->reply) {
+                $review->reply->delete();
+            }
+
+            $review->delete();
+
+            return response()->json(['message' => 'Xóa đánh giá thành công']);
+        } catch (\Exception $e) {
+            Log::error('Lỗi khi xóa đánh giá: ' . $e->getMessage());
+            return response()->json(['error' => 'Không thể xóa đánh giá'], 500);
         }
-
-        // Xóa reply nếu có
-        if ($review->reply) {
-            $review->reply->delete();
-        }
-
-        $review->delete();
-
-        return response()->json(['message' => 'Xóa đánh giá thành công']);
-    } catch (\Exception $e) {
-        Log::error('Lỗi khi xóa đánh giá: ' . $e->getMessage());
-        return response()->json(['error' => 'Không thể xóa đánh giá'], 500);
     }
-}
-
 }
