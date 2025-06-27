@@ -4,14 +4,60 @@
     <header class="bg-[#1BA0E2] text-white text-sm py-2">
       <div class="container mx-auto flex justify-end items-center px-4">
         <div class="hidden sm:flex items-center space-x-4">
-          <a href="#" class="hover:underline inline-flex items-center gap-1">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24"
-              stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.437L4 17h5" />
-            </svg>
-            Thông báo
-          </a>
+          <!-- THÔNG BÁO DROPDOWN -->
+          <div class="relative group inline-block">
+            <!-- Icon chuông -->
+            <div
+              class="cursor-pointer hover:text-blue-600 transition-colors duration-200 tracking-wide flex items-center"
+              @click="toggleNotificationDropdown">
+              <svg xmlns="http://www.w3.org/2000/svg" class="size-6" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                  d="M14.25 17.25a2.25 2.25 0 0 1-4.5 0m8.25-5.25v-1.5a6 6 0 1 0-12 0v1.5c0 .621-.252 1.216-.7 1.65L3.63 15.255A.75.75 0 0 0 4.14 16.5h15.72a.75.75 0 0 0 .51-1.245l-1.42-1.605a2.25 2.25 0 0 1-.7-1.65Z" />
+              </svg>
+
+              <!-- Badge hiển thị số lượng chưa đọc -->
+              <span v-if="unreadCount > 0"
+                class="absolute top-0 right-0 -mt-1 -mr-1 bg-red-500 text-white text-xs rounded-full px-1.5 min-w-[20px] text-center leading-tight shadow">
+                {{ unreadCount }}
+              </span>
+            </div>
+
+            <!-- Dropdown -->
+            <div v-if="notificationDropdownOpen"
+              class="absolute right-0 top-full mt-2 w-96 bg-white border border-gray-200 rounded shadow-lg z-50 text-sm max-h-96 overflow-auto">
+
+              <div v-if="notifications.length === 0" class="p-4 text-gray-500 text-center">
+                Không có thông báo mới.
+              </div>
+
+              <ul v-else class="divide-y divide-gray-100">
+                <li v-for="item in notifications" :key="item.id" @click="handleNotificationClick(item)"
+                  class="relative p-3 hover:bg-gray-50 cursor-pointer flex gap-3 items-start transition"
+                  :class="{ 'opacity-60': item.is_read === 1 }">
+                  <!-- Hình ảnh -->
+                  <img v-if="item.image_url" :src="item.image_url" alt="Hình thông báo"
+                    class="w-12 h-12 object-cover rounded" />
+
+                  <!-- Nội dung -->
+                  <div class="flex-1 min-w-0">
+                    <div class="flex justify-between items-center">
+                      <span class="text-gray-800 font-semibold truncate" :class="{ 'font-bold': item.is_read === 0 }">{{
+                        item.title }}</span>
+
+                      <!-- Dấu chấm chưa đọc -->
+                      <span v-if="item.is_read === 0" class="w-2 h-2 bg-blue-500 rounded-full inline-block"></span>
+                    </div>
+                    <p class="text-gray-500 text-sm mt-1 break-words line-clamp-2">
+                      {{ stripHTML(item.content) || 'Không có nội dung' }}
+                    </p>
+
+                    <p class="text-gray-500 text-xs mt-1">{{ item.time_ago }}</p>
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </div>
 
           <template v-if="isLoggedIn">
             <span class="font-medium">Xin chào, <strong>{{ userName }}</strong></span>
@@ -360,6 +406,7 @@
             </svg>
             Trang chủ
           </NuxtLink>
+
           <!-- Tài khoản -->
           <div class="relative group inline-block">
             <div
@@ -380,7 +427,6 @@
             </ul>
           </div>
           <!-- Giỏ hàng -->
-
           <NuxtLink href="/cart"
             class="hover:text-blue-600 transition-colors duration-200 tracking-wide flex items-center gap-1 relative">
             <div class="relative">
@@ -396,7 +442,11 @@
             </div>
             Giỏ hàng
           </NuxtLink>
+
+          
+
         </div>
+
 
         <!-- Icon menu mobile -->
         <div class="sm:hidden">
@@ -463,44 +513,103 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
-import axios from 'axios';
-import Features from '~/components/shared/Features.vue';
-import SearchBar from '~/components/shared/filters/SearchBar.vue';
-import { useToast } from '~/composables/useToast';
-import { useCartStore } from '~/stores/cart';
-import { useRuntimeConfig } from '#imports';
+import { ref, onMounted, onUnmounted } from 'vue'
+import axios from 'axios'
+import Features from '~/components/shared/Features.vue'
+import SearchBar from '~/components/shared/filters/SearchBar.vue'
+import { useToast } from '~/composables/useToast'
+import { useCartStore } from '~/stores/cart'
+import { useRuntimeConfig } from '#imports'
 
-const cartStore = useCartStore();
-const { toast } = useToast();
-const config = useRuntimeConfig();
-const api = config.public.apiBaseUrl;
-const mediaBase = config.public.mediaBaseUrl;
+// Stores, config, toast
+const cartStore = useCartStore() // từ dat_dev
+const { toast } = useToast()
+const config = useRuntimeConfig()
+const api = config.public.apiBaseUrl
+const mediaBase = config.public.mediaBaseUrl 
 
-const showModal = ref(false);
-const isLogin = ref(true);
-const showOtp = ref(false);
-const otp = ref('');
-const tempUserId = ref(null);
-const verifyUserId = ref(null);
-const verificationEmail = ref('');
-const verifyEmailInput = ref('');
-const verificationPending = ref(false);
-const isSubmitting = ref(false);
-const isVerifying = ref(false);
-const resendCountdown = ref(0);
-const isLoggedIn = ref(false);
-const showForgotPassword = ref(false);
-const showResetPassword = ref(false);
-const isForgotMode = ref(false);
-const isResetMode = ref(false);
-const isResetting = ref(false);
-const userName = ref('');
-const isMobileMenuOpen = ref(false);
-const showVerifyEmailForm = ref(false);
-const categories = ref([]); // Added for dynamic categories
+// Modal và trạng thái đăng nhập
+const showModal = ref(false)
+const isLogin = ref(true)
+const showOtp = ref(false)
+const otp = ref('')
+const tempUserId = ref(null)
+const verifyUserId = ref(null)
+const verificationEmail = ref('')
+const verifyEmailInput = ref('')
+const verificationPending = ref(false)
+const isSubmitting = ref(false)
+const isVerifying = ref(false)
+const resendCountdown = ref(0)
+const isLoggedIn = ref(false)
+const showForgotPassword = ref(false)
+const showResetPassword = ref(false)
+const isForgotMode = ref(false)
+const isResetMode = ref(false)
+const isResetting = ref(false)
+const userName = ref('')
+const isMobileMenuOpen = ref(false)
+const showVerifyEmailForm = ref(false)
 
-let resendTimer = null;
+const notifications = ref([])
+const unreadCount = ref(0)
+const notificationDropdownOpen = ref(false)
+const stripHTML = (html) => {
+  const div = document.createElement('div')
+  div.innerHTML = html
+  return div.textContent || div.innerText || ''
+}
+
+const toggleNotificationDropdown = () => {
+  notificationDropdownOpen.value = !notificationDropdownOpen.value
+}
+
+const fetchNotifications = async () => {
+  try {
+    const token = localStorage.getItem('access_token')
+    if (!token) return
+
+    const res = await fetch(`${api}/my-notifications`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+
+    const data = await res.json()
+    if (data?.data) {
+      notifications.value = data.data
+      unreadCount.value = data.data.filter(n => !n.is_read).length
+    }
+  } catch (e) {
+    console.error('Lỗi khi lấy thông báo:', e)
+  }
+}
+
+const handleNotificationClick = async (item) => {
+  try {
+    const token = localStorage.getItem('access_token')
+    if (!token) return
+
+    if (item.is_read === 0) {
+      await fetch(`${api}/notifications/${item.id}/read`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      })
+
+      item.is_read = 1
+      unreadCount.value = notifications.value.filter(n => !n.is_read).length
+    }
+
+    if (item.link) {
+      window.location.href = item.link
+    }
+  } catch (err) {
+    console.error('Lỗi khi xử lý thông báo:', err)
+  }
+}
+
+// NEW từ dat_dev: dùng cho categories động
+const categories = ref([])
+
+let resendTimer = null
 
 const form = ref({
   name: '',
@@ -849,6 +958,8 @@ const submitResetPassword = async () => {
 onMounted(() => {
   updateLoginState();
   fetchCategories(); // Fetch categories on mount
+  fetchNotifications()
+  updateLoginState()
   window.addEventListener('storage', (e) => {
     if (e.key === 'access_token') updateLoginState();
   });

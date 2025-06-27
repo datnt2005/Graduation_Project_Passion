@@ -396,4 +396,5 @@ public function update(Request $request, User $user)
             ], 500);
         }
     }
+
 }

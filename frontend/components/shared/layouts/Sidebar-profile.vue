@@ -124,15 +124,15 @@ const isActive = (to) => route.path.startsWith(to)
 
 const sidebarItems = [
   { to: '/users/profile', icon: 'user-circle', label: 'Thông tin tài khoản' },
-  { to: '/account/notifications', icon: 'bell', label: 'Thông báo của tôi' },
+  { to: '/users/mynotifications', icon: 'bell', label: 'Thông báo của tôi' },
   { to: '/users/orders', icon: 'file-alt', label: 'Quản lý đơn hàng' },
-  { to: '/account/address', icon: 'map-marker-alt', label: 'Sổ địa chỉ' },
+  { to: '/users/myaddress', icon: 'map-marker-alt', label: 'Sổ địa chỉ' },
   { to: '/account/payment', icon: 'credit-card', label: 'Thông tin thanh toán' },
   { to: '/account/seen', icon: 'eye', label: 'Sản phẩm bạn đã xem' },
   { to: '/account/favorite', icon: 'heart', label: 'Sản phẩm yêu thích' },
   { to: '/account/comments', icon: 'star', label: 'Nhận xét của tôi' },
   {
-    to: '/account/vouchers',
+    to: '/users/vouchers',
     img: 'https://storage.googleapis.com/a1aa/image/e0af1418-a92a-43bf-ade5-4d49087465f2.jpg',
     label: 'Mã giảm giá'
   }

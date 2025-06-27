@@ -24,7 +24,7 @@ class OrderController extends Controller
     public function index(Request $request)
     {
         try {
-            $query = Order::with(['orderItems.product', 'orderItems.productVariant', 'user', 'address', 'payments']);
+            $query = Order::with(['orderItems.product', 'orderItems.productVariant', 'user', 'address', 'payments', 'shipping']);
 
             // Lọc theo trạng thái
             if ($request->has('status') && !empty($request->status)) {
@@ -84,6 +84,11 @@ class OrderController extends Controller
                 'data' => $orders->map(function ($order) {
                     return [
                         'id' => $order->id,
+                        'shipping' => $order->shipping ? [
+                            'tracking_code' => $order->shipping->tracking_code,
+                            'status' => $order->shipping->status,
+                            'estimated_delivery' => $order->shipping->estimated_delivery,
+                        ] : null,
                         'user' => $order->user ? [
                             'id' => $order->user->id,
                             'name' => $order->user->name,
@@ -489,6 +494,11 @@ class OrderController extends Controller
     {
         return [
             'id' => $order->id,
+            'shipping' => $order->shipping ? [
+                'tracking_code' => $order->shipping->tracking_code,
+                'status' => $order->shipping->status,
+                'estimated_delivery' => $order->shipping->estimated_delivery,
+            ] : null,
             'user' => [
                 'id' => $order->user->id,
                 'name' => $order->user->name,
