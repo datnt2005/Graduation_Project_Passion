@@ -132,7 +132,7 @@ const sidebarItems = [
   { to: '/account/favorite', icon: 'heart', label: 'Sản phẩm yêu thích' },
   { to: '/account/comments', icon: 'star', label: 'Nhận xét của tôi' },
   {
-    to: '/account/vouchers',
+    to: '/users/vouchers',
     img: 'https://storage.googleapis.com/a1aa/image/e0af1418-a92a-43bf-ade5-4d49087465f2.jpg',
     label: 'Mã giảm giá'
   }

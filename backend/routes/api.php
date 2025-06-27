@@ -165,8 +165,11 @@ Route::prefix('payment-methods')->group(function () {
     Route::delete('/{id}', [PaymentMethodController::class, 'destroy']);
 });
 
-// Discounts
+// Đặt ở trên
+Route::middleware('auth:sanctum')->get('/discounts/my-vouchers', [DiscountController::class, 'myVouchers']);
+
 Route::prefix('discounts')->group(function () {
+    Route::middleware('auth:sanctum')->get('/my-vouchers', [DiscountController::class, 'myVouchers']);
     Route::get('/', [DiscountController::class, 'index']);
     Route::get('/{id}', [DiscountController::class, 'show']);
     Route::post('/', [DiscountController::class, 'store']);
@@ -321,6 +324,7 @@ Route::prefix('cart')->group(function () {
     Route::post('/redis/{cartId}/merge', [CartController::class, 'mergeRedisCart'])->middleware('auth:sanctum');
 });
 
+
 // Dashboard stats
 Route::prefix('dashboard')->group(function () {
     Route::get('/stats', [DashboardController::class, 'stats']);
@@ -333,3 +337,5 @@ Route::get('inventory/list', [App\Http\Controllers\InventoryController::class, '
 Route::get('inventory/low-stock', [App\Http\Controllers\InventoryController::class, 'lowStock']);
 Route::get('inventory/best-sellers', [App\Http\Controllers\InventoryController::class, 'bestSellers']);
 
+Route::middleware('auth:sanctum')->post('/discounts/save-by-code', [DiscountController::class, 'saveVoucherByCode']);
+Route::middleware('auth:sanctum')->delete('/discounts/my-voucher/{id}', [DiscountController::class, 'deleteUserVoucher']);

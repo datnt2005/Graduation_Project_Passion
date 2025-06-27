@@ -2,11 +2,10 @@ import { ref, computed } from 'vue'
 import Swal from 'sweetalert2'
 import { useCart } from '~/composables/useCart'
 import { usePayment } from '~/composables/usePayment'
-import { useDiscount } from '~/composables/useDiscount'
-export function useCheckout(config, shippingRef, selectedShippingMethod, selectedAddress, provinces, districts, wards) {
+export function useCheckout(config, shippingRef, selectedShippingMethod, selectedAddress, discountComposable) {
   const { cartItems, cartTotal, loading, error, fetchCart } = useCart()
   const { paymentMethods, loading: paymentLoading, error: paymentError, fetchPaymentMethods, processPayment } = usePayment()
-  const { discounts, selectedDiscounts, loading: discountLoading, error: discountError, fetchDiscounts, applyDiscount, removeDiscount, calculateDiscount } = useDiscount()
+  const { discounts, selectedDiscounts, loading: discountLoading, error: discountError, fetchDiscounts, applyDiscount, removeDiscount, calculateDiscount } = discountComposable
 
   const selectedPaymentMethod = ref('')
 
