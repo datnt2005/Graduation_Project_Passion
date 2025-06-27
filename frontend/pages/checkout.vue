@@ -335,6 +335,7 @@ import SelectedAddress from '../components/shared/SelectedAddress.vue'
 import ShippingSelector from '../components/shared/ShippingSelector.vue'
 
 import { useCheckout } from '~/composables/useCheckout'
+import { useDiscount } from '~/composables/useDiscount'
 
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBaseUrl
@@ -343,7 +344,6 @@ const route = useRoute()
 
 const shippingRef = ref(null)
 const selectedShippingMethod = ref(null)
-
 
 // Địa chỉ
 const selectedAddress = ref(null)
@@ -384,6 +384,10 @@ const loadSelectedAddress = async () => {
     }
 }
 
+// Coupon chỉ lấy các mã đã lưu
+const discountComposable = useDiscount()
+const { discounts, fetchUserCoupons, loading: discountLoading, error: discountError, applyDiscount, removeDiscount, selectedDiscounts, calculateDiscount } = discountComposable
+
 // Checkout logic
 const {
     cartItems,
@@ -393,16 +397,9 @@ const {
     paymentMethods,
     paymentLoading,
     paymentError,
-    discounts,
-    selectedDiscounts,
-    discountLoading,
-    discountError,
     fetchCart,
     fetchPaymentMethods,
-    fetchDiscounts,
-    applyDiscount,
-    removeDiscount,
-    calculateDiscount,
+    // fetchDiscounts, // bỏ fetchDiscounts, chỉ dùng fetchUserCoupons
     selectedPaymentMethod,
     showNotification,
     notificationMessage,
@@ -413,7 +410,7 @@ const {
     formattedCartTotal,
     getPaymentMethodLabel,
     placeOrder
-} = useCheckout(config, shippingRef, selectedShippingMethod, selectedAddress)
+} = useCheckout(config, shippingRef, selectedShippingMethod, selectedAddress, discountComposable)
 
 // Ưu đãi thủ công
 const promotions = ref([])
@@ -474,7 +471,7 @@ onMounted(async () => {
         await Promise.all([
             fetchCart(),
             fetchPaymentMethods(),
-            fetchDiscounts(),
+            fetchUserCoupons(), // chỉ lấy coupon đã lưu
             loadSelectedAddress()
         ])
     } catch (err) {

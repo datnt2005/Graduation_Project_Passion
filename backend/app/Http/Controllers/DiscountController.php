@@ -7,9 +7,11 @@ use App\Models\DiscountProduct;
 use App\Models\DiscountCategory;
 use App\Models\DiscountUser;
 use App\Models\FlashSale;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Auth;
 
 class DiscountController extends Controller
 {
@@ -126,8 +128,8 @@ class DiscountController extends Controller
             'discount_value' => 'numeric|min:0',
             'usage_limit' => 'nullable|integer|min:1',
             'min_order_value' => 'nullable|numeric|min:0',
-            'start_date' => 'required|date|after_or_equal:today',
-            'end_date' => 'required|date|after:start_date',
+            'start_date' => 'sometimes|required|date|after_or_equal:today',
+            'end_date' => 'sometimes|required|date|after:start_date',
             'status' => 'in:active,inactive,expired',
         ], [
             'code.unique' => 'Mã giảm giá đã tồn tại',
@@ -438,6 +440,107 @@ class DiscountController extends Controller
                 'success' => false,
                 'message' => 'Lỗi khi xóa flash sale: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    public function saveVoucherByCode(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'code' => 'required|string|exists:discounts,code',
+        ]);
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Mã voucher không hợp lệ',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bạn cần đăng nhập để lưu voucher'
+            ], 401);
+        }
+
+        $discount = Discount::where('code', $request->code)
+            ->where('status', 'active')
+            ->where('end_date', '>', now())
+            ->first();
+
+        if (!$discount) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Mã voucher không còn hiệu lực hoặc đã hết hạn'
+            ], 404);
+        }
+
+        // Kiểm tra đã lưu chưa
+        $exists = DiscountUser::where('user_id', $user->id)
+            ->where('discount_id', $discount->id)
+            ->exists();
+
+        if ($exists) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bạn đã lưu mã voucher này rồi'
+            ], 409);
+        }
+
+        // Lưu vào bảng trung gian
+        DiscountUser::create([
+            'user_id' => $user->id,
+            'discount_id' => $discount->id,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Lưu voucher thành công',
+            'data' => $discount
+        ], 201);
+    }
+
+    public function myVouchers(Request $request)
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bạn cần đăng nhập'
+            ], 401);
+        }
+        $vouchers = $user->discounts()->get();
+        \Log::info('User ID: ' . $user->id);
+        \Log::info('Vouchers: ' . $vouchers->toJson());
+        return response()->json([
+            'success' => true,
+            'data' => $vouchers
+        ]);
+    }
+
+    public function deleteUserVoucher($id)
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bạn cần đăng nhập'
+            ], 401);
+        }
+        $deleted = \App\Models\DiscountUser::where('user_id', $user->id)
+            ->where('discount_id', $id)
+            ->delete();
+        if ($deleted) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Xoá mã giảm giá thành công'
+            ]);
+        } else {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không tìm thấy mã giảm giá để xoá'
+            ], 404);
         }
     }
 }

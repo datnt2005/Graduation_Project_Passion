@@ -4,7 +4,7 @@ export function useNotification() {
   const showNotification = (message, type = 'success') => {
     Swal.fire({
       toast: true,
-      position: 'top',
+      position: 'top-end',
       icon: type,
       title: message,
       width: '350px',
