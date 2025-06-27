@@ -209,12 +209,14 @@ const submitNotification = async (status) => {
   try {
     const formData = new FormData()
     formData.append('title', form.value.title)
-    formData.append('content', form.value.content)
+    formData.append('content', String(form.value.content || '')) // ✅ Ép kiểu rõ ràng
     formData.append('to_role', form.value.to_role)
     formData.append('type', form.value.type)
     formData.append('status', status)
     formData.append('link', form.value.link || '')
-    if (imageFile.value) formData.append('image', imageFile.value)
+    if (imageFile.value) {
+      formData.append('image', imageFile.value)
+    }
 
     const token = localStorage.getItem('access_token')
 
@@ -225,8 +227,9 @@ const submitNotification = async (status) => {
       }
     })
 
-    showNotification('Tạo thông báo thành công!', 'success') // ✅ THÊM DÒNG NÀY
+    showNotification('Tạo thông báo thành công!', 'success')
 
+    // Reset form
     form.value = { title: '', content: '', to_role: '', type: '', link: '' }
     imageFile.value = null
     previewImage.value = null
@@ -237,12 +240,13 @@ const submitNotification = async (status) => {
       errors.value = err.response.data.errors
     } else {
       console.error('Lỗi:', err)
-      showNotification('Đã xảy ra lỗi, vui lòng thử lại.', 'error') // ✅ THÊM DÒNG NÀY
+      showNotification('Đã xảy ra lỗi, vui lòng thử lại.', 'error')
     }
   } finally {
     loading.value = false
   }
 }
+
 </script>
 
 <style scoped>

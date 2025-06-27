@@ -25,7 +25,6 @@
             {{ fees[method.id] !== undefined ? fees[method.id] : 'Đang tính...' }}
           </span>
         </div>
-
       </label>
     </form>
 
@@ -90,9 +89,7 @@ const props = defineProps({
   cartItems: Array
 })
 
-
-
-const emit = defineEmits(['update:selectedMethod'])
+const emit = defineEmits(['update:selectedMethod', 'update:shippingFee'])
 
 const selectedMethod = ref(props.selectedMethod ?? 100039)
 
@@ -148,7 +145,15 @@ const calculateAllShippingFees = async () => {
       })
       const data = await res.json()
       const fee = data?.data?.total ?? 0
-      fees.value[method.id] = fee.toLocaleString('vi-VN') + ' đ'
+      fees.value[method.id] = fee.toLocaleString('vi-VN') + 'đ'
+
+      if (method.id === selectedMethod.value) {
+        emit('update:shippingFee', fee)  // Thêm dòng này
+      }
+      if (method.id === selectedMethod.value) {
+        const display = document.getElementById('shipping-fee-display')
+        if (display) display.textContent = fee.toLocaleString('vi-VN') + 'đ'
+      }
     } catch (err) {
       fees.value[method.id] = 'Lỗi'
     }
@@ -159,10 +164,9 @@ const calculateAllShippingFees = async () => {
 
 const handleMethodChange = (methodId) => {
   selectedMethod.value = methodId
-  const fee = fees.value[methodId] || '0đ'
-  const display = document.getElementById('shipping-fee-display')
-  if (display) display.textContent = fee
+  calculateAllShippingFees()
 }
+
 
 onMounted(() => {
   calculateAllShippingFees()

@@ -59,7 +59,6 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
       );
     }, 0);
   });
-
   // Shipping fee calculations
   const rawShippingFee = computed(() => {
     const raw = shippingRef.value?.fees?.[selectedShippingMethod.value];

@@ -8,6 +8,10 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use App\Models\Notification;
 use App\Models\User;
+use Illuminate\Support\Facades\Auth;
+use Carbon\Carbon;
+use Illuminate\Support\Str;
+
 
 class NotificationController extends Controller
 {
@@ -82,11 +86,7 @@ class NotificationController extends Controller
         if ($request->hasFile('image')) {
             $file = $request->file('image');
             $filename = 'notifications/' . time() . '_' . $file->getClientOriginalName();
-
-            // Lưu vào Cloudflare R2
             Storage::disk('r2')->put($filename, file_get_contents($file));
-
-            // Tạo URL đầy đủ
             $baseUrl = rtrim(env('R2_URL'), '/');
             $imageUrl = $baseUrl . '/' . ltrim($filename, '/');
         }
@@ -98,8 +98,9 @@ class NotificationController extends Controller
             'type' => $request->type,
             'to_role' => $request->to_role,
             'link' => $request->link,
-            'user_id' => 3, // Nếu có auth thì sửa thành auth()->id()
+            'user_id' => auth()->id(), // ✅ Lấy từ người dùng đăng nhập
             'is_read' => 0,
+            'is_hidden' => 0,
             'status' => $request->status,
             'image_url' => $imageUrl,
         ]);
@@ -109,6 +110,7 @@ class NotificationController extends Controller
             'data' => $notification
         ]);
     }
+
 
     public function show($id)
     {
@@ -163,6 +165,7 @@ class NotificationController extends Controller
                 'type' => $request->type,
                 'to_role' => $request->to_role,
                 'link' => $request->link,
+                'is_hidden' => 0,
             ]);
 
             return response()->json(['message' => 'Cập nhật thông báo thành công!', 'data' => $notification]);
@@ -183,37 +186,201 @@ class NotificationController extends Controller
         }
     }
 
+    public function destroyMultiple(Request $request)
+    {
+        $ids = $request->input('ids', []);
+        try {
+            Notification::whereIn('id', $ids)->delete();
+            return response()->json(['message' => 'Đã xóa các thông báo đã chọn']);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Lỗi khi xóa nhiều thông báo'], 500);
+        }
+    }
+
+
+    public function destroyAll()
+    {
+        try {
+            Notification::truncate();
+            return response()->json(['message' => 'Đã xóa tất cả thông báo']);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Lỗi khi xóa tất cả thông báo'], 500);
+        }
+    }
+
+
 
     public function sendMultiple(Request $request)
-{
-    $notificationIds = $request->input('ids');
-    $toRole = $request->input('to_role');
-    $toUserIds = $request->input('to_user_ids');
+    {
+        $notificationIds = $request->input('ids');
+        $toRole = $request->input('to_role');
+        $toUserIds = $request->input('to_user_ids');
 
-    if (is_string($toUserIds)) {
-        $toUserIds = json_decode($toUserIds, true);
+        if (is_string($toUserIds)) {
+            $toUserIds = json_decode($toUserIds, true);
+        }
+
+        // Nếu là mảng đối tượng như [{id: 3, name: 'Phattran'}] thì chỉ lấy id
+        if (is_array($toUserIds) && isset($toUserIds[0]['id'])) {
+            $toUserIds = array_map(fn($u) => $u['id'], $toUserIds);
+        }
+
+        $notifications = Notification::whereIn('id', $notificationIds)
+            ->where('user_id', auth()->id())
+            ->get();
+
+
+        if ($notifications->isEmpty()) {
+            return response()->json(['message' => 'Không tìm thấy thông báo để cập nhật.'], 400);
+        }
+
+        foreach ($notifications as $notification) {
+            $notification->update([
+                'to_role'     => $toRole,
+                'to_user_id'  => $toUserIds[0] ?? null, // nếu chọn 1 người
+                'status'      => 'sent',
+            ]);
+        }
+
+        return response()->json(['message' => 'Đã gửi thông báo thành công.']);
     }
 
-    // Nếu là mảng đối tượng như [{id: 3, name: 'Phattran'}] thì chỉ lấy id
-    if (is_array($toUserIds) && isset($toUserIds[0]['id'])) {
-        $toUserIds = array_map(fn($u) => $u['id'], $toUserIds);
+
+    public function getMyNotifications(Request $request)
+    {
+        try {
+            $user = auth()->user();
+            if (!$user) {
+                return response()->json(['message' => 'Chưa đăng nhập.'], 401);
+            }
+
+            $baseImageUrl = env('R2_URL');
+
+            $notifications = Notification::where('status', 'sent')
+                ->where('is_hidden', 0)
+                ->where(function ($query) use ($user) {
+                    $query->where('to_user_id', $user->id)
+                        ->orWhere(function ($q) use ($user) {
+                            $q->whereNull('to_user_id')->where('to_role', $user->role);
+                        });
+                })
+                ->orderByDesc('created_at')
+                ->get()
+                ->map(function ($item) use ($baseImageUrl) {
+                    return [
+                        'id' => $item->id,
+                        'title' => $item->title,
+                        'content' => (string) $item->content,
+                        'link' => $item->link,
+                        'image_url' => $item->image_url && !str_starts_with($item->image_url, 'http')
+                            ? rtrim($baseImageUrl, '/') . '/' . ltrim($item->image_url, '/')
+                            : $item->image_url,
+                        'is_read' => $item->is_read,
+                        'read_at' => $item->read_at,
+                        'created_at' => $item->created_at->format('Y-m-d H:i:s'),
+                        'time_ago' => \Carbon\Carbon::parse($item->created_at)->diffForHumans(),
+                    ];
+                });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Lấy danh sách thông báo theo người dùng thành công.',
+                'data' => $notifications,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Lỗi khi lấy thông báo người dùng: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Đã xảy ra lỗi khi lấy thông báo.',
+                'error' => env('APP_DEBUG', false) ? $e->getMessage() : null
+            ], 500);
+        }
     }
 
-    $notifications = Notification::whereIn('id', $notificationIds)->get();
 
-    if ($notifications->isEmpty()) {
-        return response()->json(['message' => 'Không tìm thấy thông báo để cập nhật.'], 400);
-    }
+    // Controller
+    public function markAsRead($id)
+    {
+        $user = auth()->user();
 
-    foreach ($notifications as $notification) {
+        $notification = Notification::where('id', $id)
+            ->where(function ($q) use ($user) {
+                $q->where('to_user_id', $user->id)
+                    ->orWhere(function ($q2) use ($user) {
+                        $q2->whereNull('to_user_id')->where('to_role', $user->role);
+                    });
+            })
+            ->first();
+
+        if (!$notification) {
+            return response()->json(['message' => 'Không tìm thấy thông báo hoặc không có quyền.'], 404);
+        }
+
         $notification->update([
-            'to_role'     => $toRole,
-            'to_user_id'  => $toUserIds[0] ?? null, // nếu chọn 1 người
-            'status'      => 'sent',
+            'is_read' => 1,
+            'read_at' => now(),
         ]);
+
+        return response()->json(['message' => 'Đã đánh dấu là đã đọc.']);
     }
 
-    return response()->json(['message' => 'Đã gửi thông báo thành công.']);
-}
+    public function markMultipleAsRead(Request $request)
+    {
+        $user = auth()->user();
+        $ids = $request->input('ids', []);
+        Notification::whereIn('id', $ids)
+            ->where(function ($q) use ($user) {
+                $q->where('to_user_id', $user->id)
+                    ->orWhere(function ($q2) use ($user) {
+                        $q2->whereNull('to_user_id')->where('to_role', $user->role);
+                    });
+            })->update(['is_read' => 1, 'read_at' => now()]);
 
+        return response()->json(['message' => 'Đã đánh dấu đã đọc.']);
+    }
+
+    public function markAllAsRead()
+    {
+        $user = auth()->user();
+        Notification::where(function ($q) use ($user) {
+            $q->where('to_user_id', $user->id)
+                ->orWhere(function ($q2) use ($user) {
+                    $q2->whereNull('to_user_id')->where('to_role', $user->role);
+                });
+        })->update(['is_read' => 1, 'read_at' => now()]);
+
+        return response()->json(['message' => 'Đã đánh dấu tất cả đã đọc.']);
+    }
+
+    public function deleteMultiple(Request $request)
+    {
+        $user = auth()->user();
+        $ids = $request->input('ids', []);
+
+        Notification::whereIn('id', $ids)
+            ->where(function ($q) use ($user) {
+                $q->where('to_user_id', $user->id)
+                    ->orWhere(function ($q2) use ($user) {
+                        $q2->whereNull('to_user_id')->where('to_role', $user->role);
+                    });
+            })->update(['is_hidden' => 1]);
+
+        return response()->json(['message' => 'Đã ẩn thông báo.']);
+    }
+
+
+    public function deleteAll()
+    {
+        $user = auth()->user();
+
+        Notification::where(function ($q) use ($user) {
+            $q->where('to_user_id', $user->id)
+                ->orWhere(function ($q2) use ($user) {
+                    $q2->whereNull('to_user_id')->where('to_role', $user->role);
+                });
+        })->update(['is_hidden' => 1]);
+
+        return response()->json(['message' => 'Đã ẩn tất cả thông báo.']);
+    }
 }

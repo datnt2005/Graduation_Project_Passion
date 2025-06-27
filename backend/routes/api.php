@@ -47,7 +47,7 @@ Route::prefix('categories')->group(function () {
 });
 
 
-Route::prefix('notifications')->group(function () {
+Route::prefix('notifications')->middleware('auth:sanctum')->group(function () {
     Route::get('/', [NotificationController::class, 'index']);
     Route::post('/', [NotificationController::class, 'store']);
     Route::get('/{id}', [NotificationController::class, 'show']);
@@ -55,7 +55,31 @@ Route::prefix('notifications')->group(function () {
     Route::post('/mark-read', [NotificationController::class, 'markAsRead']);
     Route::delete('/{id}', [NotificationController::class, 'destroy']);
     Route::post('/send-multiple', [NotificationController::class, 'sendMultiple']);
+    Route::post('/destroy-multiple', [NotificationController::class, 'destroyMultiple']);
+    Route::delete('/destroy-all', [NotificationController::class, 'destroyAll']);
 });
+
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/my-notifications', [NotificationController::class, 'getMyNotifications']);
+
+    // ✅ Đánh dấu 1 thông báo là đã đọc
+    Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+
+    // ✅ Đánh dấu nhiều thông báo là đã đọc
+    Route::post('/notifications/mark-multiple-read', [NotificationController::class, 'markMultipleAsRead']);
+
+    // ✅ Đánh dấu tất cả thông báo là đã đọc
+    Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllAsRead']);
+
+    // ✅ Ẩn (không xóa thật) nhiều thông báo
+    Route::post('/notifications/delete-multiple', [NotificationController::class, 'deleteMultiple']);
+
+    // ✅ Ẩn tất cả thông báo
+    Route::delete('/notifications/delete-all', [NotificationController::class, 'deleteAll']);
+});
+
+
 
 //tags
 Route::prefix('tags')->group(function () {
@@ -144,8 +168,11 @@ Route::prefix('payment-methods')->group(function () {
     Route::delete('/{id}', [PaymentMethodController::class, 'destroy']);
 });
 
-// Discounts
+// Đặt ở trên
+Route::middleware('auth:sanctum')->get('/discounts/my-vouchers', [DiscountController::class, 'myVouchers']);
+
 Route::prefix('discounts')->group(function () {
+    Route::middleware('auth:sanctum')->get('/my-vouchers', [DiscountController::class, 'myVouchers']);
     Route::get('/', [DiscountController::class, 'index']);
     Route::get('/{id}', [DiscountController::class, 'show']);
     Route::post('/', [DiscountController::class, 'store']);
@@ -177,19 +204,9 @@ Route::post('/send-forgot-password', [AuthController::class, 'sendForgotPassword
 Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 
 // Reviews
-
-
-
-Route::get('/reviews', [ReviewController::class, 'index']);        // ?product_id=...
-Route::post('/reviews', [ReviewController::class, 'store']);           // Gửi đánh giá
-Route::put('/reviews/{id}', [ReviewController::class, 'update']);     // Cập nhật đánh giá
-Route::post('/reviews/{id}/like', [ReviewController::class, 'like']);  // Like đánh giá
-Route::post('/reviews/{id}/reply', [ReviewController::class, 'reply']); // Trả lời đánh giá
-Route::delete('/reviews/{id}', [ReviewController::class, 'destroy']);   // Xóa đánh giá
-
 Route::get('/reviews', [ReviewController::class, 'index']); // Hiển thị đánh giá công khai
 
-Route::prefix('admin/reviews')->group(function () {
+Route::middleware(['auth:sanctum'])->prefix('admin/reviews')->group(function () {
     Route::get('/', [ReviewController::class, 'adminIndex']);
     Route::get('/{id}', [ReviewController::class, 'adminShow']);
     Route::put('/{id}', [ReviewController::class, 'adminUpdate']);
@@ -209,11 +226,13 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 
+Route::middleware('auth:sanctum')->group(function () {
     Route::get('/address', [AddressController::class, 'index']);
     Route::get('/address/{id}', [AddressController::class, 'show']);
     Route::post('/address', [AddressController::class, 'store']);
     Route::put('/address/{id}', [AddressController::class, 'update']);
     Route::delete('/address/{id}', [AddressController::class, 'destroy']);
+});
 
 
 // google
@@ -302,6 +321,7 @@ Route::prefix('cart')->group(function () {
     Route::get('/selected-items', [CartController::class, 'getSelectedItems']);
 });
 
+
 // Dashboard stats
 Route::prefix('dashboard')->group(function () {
     Route::get('/stats', [DashboardController::class, 'stats']);
@@ -314,3 +334,5 @@ Route::get('inventory/list', [App\Http\Controllers\InventoryController::class, '
 Route::get('inventory/low-stock', [App\Http\Controllers\InventoryController::class, 'lowStock']);
 Route::get('inventory/best-sellers', [App\Http\Controllers\InventoryController::class, 'bestSellers']);
 
+Route::middleware('auth:sanctum')->post('/discounts/save-by-code', [DiscountController::class, 'saveVoucherByCode']);
+Route::middleware('auth:sanctum')->delete('/discounts/my-voucher/{id}', [DiscountController::class, 'deleteUserVoucher']);

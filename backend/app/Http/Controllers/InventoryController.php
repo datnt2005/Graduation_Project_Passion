@@ -35,31 +35,51 @@ class InventoryController extends Controller
     public function list(Request $request)
     {
         $inventories = \App\Models\Inventory::with(['productVariant.product.categories'])
+            ->whereHas('productVariant.product', function($query) {
+                $query->where('status', '!=', 'trash');
+            })
             ->get()
-            ->map(function($inv) {
-                $productVariant = $inv->productVariant;
-                $product = $productVariant?->product;
-                $categoryName = $product?->categories?->first()?->name;
+            ->groupBy('productVariant.product_id') // Group by main product ID
+            ->map(function($groupedInventories) {
+                $firstInventory = $groupedInventories->first();
+                $product = $firstInventory->productVariant->product;
+                $categoryName = $product->categories->first()?->name;
+                
+                // Calculate total quantity for all variants
+                $totalQuantity = $groupedInventories->sum('quantity');
+                
+                // Get the first variant's prices
+                $firstVariant = $firstInventory->productVariant;
+                $costPrice = $firstVariant->cost_price ?? 0;
+                $sellPrice = $firstVariant->price ?? 0;
+                
+                // Debug log
+                \Log::info('Product Price Debug', [
+                    'product_name' => $firstVariant->product->name,
+                    'sale_price' => $firstVariant->sale_price,
+                    'price' => $firstVariant->price,
+                    'variant_id' => $firstVariant->id
+                ]);
+                
+                // Determine status based on total quantity
                 $status = 'Hết hàng';
-                if ($inv->quantity > 0 && $inv->quantity <= 5) {
+                if ($totalQuantity > 0 && $totalQuantity <= 5) {
                     $status = 'Gần hết';
-                } elseif ($inv->quantity > 5) {
+                } elseif ($totalQuantity > 5) {
                     $status = 'Còn hàng';
                 }
+
                 return [
-                    'id' => $inv->id,
-                    'product_name' => $product ? $product->name : '',
-                    'variant_sku' => $productVariant ? $productVariant->sku : '',
-                    'variant_name' => $productVariant?->attributes?->pluck('name')->implode(', '),
-                    'quantity' => $inv->quantity,
-                    'location' => $inv->location,
-                    'last_updated' => $inv->last_updated,
-                    'cost_price' => $productVariant?->cost_price,
-                    'sell_price' => $productVariant?->sale_price ?? $productVariant?->price,
+                    'id' => $product->id,
+                    'product_name' => $product->name,
+                    'quantity' => $totalQuantity,
+                    'cost_price' => round($costPrice),
+                    'sell_price' => round($sellPrice),
                     'category_name' => $categoryName,
                     'status' => $status,
                 ];
-            });
+            })
+            ->values(); // Convert to array and reindex
         return response()->json($inventories);
     }
 
@@ -105,8 +125,12 @@ class InventoryController extends Controller
     public function lowStock()
     {
         $inventories = \App\Models\Inventory::with(['productVariant.product.categories'])
-            ->where('quantity', '>', 0)
-            ->where('quantity', '<=', 5)
+            ->where(function($query) {
+                $query->where('quantity', '<=', 5); // Bao gồm cả sản phẩm hết hàng và gần hết hàng
+            })
+            ->whereHas('productVariant.product', function($query) {
+                $query->where('status', '!=', 'trash');
+            })
             ->get()
             ->map(function($inv) {
                 $productVariant = $inv->productVariant;
@@ -133,40 +157,65 @@ class InventoryController extends Controller
      */
     public function bestSellers()
     {
-        $bestSellers = \App\Models\OrderItem::select('product_variant_id', \DB::raw('SUM(quantity) as total_sold'))
-            ->whereHas('order', function($q) {
-                $q->where('status', 'delivered');
-            })
-            ->groupBy('product_variant_id')
-            ->orderByDesc('total_sold')
-            ->with(['productVariant.product.categories', 'productVariant.inventories'])
-            ->take(10)
-            ->get()
-            ->map(function($item) {
-                $variant = $item->productVariant;
-                $product = $variant?->product;
-                $categoryName = $product?->categories?->first()?->name;
-                // Lấy tổng tồn kho của variant
-                $quantity = $variant?->inventories?->sum('quantity');
-                // Lấy trạng thái tồn kho giống như list
-                $status = 'Hết hàng';
-                if ($quantity > 0 && $quantity <= 5) {
-                    $status = 'Gần hết';
-                } elseif ($quantity > 5) {
-                    $status = 'Còn hàng';
-                }
-                return [
-                    'product_name' => $product ? $product->name : '',
-                    'variant_name' => $variant?->attributes?->pluck('name')->implode(', '),
-                    'variant_sku' => $variant?->sku,
-                    'category_name' => $categoryName,
-                    'quantity' => $quantity,
-                    'cost_price' => $variant?->cost_price,
-                    'sell_price' => $variant?->sale_price ?? $variant?->price,
-                    'status' => $status,
-                    'total_sold' => $item->total_sold,
-                ];
-            });
-        return response()->json($bestSellers);
+        try {
+            $bestSellers = \App\Models\OrderItem::select('product_variant_id', \DB::raw('SUM(quantity) as total_sold'))
+                ->whereHas('order', function($q) {
+                    $q->where('status', 'delivered');
+                })
+                ->whereHas('productVariant.product', function($query) {
+                    $query->where('status', '!=', 'trash');
+                })
+                ->with(['productVariant.product.categories', 'productVariant.inventories'])
+                ->groupBy('product_variant_id')
+                ->get()
+                ->groupBy('productVariant.product_id') // Group by main product ID
+                ->map(function($items) {
+                    $firstItem = $items->first();
+                    $product = $firstItem->productVariant->product;
+                    $categoryName = $product->categories->first()?->name;
+                    
+                    // Calculate total quantity for all variants
+                    $totalQuantity = $items->reduce(function($carry, $item) {
+                        return $carry + $item->productVariant->inventories->sum('quantity');
+                    }, 0);
+                    
+                    // Calculate total sold for all variants
+                    $totalSold = $items->sum('total_sold');
+                    
+                    // Get first variant's prices
+                    $firstVariant = $firstItem->productVariant;
+                    $costPrice = $firstVariant->cost_price ?? 0;
+                    $sellPrice = $firstVariant->price ?? 0;
+                    
+                    // Determine status based on total quantity
+                    $status = 'Hết hàng';
+                    if ($totalQuantity > 0 && $totalQuantity <= 5) {
+                        $status = 'Gần hết';
+                    } elseif ($totalQuantity > 5) {
+                        $status = 'Còn hàng';
+                    }
+
+                    return [
+                        'product_name' => $product->name,
+                        'category_name' => $categoryName,
+                        'quantity' => $totalQuantity,
+                        'cost_price' => round($costPrice),
+                        'sell_price' => round($sellPrice),
+                        'status' => $status,
+                        'total_sold' => $totalSold,
+                    ];
+                })
+                ->sortByDesc('total_sold')
+                ->take(10)
+                ->values();
+                
+            return response()->json($bestSellers);
+        } catch (\Exception $e) {
+            \Log::error('Best Sellers Error:', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json(['error' => 'Không thể tải dữ liệu sản phẩm bán chạy!'], 500);
+        }
     }
 }
