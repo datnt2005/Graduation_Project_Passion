@@ -10,19 +10,21 @@ class Product extends Model
 {
     use HasFactory;
     protected $table = 'products';
-    protected $fillable = [ 'seller_id', 'name', 'slug', 'description', 'status'];
-    public function productVariants(){
+    protected $fillable = ['seller_id', 'name', 'slug', 'description', 'status'];
+    public function productVariants()
+    {
         return $this->hasMany(ProductVariant::class, 'product_id', 'id');
     }
 
     public function productPic()
-{
-    return $this->hasMany(ProductPic::class, 'product_id', 'id');
-}
+    {
+        return $this->hasMany(ProductPic::class, 'product_id', 'id');
+    }
 
 
-    public function seller(){
-        return $this->belongsTo(Seller::class , 'seller_id', 'id');
+    public function seller()
+    {
+        return $this->belongsTo(Seller::class, 'seller_id', 'id');
     }
 
     public function categories()
@@ -61,4 +63,8 @@ class Product extends Model
         return $this->hasMany(OrderItem::class, 'product_id');
     }
 
+    public function pics()
+    {
+        return $this->hasMany(ProductPic::class, 'product_id'); // Giả sử bảng `product_pics` có cột `product_id`
+    }
 }

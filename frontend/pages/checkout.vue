@@ -10,8 +10,9 @@
                                 <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                             </div>
                             <!-- Trong checkout.vue -->
-                            <ShippingSelector ref="shippingRef" :address="selectedAddress"
-                                v-model:selectedMethod="selectedShippingMethod" />
+                            <ShippingSelector :address="selectedAddress" v-model:selectedMethod="selectedShippingMethod"
+                                @update:shippingFee="selectedShippingFee = $event" />
+
                             <section class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                                 <div class="flex items-center mb-4">
                                     <input type="checkbox" id="promo-20k"
@@ -262,6 +263,10 @@
                                         <span>Tổng tiền hàng:</span>
                                         <span>{{ formattedCartTotal }}</span>
                                     </div>
+                                    <div class="flex justify-between text-gray-700">
+                                        <span>Phí vận chuyển:</span>
+                                        <span>{{ formatPrice(selectedShippingFee) }}</span>
+                                    </div>
                                     <div
                                         class="flex justify-between text-lg font-bold text-gray-900 border-t border-gray-300 pt-3">
                                         <span>Tổng tiền thanh toán:</span>
@@ -271,6 +276,7 @@
                                         (Giá đã bao gồm VAT)
                                     </p>
                                 </div>
+
 
                                 <div class="mt-6">
                                     <button @click="placeOrder"
@@ -325,7 +331,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick, watch } from 'vue'
+import { ref, onMounted, nextTick, watch, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useRuntimeConfig } from '#app'
 import axios from 'axios'
@@ -336,20 +342,23 @@ import ShippingSelector from '../components/shared/ShippingSelector.vue'
 
 import { useCheckout } from '~/composables/useCheckout'
 
+// Cấu hình và route
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBaseUrl
 const mediaBaseUrl = config.public.mediaBaseUrl
 const route = useRoute()
 
+// Giao hàng
 const shippingRef = ref(null)
 const selectedShippingMethod = ref(null)
+const selectedShippingFee = ref(0)
 
-
-// Địa chỉ
+// Địa chỉ giao hàng
 const selectedAddress = ref(null)
 const provinces = ref([])
 const districts = ref([])
 const wards = ref([])
+
 const loadProvinces = async () => {
     const res = await axios.get(`${apiBase}/ghn/provinces`)
     provinces.value = res.data.data
@@ -384,7 +393,7 @@ const loadSelectedAddress = async () => {
     }
 }
 
-// Checkout logic
+// Dùng useCheckout
 const {
     cartItems,
     cartTotal,
@@ -409,13 +418,17 @@ const {
     showSuccessNotification,
     formatPrice,
     finalTotal,
-    formattedFinalTotal,
     formattedCartTotal,
     getPaymentMethodLabel,
     placeOrder
 } = useCheckout(config, shippingRef, selectedShippingMethod, selectedAddress)
 
-// Ưu đãi thủ công
+// ✅ Tổng tiền thanh toán = tổng giỏ hàng + phí ship
+const formattedFinalTotal = computed(() =>
+    formatPrice(cartTotal.value + selectedShippingFee.value)
+)
+
+// Ưu đãi
 const promotions = ref([])
 
 const selectPromotion = (promotion) => {
@@ -427,6 +440,7 @@ const selectPromotion = (promotion) => {
     promotion.selected = !promotion.selected
 }
 
+// Badge class
 const getBadgeClass = (badge) => {
     const classes = {
         'Hot': 'bg-red-500',
@@ -437,6 +451,7 @@ const getBadgeClass = (badge) => {
     return classes[badge] || 'bg-gray-500'
 }
 
+// Format ngày
 const formatDate = (date) => {
     if (!date) return ''
     const d = new Date(date)
@@ -463,12 +478,12 @@ const toast = (icon, title) => {
     })
 }
 
-// Watch error
+// Watch lỗi
 watch(error, (val) => { if (val) toast('error', val) })
 watch(paymentError, (val) => { if (val) toast('error', val) })
 watch(discountError, (val) => { if (val) toast('error', val) })
 
-// Load all onMounted
+// Khởi động
 onMounted(async () => {
     try {
         await Promise.all([
@@ -484,6 +499,7 @@ onMounted(async () => {
     await nextTick()
 })
 </script>
+
 
 
 

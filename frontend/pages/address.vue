@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-gray-100 pb-8">
+  <div class="flex min-h-screen bg-gray-100 justify-center py-8">
     <main class="container mx-auto px-4 sm:px-6 lg:px-8 bg-white shadow-md rounded-lg mt-4 py-6 **max-w-2xl**">
       <h2 class="text-xl font-bold mb-4">2. Địa chỉ giao hàng</h2>
       <p class="mb-4 text-gray-600">Chọn địa chỉ giao hàng có sẵn dưới đây:</p>
@@ -136,7 +136,7 @@
                 Hủy bỏ
               </button>
               <button @click="submitForm" class="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600">
-                Thêm địa chỉ
+                {{ editAddress ? 'Cập nhật địa chỉ' : 'Thêm địa chỉ' }}
               </button>
             </div>
 
@@ -156,7 +156,7 @@
 import { ref, onMounted, watch } from 'vue'
 import axios from 'axios'
 import Swal from 'sweetalert2'
-
+import { useAuthHeaders } from '~/composables/useAuthHeaders'
 
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBaseUrl
@@ -167,9 +167,7 @@ const districts = ref([])
 const wards = ref([])
 const editAddress = ref(null)
 
-
 const form = ref({
-  user_id: 3,
   name: '',
   phone: '',
   province_id: '',
@@ -180,7 +178,6 @@ const form = ref({
   isDefault: false,
 })
 
-
 const Toast = Swal.mixin({
   toast: true,
   position: 'top-end',
@@ -189,16 +186,13 @@ const Toast = Swal.mixin({
   timerProgressBar: true,
 })
 
-
-
-
-// Tải danh sách tỉnh
+// Load tỉnh/thành
 const loadProvinces = async () => {
   const res = await axios.get(`${apiBase}/ghn/provinces`)
   provinces.value = res.data.data || []
 }
 
-// Tải danh sách quận
+// Load quận/huyện
 const loadDistricts = async () => {
   form.value.district_id = ''
   form.value.ward_code = ''
@@ -212,7 +206,7 @@ const loadDistricts = async () => {
   districts.value = res.data.data || []
 }
 
-// Tải danh sách phường
+// Load phường/xã
 const loadWards = async () => {
   form.value.ward_code = ''
   wards.value = []
@@ -224,9 +218,9 @@ const loadWards = async () => {
   wards.value = res.data.data || []
 }
 
+// Tính phí ship
 const calculateShippingFee = async () => {
   if (!form.value.ward_code) return
-
   const res = await axios.post(`${apiBase}/shipping/calculate-fee`, {
     province_id: form.value.province_id,
     district_id: form.value.district_id,
@@ -235,12 +229,10 @@ const calculateShippingFee = async () => {
   shippingFee.value = res.data.fee || 0
 }
 
-
-// Submit form
+// Gửi form
 const submitForm = async () => {
   try {
     const payload = {
-      user_id: 3,
       name: form.value.name,
       phone: form.value.phone,
       province_id: form.value.province_id,
@@ -252,28 +244,31 @@ const submitForm = async () => {
     }
 
     if (editAddress.value) {
-      await axios.put(`${apiBase}/address/${editAddress.value.id}`, payload)
+      await axios.put(`${apiBase}/address/${editAddress.value.id}`, payload, useAuthHeaders())
       Toast.fire({ icon: 'success', title: 'Cập nhật địa chỉ thành công!' })
     } else {
-      await axios.post(`${apiBase}/address`, payload)
+      await axios.post(`${apiBase}/address`, payload, useAuthHeaders())
       Toast.fire({ icon: 'success', title: 'Thêm địa chỉ thành công!' })
     }
 
+    setTimeout(() => location.reload(), 1500)
     showNewAddressForm.value = false
     editAddress.value = null
-    await loadAddresses()
   } catch (error) {
     if (error.response?.data?.errors) {
       Toast.fire({ icon: 'error', title: Object.values(error.response.data.errors).join('\n') })
     } else {
-      console.error('Lỗi:', error)
-      Toast.fire({ icon: 'error', title: 'Có lỗi xảy ra khi gửi dữ liệu.' })
+      Toast.fire({ icon: 'error', title: 'Lỗi khi gửi dữ liệu.' })
     }
   }
 }
 
+const cancel = () => {
+  resetForm()
+  showNewAddressForm.value = false
+}
 
-// Hàm lấy tên tỉnh, quận, xã theo id/code
+// Lấy tên địa chỉ theo ID
 const getProvinceName = (province_id) => {
   const p = provinces.value.find(item => item.ProvinceID == province_id)
   return p ? p.ProvinceName : ''
@@ -282,25 +277,19 @@ const getDistrictName = (district_id) => {
   const d = districts.value.find(item => item.DistrictID == district_id)
   return d ? d.DistrictName : ''
 }
-
 const getWardName = (ward_code, district_id) => {
   const w = wards.value.find(item =>
     item.WardCode == ward_code && item.DistrictID == district_id
   )
   return w ? w.WardName : ''
 }
-console.log('wards', wards.value)
-console.log('districts', districts.value)
 
-
-
-// Mảng địa chỉ
+// Danh sách địa chỉ
 const addresses = ref([])
 
-// Load địa chỉ
 const loadAddresses = async () => {
   try {
-    const res = await axios.get(`${apiBase}/address?user_id=3`)
+    const res = await axios.get(`${apiBase}/address`, useAuthHeaders())
     addresses.value = res.data.data || []
 
     const provinceIds = [...new Set(addresses.value.map(a => a.province_id))]
@@ -325,30 +314,22 @@ const loadAddresses = async () => {
     }
   } catch (err) {
     console.error('Lỗi tải địa chỉ:', err)
+    Toast.fire({ icon: 'error', title: 'Không thể tải địa chỉ. Vui lòng đăng nhập lại.' })
   }
 }
 
 const deleteAddress = async (id) => {
-  if (!confirm('Bạn có chắc chắn muốn xóa địa chỉ này không?')) return
-
   try {
-    await axios.delete(`${apiBase}/address/${id}`, {
-      data: { user_id: 3 }
-    })
+    await axios.delete(`${apiBase}/address/${id}`, useAuthHeaders())
     Toast.fire({ icon: 'success', title: 'Xóa địa chỉ thành công!' })
-    await loadAddresses()
+    setTimeout(() => location.reload(), 1500)
   } catch (error) {
-    if (error.response) {
-      Toast.fire({ icon: 'error', title: error.response.data.message || 'Xảy ra lỗi khi xóa địa chỉ.' })
-    } else {
-      Toast.fire({ icon: 'error', title: 'Lỗi mạng hoặc không thể kết nối đến server.' })
-    }
+    Toast.fire({ icon: 'error', title: error.response?.data?.message || 'Lỗi khi xóa địa chỉ' })
   }
 }
 
 const resetForm = () => {
   form.value = {
-    user_id: 3,
     name: '',
     phone: '',
     province_id: '',
@@ -361,13 +342,11 @@ const resetForm = () => {
   editAddress.value = null
 }
 
-// Bắt đầu sửa địa chỉ
 const startEditAddress = async (address) => {
   showNewAddressForm.value = true
   editAddress.value = address
 
   form.value = {
-    user_id: address.user_id,
     name: address.name,
     phone: address.phone,
     province_id: address.province_id,
@@ -375,35 +354,29 @@ const startEditAddress = async (address) => {
     ward_code: address.ward_code,
     detail: address.detail,
     address_type: address.address_type,
-    isDefault: address.is_default == 1 ? true : false,
+    isDefault: address.is_default == 1,
   }
 
-  // Gọi thủ công các hàm load quận/huyện và phường/xã nếu cần
   await loadDistricts()
   await loadWards()
 }
 
-
-
-
-// Toggle form
 const toggleNewAddressForm = () => {
   showNewAddressForm.value = !showNewAddressForm.value
 }
 
-// Load dữ liệu ban đầu
 onMounted(() => {
   loadProvinces()
   loadAddresses()
 })
 
-// Watch tự động
 watch(() => form.value.province_id, loadDistricts)
 watch(() => form.value.district_id, loadWards)
 watch(() => form.value.ward_code, calculateShippingFee)
-
-
 </script>
+
+
+
 
 
 
