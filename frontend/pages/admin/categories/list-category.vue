@@ -377,7 +377,7 @@
 import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { useRuntimeConfig } from '#app';
-import Pagination from '~/components/admin-ui/Pagination.vue';
+import Pagination from '~/components/Pagination.vue';
 
 
 definePageMeta({

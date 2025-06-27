@@ -82,7 +82,7 @@
                 @click="$emit('close')">Tất cả sản phẩm</NuxtLink>
             </li>
             <li>
-              <NuxtLink to="/admin/products/create-product" class="block py-1 font-semibold text-white rounded"
+              <NuxtLink to="/admin/products/create-product" class="block py-1 font-semibold hover:text-white rounded"
                 :class="route.path.startsWith('/admin/products/create-product') ? 'text-green-400 font-bold' : ''"
                 @click="$emit('close')">Thêm sản phẩm</NuxtLink>
             </li>

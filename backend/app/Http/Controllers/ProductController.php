@@ -74,11 +74,44 @@ class ProductController extends Controller
 
     public function store(Request $request)
     {
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Chưa đăng nhập. Vui lòng đăng nhập để tiếp tục.',
+                'code' => 'AUTH_REQUIRED'
+            ], 401);
+        }
+
+        // Kiểm tra vai trò admin
+        $isAdmin = $user->role === 'admin';
+
+        // Lấy seller_id mặc định cho Seller
+        $defaultSellerId = null;
+        if (!$isAdmin) {
+            $seller = Seller::where('user_id', $user->id)->first();
+            $defaultSellerId = $seller ? $seller->id : null;
+            if (!$defaultSellerId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Bạn không có thông tin người bán. Vui lòng liên hệ admin.',
+                ], 422);
+            }
+            // Kiểm tra thêm để đảm bảo seller_id chỉ thuộc về user hiện tại
+            if ($request->has('sellers') && $request->sellers != $defaultSellerId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Bạn chỉ được tạo sản phẩm cho chính mình.',
+                ], 403);
+            }
+        }
+
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'slug' => 'nullable|string|max:255|unique:products,slug|regex:/^[a-zA-Z0-9-]+$/',
             'description' => 'nullable|string',
             'status' => 'nullable|in:active,inactive,draft,trash',
+            'sellers' => $isAdmin ? 'required|exists:sellers,id' : 'nullable',
             'categories' => 'nullable|array',
             'categories.*' => 'exists:categories,id',
             'tags' => 'nullable|array',
@@ -101,7 +134,9 @@ class ProductController extends Controller
             'name.max' => 'Tên sản phẩm không được vượt quá 255 ký tự.',
             'slug.unique' => 'Slug đã tồn tại.',
             'slug.regex' => 'Slug chỉ được chứa chữ cái, số và dấu gạch ngang, không được chứa khoảng trắng hoặc ký tự đặc biệt.',
-            'slug.max' => 'Slug không được vuien quá 255 ký tự.',
+            'slug.max' => 'Slug không được vượt quá 255 ký tự.',
+            'sellers.required' => 'Vui lòng chọn người bán.',
+            'sellers.exists' => 'Người bán không hợp lệ.',
             'categories.array' => 'Danh mục phải là một mảng.',
             'categories.*.exists' => 'Danh mục không hợp lệ.',
             'tags.array' => 'Thẻ phải là một mảng.',
@@ -138,6 +173,7 @@ class ProductController extends Controller
                 'errors' => $validator->errors()
             ], 422);
         }
+
         if ($request->has('variants') && !empty($request->variants)) {
             foreach ($request->variants as $index => $variant) {
                 if (!empty($variant['attributes'])) {
@@ -154,12 +190,11 @@ class ProductController extends Controller
                 }
             }
         }
+
         // Kiểm tra thuộc tính trùng nhau nếu có biến thể và thuộc tính
         if ($request->has('variants') && !empty($request->variants)) {
             $attributeSets = collect($request->variants)->map(function ($variant, $index) {
-                // Chỉ xử lý nếu attributes tồn tại và không rỗng
                 if (!empty($variant['attributes'])) {
-                    // Lọc bỏ các đối tượng attributes rỗng
                     $validAttributes = collect($variant['attributes'])->filter(function ($attr) {
                         return !empty($attr['attribute_id']) && !empty($attr['value_id']);
                     });
@@ -176,7 +211,7 @@ class ProductController extends Controller
             });
 
             $duplicates = $attributeSets->filter(function ($set) {
-                return !empty($set['attributes']); // Chỉ kiểm tra các biến thể có thuộc tính
+                return !empty($set['attributes']);
             })->groupBy('attributes')->filter(function ($group) {
                 return $group->count() > 1;
             });
@@ -201,12 +236,21 @@ class ProductController extends Controller
                 ], 422);
             }
 
+            $sellerId = $isAdmin ? $request->sellers : $defaultSellerId;
+            if (!$sellerId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không tìm thấy thông tin người bán.',
+                ], 422);
+            }
+            $isAdminAdded = $isAdmin && $request->has('sellers') && $request->sellers != Seller::where('user_id', $user->id)->value('id');
             $product = Product::create([
-                'seller_id' => 5,
+                'seller_id' => $sellerId,
                 'name' => $request->name,
                 'slug' => $slug,
                 'description' => $request->description,
                 'status' => $request->status ?? 'active',
+                'is_admin_added' => $isAdminAdded,
             ]);
 
             // Sync categories if provided, otherwise sync empty array
@@ -296,6 +340,7 @@ class ProductController extends Controller
             ], 201);
         } catch (\Exception $e) {
             DB::rollBack();
+            \Log::error('Error creating product: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Tạo sản phẩm thất bại: ' . $e->getMessage(),
@@ -307,7 +352,17 @@ class ProductController extends Controller
 
     public function update(Request $request, $id)
     {
+        if (!Auth::check()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Chưa đăng nhập. Vui lòng đăng nhập để tiếp tục sử dụng.',
+            ], 401);
+        }
+
+        $user = Auth::user();
+        $isAdmin = $user->role === 'admin';
         $product = Product::find($id);
+
         if (!$product) {
             return response()->json([
                 'success' => false,
@@ -315,25 +370,34 @@ class ProductController extends Controller
             ], 404);
         }
 
+        // Kiểm tra quyền sở hữu sản phẩm
+        if (!$isAdmin && $product->seller_id != Seller::where('user_id', $user->id)->value('id')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bạn không có quyền chỉnh sửa sản phẩm này.',
+            ], 403);
+        }
+
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255|unique:products,name,' . $id,
             'slug' => 'nullable|string|max:255|unique:products,slug,' . $id . '|regex:/^[a-zA-Z0-9-]+$/',
             'description' => 'nullable|string',
             'status' => 'nullable|in:active,inactive',
+            'sellers' => $isAdmin ? 'nullable|exists:sellers,id' : 'prohibited', // Admin có thể thay đổi seller_id, Seller bị cấm
             'categories' => 'nullable|array',
             'categories.*' => 'exists:categories,id',
             'tags' => 'nullable|array',
             'tags.*' => 'exists:tags,id',
-            'variants' => 'nullable|array', // Removed min:1 to make variants optional
+            'variants' => 'nullable|array',
             'variants.*.id' => 'nullable|exists:product_variants,id',
-            'variants.*.price' => 'nullable|numeric|min:0', // Required only if variant exists
+            'variants.*.price' => 'nullable|numeric|min:0',
             'variants.*.sale_price' => 'nullable|numeric|min:0',
-            'variants.*.cost_price' => 'nullable|numeric|min:0', // Required only if variant exists
-            'variants.*.attributes' => 'nullable|array', // Removed min:1 to make attributes optional
-            'variants.*.attributes.*.attribute_id' => 'nullable|exists:attributes,id', // Optional
-            'variants.*.attributes.*.value_id' => 'nullable|exists:attribute_values,id', // Optional
-            'variants.*.inventory' => 'nullable|array', // Removed min:1 to make inventory optional
-            'variants.*.inventory.*.quantity' => 'nullable|integer|min:0', // Required only if inventory exists
+            'variants.*.cost_price' => 'nullable|numeric|min:0',
+            'variants.*.attributes' => 'nullable|array',
+            'variants.*.attributes.*.attribute_id' => 'nullable|exists:attributes,id',
+            'variants.*.attributes.*.value_id' => 'nullable|exists:attribute_values,id',
+            'variants.*.inventory' => 'nullable|array',
+            'variants.*.inventory.*.quantity' => 'nullable|integer|min:0',
             'variants.*.inventory.*.location' => 'nullable|string|max:255',
             'variants.*.thumbnail' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:4048',
             'images' => 'nullable|array',
@@ -344,9 +408,10 @@ class ProductController extends Controller
             'name.required' => 'Tên sản phẩm là bắt buộc.',
             'name.max' => 'Tên sản phẩm không được vượt quá 255 ký tự.',
             'name.unique' => 'Tên sản phẩm đã tồn tại.',
+            'sellers.exists' => 'Không tìm thấy người bán.',
             'slug.unique' => 'Slug đã tồn tại.',
             'slug.regex' => 'Slug chỉ được chứa các ký tự chữ số, chữ cái và dấu gạch ngang.',
-            'slug.max' => 'Slug không được vuien quá 255 ký tự.',
+            'slug.max' => 'Slug không được vượt quá 255 ký tự.',
             'categories.array' => 'Danh mục phải là một mảng.',
             'categories.*.exists' => 'Danh mục không hợp lệ.',
             'tags.array' => 'Thẻ phải là một mảng.',
@@ -380,6 +445,7 @@ class ProductController extends Controller
                 'errors' => $validator->errors()
             ], 422);
         }
+
         if ($request->has('variants') && !empty($request->variants)) {
             foreach ($request->variants as $index => $variant) {
                 if (!empty($variant['attributes'])) {
@@ -396,6 +462,7 @@ class ProductController extends Controller
                 }
             }
         }
+
         // Check for duplicate attributes only for variants with attributes
         if ($request->has('variants')) {
             $attributeSets = collect($request->variants)
@@ -435,11 +502,18 @@ class ProductController extends Controller
         try {
             $slug = $request->slug ?? Str::slug($request->name);
 
+            // Cập nhật seller_id chỉ khi là Admin và có seller_id mới
+            $sellerId = $product->seller_id;
+            if ($isAdmin && $request->has('sellers')) {
+                $sellerId = $request->sellers;
+            }
+
             $product->update([
                 'name' => $request->name,
                 'slug' => $slug,
                 'description' => $request->description,
                 'status' => $request->status ?? 'active',
+                'seller_id' => $sellerId,
             ]);
 
             // Sync categories
@@ -580,6 +654,7 @@ class ProductController extends Controller
             ], 200);
         } catch (\Exception $e) {
             DB::rollBack();
+            \Log::error('Error updating product: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Cập nhật sản phẩm thất bại: ' . $e->getMessage(),
@@ -588,63 +663,85 @@ class ProductController extends Controller
         }
     }
 
-public function destroy($id)
-{
-    $product = Product::find($id);
-    if (!$product) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Không tìm thấy sản phẩm.',
-        ], 404);
-    }
-
-    // Kiểm tra xem sản phẩm có liên kết với đơn hàng hay không
-    $hasOrders = $product->productVariants()
-        ->whereHas('orderItems') // Giả sử bạn có quan hệ orderItems trong ProductVariant
-        ->exists();
-
-    if ($hasOrders) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Không thể xóa sản phẩm đang có đơn hàng liên kết.',
-        ], 422); // HTTP 422 Unprocessable Entity
-    }
-
-    DB::beginTransaction();
-    try {
-        // Xóa hình ảnh sản phẩm
-        foreach ($product->productPic as $pic) {
-            Storage::disk('r2')->delete($pic->imagePath);
-            $pic->delete();
+    public function destroy($id)
+    {
+        if (!Auth::check()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Chưa đăng nhập. Vui lòng đăng nhập để tiếp tục.',
+            ], 401);
         }
 
-        // Xóa ảnh biến thể và các liên kết
-        foreach ($product->productVariants as $variant) {
-            if ($variant->thumbnail) {
-                Storage::disk('r2')->delete($variant->thumbnail);
+        $user = Auth::user();
+        $isAdmin = $user->role === 'admin';
+        $product = Product::find($id);
+
+        if (!$product) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không tìm thấy sản phẩm.',
+            ], 404);
+        }
+
+        // Kiểm tra quyền sở hữu sản phẩm
+        if (!$isAdmin) {
+            $sellerId = Seller::where('user_id', $user->id)->value('id');
+            if ($product->seller_id != $sellerId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Bạn không có quyền xóa sản phẩm này.',
+                ], 403);
             }
-            $variant->inventories()->delete();
-            $variant->attributes()->detach();
-            $variant->delete();
         }
 
-        $product->delete();
+        // Kiểm tra xem sản phẩm có liên kết với đơn hàng hay không
+        $hasOrders = $product->productVariants()
+            ->whereHas('orderItems')
+            ->exists();
 
-        DB::commit();
-        $this->clearProductCache();
-        return response()->json([
-            'success' => true,
-            'message' => 'Xóa sản phẩm thành công.',
-        ], 200);
-    } catch (\Exception $e) {
-        DB::rollBack();
-        return response()->json([
-            'success' => false,
-            'message' => 'Xóa sản phẩm thất bại: ' . $e->getMessage(),
-            'error' => $e->getMessage()
-        ], 500);
+        if ($hasOrders) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không thể xóa sản phẩm đang có đơn hàng liên kết.',
+            ], 422);
+        }
+
+        DB::beginTransaction();
+        try {
+            // Xóa hình ảnh sản phẩm
+            foreach ($product->productPic as $pic) {
+                Storage::disk('r2')->delete($pic->imagePath);
+                $pic->delete();
+            }
+
+            // Xóa ảnh biến thể và các liên kết
+            foreach ($product->productVariants as $variant) {
+                if ($variant->thumbnail) {
+                    Storage::disk('r2')->delete($variant->thumbnail);
+                }
+                $variant->inventories()->delete();
+                $variant->attributes()->detach();
+                $variant->delete();
+            }
+
+            $product->delete();
+
+            DB::commit();
+            $this->clearProductCache();
+            return response()->json([
+                'success' => true,
+                'message' => 'Xóa sản phẩm thành công.',
+            ], 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Error deleting product: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Xóa sản phẩm thất bại: ' . $e->getMessage(),
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
-}
 
     protected function clearProductCache()
     {
@@ -665,9 +762,7 @@ public function destroy($id)
                     Cache::store('redis')->forget($cacheKey);
                 }
             } while ($cursor != 0);
-
         } catch (\Exception $e) {
-
         }
     }
     private function generateSKU($productName, $categories, $attributes, $productId = null)
@@ -909,53 +1004,84 @@ public function destroy($id)
     }
     public function changeStatus($id, Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'status' => 'required|in:active,inactive,draft,trash,restore',
-        ], [
-            'status.required' => 'Trạng thái là bắt buộc.',
-            'status.in' => 'Trạng thái không hợp lệ.',
-        ]);
+        try {
+            if (!Auth::check()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Chưa đăng nhập. Vui lòng đăng nhập để tiếp tục.',
+                ], 401);
+            }
 
-        if ($validator->fails()) {
+            $user = Auth::user();
+            $isAdmin = $user->role === 'admin';
+            $validator = Validator::make($request->all(), [
+                'status' => 'required|in:active,inactive,draft,trash,restore',
+            ], [
+                'status.required' => 'Trạng thái là bắt buộc.',
+                'status.in' => 'Trạng thái không hợp lệ.',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Dữ liệu không hợp lệ.',
+                    'errors' => $validator->errors(),
+                ], 422);
+            }
+
+            $product = Product::find($id);
+
+            if (!$product) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không tìm thấy sản phẩm.',
+                ], 404);
+            }
+
+            // Kiểm tra quyền sở hữu sản phẩm
+            if (!$isAdmin) {
+                $sellerId = Seller::where('user_id', $user->id)->value('id');
+                if ($product->seller_id != $sellerId) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Bạn không có quyền thay đổi trạng thái sản phẩm này.',
+                    ], 403);
+                }
+            }
+
+            // Xử lý trạng thái đặc biệt
+            if ($request->status === 'restore' && $product->status !== 'trash') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Chỉ có thể khôi phục sản phẩm có trạng thái trash.',
+                ], 422);
+            }
+
+            // Cập nhật trạng thái sản phẩm
+            $product->status = $request->status;
+            $product->save();
+
+            $product->load([
+                'categories',
+                'productVariants',
+                'productPic',
+                'tags'
+            ]);
+
+            // Xóa cache sản phẩm
+            $this->clearProductCache();
+            return response()->json([
+                'success' => true,
+                'message' => 'Thay đổi trạng thái sản phẩm thành công!',
+                'data' => $product
+            ], 200);
+        } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Dữ liệu không hợp lệ.',
-                'errors' => $validator->errors(),
-            ], 422);
+                'message' => 'Thay đổi trạng thái sản phẩm thất bại: ' . $e->getMessage(),
+                'error' => $e->getMessage()
+            ], 500);
         }
-        $product = Product::find($id);
-
-        if (!$product) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Không tìm thấy sản phẩm.',
-            ], 404);
-        }
-        // Chỉ cho phép seller thay đổi trạng thái sản phẩm của chính mình
-        // if (Auth::user()->role !== 'admin' && Auth::user()->id !== $product->seller_id) {
-        //     return response()->json([
-        //         'success' => false,
-        //         'message' => 'Bạn không có quyền thay đổi trạng thái sản phẩm này.',
-        //     ], 403);
-        // }
-
-        // Cập nhật trạng thái sản phẩm
-        $product->status = $request->status;
-        $product->save();
-
-        $product->load([
-            'categories',
-            'productVariants',
-            'productPic',
-            'tags'
-        ]);
-        // Xóa cache sản phẩm
-        $this->clearProductCache();
-        return response()->json([
-            'success' => true,
-            'message' => 'Thay đổi trạng thái sản phẩm thành công!',
-            'data' => $product
-        ], 200);
     }
 
     public function getTrash(Request $request)
@@ -976,7 +1102,7 @@ public function destroy($id)
     }
 
     //hiện sản phẩm ra trang chủ, (có rating, sold, price, sale_price, thumbnail, categories, tags)
-public function getAllProducts(Request $request)
+    public function getAllProducts(Request $request)
     {
         try {
             // Validate request parameters
@@ -1358,4 +1484,106 @@ public function getAllProducts(Request $request)
         }
         return $ids;
     }
+
+public function getAllProductBySellers(Request $request)
+{
+    try {
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Chưa đăng nhập. Vui lý đăng nhập.',
+            ], 401);
+        }
+
+        $seller = Seller::where('user_id', $user->id)->first();
+
+        if (!$seller) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Người dùng không phải là seller.',
+            ], 403);
+        }
+
+        $page = $request->get('page', 1);
+        $search = trim($request->get('search', ''));
+        $perPage = $request->get('per_page', 10);
+
+        $cacheKey = 'products_seller_' . $seller->id . '_page_' . $page . '_perpage_' . $perPage . '_search_' . md5($search);
+        $ttl = 3600;
+
+        $products = Cache::store('redis')->tags(['products'])->remember($cacheKey, $ttl, function () use ($search, $perPage, $seller) {
+            return Product::with([
+                'seller',
+                'categories',
+                'productVariants',
+                'productVariants.inventories',
+                'productVariants.attributes',
+                'productPic',
+                'tags'
+            ])
+                ->where('seller_id', $seller->id)
+                ->whereIn('status', ['active', 'inactive'])
+                ->when($search, function ($query) use ($search) {
+                    return $query->where('name', 'like', '%' . $search . '%');
+                })
+                ->orderBy('created_at', 'desc')
+                ->paginate($perPage)
+                ->toArray();
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Lấy danh sách sản phẩm của seller thành công.',
+            'data' => $products
+        ], 200);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Đã xảy ra lỗi khi lấy danh sách sản phẩm.',
+            'error' => env('APP_DEBUG', false) ? $e->getMessage() : null
+        ], 500);
+    }
+}
+public function getTrashBySeller(Request $request)
+{
+    try {
+        $seller = Seller::where('user_id', Auth::id())->first();
+        if (!$seller) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không tìm thấy seller tương ứng với user hiện tại.',
+            ], 404);
+        }
+
+        $products = Product::with([
+                'seller',
+                'categories',
+                'productVariants',
+                'productPic',
+                'tags',
+                'productVariants.inventories',
+                'productVariants.attributes'
+            ])
+            ->where('status', 'trash')
+            ->where('seller_id', $seller->id)
+            ->when($request->has('search'), function ($query) use ($request) {
+                $query->where('name', 'like', '%' . $request->search . '%');
+            })
+            ->orderBy('created_at', 'desc')
+            ->paginate(10);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Lấy danh sách sản phẩm (trash) của seller thành công.',
+            'data' => $products
+        ], 200);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Đã xảy ra lỗi khi lấy sản phẩm.',
+            'error' => env('APP_DEBUG') ? $e->getMessage() : null,
+        ], 500);
+    }
+}
 }
