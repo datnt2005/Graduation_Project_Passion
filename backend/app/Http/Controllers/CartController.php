@@ -9,18 +9,137 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class CartController extends Controller
 {
-   public function __construct()
-{
-    $this->middleware('auth:sanctum')->except(['addToRedisCart', 'getRedisCart', 'updateRedisCartItem', 'removeRedisCartItem', 'clearRedisCart']);
-}
+    public function __construct()
+    {
+        $this->middleware('auth:sanctum');
+    }
+
+    private function refreshCartCache($userId, $selectedItemIds = [])
+    {
+        try {
+            $cacheKey = "cart_user_{$userId}";
+
+            // Clear existing cart cache
+            Cache::store('redis')->forget($cacheKey);
+
+            // Fetch and cache cart data
+            $cartData = Cache::store('redis')->remember($cacheKey, 86400, function () use ($userId, $selectedItemIds) {
+                $cart = Cart::with([
+                    'items' => fn($query) => $query->select('id', 'cart_id', 'product_variant_id', 'quantity', 'price'),
+                    'items.productVariant' => fn($query) => $query->select('id', 'product_id', 'sku', 'thumbnail', 'sale_price', 'quantity'),
+                    'items.productVariant.product' => fn($query) => $query->select('id', 'seller_id', 'name', 'slug'),
+                    'items.productVariant.product.seller' => fn($query) => $query->select('id', 'store_name', 'store_slug'),
+                    'items.productVariant.attributes.values' => fn($query) => $query->select('id', 'attribute_id', 'value'),
+                    'items.productVariant.product.productPic' => fn($query) => $query->select('id', 'product_id', 'imagePath')
+                ])
+                    ->where('user_id', $userId)
+                    ->where('status', 'active')
+                    ->select('id', 'user_id', 'status')
+                    ->first();
+
+                if (!$cart) {
+                    return [
+                        'stores' => [],
+                        'total' => '0'
+                    ];
+                }
+
+                // Group items by seller
+                $itemsByStore = $cart->items->groupBy(function ($item) {
+                    return $item->productVariant->product->seller->id ?? 0;
+                });
+
+                $formattedStores = $itemsByStore->map(function ($items, $sellerId) use ($selectedItemIds) {
+                    $seller = $items->first()->productVariant->product->seller;
+
+                    $storeItems = $items->map(function ($item) use ($selectedItemIds) {
+                        $variant = $item->productVariant;
+                        $product = $variant->product;
+
+                        $attributes = $variant->attributes->map(function ($attr) {
+                            $value = $attr->pivot->value_id
+                                ? $attr->values->find($attr->pivot->value_id)
+                                : null;
+                            return [
+                                'attribute' => $attr->name,
+                                'value' => $value ? $value->value : null
+                            ];
+                        })->filter()->values();
+
+                        return [
+                            'id' => $item->id,
+                            'quantity' => $item->quantity,
+                            'price' => number_format($item->price, 0, ',', '.'),
+                            'sale_price' => $variant->sale_price ? number_format($variant->sale_price, 0, ',', '.') : null,
+                            'product_variant_id' => $item->product_variant_id,
+                            'stock' => $variant->quantity ?? 0,
+                            'is_selected' => in_array($item->id, $selectedItemIds),
+                            'productVariant' => [
+                                'id' => $variant->id,
+                                'sku' => $variant->sku,
+                                'thumbnail' => $variant->thumbnail
+                                    ? config('app.media_base_url') . $variant->thumbnail
+                                    : ($product->productPic->first()
+                                        ? config('app.media_base_url') . $product->productPic->first()->imagePath
+                                        : '/default.jpg'),
+                                'attributes' => $attributes
+                            ],
+                            'product' => [
+                                'id' => $product->id,
+                                'name' => $product->name,
+                                'slug' => $product->slug,
+                                'images' => $product->productPic->map(function ($pic) {
+                                    return config('app.media_base_url') . $pic->imagePath;
+                                })->toArray()
+                            ]
+                        ];
+                    })->values();
+
+                    $storeTotal = $storeItems->sum(function ($item) {
+                        $price = $item['sale_price'] ? (float) str_replace('.', '', $item['sale_price']) : (float) str_replace('.', '', $item['price']);
+                        return $price * $item['quantity'];
+                    });
+
+                    return [
+                        'seller_id' => $seller->id,
+                        'store_name' => $seller->store_name ?? 'N/A',
+                        'store_url' => "/seller/{$seller->store_slug}",
+                        'items' => $storeItems,
+                        'store_total' => number_format($storeTotal, 0, ',', '.')
+                    ];
+                })->values();
+
+                $cartTotal = $formattedStores->sum(function ($store) {
+                    return (float) str_replace('.', '', $store['store_total']);
+                });
+
+                return [
+                    'stores' => $formattedStores,
+                    'total' => number_format($cartTotal, 0, ',', '.')
+                ];
+            });
+
+            return $cartData;
+        } catch (\Exception $e) {
+            Log::error("Error in refreshCartCache for user {$userId}: {$e->getMessage()}", [
+                'trace' => $e->getTraceAsString()
+            ]);
+            return [
+                'success' => false,
+                'message' => 'Lỗi khi làm mới cache giỏ hàng: ' . $e->getMessage(),
+                'code' => 'CACHE_REFRESH_ERROR'
+            ];
+        }
+    }
 
     public function index(Request $request)
     {
         try {
-
             if (!Auth::check()) {
                 return response()->json([
                     'success' => false,
@@ -29,105 +148,25 @@ class CartController extends Controller
                 ], 401);
             }
 
-            $cart = Cart::with([
-                'items.productVariant.product.seller',
-                'items.productVariant.attributes.values', // Sửa mối quan hệ
-                'items.productVariant.product.productPic'
-            ])
-                ->where('user_id', Auth::id())
-                ->where('status', 'active')
-                ->first();
+            $userId = Auth::id();
+            $selectedItemsKey = "cart_selected_items_{$userId}";
+            $selectedItemIds = Cache::store('redis')->get($selectedItemsKey, []);
 
-            if (!$cart) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Giỏ hàng trống',
-                    'data' => [
-                        'stores' => [],
-                        'total' => 0
-                    ]
-                ]);
+            // Refresh cart cache and get data
+            $cartData = $this->refreshCartCache($userId, $selectedItemIds);
+
+            if (isset($cartData['success']) && $cartData['success'] === false) {
+                return response()->json($cartData, 500);
             }
-
-            // Nhóm items theo cửa hàng (seller)
-            $itemsByStore = $cart->items->groupBy(function ($item) {
-                return $item->productVariant->product->seller->id ?? 0;
-            });
-
-            $formattedStores = $itemsByStore->map(function ($items, $sellerId) {
-                $seller = $items->first()->productVariant->product->seller;
-
-                $storeItems = $items->map(function ($item) {
-                    $variant = $item->productVariant;
-                    $product = $variant->product;
-
-                    // Lấy thuộc tính và giá trị
-                    $attributes = $variant->attributes->map(function ($attr) {
-                        $value = $attr->pivot->value_id
-                            ? $attr->values->find($attr->pivot->value_id)
-                            : null;
-                        return [
-                            'attribute' => $attr->name,
-                            'value' => $value ? $value->value : null
-                        ];
-                    });
-
-                    return [
-                        'id' => $item->id,
-                        'quantity' => $item->quantity,
-                        'price' => number_format($item->price, 0, ',', '.'),
-                        'sale_price' => $variant->sale_price ? number_format($variant->sale_price, 0, ',', '.') : null,
-                        'product_variant_id' => $item->product_variant_id,
-                        'stock' => $variant->quantity ?? 0,
-                        'productVariant' => [
-                            'id' => $variant->id,
-                            'sku' => $variant->sku,
-                            'thumbnail' => $variant->thumbnail
-                                ? config('app.media_base_url') . $variant->thumbnail
-                                : ($product->productPic->first()
-                                    ? config('app.media_base_url') . $product->productPic->first()->imagePath
-                                    : '/default.jpg'),
-                            'attributes' => $attributes
-                        ],
-                        'product' => [
-                            'id' => $product->id,
-                            'name' => $product->name,
-                            'slug' => $product->slug,
-                            'images' => $product->productPic->map(function ($pic) {
-                                return config('app.media_base_url') . $pic->imagePath;
-                            })->toArray()
-                        ]
-                    ];
-                });
-
-                $storeTotal = $storeItems->sum(function ($item) {
-                    $price = $item['sale_price'] ? (float) str_replace('.', '', $item['sale_price']) : (float) str_replace('.', '', $item['price']);
-                    return $price * $item['quantity'];
-                });
-
-                return [
-                    'seller_id' => $seller->id,
-                    'store_name' => $seller->store_name ?? 'N/A',
-                    'store_url' => "/seller/{$seller->store_slug}",
-                    'items' => $storeItems,
-                    'store_total' => number_format($storeTotal, 0, ',', '.')
-                ];
-            })->values();
-
-            $cartTotal = $formattedStores->sum(function ($store) {
-                return (float) str_replace('.', '', $store['store_total']);
-            });
 
             return response()->json([
                 'success' => true,
                 'message' => 'Lấy giỏ hàng thành công',
-                'data' => [
-                    'stores' => $formattedStores,
-                    'total' => number_format($cartTotal, 0, ',', '.')
-                ]
-            ]);
+                'data' => $cartData,
+                'valid_item_ids' => $selectedItemIds
+            ], 200);
         } catch (\Exception $e) {
-            Log::error('Error in cart index: ' . $e->getMessage(), [
+            Log::error("Error in cart index for user {$userId}: {$e->getMessage()}", [
                 'trace' => $e->getTraceAsString()
             ]);
             return response()->json([
@@ -157,7 +196,7 @@ class CartController extends Controller
             DB::beginTransaction();
 
             $productVariant = ProductVariant::findOrFail($request->product_variant_id);
-            
+
             if ($productVariant->quantity < $request->quantity) {
                 return response()->json([
                     'success' => false,
@@ -166,11 +205,10 @@ class CartController extends Controller
                 ], 400);
             }
 
-            // Get or create cart for authenticated user
             $cart = Cart::where('user_id', Auth::id())
                 ->where('status', 'active')
                 ->first();
-            
+
             if (!$cart) {
                 $cart = Cart::create([
                     'user_id' => Auth::id(),
@@ -178,7 +216,6 @@ class CartController extends Controller
                 ]);
             }
 
-            // Check if item already exists in cart
             $cartItem = CartItem::where('cart_id', $cart->id)
                 ->where('product_variant_id', $request->product_variant_id)
                 ->first();
@@ -195,7 +232,7 @@ class CartController extends Controller
                 $cartItem->quantity = $newQuantity;
                 $cartItem->save();
             } else {
-                CartItem::create([
+                $cartItem = CartItem::create([
                     'cart_id' => $cart->id,
                     'product_variant_id' => $request->product_variant_id,
                     'quantity' => $request->quantity,
@@ -203,30 +240,36 @@ class CartController extends Controller
                 ]);
             }
 
-            DB::commit();
+            // Add new item to selected items
+            $userId = Auth::id();
+            $selectedItemsKey = "cart_selected_items_{$userId}";
+            $selectedItemIds = Cache::store('redis')->get($selectedItemsKey, []);
+            if (!in_array($cartItem->id, $selectedItemIds)) {
+                $selectedItemIds[] = $cartItem->id;
+                Cache::store('redis')->put($selectedItemsKey, $selectedItemIds, 86400);
+            }
 
-            // Refresh cart data
-            $cart = Cart::with(['items.productVariant.product'])
-                ->find($cart->id);
+            // Refresh cache
+            $cartData = $this->refreshCartCache($userId, $selectedItemIds);
+
+            if (isset($cartData['success']) && $cartData['success'] === false) {
+                DB::rollBack();
+                return response()->json($cartData, 500);
+            }
+
+            DB::commit();
 
             return response()->json([
                 'success' => true,
                 'message' => 'Thêm vào giỏ hàng thành công',
-                'data' => [
-                    'cart' => [
-                        'id' => $cart->id,
-                        'user_id' => $cart->user_id,
-                        'status' => $cart->status,
-                        'items_count' => $cart->items->count(),
-                        'total' => $cart->items->sum(function($item) {
-                            return $item->price * $item->quantity;
-                        })
-                    ],
-                    'items' => $cart->items
-                ]
-            ]);
+                'data' => $cartData,
+                'valid_item_ids' => $selectedItemIds
+            ], 200);
         } catch (\Exception $e) {
             DB::rollBack();
+            Log::error('Error in addItem: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'Lỗi khi thêm vào giỏ hàng: ' . $e->getMessage(),
@@ -238,59 +281,43 @@ class CartController extends Controller
     public function updateItem(Request $request, $itemId)
     {
         try {
-            if (!Auth::check()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Unauthorized. Please login.',
-                    'code' => 'AUTH_REQUIRED'
-                ], 401);
-            }
-
-            $request->validate([
-                'quantity' => 'required|integer|min:1'
-            ]);
-
-            DB::beginTransaction();
-
-            $cartItem = CartItem::findOrFail($itemId);
-            
-            // Verify cart ownership
-            $cart = Cart::where('id', $cartItem->cart_id)
-                ->where('user_id', Auth::id())
-                ->first();
-
-            if (!$cart) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Không tìm thấy giỏ hàng',
-                    'code' => 'CART_NOT_FOUND'
-                ], 404);
-            }
+            $userId = Auth::id();
+            $quantity = $request->input('quantity', 1);
+            $cartItem = CartItem::where('id', $itemId)
+                ->whereHas('cart', function ($query) use ($userId) {
+                    $query->where('user_id', $userId)->where('status', 'active');
+                })
+                ->firstOrFail();
 
             $productVariant = ProductVariant::findOrFail($cartItem->product_variant_id);
-            
-            if ($productVariant->quantity < $request->quantity) {
+            if ($quantity > $productVariant->quantity) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Số lượng sản phẩm trong kho không đủ',
+                    'message' => 'Số lượng vượt quá tồn kho',
                     'code' => 'INSUFFICIENT_STOCK'
                 ], 400);
             }
 
-            $cartItem->quantity = $request->quantity;
-            $cartItem->save();
+            $cartItem->update(['quantity' => $quantity]);
 
-            DB::commit();
+            // Refresh cache
+            $selectedItemsKey = "cart_selected_items_{$userId}";
+            $selectedItemIds = Cache::store('redis')->get($selectedItemsKey, []);
+            $cartData = $this->refreshCartCache($userId, $selectedItemIds);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Cập nhật giỏ hàng thành công'
-            ]);
+                'message' => 'Cập nhật số lượng thành công',
+                'data' => $cartData,
+                'valid_item_ids' => $selectedItemIds
+            ], 200);
         } catch (\Exception $e) {
-            DB::rollBack();
+            Log::error("Error in updateItem for item {$itemId}: {$e->getMessage()}", [
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json([
                 'success' => false,
-                'message' => 'Lỗi khi cập nhật giỏ hàng: ' . $e->getMessage(),
+                'message' => 'Lỗi khi cập nhật số lượng: ' . $e->getMessage(),
                 'code' => 'SERVER_ERROR'
             ], 500);
         }
@@ -307,9 +334,9 @@ class CartController extends Controller
                 ], 401);
             }
 
+            DB::beginTransaction();
+
             $cartItem = CartItem::findOrFail($itemId);
-            
-            // Verify cart ownership
             $cart = Cart::where('id', $cartItem->cart_id)
                 ->where('user_id', Auth::id())
                 ->first();
@@ -324,11 +351,36 @@ class CartController extends Controller
 
             $cartItem->delete();
 
+            // Update selected items cache
+            $userId = Auth::id();
+            $selectedItemsKey = "cart_selected_items_{$userId}";
+            $selectedItemIds = Cache::store('redis')->get($selectedItemsKey, []);
+            if (in_array($itemId, $selectedItemIds)) {
+                $selectedItemIds = array_values(array_diff($selectedItemIds, [$itemId]));
+                Cache::store('redis')->put($selectedItemsKey, $selectedItemIds, 86400);
+            }
+
+            // Refresh cache
+            $cartData = $this->refreshCartCache($userId, $selectedItemIds);
+
+            if (isset($cartData['success']) && $cartData['success'] === false) {
+                DB::rollBack();
+                return response()->json($cartData, 500);
+            }
+
+            DB::commit();
+
             return response()->json([
                 'success' => true,
-                'message' => 'Xóa sản phẩm khỏi giỏ hàng thành công'
-            ]);
+                'message' => 'Xóa sản phẩm khỏi giỏ hàng thành công',
+                'data' => $cartData,
+                'valid_item_ids' => $selectedItemIds
+            ], 200);
         } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error in removeItem: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'Lỗi khi xóa sản phẩm khỏi giỏ hàng: ' . $e->getMessage(),
@@ -348,6 +400,8 @@ class CartController extends Controller
                 ], 401);
             }
 
+            DB::beginTransaction();
+
             $cart = Cart::where('user_id', Auth::id())
                 ->where('status', 'active')
                 ->first();
@@ -356,11 +410,32 @@ class CartController extends Controller
                 $cart->items()->delete();
             }
 
+            // Clear selected items cache
+            $userId = Auth::id();
+            $selectedItemsKey = "cart_selected_items_{$userId}";
+            Cache::store('redis')->forget($selectedItemsKey);
+
+            // Refresh cache
+            $cartData = $this->refreshCartCache($userId);
+
+            if (isset($cartData['success']) && $cartData['success'] === false) {
+                DB::rollBack();
+                return response()->json($cartData, 500);
+            }
+
+            DB::commit();
+
             return response()->json([
                 'success' => true,
-                'message' => 'Xóa giỏ hàng thành công'
-            ]);
+                'message' => 'Xóa giỏ hàng thành công',
+                'data' => $cartData,
+                'valid_item_ids' => []
+            ], 200);
         } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error in clear: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'Lỗi khi xóa giỏ hàng: ' . $e->getMessage(),
@@ -369,228 +444,60 @@ class CartController extends Controller
         }
     }
 
-    public function getRedisCart($cartId)
+    public function selectItems(Request $request)
     {
         try {
-            $cartData = Redis::get("cart:{$cartId}");
-            
-            if (!$cartData) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Giỏ hàng trống',
-                    'data' => [
-                        'items' => [],
-                        'total' => 0
-                    ]
-                ]);
-            }
+            $userId = Auth::id();
+            $itemIds = $request->input('item_ids', []);
+            $selectAll = $request->input('select_all', false);
+            $cacheKey = "cart_selected_items_{$userId}";
 
-            $cartItems = json_decode($cartData, true);
-            $total = collect($cartItems)->sum(function ($item) {
-                return $item['price'] * $item['quantity'];
-            });
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Lấy giỏ hàng thành công',
-                'data' => [
-                    'items' => $cartItems,
-                    'total' => $total
-                ]
-            ]);
-        } catch (\Exception $e) {
-            \Log::error('Error in getRedisCart: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Lỗi khi lấy giỏ hàng: ' . $e->getMessage(),
-                'code' => 'SERVER_ERROR'
-            ], 500);
-        }
-    }
-
-    public function addToRedisCart(Request $request, $cartId)
-    {
-        try {
-            $request->validate([
-                'product_variant_id' => 'required|exists:product_variants,id',
-                'quantity' => 'required|integer|min:1'
-            ]);
-
-            $productVariant = ProductVariant::findOrFail($request->product_variant_id);
-            
-            if ($productVariant->quantity < $request->quantity) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Số lượng sản phẩm trong kho không đủ',
-                    'code' => 'INSUFFICIENT_STOCK'
-                ], 400);
-            }
-
-            $cartData = Redis::get("cart:{$cartId}");
-            $cartItems = $cartData ? json_decode($cartData, true) : [];
-
-            // Check if item already exists
-            $itemIndex = collect($cartItems)->search(function ($item) use ($request) {
-                return $item['product_variant_id'] == $request->product_variant_id;
-            });
-
-            if ($itemIndex !== false) {
-                $newQuantity = $cartItems[$itemIndex]['quantity'] + $request->quantity;
-                if ($newQuantity > $productVariant->quantity) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Số lượng sản phẩm trong kho không đủ',
-                        'code' => 'INSUFFICIENT_STOCK'
-                    ], 400);
-                }
-                $cartItems[$itemIndex]['quantity'] = $newQuantity;
+            if ($selectAll) {
+                $validItemIds = CartItem::whereHas('cart', function ($query) use ($userId) {
+                    $query->where('user_id', $userId)->where('status', 'active');
+                })->pluck('id')->toArray();
             } else {
-                $cartItems[] = [
-                    'id' => count($cartItems) + 1,
-                    'product_variant_id' => $request->product_variant_id,
-                    'quantity' => $request->quantity,
-                    'price' => $productVariant->sale_price ?? $productVariant->price,
-                    'productVariant' => [
-                        'id' => $productVariant->id,
-                        'thumbnail' => $productVariant->thumbnail,
-                        'product' => [
-                            'id' => $productVariant->product->id,
-                            'name' => $productVariant->product->name
-                        ]
-                    ]
-                ];
+                $validItemIds = CartItem::whereIn('id', $itemIds)
+                    ->whereHas('cart', function ($query) use ($userId) {
+                        $query->where('user_id', $userId)->where('status', 'active');
+                    })
+                    ->pluck('id')
+                    ->toArray();
             }
 
-            Redis::set("cart:{$cartId}", json_encode($cartItems));
-            Redis::expire("cart:{$cartId}", 60 * 60 * 24 * 30); // 30 days
+            Cache::store('redis')->put($cacheKey, $validItemIds, 86400);
+
+            // Refresh cart cache with updated selections
+            $cartData = $this->refreshCartCache($userId, $validItemIds);
+
+            if (isset($cartData['success']) && $cartData['success'] === false) {
+                return response()->json($cartData, 500);
+            }
 
             return response()->json([
                 'success' => true,
-                'message' => 'Thêm vào giỏ hàng thành công'
-            ]);
+                'message' => 'Cập nhật danh sách sản phẩm đã chọn thành công',
+                'data' => $cartData,
+                'valid_item_ids' => $validItemIds
+            ], 200);
         } catch (\Exception $e) {
-            \Log::error('Error in addToRedisCart: ' . $e->getMessage());
+            Log::error("Error in selectItems for user {$userId}: {$e->getMessage()}", [
+                'item_ids' => $itemIds,
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json([
                 'success' => false,
-                'message' => 'Lỗi khi thêm vào giỏ hàng: ' . $e->getMessage(),
+                'message' => 'Lỗi khi cập nhật sản phẩm đã chọn: ' . $e->getMessage(),
                 'code' => 'SERVER_ERROR'
             ], 500);
         }
     }
 
-    public function updateRedisCartItem(Request $request, $cartId, $itemId)
-    {
-        try {
-            $request->validate([
-                'quantity' => 'required|integer|min:1'
-            ]);
-
-            $cartData = Redis::get("cart:{$cartId}");
-            if (!$cartData) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Không tìm thấy giỏ hàng',
-                    'code' => 'CART_NOT_FOUND'
-                ], 404);
-            }
-
-            $cartItems = json_decode($cartData, true);
-            $itemIndex = collect($cartItems)->search(function ($item) use ($itemId) {
-                return $item['id'] == $itemId;
-            });
-
-            if ($itemIndex === false) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Không tìm thấy sản phẩm trong giỏ hàng',
-                    'code' => 'ITEM_NOT_FOUND'
-                ], 404);
-            }
-
-            $productVariant = ProductVariant::findOrFail($cartItems[$itemIndex]['product_variant_id']);
-            
-            if ($productVariant->quantity < $request->quantity) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Số lượng sản phẩm trong kho không đủ',
-                    'code' => 'INSUFFICIENT_STOCK'
-                ], 400);
-            }
-
-            $cartItems[$itemIndex]['quantity'] = $request->quantity;
-            Redis::set("cart:{$cartId}", json_encode($cartItems));
-            Redis::expire("cart:{$cartId}", 60 * 60 * 24 * 30); // 30 days
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Cập nhật giỏ hàng thành công'
-            ]);
-        } catch (\Exception $e) {
-            \Log::error('Error in updateRedisCartItem: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Lỗi khi cập nhật giỏ hàng: ' . $e->getMessage(),
-                'code' => 'SERVER_ERROR'
-            ], 500);
-        }
-    }
-
-    public function removeRedisCartItem($cartId, $itemId)
-    {
-        try {
-            $cartData = Redis::get("cart:{$cartId}");
-            if (!$cartData) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Không tìm thấy giỏ hàng',
-                    'code' => 'CART_NOT_FOUND'
-                ], 404);
-            }
-
-            $cartItems = json_decode($cartData, true);
-            $cartItems = collect($cartItems)->filter(function ($item) use ($itemId) {
-                return $item['id'] != $itemId;
-            })->values()->all();
-
-            Redis::set("cart:{$cartId}", json_encode($cartItems));
-            Redis::expire("cart:{$cartId}", 60 * 60 * 24 * 30); // 30 days
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Xóa sản phẩm khỏi giỏ hàng thành công'
-            ]);
-        } catch (\Exception $e) {
-            \Log::error('Error in removeRedisCartItem: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Lỗi khi xóa sản phẩm khỏi giỏ hàng: ' . $e->getMessage(),
-                'code' => 'SERVER_ERROR'
-            ], 500);
-        }
-    }
-
-    public function clearRedisCart($cartId)
-    {
-        try {
-            Redis::del("cart:{$cartId}");
-            return response()->json([
-                'success' => true,
-                'message' => 'Xóa giỏ hàng thành công'
-            ]);
-        } catch (\Exception $e) {
-            \Log::error('Error in clearRedisCart: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Lỗi khi xóa giỏ hàng: ' . $e->getMessage(),
-                'code' => 'SERVER_ERROR'
-            ], 500);
-        }
-    }
-
-    public function mergeRedisCart($cartId)
+    public function getSelectedItems(Request $request)
     {
         try {
             if (!Auth::check()) {
+                Log::warning('Unauthorized access to getSelectedItems', ['ip' => $request->ip()]);
                 return response()->json([
                     'success' => false,
                     'message' => 'Unauthorized. Please login.',
@@ -598,73 +505,81 @@ class CartController extends Controller
                 ], 401);
             }
 
-            $cartData = Redis::get("cart:{$cartId}");
-            if (!$cartData) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Không có sản phẩm để đồng bộ'
+            $userId = Auth::id();
+            $redisKey = "cart_selected_items_{$userId}";
+            $selectedItemIds = Cache::store('redis')->get($redisKey, []);
+
+            // Validate selected item IDs
+            $validItemIds = CartItem::whereIn('id', $selectedItemIds)
+                ->whereHas('cart', function ($query) use ($userId) {
+                    $query->where('user_id', $userId)->where('status', 'active');
+                })
+                ->pluck('id')
+                ->toArray();
+
+            if ($validItemIds !== $selectedItemIds) {
+                Cache::store('redis')->put($redisKey, $validItemIds, 86400);
+                Log::info("Updated Redis with valid selected items for user {$userId}", [
+                    'valid_selected_items' => $validItemIds
                 ]);
             }
 
-            $redisCartItems = json_decode($cartData, true);
-            
-            DB::beginTransaction();
+            // Refresh cart cache with valid selected items
+            $cartData = $this->refreshCartCache($userId, $validItemIds);
 
-            // Get or create user cart
-            $cart = Cart::where('user_id', Auth::id())
-                ->where('status', 'active')
-                ->first();
-            
-            if (!$cart) {
-                $cart = Cart::create([
-                    'user_id' => Auth::id(),
-                    'status' => 'active'
-                ]);
+            if (isset($cartData['success']) && $cartData['success'] === false) {
+                return response()->json($cartData, 500);
             }
 
-            // Merge items
-            foreach ($redisCartItems as $item) {
-                $productVariant = ProductVariant::findOrFail($item['product_variant_id']);
-                
-                // Check if item exists in user cart
-                $cartItem = CartItem::where('cart_id', $cart->id)
-                    ->where('product_variant_id', $item['product_variant_id'])
-                    ->first();
-
-                if ($cartItem) {
-                    $newQuantity = $cartItem->quantity + $item['quantity'];
-                    if ($newQuantity > $productVariant->quantity) {
-                        $newQuantity = $productVariant->quantity;
-                    }
-                    $cartItem->quantity = $newQuantity;
-                    $cartItem->save();
-                } else {
-                    CartItem::create([
-                        'cart_id' => $cart->id,
-                        'product_variant_id' => $item['product_variant_id'],
-                        'quantity' => $item['quantity'],
-                        'price' => $item['price']
-                    ]);
+            // Filter stores to include only selected items
+            $cartData['stores'] = collect($cartData['stores'])->map(function ($store) use ($validItemIds) {
+                $store['items'] = collect($store['items'])->filter(function ($item) use ($validItemIds) {
+                    return in_array($item['id'], $validItemIds);
+                })->values();
+                if ($store['items']->isEmpty()) {
+                    return null;
                 }
+                $store['store_total'] = number_format($store['items']->sum(function ($item) {
+                    $price = $item['sale_price'] ? (float) str_replace('.', '', $item['sale_price']) : (float) str_replace('.', '', $item['price']);
+                    return $price * $item['quantity'];
+                }), 0, ',', '.');
+                return $store;
+            })->filter()->values();
+
+            $cartData['total'] = number_format($cartData['stores']->sum(function ($store) {
+                return (float) str_replace('.', '', $store['store_total']);
+            }), 0, ',', '.');
+
+            if ($cartData['stores']->isEmpty()) {
+                Cache::store('redis')->forget($redisKey);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không có sản phẩm nào được chọn',
+                    'data' => ['stores' => [], 'total' => '0'],
+                    'valid_item_ids' => []
+                ], 200);
             }
 
-            DB::commit();
-
-            // Clear Redis cart
-            Redis::del("cart:{$cartId}");
+            Log::info("Successfully retrieved selected items for user {$userId}", [
+                'stores_count' => count($cartData['stores']),
+                'total' => $cartData['total']
+            ]);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Đồng bộ giỏ hàng thành công'
-            ]);
+                'message' => 'Lấy danh sách sản phẩm đã chọn thành công',
+                'data' => $cartData,
+                'valid_item_ids' => $validItemIds
+            ], 200);
         } catch (\Exception $e) {
-            DB::rollBack();
-            \Log::error('Error in mergeRedisCart: ' . $e->getMessage());
+            Log::error("Error in getSelectedItems for user {$userId}: {$e->getMessage()}", [
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json([
                 'success' => false,
-                'message' => 'Lỗi khi đồng bộ giỏ hàng: ' . $e->getMessage(),
+                'message' => 'Lỗi khi lấy danh sách sản phẩm đã chọn: ' . $e->getMessage(),
                 'code' => 'SERVER_ERROR'
             ], 500);
         }
     }
-} 
+}

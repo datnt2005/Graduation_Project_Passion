@@ -23,7 +23,7 @@
 
           <template v-else>
             <NuxtLink to="#" @click.prevent="openLogin" class="hover:underline inline-flex items-center gap-1">
-              <i><font-awesome-icon :icon="['fas' , 'right-to-bracket']" /></i>
+              <i><font-awesome-icon :icon="['fas', 'right-to-bracket']" /></i>
               Đăng nhập
             </NuxtLink>
             <NuxtLink to="#" @click.prevent="openRegister" class="hover:underline inline-flex items-center gap-1">
@@ -287,12 +287,14 @@
         <div class="relative group ml-20 hidden md:block">
           <a href="#" class="flex items-center gap-1 text-gray-700 hover:text-blue-600 font-semibold">
             Danh mục
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+              stroke="currentColor" class="w-5 h-5">
               <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
             </svg>
           </a>
           <!-- MEGA MENU -->
-          <div class="absolute left-0 mt-6 w-[1200px] bg-white border border-gray-200 shadow-lg rounded-md opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 p-6 grid grid-cols-5 gap-6">
+          <div
+            class="absolute left-0 mt-6 w-[1200px] bg-white border border-gray-200 shadow-lg rounded-md opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 p-6 grid grid-cols-5 gap-6">
             <!-- Cột 1 -->
             <div>
               <h4 class="font-bold mb-2">Sản phẩm mới</h4>
@@ -331,8 +333,10 @@
             </div>
             <!-- Cột 4 & 5 (Hình ảnh) -->
             <div class="col-span-2 grid grid-cols-2 gap-4">
-              <img src="https://media.canifa.com/mega_menu/item/Nam-1-menu-05Mar.webp" alt="Nữ 1" class="rounded-md object-cover w-full h-48" />
-              <img src="https://media.canifa.com/mega_menu/item/Nu-2-menu-05Mar.webp" alt="Nữ 2" class="rounded-md object-cover w-full h-48" />
+              <img src="https://media.canifa.com/mega_menu/item/Nam-1-menu-05Mar.webp" alt="Nữ 1"
+                class="rounded-md object-cover w-full h-48" />
+              <img src="https://media.canifa.com/mega_menu/item/Nu-2-menu-05Mar.webp" alt="Nữ 2"
+                class="rounded-md object-cover w-full h-48" />
             </div>
           </div>
         </div>
@@ -342,21 +346,28 @@
 
         <!-- Menu PC -->
         <div class="hidden sm:flex items-center gap-x-6 text-sm font-medium text-gray-700">
-          <NuxtLink href="/" class="hover:text-blue-600 transition-colors duration-200 tracking-wide flex items-center gap-1">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
-              <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+          <NuxtLink href="/"
+            class="hover:text-blue-600 transition-colors duration-200 tracking-wide flex items-center gap-1">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+              stroke="currentColor" class="size-6">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
             </svg>
             Trang chủ
           </NuxtLink>
           <!-- Tài khoản -->
           <div class="relative group inline-block">
-            <div class="cursor-pointer hover:text-blue-600 transition-colors duration-200 tracking-wide flex items-center gap-1">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+            <div
+              class="cursor-pointer hover:text-blue-600 transition-colors duration-200 tracking-wide flex items-center gap-1">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                stroke="currentColor" class="size-6">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
               </svg>
               Tài khoản
             </div>
-            <ul class="absolute left-0 top-full hidden group-hover:flex flex-col bg-white border border-gray-200 rounded shadow-lg w-48 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300 ease-in-out z-50 text-sm text-gray-700">
+            <ul
+              class="absolute left-0 top-full hidden group-hover:flex flex-col bg-white border border-gray-200 rounded shadow-lg w-48 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300 ease-in-out z-50 text-sm text-gray-700">
               <li><a href="/users/profile" class="block px-4 py-2 hover:bg-gray-100">Thông tin tài khoản</a></li>
               <li><a href="/users/orders" class="block px-4 py-2 hover:bg-gray-100">Đơn hàng của tôi</a></li>
               <li><a href="/support" class="block px-4 py-2 hover:bg-gray-100">Trung tâm hỗ trợ</a></li>
@@ -364,10 +375,20 @@
             </ul>
           </div>
           <!-- Giỏ hàng -->
-          <NuxtLink href="/cart" class="hover:text-blue-600 transition-colors duration-200 tracking-wide flex items-center gap-1">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z" />
-            </svg>
+
+          <NuxtLink href="/cart"
+            class="hover:text-blue-600 transition-colors duration-200 tracking-wide flex items-center gap-1 relative">
+            <div class="relative">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                stroke="currentColor" class="size-6">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z" />
+              </svg>
+              <span v-if="cartStore.totalItems > 0"
+                class="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-semibold rounded-full w-4 h-4 flex items-center justify-center">
+                {{ cartStore.totalItems }}
+              </span>
+            </div>
             Giỏ hàng
           </NuxtLink>
         </div>
@@ -375,7 +396,8 @@
         <!-- Icon menu mobile -->
         <div class="sm:hidden">
           <button @click="isMobileMenuOpen = true">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-700" fill="none" viewBox="0 0 24 24"
+              stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
@@ -384,7 +406,8 @@
     </div>
 
     <!-- Mobile Modal Menu -->
-    <div v-if="isMobileMenuOpen" class="fixed inset-0 z-[9999] bg-black bg-opacity-50 flex items-start justify-end sm:hidden">
+    <div v-if="isMobileMenuOpen"
+      class="fixed inset-0 z-[9999] bg-black bg-opacity-50 flex items-start justify-end sm:hidden">
       <div class="w-3/4 bg-white shadow-md h-full p-4 relative">
         <!-- Close button -->
         <button @click="isMobileMenuOpen = false" class="absolute top-4 right-4 text-gray-600 hover:text-black">
@@ -394,26 +417,38 @@
         </button>
         <!-- Menu Items -->
         <div class="space-y-4 mt-10 text-sm">
-          <a href="#" class="block text-gray-700 hover:text-blue-600"><font-awesome-icon :icon="['fas', 'house']" /> Trang chủ</a>
+          <a href="#" class="block text-gray-700 hover:text-blue-600"><font-awesome-icon :icon="['fas', 'house']" />
+            Trang
+            chủ</a>
           <div class="infor relative group inline-block">
             <a href="#" class="block text-gray-700 hover:text-blue-600 font-semibold">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                stroke="currentColor" class="size-6">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
               </svg>
               Tài khoản
             </a>
-            <ul class="absolute left-0 top-full hidden group-hover:flex flex-col bg-white border border-gray-200 rounded shadow-lg w-48 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300 ease-in-out z-50">
+            <ul
+              class="absolute left-0 top-full hidden group-hover:flex flex-col bg-white border border-gray-200 rounded shadow-lg w-48 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300 ease-in-out z-50">
               <li><a href="#" class="block px-4 py-2 hover:bg-gray-100">Thông tin tài khoản</a></li>
               <li><a href="#" class="block px-4 py-2 hover:bg-gray-100">Đơn hàng của tôi</a></li>
               <li><a href="#" class="block px-4 py-2 hover:bg-gray-100">Trung tâm hỗ trợ</a></li>
               <li><a href="#" class="block px-4 py-2 hover:bg-gray-100">Đăng xuất</a></li>
             </ul>
           </div>
-          <a href="#" class="block text-gray-700 hover:text-blue-600"><font-awesome-icon :icon="['fas', 'cart-shopping']" /> Giỏ hàng</a>
-          <a href="#" class="block text-gray-700 hover:text-blue-600"><font-awesome-icon :icon="['fas', 'bell']" /> Thông báo</a>
-          <NuxtLink to="/support" class="block text-gray-700 hover:text-blue-600"><font-awesome-icon :icon="['fas', 'info']" /> Hỗ trợ</NuxtLink>
-          <a href="#" class="block text-gray-700 hover:text-blue-600"><font-awesome-icon :icon="['fas', 'right-to-bracket']" /> Đăng nhập</a>
-          <a href="#" class="block text-gray-700 hover:text-blue-600"><font-awesome-icon :icon="['fas', 'plus']" /> Đăng ký</a>
+          <a href="#" class="block text-gray-700 hover:text-blue-600"><font-awesome-icon
+              :icon="['fas', 'cart-shopping']" />
+            Giỏ hàng</a>
+          <a href="#" class="block text-gray-700 hover:text-blue-600"><font-awesome-icon :icon="['fas', 'bell']" />
+            Thông
+            báo</a>
+          <NuxtLink to="/support" class="block text-gray-700 hover:text-blue-600"><font-awesome-icon
+              :icon="['fas', 'info']" /> Hỗ trợ</NuxtLink>
+          <a href="#" class="block text-gray-700 hover:text-blue-600"><font-awesome-icon
+              :icon="['fas', 'right-to-bracket']" /> Đăng nhập</a>
+          <a href="#" class="block text-gray-700 hover:text-blue-600"><font-awesome-icon :icon="['fas', 'plus']" /> Đăng
+            ký</a>
         </div>
       </div>
     </div>
@@ -428,7 +463,8 @@ import axios from 'axios'
 import Features from '~/components/shared/Features.vue'
 import SearchBar from '~/components/shared/filters/SearchBar.vue'
 import { useToast } from '~/composables/useToast'
-
+import { useCartStore } from '~/stores/cart'
+const cartStore = useCartStore()
 const { toast } = useToast()
 
 const config = useRuntimeConfig()
@@ -819,8 +855,13 @@ onUnmounted(() => {
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
+}
+
+.relative {
+  position: relative;
 }
 </style>
