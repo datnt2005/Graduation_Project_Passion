@@ -196,7 +196,6 @@ export function useCart() {
       await syncSelectedItemsToBackend();
       await navigateTo({
         path: '/checkout',
-        query: { items: [...selectedItems.value].join(',') },
       });
     } catch (err) {
       toast('error', 'Không thể chuyển đến trang thanh toán: ' + err.message);

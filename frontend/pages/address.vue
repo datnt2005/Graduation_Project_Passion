@@ -169,7 +169,7 @@ const editAddress = ref(null)
 
 
 const form = ref({
-  user_id: 1,
+  user_id: 3,
   name: '',
   phone: '',
   province_id: '',
@@ -240,7 +240,7 @@ const calculateShippingFee = async () => {
 const submitForm = async () => {
   try {
     const payload = {
-      user_id: 1,
+      user_id: 3,
       name: form.value.name,
       phone: form.value.phone,
       province_id: form.value.province_id,

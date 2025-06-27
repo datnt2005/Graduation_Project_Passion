@@ -1,5 +1,5 @@
 <template>
-<section id="shipping-methods" class="bg-white rounded-[4px] p-6 shadow-sm space-y-6">
+  <section id="shipping-methods" class="bg-white rounded-[4px] p-6 shadow-sm space-y-6">
     <h3 class="text-gray-800 font-semibold text-base mb-2">Chọn hình thức giao hàng</h3>
 
     <div v-if="loadingShipping" class="flex justify-center items-center py-6">
@@ -8,32 +8,22 @@
 
     <!-- Danh sách phương thức giao hàng -->
     <form v-else class="relative space-y-4 w-2/3">
-      <label
-        v-for="method in shippingMethods"
-        :key="method.id"
+      <label v-for="method in shippingMethods" :key="method.id"
         class="relative block p-4 border rounded-[4px] cursor-pointer transition hover:border-blue-400 accent-blue-60"
         :class="{
           'bg-blue-50 border-blue-200': method.id === selectedMethod,
           'bg-white border-blue-300': method.id !== selectedMethod
-        }"
-      >
+        }">
         <div class="flex items-center gap-3">
-          <input
-            class="w-4 h-4 text-[14px] text-blue-600 border-gray-300 accent-blue-600 focus:ring-blue-500"
-            type="radio"
-            name="shipping_method"
-            :value="method.id"
-            :checked="method.id === selectedMethod"
-            @change="handleMethodChange(method.id)"
-          />
-          <span
-            :class="method.id === selectedMethod ? 'text-[14px] ' : 'text-[14px] '"
-          >
+          <input class="w-4 h-4 text-[14px] text-blue-600 border-gray-300 accent-blue-600 focus:ring-blue-500"
+            type="radio" name="shipping_method" :value="method.id" :checked="method.id === selectedMethod"
+            @change="handleMethodChange(method.id)" />
+          <span :class="method.id === selectedMethod ? 'text-[14px] ' : 'text-[14px] '">
             {{ method.name }}
           </span>
           <span class="text-green-600 ml-auto font-semibold" :id="'fee-' + method.id">
-          {{ fees[method.id] !== undefined ? fees[method.id] : 'Đang tính...' }}
-        </span>
+            {{ fees[method.id] !== undefined ? fees[method.id] : 'Đang tính...' }}
+          </span>
         </div>
 
       </label>
@@ -41,38 +31,33 @@
 
     <!-- Danh sách sản phẩm trong giỏ hàng -->
     <div class="space-y-6">
-      <div
-        v-for="item in cartItems"
-        :key="item.id"
-        class="border border-gray-200 rounded-[4px] p-4 bg-gray-50 shadow-sm"
-      >
+      <div v-for="item in cartItems" :key="item.id"
+        class="border border-gray-200 rounded-[4px] p-4 bg-gray-50 shadow-sm">
         <!-- Phí giao hàng -->
-        <div class="flex justify-between items-center text-[14px] text-[14px] uppercase  border-b pb-2">
-          <span class="text-[14px]">{{ item.shippingMethod || 'Giao tiết kiệm' }}</span>
+        <!-- <div class="flex justify-between items-center text-[14px] text-[14px] uppercase  border-b pb-2">
+          <span class="text-[14px]">{{ item.shippingMethod || '' }}</span>
           <span class="text-sm font-bold text-gray-900">
-            {{ formatPrice(item.shippingFee || 37700) }}
+            {{ formatPrice(item.shippingFee || '') }}
           </span>
-        </div>
+        </div> -->
 
         <!-- Thông tin sản phẩm -->
         <div class="flex gap-4 mt-4 items-center">
           <img
             :src="item.productVariant?.thumbnail ? mediaBaseUrl + item.productVariant.thumbnail : '/images/default-product.jpg'"
-            :alt="item.productVariant?.product?.name"
-            class="w-16 h-16 object-cover rounded-md border"
-          />
-           <div class="flex-1">
-          <div class="font-semibold text-sm mb-0.5">
-            {{ item.productVariant?.product?.name }}
-          </div>
-          <div class="text-gray-500 text-xs">SL: x{{ item.quantity }}</div>
+            :alt="item.productVariant?.product?.name" class="w-16 h-16 object-cover rounded-md border" />
+          <div class="flex-1">
+            <div class="font-semibold text-sm mb-0.5">
+              {{ item?.product?.name }}
+            </div>
 
-          <!-- Vòng lặp hiển thị từng thuộc tính -->
-         <div
-          v-for="(attr, index) in item.productVariant?.attributes" :key="index" class="text-gray-500 text-xs">
-          {{ attr.name }}: {{ attr.value }}
-        </div>
-        </div>
+            <!-- Vòng lặp hiển thị từng thuộc tính -->
+            <div class="text-gray-500 text-xs mb-0.5">
+              {{item.productVariant?.attributes?.map(attr => attr.value).join(' - ')}}
+            </div>
+            <div class="text-gray-500 text-xs">Số lượng: x{{ item.quantity }}</div>
+
+          </div>
           <div class="text-sm font-semibold text-gray-900">
             {{ formatPrice(item.price) }}
           </div>
@@ -117,13 +102,29 @@ watch(selectedMethod, (newVal) => {
 
 defineExpose({
   selectedMethod,
-  fees  
+  fees
 })
 
-const formatPrice = (value) => {
-  if (!value) return '0 đ'
-  return Number(value).toLocaleString('vi-VN') + ' đ'
-}
+const parsePrice = (price) => {
+  if (price == null) return 0;
+  let clean = String(price).trim();
+
+  // Nếu có cả dấu . và , → chuẩn châu Âu → đổi , thành . và xoá dấu .
+  if (clean.includes(',') && clean.includes('.')) {
+    clean = clean.replace(/\./g, '').replace(',', '.');
+  } else {
+    // Xoá tất cả dấu . hoặc , nếu chỉ có 1 loại
+    clean = clean.replace(/[,.]/g, '');
+  }
+
+  const num = Number(clean.replace(/[^\d.-]/g, ''));
+  return isNaN(num) ? 0 : num;
+};
+
+const formatPrice = (price) => {
+  const parsed = parsePrice(price);
+  return parsed.toLocaleString('vi-VN') + ' đ';
+};
 
 const calculateAllShippingFees = async () => {
   if (!props.address || !props.address.district_id || !props.address.ward_code) return
@@ -165,7 +166,7 @@ const handleMethodChange = (methodId) => {
 
 onMounted(() => {
   calculateAllShippingFees()
-  emit('update:selectedMethod', selectedMethod.value) 
+  emit('update:selectedMethod', selectedMethod.value)
 })
 
 watch(() => props.address, (newVal) => {
