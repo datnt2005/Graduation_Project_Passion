@@ -87,7 +87,7 @@ export const useDiscount = () => {
     const error = ref<string | null>(null)
     const selectedDiscounts = ref<Discount[]>([])
     const config = useRuntimeConfig()
-    
+
 
     const fetchDiscounts = async () => {
         const token = localStorage.getItem('access_token')
@@ -113,8 +113,8 @@ export const useDiscount = () => {
             }
 
             const data = await res.json()
-            discounts.value = data.data.filter((discount: Discount) => 
-                discount.status === 'active' && 
+            discounts.value = data.data.filter((discount: Discount) =>
+                discount.status === 'active' &&
                 new Date(discount.end_date) > new Date()
             )
         } catch (err) {
@@ -126,41 +126,41 @@ export const useDiscount = () => {
     }
 
     const showErrorNotification = (message: string): void => {
-    Swal.fire({
-      toast: true,
-      position: 'top-end', // đổi sang top-end để toast nằm bên phải
-      icon: 'error', // icon X
-      title: message,
-      width: '350px',
-      padding: '10px 20px',
-      customClass: { popup: 'text-sm rounded-md shadow-md' },
-      showConfirmButton: false,
-      timer: 1500,
-      timerProgressBar: true,
-      didOpen: (toastEl) => {
-        toastEl.addEventListener('mouseenter', () => Swal.stopTimer());
-        toastEl.addEventListener('mouseleave', () => Swal.resumeTimer());
-      }
-    });
-  }
+        Swal.fire({
+            toast: true,
+            position: 'top-end', // đổi sang top-end để toast nằm bên phải
+            icon: 'error', // icon X
+            title: message,
+            width: '350px',
+            padding: '10px 20px',
+            customClass: { popup: 'text-sm rounded-md shadow-md' },
+            showConfirmButton: false,
+            timer: 1500,
+            timerProgressBar: true,
+            didOpen: (toastEl) => {
+                toastEl.addEventListener('mouseenter', () => Swal.stopTimer());
+                toastEl.addEventListener('mouseleave', () => Swal.resumeTimer());
+            }
+        });
+    }
 
-   const showSuccessNotification = (message: string): void => {
-      Swal.fire({
-        toast: true,
-        position: 'top-end', // đổi sang top-end để toast nằm bên phải
-        icon: 'success',
-        title: message,
-        width: '350px',
-        padding: '10px 20px',
-        customClass: { popup: 'text-sm rounded-md shadow-md' },
-        showConfirmButton: false,
-        timer: 1500,
-        timerProgressBar: true,
-        didOpen: (toastEl) => {
-          toastEl.addEventListener('mouseenter', () => Swal.stopTimer());
-          toastEl.addEventListener('mouseleave', () => Swal.resumeTimer());
-        }
-      });
+    const showSuccessNotification = (message: string): void => {
+        Swal.fire({
+            toast: true,
+            position: 'top-end', // đổi sang top-end để toast nằm bên phải
+            icon: 'success',
+            title: message,
+            width: '350px',
+            padding: '10px 20px',
+            customClass: { popup: 'text-sm rounded-md shadow-md' },
+            showConfirmButton: false,
+            timer: 1500,
+            timerProgressBar: true,
+            didOpen: (toastEl) => {
+                toastEl.addEventListener('mouseenter', () => Swal.stopTimer());
+                toastEl.addEventListener('mouseleave', () => Swal.resumeTimer());
+            }
+        });
     }
 
 
@@ -169,7 +169,7 @@ export const useDiscount = () => {
     //         showErrorNotification('Chỉ được chọn tối đa 1 mã giảm giá')
     //         return
     //     }
-        
+
     //     if (selectedDiscounts.value.find(d => d.id === discount.id)) {
     //         showErrorNotification('Mã giảm giá này đã được áp dụng')
     //         return
@@ -211,18 +211,18 @@ export const useDiscount = () => {
         ) {
             showErrorNotification('Chỉ được chọn 1 mã giảm giá phí vận chuyển');
             return;
-  }
+        }
 
-  // Hợp lệ → áp dụng
-  selectedDiscounts.value.push(discount);
-  showSuccessNotification('Mã giảm giá được áp dụng');
-};
+        // Hợp lệ → áp dụng
+        selectedDiscounts.value.push(discount);
+        showSuccessNotification('Mã giảm giá được áp dụng');
+    };
 
 
     const removeDiscount = (discountId: number) => {
         const index = selectedDiscounts.value.findIndex(d => d.id === discountId)
         if (index !== -1) {
-         selectedDiscounts.value.splice(index, 1)[0]
+            selectedDiscounts.value.splice(index, 1)[0]
             // discounts.value.push(removedDiscount)
             // bỏ mã giảm giá thành công 
             showSuccessNotification('Mã giảm giá được bỏ')
@@ -230,49 +230,46 @@ export const useDiscount = () => {
     }
 
     const calculateDiscount = (total: number) => {
-    let totalDiscount = 0
+        let totalDiscount = 0
 
-    selectedDiscounts.value
-        .filter(d => d.discount_type === 'percentage' || d.discount_type === 'fixed') 
-        .forEach(discount => {
-        if (total >= (discount.min_order_value || 0)) {
-            const value = Number(discount.discount_value)
+        selectedDiscounts.value
+            .filter(d => d.discount_type === 'percentage' || d.discount_type === 'fixed')
+            .forEach(discount => {
+                if (total >= (discount.min_order_value || 0)) {
+                    const value = Number(discount.discount_value)
 
-            if (discount.discount_type === 'percentage') {
-            totalDiscount += total * value / 100
-            } else {
-            totalDiscount += value
-            }
-        }
-        })
+                    if (discount.discount_type === 'percentage') {
+                        totalDiscount += total * value / 100
+                    } else {
+                        totalDiscount += value
+                    }
+                }
+            })
 
-    return totalDiscount
+        return totalDiscount
     }
 
     const getShippingDiscount = (total: number) => {
-    const shippingDiscount = selectedDiscounts.value.find(
-        d => d.discount_type === 'shipping_fee'
-    );
+        const shippingDiscount = selectedDiscounts.value.find(
+            d => d.discount_type === 'shipping_fee'
+        );
 
-    if (!shippingDiscount) return 0;
+        if (!shippingDiscount) return 0;
 
-    // Nếu có điều kiện min_order_value → áp dụng
-    if (total >= (shippingDiscount.min_order_value || 0)) {
-        return Number(shippingDiscount.discount_value || 0);
-    }
+        // Nếu có điều kiện min_order_value → áp dụng
+        if (total >= (shippingDiscount.min_order_value || 0)) {
+            return Number(shippingDiscount.discount_value || 0);
+        }
 
-    return 0;
+        return 0;
     };
 
-  
-
-const formatPrice = (price: number): string => {
-  if (!price || isNaN(price)) return '0'
-  return Math.floor(price).toLocaleString('vi-VN') // đảm bảo không có dấu sai
-}
 
 
-
+    const formatPrice = (price: number): string => {
+        if (!price || isNaN(price)) return '0'
+        return Math.floor(price).toLocaleString('vi-VN') // đảm bảo không có dấu sai
+    }
 
     return {
         discounts,
