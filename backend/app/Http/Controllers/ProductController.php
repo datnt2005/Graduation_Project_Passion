@@ -1240,8 +1240,11 @@ class ProductController extends Controller
             });
 
             // Get unique brands
-            $brandSet = Seller::whereNotNull('store_name')->pluck('store_name')->unique()->values();
-
+            $brandSet = Seller::whereNotNull('store_name')
+                ->where('verification_status', 'verified')
+                ->pluck('store_name')
+                ->unique()
+                ->values();
             return response()->json([
                 'success' => true,
                 'message' => 'Lấy danh sách sản phẩm thành công.',
@@ -1485,78 +1488,78 @@ class ProductController extends Controller
         return $ids;
     }
 
-public function getAllProductBySellers(Request $request)
-{
-    try {
-        $user = Auth::user();
-        if (!$user) {
+    public function getAllProductBySellers(Request $request)
+    {
+        try {
+            $user = Auth::user();
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Chưa đăng nhập. Vui lý đăng nhập.',
+                ], 401);
+            }
+
+            $seller = Seller::where('user_id', $user->id)->first();
+
+            if (!$seller) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Người dùng không phải là seller.',
+                ], 403);
+            }
+
+            $page = $request->get('page', 1);
+            $search = trim($request->get('search', ''));
+            $perPage = $request->get('per_page', 10);
+
+            $cacheKey = 'products_seller_' . $seller->id . '_page_' . $page . '_perpage_' . $perPage . '_search_' . md5($search);
+            $ttl = 3600;
+
+            $products = Cache::store('redis')->tags(['products'])->remember($cacheKey, $ttl, function () use ($search, $perPage, $seller) {
+                return Product::with([
+                    'seller',
+                    'categories',
+                    'productVariants',
+                    'productVariants.inventories',
+                    'productVariants.attributes',
+                    'productPic',
+                    'tags'
+                ])
+                    ->where('seller_id', $seller->id)
+                    ->whereIn('status', ['active', 'inactive'])
+                    ->when($search, function ($query) use ($search) {
+                        return $query->where('name', 'like', '%' . $search . '%');
+                    })
+                    ->orderBy('created_at', 'desc')
+                    ->paginate($perPage)
+                    ->toArray();
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Lấy danh sách sản phẩm của seller thành công.',
+                'data' => $products
+            ], 200);
+        } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Chưa đăng nhập. Vui lý đăng nhập.',
-            ], 401);
+                'message' => 'Đã xảy ra lỗi khi lấy danh sách sản phẩm.',
+                'error' => env('APP_DEBUG', false) ? $e->getMessage() : null
+            ], 500);
         }
-
-        $seller = Seller::where('user_id', $user->id)->first();
-
-        if (!$seller) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Người dùng không phải là seller.',
-            ], 403);
-        }
-
-        $page = $request->get('page', 1);
-        $search = trim($request->get('search', ''));
-        $perPage = $request->get('per_page', 10);
-
-        $cacheKey = 'products_seller_' . $seller->id . '_page_' . $page . '_perpage_' . $perPage . '_search_' . md5($search);
-        $ttl = 3600;
-
-        $products = Cache::store('redis')->tags(['products'])->remember($cacheKey, $ttl, function () use ($search, $perPage, $seller) {
-            return Product::with([
-                'seller',
-                'categories',
-                'productVariants',
-                'productVariants.inventories',
-                'productVariants.attributes',
-                'productPic',
-                'tags'
-            ])
-                ->where('seller_id', $seller->id)
-                ->whereIn('status', ['active', 'inactive'])
-                ->when($search, function ($query) use ($search) {
-                    return $query->where('name', 'like', '%' . $search . '%');
-                })
-                ->orderBy('created_at', 'desc')
-                ->paginate($perPage)
-                ->toArray();
-        });
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Lấy danh sách sản phẩm của seller thành công.',
-            'data' => $products
-        ], 200);
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Đã xảy ra lỗi khi lấy danh sách sản phẩm.',
-            'error' => env('APP_DEBUG', false) ? $e->getMessage() : null
-        ], 500);
     }
-}
-public function getTrashBySeller(Request $request)
-{
-    try {
-        $seller = Seller::where('user_id', Auth::id())->first();
-        if (!$seller) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Không tìm thấy seller tương ứng với user hiện tại.',
-            ], 404);
-        }
+    public function getTrashBySeller(Request $request)
+    {
+        try {
+            $seller = Seller::where('user_id', Auth::id())->first();
+            if (!$seller) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không tìm thấy seller tương ứng với user hiện tại.',
+                ], 404);
+            }
 
-        $products = Product::with([
+            $products = Product::with([
                 'seller',
                 'categories',
                 'productVariants',
@@ -1565,25 +1568,25 @@ public function getTrashBySeller(Request $request)
                 'productVariants.inventories',
                 'productVariants.attributes'
             ])
-            ->where('status', 'trash')
-            ->where('seller_id', $seller->id)
-            ->when($request->has('search'), function ($query) use ($request) {
-                $query->where('name', 'like', '%' . $request->search . '%');
-            })
-            ->orderBy('created_at', 'desc')
-            ->paginate(10);
+                ->where('status', 'trash')
+                ->where('seller_id', $seller->id)
+                ->when($request->has('search'), function ($query) use ($request) {
+                    $query->where('name', 'like', '%' . $request->search . '%');
+                })
+                ->orderBy('created_at', 'desc')
+                ->paginate(10);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Lấy danh sách sản phẩm (trash) của seller thành công.',
-            'data' => $products
-        ], 200);
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Đã xảy ra lỗi khi lấy sản phẩm.',
-            'error' => env('APP_DEBUG') ? $e->getMessage() : null,
-        ], 500);
+            return response()->json([
+                'success' => true,
+                'message' => 'Lấy danh sách sản phẩm (trash) của seller thành công.',
+                'data' => $products
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Đã xảy ra lỗi khi lấy sản phẩm.',
+                'error' => env('APP_DEBUG') ? $e->getMessage() : null,
+            ], 500);
+        }
     }
-}
 }
