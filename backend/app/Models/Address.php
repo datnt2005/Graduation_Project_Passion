@@ -23,8 +23,9 @@ class Address extends Model
     {
         return $this->hasMany(Order::class);
     }
+
 }
-    
+
 
 
     // Relationships
