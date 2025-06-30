@@ -35,6 +35,10 @@
 </template>
 
 <script setup>
+defineProps({
+  error: Object
+})
+
 import Header from '~/components/shared/layouts/Header.vue'
 import Footer from '~/components/shared/layouts/Footer.vue'
 import { useRouter } from 'vue-router'
