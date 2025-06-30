@@ -12,4 +12,3 @@ Route::prefix('tags')->group(function () {
     Route::patch('/{id}', [TagController::class, 'update']);
     Route::delete('/{id}', [TagController::class, 'destroy']);
 });
-

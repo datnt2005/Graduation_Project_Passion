@@ -1,17 +1,34 @@
 <template>
-  <!-- Cảnh báo sản phẩm gần hết hàng -->
-  <div v-if="showLowStockAlert && lowStockProducts.length" class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4 rounded relative">
-    <button @click="showLowStockAlert = false" class="absolute top-2 right-2 text-yellow-700 hover:text-yellow-900" aria-label="Đóng thông báo">
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-      </svg>
-    </button>
-    <div class="font-semibold mb-2">Cảnh báo: Có {{ lowStockProducts.length }} sản phẩm gần hết hàng!</div>
-    <ul class="list-disc pl-5">
-      <li v-for="item in lowStockProducts" :key="item.id">
-        {{ item.product_name }} <span v-if="item.variant_name">({{ item.variant_name }})</span> - Số lượng còn: <b>{{ item.quantity }}</b>
-      </li>
-    </ul>
+  <!-- Cảnh báo sản phẩm gần hết hàng và hết hàng -->
+  <div v-if="showLowStockAlert && lowStockProducts.length" class="mb-4">
+    <!-- Sản phẩm hết hàng -->
+    <div v-if="outOfStockProducts.length" class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-2 rounded relative">
+      <button @click="showLowStockAlert = false" class="absolute top-2 right-2 text-red-700 hover:text-red-900" aria-label="Đóng thông báo">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+      <div class="font-semibold mb-2">Cảnh báo: Có {{ outOfStockProducts.length }} sản phẩm đã hết hàng!</div>
+      <ul class="list-disc pl-5">
+        <li v-for="item in outOfStockProducts" :key="item.id">
+          {{ item.product_name }} <span v-if="item.variant_name">({{ item.variant_name }})</span> - <b class="text-red-700">Hết hàng</b>
+        </li>
+      </ul>
+    </div>
+    <!-- Sản phẩm gần hết hàng -->
+    <div v-if="lowStockProductsFiltered.length" class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded relative">
+      <button @click="showLowStockAlert = false" class="absolute top-2 right-2 text-yellow-700 hover:text-yellow-900" aria-label="Đóng thông báo">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+      <div class="font-semibold mb-2">Cảnh báo: Có {{ lowStockProductsFiltered.length }} sản phẩm gần hết hàng!</div>
+      <ul class="list-disc pl-5">
+        <li v-for="item in lowStockProductsFiltered" :key="item.id">
+          {{ item.product_name }} <span v-if="item.variant_name">({{ item.variant_name }})</span> - Số lượng còn: <b>{{ item.quantity }}</b>
+        </li>
+      </ul>
+    </div>
   </div>
 
   <div class="overflow-x-auto">
@@ -139,29 +156,34 @@
         <table class="min-w-[1200px] divide-y divide-gray-200">
           <thead>
             <tr>
-              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Mã SP</th>
               <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Tên sản phẩm</th>
               <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Danh mục</th>
               <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Số lượng tồn</th>
-              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Biến thể</th>
-              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Giá nhập</th>
-              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Giá bán</th>
+              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Giá nhập TB</th>
+              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Giá bán TB</th>
               <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Trạng thái</th>
             </tr>
           </thead>
-          <tbody v-for="item in filteredData" :key="item.id" class="bg-white">
+          <tbody v-for="item in paginatedInventoryData" :key="item.id" class="bg-white">
             <tr>
-              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.variant_sku }}</td>
-              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.product_name }}</td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                <NuxtLink :to="`/admin/products/edit-product/${item.id}`" class="text-blue-600 hover:text-blue-800 hover:underline">
+                  {{ item.product_name }}
+                </NuxtLink>
+              </td>
               <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.category_name }}</td>
               <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.quantity }}</td>
-              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.variant_name }}</td>
               <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ formatNumber(item.cost_price) }}</td>
               <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ formatNumber(item.sell_price) }}</td>
               <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.status }}</td>
             </tr>
           </tbody>
         </table>
+        <div v-if="inventoryTotalPages > 1" class="flex justify-center mt-4">
+          <button @click="inventoryPage--" :disabled="inventoryPage === 1" class="px-3 py-1 mx-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50">&lt;</button>
+          <button v-for="page in inventoryTotalPages" :key="page" @click="inventoryPage = page" :class="['px-3 py-1 mx-1 rounded border', inventoryPage === page ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-gray-700 border-gray-300']">{{ page }}</button>
+          <button @click="inventoryPage++" :disabled="inventoryPage === inventoryTotalPages" class="px-3 py-1 mx-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50">&gt;</button>
+        </div>
       </div>
     </div>
     <div v-else>
@@ -172,31 +194,36 @@
         <table class="min-w-[1200px] divide-y divide-gray-200">
           <thead>
             <tr>
-              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Mã SP</th>
               <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Tên sản phẩm</th>
               <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Danh mục</th>
               <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Số lượng tồn</th>
               <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Tổng bán</th>
-              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Biến thể</th>
-              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Giá nhập</th>
-              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Giá bán</th>
+              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Giá nhập TB</th>
+              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Giá bán TB</th>
               <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Trạng thái</th>
             </tr>
           </thead>
-          <tbody v-for="item in bestSellers" :key="item.id" class="bg-white">
+          <tbody v-for="item in paginatedBestSellers" :key="item.id" class="bg-white">
             <tr class="hover:bg-gray-50">
-              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.variant_sku || '-' }}</td>
-              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.product_name || '-' }}</td>
-              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.category_name || '-' }}</td>
-              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.quantity !== undefined ? formatNumber(item.quantity) : '-' }}</td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                <NuxtLink :to="`/admin/products/edit-product/${item.id}`" class="text-blue-600 hover:text-blue-800 hover:underline">
+                  {{ item.product_name }}
+                </NuxtLink>
+              </td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.category_name }}</td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ formatNumber(item.quantity) }}</td>
               <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-bold">{{ formatNumber(item.total_sold) }}</td>
-              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.variant_name || '-' }}</td>
-              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.cost_price !== undefined ? formatNumber(item.cost_price) : '-' }}</td>
-              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.sell_price !== undefined ? formatNumber(item.sell_price) : '-' }}</td>
-              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.status || '-' }}</td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ formatNumber(item.cost_price) }}</td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ formatNumber(item.sell_price) }}</td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.status }}</td>
             </tr>
           </tbody>
         </table>
+        <div v-if="bestSellersTotalPages > 1" class="flex justify-center mt-4">
+          <button @click="bestSellersPage--" :disabled="bestSellersPage === 1" class="px-3 py-1 mx-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50">&lt;</button>
+          <button v-for="page in bestSellersTotalPages" :key="page" @click="bestSellersPage = page" :class="['px-3 py-1 mx-1 rounded border', bestSellersPage === page ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-gray-700 border-gray-300']">{{ page }}</button>
+          <button @click="bestSellersPage++" :disabled="bestSellersPage === bestSellersTotalPages" class="px-3 py-1 mx-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50">&gt;</button>
+        </div>
       </div>
     </div>
   </div>
@@ -207,7 +234,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useRuntimeConfig } from '#imports'
 import { Bar, Line, Pie } from 'vue-chartjs'
 import { Chart as ChartJS, Title, Tooltip, Legend, BarElement, LineElement, PointElement, ArcElement, CategoryScale, LinearScale } from 'chart.js'
-import { secureFetch } from '@/utils/secureFetch' 
+
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend)
 
 const config = useRuntimeConfig()
@@ -221,46 +248,37 @@ const statsError = ref('')
 onMounted(async () => {
   loadingStats.value = true
   try {
-    const res = await secureFetch(`${apiBaseUrl}/dashboard/stats-list`, {}, ['admin'])
-    if (!res.ok) throw new Error('Không lấy được dữ liệu thống kê')
+    const res = await fetch(`${apiBaseUrl}/dashboard/stats-list`)
+    if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`)
     dashboardStats.value = await res.json()
   } catch (e) {
-    console.error(e)
     statsError.value = 'Không thể tải thống kê!'
   } finally {
     loadingStats.value = false
   }
 })
 
-
 // Biểu đồ doanh thu và lợi nhuận
 const chartType = ref('month')
 const chartLoading = ref(false)
 const chartError = ref('')
-const chartDataApi = ref({ labels: [], revenue: [], profit: [], orderCount: [] }) 
+const chartDataApi = ref({ labels: [], revenue: [], profit: [], orderCount: [] }) // Thêm orderCount
 
 async function fetchChartData(type = 'month') {
   chartLoading.value = true
   chartError.value = ''
-
   try {
     const url = new URL(`${apiBaseUrl}/dashboard/revenue-profit-chart`)
     url.searchParams.set('type', type)
-
-    const res = await secureFetch(url.toString(), {}, ['admin'])  
-
-    if (!res.ok) throw new Error('Không lấy được dữ liệu biểu đồ')
+    const res = await fetch(url)
+    if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`)
     chartDataApi.value = await res.json()
-
   } catch (e) {
-    console.error(e)
     chartError.value = 'Không thể tải dữ liệu biểu đồ!'
   } finally {
     chartLoading.value = false
   }
 }
-
-
 
 onMounted(() => {
   fetchChartData(chartType.value)
@@ -500,27 +518,42 @@ const loadingLowStock = ref(false)
 const lowStockError = ref('')
 const showLowStockAlert = ref(true)
 
+const outOfStockProducts = computed(() => {
+  return lowStockProducts.value.filter(product => product.quantity === 0);
+});
+
+const lowStockProductsFiltered = computed(() => {
+  return lowStockProducts.value.filter(product => product.quantity > 0 && product.quantity <= 5);
+});
+
 onMounted(async () => {
-  loadingLowStock.value = true
+  loadingLowStock.value = true;
   try {
-    const res = await secureFetch (`${apiBaseUrl}/inventory/low-stock`, {}, ['seller'])
-    if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`)
-    lowStockProducts.value = await res.json()
+    const res = await fetch(`${apiBaseUrl}/inventory/low-stock`);
+    if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
+    const data = await res.json();
+    lowStockProducts.value = data;
+    
+    // Nếu có sản phẩm hết hàng hoặc gần hết hàng, hiển thị thông báo
+    if (outOfStockProducts.value.length > 0 || lowStockProductsFiltered.value.length > 0) {
+      showLowStockAlert.value = true;
+    }
   } catch (e) {
-    lowStockError.value = 'Không thể tải dữ liệu sản phẩm gần hết hàng!'
+    lowStockError.value = 'Không thể tải dữ liệu sản phẩm gần hết hàng!';
   } finally {
-    loadingLowStock.value = false
+    loadingLowStock.value = false;
   }
-})
+});
 
 watch(lowStockProducts, (val) => {
-  if (val && val.length) {
-    showLowStockAlert.value = true
+  if ((val && val.length > 0) && (outOfStockProducts.value.length > 0 || lowStockProductsFiltered.value.length > 0)) {
+    showLowStockAlert.value = true;
+    // Tự động ẩn thông báo sau 30 giây thay vì 10 giây
     setTimeout(() => {
-      showLowStockAlert.value = false
-    }, 10000)
+      showLowStockAlert.value = false;
+    }, 30000);
   }
-})
+});
 
 // Thêm biến trạng thái và dữ liệu cho bảng bán chạy
 const showBestSellers = ref(false)
@@ -532,7 +565,7 @@ async function fetchBestSellers() {
   loadingBestSellers.value = true
   bestSellersError.value = ''
   try {
-    const res = await secureFetch(`${apiBaseUrl}/inventory/best-sellers`, {}, ['admin'])
+    const res = await fetch(`${apiBaseUrl}/inventory/best-sellers`)
     if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`)
     bestSellers.value = await res.json()
   } catch (e) {
@@ -549,6 +582,26 @@ function showBestSellersList() {
   showBestSellers.value = true
   if (bestSellers.value.length === 0) fetchBestSellers()
 }
+
+// PHÂN TRANG TỒN KHO
+const inventoryPage = ref(1)
+const inventoryPageSize = 5
+const inventoryTotalPages = computed(() => Math.ceil(filteredData.value.length / inventoryPageSize))
+const paginatedInventoryData = computed(() => {
+  const start = (inventoryPage.value - 1) * inventoryPageSize
+  return filteredData.value.slice(start, start + inventoryPageSize)
+})
+watch(filteredData, () => { inventoryPage.value = 1 })
+
+// PHÂN TRANG BÁN CHẠY
+const bestSellersPage = ref(1)
+const bestSellersPageSize = 5
+const bestSellersTotalPages = computed(() => Math.ceil(bestSellers.value.length / bestSellersPageSize))
+const paginatedBestSellers = computed(() => {
+  const start = (bestSellersPage.value - 1) * bestSellersPageSize
+  return bestSellers.value.slice(start, start + bestSellersPageSize)
+})
+watch(bestSellers, () => { bestSellersPage.value = 1 })
 
 definePageMeta({
   layout: 'default-admin'

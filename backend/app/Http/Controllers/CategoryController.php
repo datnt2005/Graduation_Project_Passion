@@ -12,27 +12,39 @@ use Illuminate\Support\Facades\Validator;
 
 class CategoryController extends Controller
 {
-    public function index()
-    {
-        try {
-            $categories = Cache::store('redis')->tags(['categories'])->remember('categories', 3600, function () {
-                return Category::with('parent')->get()->toArray();
-            });
+    public function index(Request $request)
+{
+    try {
+        $perPage = $request->input('per_page', 10); // Mặc định 10 nếu không truyền
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Lấy danh sách danh mục thành công.',
-                'categories' => $categories,
-            ], 200);
-        } catch (\Exception $e) {
-            Log::error('Lỗi khi lấy danh sách danh mục: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Đã xảy ra lỗi khi lấy danh sách danh mục.',
-                'error' => env('APP_DEBUG', false) ? $e->getMessage() : null
-            ], 500);
-        }
+        // Dùng cache theo page (tùy ý xóa nếu muốn fresh hơn)
+        $page = $request->input('page', 1);
+        $cacheKey = "categories_page_{$page}_per_{$perPage}";
+
+        $categories = Cache::store('redis')->tags(['categories'])->remember($cacheKey, 3600, function () use ($perPage) {
+            return Category::with('parent')->paginate($perPage);
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Lấy danh sách danh mục thành công.',
+            'data' => [
+                'data' => $categories->items(),
+                'current_page' => $categories->currentPage(),
+                'last_page' => $categories->lastPage(),
+                'total' => $categories->total()
+            ]
+        ], 200);
+    } catch (\Exception $e) {
+        Log::error('Lỗi khi lấy danh sách danh mục: ' . $e->getMessage());
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Đã xảy ra lỗi khi lấy danh sách danh mục.',
+            'error' => config('app.debug') ? $e->getMessage() : null
+        ], 500);
     }
+}
 
     public function show($id)
     {

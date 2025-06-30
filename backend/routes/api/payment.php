@@ -14,7 +14,6 @@ Route::prefix('payments')->group(function () {
     // VNPAY routes
     Route::post('/vnpay/create', [PaymentController::class, 'createVNPayPayment']);
     Route::match(['get', 'post'], '/vnpay/return', [PaymentController::class, 'vnpayReturn']);
-
     // MOMO routes
     Route::post('/momo/create', [PaymentController::class, 'createMoMoPayment']);
     Route::match(['get', 'post'], '/momo/return', [PaymentController::class, 'momoReturn']);

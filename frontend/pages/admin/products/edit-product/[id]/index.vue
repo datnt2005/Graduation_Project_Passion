@@ -400,6 +400,36 @@
                   <span v-if="errors.tags" class="text-red-500 text-xs mt-1 block">{{ errors.tags }}</span>
                 </div>
               </section>
+
+              <!-- Thêm vào sau section "Product Tags" trong sidebar -->
+              <section class="border border-gray-300 rounded-md shadow-sm bg-white">
+                <header
+                  class="flex justify-between items-center px-4 py-3 border-b border-gray-300 font-semibold cursor-pointer select-none"
+                  @click="togglePanel('sellers')" :aria-expanded="panels.sellers"
+                  aria-label="Toggle Product sellers panel">
+                  <span>Người bán</span>
+                  <i class="fas" :class="panels.sellers ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+                </header>
+                <div v-if="panels.sellers" class="p-4 text-xs">
+                  <div v-if="apiErrors.sellers" class="text-red-500 text-xs mb-2">
+                    {{ apiErrors.sellers }}
+                  </div>
+                  <div v-else-if="!sellers.length" class="text-gray-500 text-xs mb-2">
+                    Không có người bán nào để hiển thị.
+                  </div>
+                  <div v-else class="relative mb-3">
+                    <select v-model="formData.seller_id"
+                      class="w-full rounded border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                      @change="selectSeller">
+                      <option value="">Chọn người bán</option>
+                      <option v-for="seller in sellers" :key="seller.id" :value="seller.id">
+                        {{ seller.store_name }} (#{{ seller.id }})
+                      </option>
+                    </select>
+                    <span v-if="errors.seller_id" class="text-red-500 text-xs mt-1 block">{{ errors.seller_id }}</span>
+                  </div>
+                </div>
+              </section>
             </div>
           </div>
         </form>
@@ -535,7 +565,8 @@ const apiErrors = reactive({
   products: null,
   categories: null,
   tags: null,
-  attributes: null
+  attributes: null,
+  sellers: null
 });
 const showAddAttributeModal = ref(false);
 const fileInput = ref(null);
@@ -555,6 +586,7 @@ const formData = reactive({
   slug: '',
   description: '',
   status: 'active',
+  seller_id: '', // Thêm seller_id
   categories: [],
   tags: [],
   variants: [
@@ -574,12 +606,14 @@ const formData = reactive({
 
 const panels = ref({
   categories: true,
-  tags: true
+  tags: true,
+  sellers: true // Thêm sellers panel
 });
 
 const categories = ref([]);
 const tags = ref([]);
 const attributes = ref([]);
+const sellers = ref([]);
 
 // Extract array from various API response formats
 const extractArray = (data, key) => {
@@ -614,6 +648,7 @@ const fetchProduct = async () => {
     formData.slug = product.slug || '';
     formData.description = product.description || '';
     formData.status = product.status || 'active' || 'inactive' || 'trash';
+    formData.seller_id = product.seller_id || ''; // Thêm seller_id từ API
     formData.categories = product.categories?.map(c => c.id) || [];
     formData.tags = product.tags?.map(t => t.id) || [];
     formData.images = product.product_pic?.length ?
@@ -671,7 +706,7 @@ const fetchCategories = async () => {
     if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     const data = await response.json();
     console.log('Categories API response:', data);
-    const categoryArray = extractArray(data, 'categories');
+    const categoryArray = extractArray(data, 'data');
     if (categoryArray.length) {
       categories.value = categoryArray.map(item => ({
         id: item.id,
@@ -719,7 +754,7 @@ const fetchAttributes = async () => {
     if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     const data = await response.json();
     console.log('Attributes API response:', data);
-    const attributeArray = extractArray(data, 'attributes');
+    const attributeArray = extractArray(data, 'data');
     if (attributeArray.length) {
       attributes.value = attributeArray.map(attr => ({
         id: attr.id,
@@ -742,6 +777,29 @@ const fetchAttributes = async () => {
   }
 };
 
+const fetchSellers = async () => {
+  try {
+    const response = await fetch(`${apiBase}/sellers/verified`, {
+      headers: { Accept: 'application/json' }
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    const data = await response.json();
+    const sellerArray = extractArray(data, 'data');
+    if (sellerArray.length) {
+      sellers.value = sellerArray.map(item => ({
+        id: item.id,
+        store_name: item.store_name || item.title || 'Không có tên'
+      }));
+      // Thêm option "Passion" cho Admin
+      sellers.value.unshift({ id: 'passion', store_name: 'Passion (Admin)' });
+      apiErrors.sellers = null;
+    } else {
+      throw new Error('Unexpected response format for sellers');
+    }
+  } catch (error) {
+    console.error('Error fetching sellers:', error);
+  }
+};
 // Create new attribute
 const createAttribute = async () => {
   // Validate form
@@ -960,6 +1018,12 @@ const toggleTag = (tag) => {
   }
 };
 
+const selectSeller = (event) => {
+  formData.seller_id = event.target.value;
+  if (!formData.seller_id) errors.seller_id = 'Vui lòng chọn người bán.';
+  else delete errors.seller_id;
+};
+
 // Form validation
 const validateFormData = () => {
   Object.keys(errors).forEach(key => delete errors[key]);
@@ -979,7 +1043,10 @@ const validateFormData = () => {
     isValid = false;
   }
 
-
+  if (!formData.seller_id) { // Kiểm tra seller_id
+    errors.seller_id = 'Vui lòng chọn người bán.';
+    isValid = false;
+  }
 
   if (formData.status && !['active', 'inactive', 'trash'].includes(formData.status)) {
     errors.status = 'Trạng thái không hợp lệ.';
@@ -1026,7 +1093,6 @@ const validateFormData = () => {
     });
   });
 
-  // Check for duplicate variant attributes
   const attributeSets = formData.variants.map((variant, index) => ({
     index,
     attributes: variant.attributes
@@ -1063,6 +1129,7 @@ const updateProduct = async () => {
   if (formData.slug) formDataToSend.append('slug', formData.slug.trim());
   formDataToSend.append('description', formData.description.trim());
   formDataToSend.append('status', formData.status);
+  formDataToSend.append('seller_id', formData.seller_id); // Thêm seller_id
 
   formData.categories.forEach(categoryId => {
     formDataToSend.append('categories[]', categoryId);
@@ -1072,7 +1139,6 @@ const updateProduct = async () => {
     formDataToSend.append('tags[]', tagId);
   });
 
-  // Filter valid variants
   const validVariants = formData.variants.filter(variant =>
     variant.price !== null && Number.isFinite(variant.price) &&
     variant.cost_price !== null && Number.isFinite(variant.cost_price)
@@ -1088,7 +1154,6 @@ const updateProduct = async () => {
     }
     formDataToSend.append(`variants[${index}][cost_price]`, variant.cost_price.toFixed(2));
 
-    // Only include valid attributes
     const validAttributes = variant.attributes.filter(attr => attr.attribute_id && attr.value_id);
     if (validAttributes.length > 0) {
       validAttributes.forEach((attr, i) => {
@@ -1097,7 +1162,6 @@ const updateProduct = async () => {
       });
     }
 
-    // Filter valid inventory
     const validInventory = variant.inventory.filter(inv =>
       Number.isFinite(inv.quantity) && inv.quantity >= 0
     );
@@ -1126,20 +1190,17 @@ const updateProduct = async () => {
     formDataToSend.append('removed_images[]', imageId);
   });
 
-  // Debug FormData
-  console.log('FormData entries:');
-  for (let [key, value] of formDataToSend.entries()) {
-    console.log(`${key}: ${value instanceof File ? value.name : value}`);
-  }
-
   formDataToSend.append('_method', 'PUT');
 
   try {
     loading.value = true;
+    const token = localStorage.getItem('access_token');
     const response = await fetch(`${apiBase}/products/${formData.id}`, {
       method: 'POST',
       body: formDataToSend,
-      headers: { Accept: 'application/json' }
+      headers: { Accept: 'application/json',
+                Authorization: `Bearer ${token}`
+       }
     });
     const data = await response.json();
     console.log('Product update response:', data);
@@ -1200,13 +1261,14 @@ onMounted(async () => {
   }
   console.log('Fetching product with ID:', route.params.id);
   formData.id = route.params.id;
-  await Promise.allSettled([fetchProduct(), fetchCategories(), fetchTags(), fetchAttributes()]).then(([prodResult, catResult, tagResult, attrResult]) => {
-    console.log('Fetch results:', { prodResult, catResult, tagResult, attrResult, });
+  await Promise.allSettled([fetchProduct(), fetchCategories(), fetchTags(), fetchAttributes(), fetchSellers()]).then(([prodResult, catResult, tagResult, attrResult, sellerResult]) => {
+    console.log('Fetch results:', { prodResult, catResult, tagResult, attrResult, sellerResult });
     console.log('API Errors:', apiErrors);
     console.log('Product data:', formData);
     console.log('Categories:', categories.value.length);
     console.log('Tags:', tags.value.length);
     console.log('Attributes:', attributes.value.length);
+    console.log('Sellers:', sellers.value.length);
   });
   document.addEventListener('click', closeDropdowns);
 });

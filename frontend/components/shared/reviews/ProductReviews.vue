@@ -36,13 +36,19 @@
           </span>
         </div>
 
-        <input type="file" accept="image/*" multiple @change="handleImageUpload" class="block mt-2 text-xs" />
+        <!-- Nút chọn ảnh đẹp hơn -->
+        <label for="review-upload"
+          class="inline-flex items-center gap-2 px-3 py-1.5 border border-gray-300 rounded bg-white cursor-pointer hover:bg-gray-50 transition text-xs">
+          <i class="fas fa-camera text-gray-500"></i>
+          <span>Chọn ảnh</span>
+          <input id="review-upload" type="file" accept="image/*" multiple class="hidden" @change="handleImageUpload" />
+        </label>
 
-        <!-- Xem trước ảnh -->
+        <!-- Xem trước ảnh đã chọn -->
         <div class="flex gap-2 flex-wrap mt-2" v-if="uploadedImages.length">
-          <div v-for="(file, i) in uploadedImages" :key="i" class="relative w-14 h-14 group">
-            <img :src="file.isExisting ? file.url : URL.createObjectURL(file)"
-              class="w-full h-full object-cover rounded" />
+          <div v-for="(file, i) in uploadedImages" :key="i"
+            class="relative w-16 h-16 border rounded overflow-hidden group">
+            <img v-if="getImagePreview(file)" :src="getImagePreview(file)" class="w-full h-full object-cover" />
             <button type="button"
               class="absolute top-0 right-0 bg-black/60 text-white text-[10px] px-1 rounded hidden group-hover:block"
               @click="removeImage(i)">
@@ -50,7 +56,6 @@
             </button>
           </div>
         </div>
-
         <textarea v-model="newReviewComment" class="w-full border border-gray-300 rounded p-2 resize-none" rows="6"
           placeholder="Viết cảm nhận của bạn..."></textarea>
 
@@ -117,6 +122,17 @@ import { watch } from 'vue';
 import { nextTick } from 'vue'
 
 
+
+const props = defineProps({
+  productId: {
+    type: Number,
+    required: true
+  }
+})
+
+
+
+
 // ======= THÔNG BÁO TOAST THÀNH CÔNG =======
 const Toast = Swal.mixin({
   toast: true,
@@ -149,9 +165,29 @@ const reviewSection = ref(null);
 const uploadedImages = ref([]); // ← Biến lưu ảnh đang hiển thị trong form
 // ← Biến lưu ID ảnh cũ bị xóa
 const handleImageUpload = (event) => {
-  const files = Array.from(event.target.files);
-  uploadedImages.value = files;
+  const files = Array.from(event.target.files || []);
+
+  const newFiles = files.map(file => ({
+    isExisting: false,
+    file: file,
+  }));
+
+  uploadedImages.value.push(...newFiles);
 };
+
+const getImagePreview = (file) => {
+  if (file.isExisting) return file.url;
+  if (file.file instanceof File) {
+    try {
+      return URL.createObjectURL(file.file);
+    } catch {
+      return null;
+    }
+  }
+  return null;
+};
+
+
 
 // ======= BIẾN BẢO MẬT ĐƯỜNG LINK =======
 const config = useRuntimeConfig();
@@ -239,7 +275,7 @@ const hasUserReviewed = computed(() => {
 // ======= LẤY DANH SÁCH ĐÁNH GIÁ =======
 const fetchReviews = async () => {
   try {
-    const res = await fetch(`${apiBase}/reviews?product_id=1`);
+    const res = await fetch(`${apiBase}/reviews?product_id=${props.productId}`);
     if (!res.ok) throw new Error('Lỗi khi lấy đánh giá');
     reviews.value = await res.json();
   } catch (err) {
@@ -317,7 +353,7 @@ const submitReview = async () => {
 
   const url = editingReviewId.value
     ? `${apiBase}/reviews/${editingReviewId.value}`
-    : `${apiBase}/reviews?product_id=${productId.value}`;
+    : `${apiBase}/reviews?product_id=${props.productId}`;
 
   try {
     const res = await fetch(url, {

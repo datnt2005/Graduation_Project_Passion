@@ -592,9 +592,9 @@ async function handleSubmit() {
       }
     });
 
-    toast('success', response.data.message || 'Thành công!');
+    toast('success', response.data.message || 'Đăng ký thành công!');
     resetFormData();
-    router.push('/seller/SellerRegisterSuccess');
+    // router.push('/SellerRegisterSuccess');
   } catch (error) {
     const res = error.response;
     Object.assign(errors, res?.data?.errors || {});
@@ -606,4 +606,5 @@ async function handleSubmit() {
     loading.value = false;
   }
 }
+
 </script>

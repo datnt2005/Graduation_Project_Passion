@@ -61,56 +61,42 @@
         </div>
 
         <!-- Filter Bar -->
-        <div class="bg-gray-200 px-4 py-3 flex flex-wrap items-center gap-3 text-sm text-gray-700">
-          <div class="flex items-center gap-2">
-            <button 
-              @click="filterStatus = ''; fetchPaymentMethods()"
-              :class="[
-                'text-blue-600 hover:underline',
-                filterStatus === '' ? 'font-semibold' : ''
-              ]"
+        <div class="bg-gray-100 px-4 py-3 flex flex-wrap items-center gap-3 text-sm text-gray-700 border-b">
+          <div class="flex items-center gap-4">
+            <span
+              @click="filterStatus = ''"
+              :class="['cursor-pointer font-semibold', filterStatus === '' ? 'text-blue-700' : 'text-gray-700']"
             >
-              Tất cả
-            </button>
-            <span>({{ totalMethods }})</span>
-            <button 
-              @click="filterStatus = 'active'; fetchPaymentMethods()"
-              :class="[
-                'text-blue-600 hover:underline',
-                filterStatus === 'active' ? 'font-semibold' : ''
-              ]"
+              Tất cả <span class="font-normal">({{ totalMethods }})</span>
+            </span>
+            <span
+              @click="filterStatus = 'active'"
+              :class="['cursor-pointer font-semibold', filterStatus === 'active' ? 'text-blue-700' : 'text-gray-700']"
             >
-              Đang hoạt động
-            </button>
-            <span>({{ activeMethods }})</span>
-            <button 
-              @click="filterStatus = 'inactive'; fetchPaymentMethods()"
-              :class="[
-                'text-blue-600 hover:underline',
-                filterStatus === 'inactive' ? 'font-semibold' : ''
-              ]"
+              Đang hoạt động <span class="font-normal">({{ activeMethods }})</span>
+            </span>
+            <span
+              @click="filterStatus = 'inactive'"
+              :class="['cursor-pointer font-semibold', filterStatus === 'inactive' ? 'text-blue-700' : 'text-gray-700']"
             >
-              Ngừng hoạt động
-            </button>
-            <span>({{ inactiveMethods }})</span>
+              Ngừng hoạt động <span class="font-normal">({{ inactiveMethods }})</span>
+            </span>
           </div>
-          <div class="ml-auto flex flex-wrap gap-2 items-center">
-            <div class="relative">
-              <input
-                v-model="searchQuery"
-                type="text"
-                placeholder="Tìm kiếm phương thức..."
-                class="pl-8 pr-3 py-1.5 rounded-md border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 w-64"
-                @input="fetchPaymentMethods"
-              />
-              <svg 
-                class="absolute left-2.5 top-2 h-4 w-4 text-gray-400"
-                viewBox="0 0 20 20" 
-                fill="currentColor"
-              >
-                <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
-              </svg>
-            </div>
+          <div class="ml-auto flex items-center gap-2 relative">
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="Tìm kiếm phương thức thanh toán..."
+              class="pl-8 pr-3 py-1.5 rounded-md border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 w-64"
+            />
+            <svg
+              class="absolute left-2.5 top-2 h-4 w-4 text-gray-400"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              style="left: 10px; top: 10px; position: absolute;"
+            >
+              <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
+            </svg>
           </div>
         </div>
 
@@ -347,7 +333,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useRuntimeConfig } from '#imports'
 
@@ -370,6 +356,26 @@ const confirmDialogTitle = ref('')
 const confirmDialogMessage = ref('')
 const confirmAction = ref(null)
 
+// Thêm các biến đếm số lượng phương thức
+const totalMethods = computed(() => paymentMethods.value.length)
+const activeMethods = computed(() => paymentMethods.value.filter(m => m.status === 'active').length)
+const inactiveMethods = computed(() => paymentMethods.value.filter(m => m.status === 'inactive').length)
+
+// Thêm các biến cho filter nâng cao và chọn hàng loạt
+const selectedMethods = ref([])
+const selectAll = ref(false)
+const bulkAction = ref('')
+const filterType = ref('') // loại phương thức
+const filterStatusDropdown = ref('')
+
+// Lấy danh sách loại phương thức nếu có (ví dụ hardcode)
+const methodTypes = [
+  { value: '', label: 'Tất cả loại' },
+  { value: 'momo', label: 'MOMO' },
+  { value: 'vnpay', label: 'VNPAY' },
+  { value: 'cod', label: 'COD' }
+]
+
 const fetchPaymentMethods = async () => {
   loading.value = true
   error.value = null
@@ -390,12 +396,42 @@ const filteredMethods = computed(() => {
   if (filterStatus.value) {
     methods = methods.filter(m => m.status === filterStatus.value)
   }
+  if (filterType.value) {
+    methods = methods.filter(m => m.type === filterType.value)
+  }
+  if (filterStatusDropdown.value) {
+    methods = methods.filter(m => m.status === filterStatusDropdown.value)
+  }
   if (searchQuery.value) {
     const q = searchQuery.value.toLowerCase()
     methods = methods.filter(m => m.name.toLowerCase().includes(q))
   }
   return methods
 })
+
+watch(filteredMethods, () => {
+  // Reset chọn khi filter thay đổi
+  selectedMethods.value = []
+  selectAll.value = false
+})
+
+function toggleSelectAll() {
+  if (selectAll.value) {
+    selectedMethods.value = filteredMethods.value.map(m => m.id)
+  } else {
+    selectedMethods.value = []
+  }
+}
+
+function applyBulkAction() {
+  if (!bulkAction.value || selectedMethods.value.length === 0) return
+  // TODO: Gọi API thực hiện hành động hàng loạt (xóa/kích hoạt/vô hiệu hóa)
+  alert(`Đã thực hiện: ${bulkAction.value} cho ${selectedMethods.value.length} phương thức!`)
+  // Sau khi thực hiện xong, reset chọn
+  selectedMethods.value = []
+  selectAll.value = false
+  bulkAction.value = ''
+}
 
 const toggleDropdown = (id, event) => {
   if (activeDropdown.value === id) {
