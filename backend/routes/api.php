@@ -341,5 +341,3 @@ Route::get('inventory/list', [App\Http\Controllers\InventoryController::class, '
 Route::get('inventory/low-stock', [App\Http\Controllers\InventoryController::class, 'lowStock']);
 Route::get('inventory/best-sellers', [App\Http\Controllers\InventoryController::class, 'bestSellers']);
 
-Route::middleware('auth:sanctum')->post('/discounts/save-by-code', [DiscountController::class, 'saveVoucherByCode']);
-Route::middleware('auth:sanctum')->delete('/discounts/my-voucher/{id}', [DiscountController::class, 'deleteUserVoucher']);
