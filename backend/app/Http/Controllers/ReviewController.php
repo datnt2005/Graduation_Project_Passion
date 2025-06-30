@@ -64,12 +64,15 @@ class ReviewController extends Controller
                 ])
                 ->values();
 
-
             return [
                 'id' => $review->id,
-                'user' => 'Ẩn danh',
-                'joined' => 'Tháng 1, 2024',
-                'totalReviews' => 5,
+                'user_id' => $review->user_id,
+                'user' => [
+                    'name' => $review->user->name ?? 'Ẩn danh',
+                    'avatar' => $review->user->avatar ? Storage::disk('r2')->url($review->user->avatar) : null,
+                ],
+                'joined' => 'Tháng 1, 2024', // nếu muốn thực tế thì dùng $review->user->created_at->format(...)
+                'totalReviews' => 5, // nếu cần thật thì count từ DB
                 'purchased' => true,
                 'rating' => $review->rating,
                 'content' => $review->content,
@@ -224,8 +227,11 @@ class ReviewController extends Controller
             'content' => 'required|string|min:10|max:1000',
             'rating' => 'required|integer|min:1|max:5',
             'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
+            'videos.*' => 'nullable|mimes:mp4,mov,avi,wmv|max:10240',
             'kept_images' => 'nullable|array',
             'kept_images.*' => 'integer',
+            'kept_videos' => 'nullable|array',
+            'kept_videos.*' => 'integer',
         ]);
 
         if ($validator->fails()) {
@@ -255,17 +261,35 @@ class ReviewController extends Controller
         try {
             $mediaUrls = [];
 
+            // Xoá hình ảnh không giữ lại
             $keptImageIds = $request->input('kept_images', []);
             $review->media()
                 ->where('media_type', 'image')
                 ->whereNotIn('id', $keptImageIds)
                 ->delete();
 
+            // Xoá video không giữ lại
+            $keptVideoIds = $request->input('kept_videos', []);
+            $review->media()
+                ->where('media_type', 'video')
+                ->whereNotIn('id', $keptVideoIds)
+                ->delete();
+
+            // Upload ảnh mới
             if ($request->hasFile('images')) {
                 foreach ($request->file('images') as $file) {
                     $filename = 'reviews/' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
                     Storage::disk('r2')->put($filename, file_get_contents($file));
                     $mediaUrls[] = ['media_url' => $filename, 'media_type' => 'image'];
+                }
+            }
+
+            // Upload video mới
+            if ($request->hasFile('videos')) {
+                foreach ($request->file('videos') as $video) {
+                    $filename = 'reviews/videos/' . time() . '_' . uniqid() . '.' . $video->getClientOriginalExtension();
+                    Storage::disk('r2')->put($filename, file_get_contents($video));
+                    $mediaUrls[] = ['media_url' => $filename, 'media_type' => 'video'];
                 }
             }
 
@@ -287,6 +311,7 @@ class ReviewController extends Controller
             ], 500);
         }
     }
+
 
 
     // Xóa đánh giá
@@ -418,6 +443,8 @@ class ReviewController extends Controller
             'likes' => $review->likes()->count()
         ]);
     }
+
+
 
     public function adminIndex()
     {

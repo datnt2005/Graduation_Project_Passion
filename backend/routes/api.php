@@ -19,6 +19,7 @@ use App\Http\Controllers\GoogleAuthController;
 use App\Http\Controllers\ChatbotController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\ReportController;
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\Middleware\HandleCors;
@@ -213,6 +214,12 @@ Route::middleware(['auth:sanctum'])->prefix('admin/reviews')->group(function () 
     Route::delete('/{id}', [ReviewController::class, 'adminDestroy']);
 });
 
+Route::middleware(['auth:sanctum'])->prefix('admin/reports/reviews')->group(function () {
+    Route::get('/', [ReportController::class, 'index']); 
+    Route::get('/{id}', [ReportController::class, 'show']); 
+    Route::put('/{id}/status', [ReportController::class, 'updateStatus']); 
+});
+
 // Các route yêu cầu đăng nhập
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/reviews', [ReviewController::class, 'store']);               // Gửi đánh giá
@@ -222,7 +229,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/reviews/{id}/unlike', [ReviewController::class, 'unlike']);  // Unlike đánh giá
     Route::post('/reviews/{id}/reply', [ReviewController::class, 'reply']);    // Trả lời đánh giá
     Route::delete('/reviews/{id}', [ReviewController::class, 'destroy']);      // Xóa đánh giá
-
+    Route::post('/reports', [ReportController::class, 'store']);
 });
 
 
