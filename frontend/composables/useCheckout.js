@@ -1,11 +1,15 @@
-import { ref, computed } from 'vue';
-import { useRuntimeConfig, navigateTo } from '#app';
-import { useCart } from '~/composables/useCart';
-import { usePayment } from '~/composables/usePayment';
-import { useDiscount } from '~/composables/useDiscount';
-import { useToast } from '~/composables/useToast';
+import { ref, computed } from "vue";
+import { useRuntimeConfig, navigateTo } from "#app";
+import { useCart } from "~/composables/useCart";
+import { usePayment } from "~/composables/usePayment";
+import { useDiscount } from "~/composables/useDiscount";
+import { useToast } from "~/composables/useToast";
 
-export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress) {
+export function useCheckout(
+  shippingRef,
+  selectedShippingMethod,
+  selectedAddress
+) {
   const config = useRuntimeConfig();
   const { toast } = useToast();
   const {
@@ -36,29 +40,36 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
     getShippingDiscount,
   } = useDiscount();
 
-  const selectedPaymentMethod = ref('');
+  const selectedPaymentMethod = ref("");
 
   // Derive cartItems from cart.stores
   const cartItems = computed(() =>
     cart.value.stores
-      .flatMap((store) => (store.items || []).filter((item) => selectedItems.value.has(item.id)))
+      .flatMap((store) =>
+        (store.items || []).filter((item) => selectedItems.value.has(item.id))
+      )
       .filter((item) => item && item.id && item.quantity)
   );
 
-  // Total based on selected items (reusing selectedTotal from useCart)
+  // Total based on selected items
   const total = computed(() => {
     return cart.value.stores.reduce((total, store) => {
       return (
         total +
         (store.items || []).reduce((storeTotal, item) => {
           if (item && selectedItems.value.has(item.id)) {
-            return storeTotal + (parsePrice(item.sale_price) || parsePrice(item.price)) * (item.quantity || 1);
+            return (
+              storeTotal +
+              (parsePrice(item.sale_price) || parsePrice(item.price)) *
+                (item.quantity || 1)
+            );
           }
           return storeTotal;
         }, 0)
       );
     }, 0);
   });
+
   // Shipping fee calculations
   const rawShippingFee = computed(() => {
     const raw = shippingRef.value?.fees?.[selectedShippingMethod.value];
@@ -78,10 +89,9 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
   });
 
   // Formatted price utilities
-
   const formatPrice = (price) => {
     const parsed = parsePrice(price);
-    return parsed.toLocaleString('vi-VN');
+    return parsed.toLocaleString("vi-VN");
   };
 
   const formattedTotal = computed(() => `${formatPrice(total.value)} đ`);
@@ -91,127 +101,145 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
   // Payment method label
   const getPaymentMethodLabel = (methodName) => {
     switch (methodName) {
-      case 'COD':
-        return 'Thanh toán khi nhận hàng';
-      case 'VNPAY':
-        return 'Thanh toán qua VNPAY';
-      case 'MOMO':
-        return 'Thanh toán qua Ví MoMo';
+      case "COD":
+        return "Thanh toán khi nhận hàng";
+      case "VNPAY":
+        return "Thanh toán qua VNPAY";
+      case "MOMO":
+        return "Thanh toán qua Ví MoMo";
       default:
         return methodName;
     }
   };
 
   const placeOrder = async () => {
-  if (!cartItems.value.length) {
-    toast('error', 'Giỏ hàng trống hoặc chưa chọn sản phẩm');
-    return;
-  }
-  if (!selectedPaymentMethod.value) {
-    toast('error', 'Vui lòng chọn phương thức thanh toán');
-    return;
-  }
-  if (!selectedShippingMethod.value) {
-    toast('error', 'Vui lòng chọn hình thức giao hàng');
-    return;
-  }
-  if (!selectedAddress.value?.id) {
-    toast('error', 'Vui lòng chọn địa chỉ giao hàng');
-    return;
-  }
-
-  loading.value = true;
-  error.value = null;
-
-  try {
-    const token = localStorage.getItem('access_token');
-    if (!token) {
-      toast('error', 'Vui lòng đăng nhập để tiếp tục');
-      window.dispatchEvent(new CustomEvent('openLoginModal'));
+    if (!cartItems.value.length) {
+      toast("error", "Giỏ hàng trống hoặc chưa chọn sản phẩm");
+      return;
+    }
+    if (!selectedPaymentMethod.value) {
+      toast("error", "Vui lòng chọn phương thức thanh toán");
+      return;
+    }
+    if (!selectedShippingMethod.value) {
+      toast("error", "Vui lòng chọn hình thức giao hàng");
+      return;
+    }
+    if (!selectedAddress.value?.id) {
+      toast("error", "Vui lòng chọn địa chỉ giao hàng");
       return;
     }
 
-    const userResponse = await fetch(`${config.public.apiBaseUrl}/me`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/json',
-      },
-    });
+    loading.value = true;
+    error.value = null;
 
-    if (!userResponse.ok) {
-      if (userResponse.status === 401) {
-        localStorage.removeItem('access_token');
-        window.dispatchEvent(new CustomEvent('openLoginModal'));
-        throw new Error('Phiên đăng nhập hết hạn');
+    try {
+      const token = localStorage.getItem("access_token");
+      if (!token) {
+        toast("error", "Vui lòng đăng nhập để tiếp tục");
+        window.dispatchEvent(new CustomEvent("openLoginModal"));
+        return;
       }
-      throw new Error('Không thể lấy thông tin người dùng');
-    }
 
-    const { data: userData } = await userResponse.json();
-    if (!userData?.id) throw new Error('Không tìm thấy thông tin người dùng');
+      const userResponse = await fetch(`${config.public.apiBaseUrl}/me`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+      });
 
-    // CHỖ QUAN TRỌNG NHẤT: lấy danh sách sản phẩm
-    const items = cartItems.value
-      .filter(item => item.productVariant && item.product)
-      .map(item => ({
-        product_id: item.product.id,
-        product_variant_id: item.productVariant.id,
-        quantity: item.quantity,
-        price: parsePrice(item.sale_price || item.price),
-      }));
+      if (!userResponse.ok) {
+        if (userResponse.status === 401) {
+          localStorage.removeItem("access_token");
+          window.dispatchEvent(new CustomEvent("openLoginModal"));
+          throw new Error("Phiên đăng nhập hết hạn");
+        }
+        throw new Error("Không thể lấy thông tin người dùng");
+      }
 
-    if (!items.length) {
-      toast('error', 'Không có sản phẩm hợp lệ để đặt hàng');
-      return;
-    }
+      const { data: userData } = await userResponse.json();
+      if (!userData?.id) throw new Error("Không tìm thấy thông tin người dùng");
 
-    const orderData = {
-      user_id: userData.id,
-      address_id: selectedAddress.value.id,
-      payment_method: selectedPaymentMethod.value,
-      service_id: selectedShippingMethod.value,
-      discount_id: selectedDiscounts.value?.[0]?.id || null,
-      items,
-    };
+      // Debug dữ liệu địa chỉ trước khi xử lý
+      console.log('Selected Address before processing:', selectedAddress.value);
 
-    const orderResponse = await fetch(`${config.public.apiBaseUrl}/orders`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(orderData),
-    });
+      // CHỖ QUAN TRỌNG NHẤT: lấy danh sách sản phẩm
+      const items = cartItems.value
+        .filter((item) => item.productVariant && item.product)
+        .map((item) => ({
+          product_id: item.product.id,
+          product_variant_id: item.productVariant.id,
+          quantity: item.quantity,
+          price: parsePrice(item.sale_price || item.price),
+        }));
 
-    if (!orderResponse.ok) {
-      const errorData = await orderResponse.json();
-      throw new Error(errorData.message || 'Lỗi khi tạo đơn hàng');
-    }
+      if (!items.length) {
+        toast("error", "Không có sản phẩm hợp lệ để đặt hàng");
+        return;
+      }
 
-    const { data: orderResult } = await orderResponse.json();
+      const orderData = {
+        user_id: userData.id,
+        address_id: selectedAddress.value.id,
+        address: selectedAddress.value.address || 'Chưa cung cấp địa chỉ',
+        receiver_name: selectedAddress.value.name || userData.name || 'Chưa cung cấp tên',
+        receiver_phone: selectedAddress.value.phone || 'Chưa cung cấp số điện thoại',
+        payment_method: selectedPaymentMethod.value,
+        service_id: selectedShippingMethod.value,
+        discount_id: selectedDiscounts.value?.[0]?.id || null,
+        items,
 
-    // Xử lý thanh toán
-    if (selectedPaymentMethod.value === 'COD') {
-      await navigateTo(`/order-success/${orderResult.id}`);
-    } else {
-      const { url } = await processPayment(orderResult.id, selectedPaymentMethod.value);
-      if (url) {
-        window.location.href = url;
+
+         ward_id: selectedAddress.value.ward_id,
+         district_id: selectedAddress.value.district_id,
+         province_id: selectedAddress.value.province_id,
+      };
+
+      console.log('Order Data:', orderData); // Debug dữ liệu gửi đi
+
+      const orderResponse = await fetch(`${config.public.apiBaseUrl}/orders`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(orderData),
+      });
+
+      if (!orderResponse.ok) {
+        const errorData = await orderResponse.json();
+        throw new Error(errorData.message || "Lỗi khi tạo đơn hàng");
+      }
+
+      const { data: orderResult } = await orderResponse.json();
+
+      // CHỖ QUAN TRỌNG NHẤT: xuất hóa
+      if (selectedPaymentMethod.value === 'COD') {
+        localStorage.setItem("lastOrderId", orderResult.id);
+        await navigateTo(`/order-success?id=${orderResult.id}`);
+        return;
       } else {
-        throw new Error('Không nhận được URL thanh toán');
+        const { url } = await processPayment(
+          orderResult.id,
+          selectedPaymentMethod.value
+        );
+        if (url) {
+          window.location.href = url;
+        } else {
+          throw new Error("Không nhận được URL thanh toán");
+        }
       }
-    }
 
-    await fetchCart(); // Clear lại cart
-  } catch (err) {
-    error.value = err.message || 'Có lỗi xảy ra khi đặt hàng';
-    toast('error', error.value);
-    console.error('Place order error:', err);
-  } finally {
-    loading.value = false;
-  }
-};
+      await fetchCart(); // Clear lại cart
+    } catch (err) {
+      error.value = err.message || "Có lỗi xảy ra khi đặt hàng";
+      toast("error", error.value);
+      console.error("Place order error:", err);
+    } finally {
+      loading.value = false;
+    }
+  };
 
   return {
     cartItems,
