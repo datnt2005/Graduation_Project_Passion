@@ -6,7 +6,6 @@ use App\Http\Controllers\UserController;
 // CRUD user – Chỉ admin được phép
 Route::middleware(['auth:sanctum', 'checkRole:admin'])->group(function () {
     Route::apiResource('users', UserController::class);
-
     Route::post('users/batch-delete', [UserController::class, 'batchDelete']);
     Route::post('users/batch-add-role', [UserController::class, 'batchAddRole']);
     Route::post('users/batch-remove-role', [UserController::class, 'batchRemoveRole']);
@@ -16,10 +15,8 @@ Route::middleware(['auth:sanctum', 'checkRole:admin'])->group(function () {
 
 });
 
-Route::middleware(['auth:sanctum', 'checkRole:user'])->group(function () {
+Route::middleware(['auth:sanctum', 'checkRole:user,admin'])->group(function () {
     Route::apiResource('users', UserController::class);
-
-
 });
 
 // Lấy danh sách theo vai trò – cho phép admin + seller

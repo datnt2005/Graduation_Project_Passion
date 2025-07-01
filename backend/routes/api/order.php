@@ -3,15 +3,26 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\OrderController;
 
-// Orders
-Route::prefix('orders')->group(function () {
-    Route::get('/', [OrderController::class, 'index']);
-    Route::get('/{id}', [OrderController::class, 'show']);
-    Route::post('/', [OrderController::class, 'store']);
-    Route::put('/{id}', [OrderController::class, 'update']);
-    Route::delete('/{id}', [OrderController::class, 'destroy']);
+Route::prefix('orders')->middleware(['auth:sanctum'])->group(function () {
 
-    // Thêm routes cho mã giảm giá
-    Route::post('/{id}/apply-discount', [OrderController::class, 'applyDiscount']);
-    Route::delete('/{id}/remove-discount', [OrderController::class, 'removeDiscount']);
+    // Admin hoặc Seller được quyền xem danh sách & chi tiết đơn hàng
+    Route::middleware('checkRole:admin,seller')->group(function () {
+        Route::get('/', [OrderController::class, 'index']);
+        Route::get('/{id}', [OrderController::class, 'show']);
+    });
+
+    // User đặt đơn hàng (store)
+    Route::middleware('checkRole:user')->post('/', [OrderController::class, 'store']);
+
+    // Admin hoặc Seller được quyền sửa & xóa đơn
+    Route::middleware('checkRole:admin,seller')->group(function () {
+        Route::put('/{id}', [OrderController::class, 'update']);
+        Route::delete('/{id}', [OrderController::class, 'destroy']);
+    });
+
+    // Áp dụng / gỡ mã giảm giá – chỉ cho admin và seller
+    Route::middleware('checkRole:admin,seller')->group(function () {
+        Route::post('/{id}/apply-discount', [OrderController::class, 'applyDiscount']);
+        Route::delete('/{id}/remove-discount', [OrderController::class, 'removeDiscount']);
+    });
 });
