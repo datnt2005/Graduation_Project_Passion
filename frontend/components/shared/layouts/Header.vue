@@ -348,6 +348,7 @@
             </svg>
             Trang chủ
           </NuxtLink>
+
           <!-- Tài khoản -->
           <div class="relative group inline-block">
             <div class="cursor-pointer hover:text-blue-600 transition-colors duration-200 tracking-wide flex items-center gap-1">
@@ -360,9 +361,9 @@
               <li><a href="/users/profile" class="block px-4 py-2 hover:bg-gray-100">Thông tin tài khoản</a></li>
               <li><a href="/users/orders" class="block px-4 py-2 hover:bg-gray-100">Đơn hàng của tôi</a></li>
               <li><a href="/support" class="block px-4 py-2 hover:bg-gray-100">Trung tâm hỗ trợ</a></li>
-              <li><a href="#" class="block px-4 py-2 hover:bg-gray-100">Đăng xuất</a></li>
             </ul>
           </div>
+          
           <!-- Giỏ hàng -->
           <NuxtLink href="/cart" class="hover:text-blue-600 transition-colors duration-200 tracking-wide flex items-center gap-1">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
@@ -395,6 +396,7 @@
         <!-- Menu Items -->
         <div class="space-y-4 mt-10 text-sm">
           <a href="#" class="block text-gray-700 hover:text-blue-600"><font-awesome-icon :icon="['fas', 'house']" /> Trang chủ</a>
+          
           <div class="infor relative group inline-block">
             <a href="#" class="block text-gray-700 hover:text-blue-600 font-semibold">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
@@ -406,9 +408,9 @@
               <li><a href="#" class="block px-4 py-2 hover:bg-gray-100">Thông tin tài khoản</a></li>
               <li><a href="#" class="block px-4 py-2 hover:bg-gray-100">Đơn hàng của tôi</a></li>
               <li><a href="#" class="block px-4 py-2 hover:bg-gray-100">Trung tâm hỗ trợ</a></li>
-              <li><a href="#" class="block px-4 py-2 hover:bg-gray-100">Đăng xuất</a></li>
             </ul>
           </div>
+
           <a href="#" class="block text-gray-700 hover:text-blue-600"><font-awesome-icon :icon="['fas', 'cart-shopping']" /> Giỏ hàng</a>
           <a href="#" class="block text-gray-700 hover:text-blue-600"><font-awesome-icon :icon="['fas', 'bell']" /> Thông báo</a>
           <NuxtLink to="/support" class="block text-gray-700 hover:text-blue-600"><font-awesome-icon :icon="['fas', 'info']" /> Hỗ trợ</NuxtLink>
@@ -515,7 +517,6 @@ function loginWithGoogle() {
             Authorization: `Bearer ${event.data.token}`,
           },
         })
-zz
         const data = await res.json()
 
         if (res.ok && data.data) {

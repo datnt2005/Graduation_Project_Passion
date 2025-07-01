@@ -1,5 +1,3 @@
-// utils/secureFetch.ts
-
 type SecureFetchOptions = RequestInit & {
   headers?: Record<string, string>
 }
