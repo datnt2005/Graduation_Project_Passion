@@ -20,5 +20,6 @@ Route::prefix('sellers')->group(function () {
     // 4. Route công khai – không cần đăng nhập
     Route::get('/store/{slug}', [SellerController::class, 'showStore']);
     Route::get('/verified', [SellerController::class, 'getVerifiedSellers']);
+
 });
 

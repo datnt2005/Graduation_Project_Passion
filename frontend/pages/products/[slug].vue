@@ -112,6 +112,7 @@ const product = ref({
 // Seller Data
 const seller = ref({
     store_name: '',
+    store_slug: '',
     avatar: null,
     products_count: 0,
     rating: 0,
@@ -447,7 +448,7 @@ async function buyNow() {
 }
 
 function viewShop() {
-    router.push(`/shop/${encodeURIComponent(seller.value.store_name || '')}`);
+    router.push(`/seller/${seller.value.store_slug }`);
 }
 
 async function fetchProduct() {
@@ -482,6 +483,7 @@ async function fetchProduct() {
 
         seller.value = {
             store_name: data.data?.product?.seller?.store_name || 'Unknown Seller',
+            store_slug: data.data?.product?.seller?.store_slug || 'unknown-seller',
             avatar: data.data?.product?.seller?.avatar || null,
             products_count: Number(data.data?.product?.seller?.products_count || 0),
             rating: Number(data.data?.product?.seller?.rating || 0),
