@@ -103,14 +103,29 @@ class ReviewController extends Controller
             'content' => 'required|string|min:10|max:1000',
             'rating' => 'required|integer|min:1|max:5',
             'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
-            'videos.*' => 'nullable|mimes:mp4,mkv,avi|max:10240',  // Thêm validation cho video
+            'videos.*' => 'nullable|mimes:mp4,mkv,avi|max:10240',
         ], [
-            'images.*.image' => 'Tệp phải là hình ảnh.',
-            'images.*.mimes' => 'Hình ảnh phải có định dạng jpeg, png, jpg, gif, svg hoặc webp.',
-            'images.*.max' => 'Hình ảnh không được vượt quá 2MB.',
-            'videos.*.mimes' => 'Tệp video phải có định dạng mp4, mkv, avi.',
-            'videos.*.max' => 'Video không được vượt quá 10MB.',
+            'product_id.required' => 'Mã sản phẩm là bắt buộc.',
+            'product_id.exists' => 'Sản phẩm không tồn tại.',
+
+            'content.required' => 'Nội dung đánh giá là bắt buộc.',
+            'content.string' => 'Nội dung đánh giá không hợp lệ.',
+            'content.min' => 'Nội dung đánh giá phải có ít nhất :min ký tự.',
+            'content.max' => 'Nội dung đánh giá không được vượt quá :max ký tự.',
+
+            'rating.required' => 'Vui lòng chọn số sao đánh giá.',
+            'rating.integer' => 'Giá trị đánh giá phải là số nguyên.',
+            'rating.min' => 'Đánh giá tối thiểu là :min sao.',
+            'rating.max' => 'Đánh giá tối đa là :max sao.',
+
+            'images.*.image' => 'Tệp tải lên phải là hình ảnh.',
+            'images.*.mimes' => 'Hình ảnh chỉ được chấp nhận định dạng: jpeg, png, jpg, gif, svg, webp.',
+            'images.*.max' => 'Dung lượng hình ảnh không được vượt quá 2MB.',
+
+            'videos.*.mimes' => 'Video chỉ được chấp nhận định dạng: mp4, mkv, avi.',
+            'videos.*.max' => 'Dung lượng video không được vượt quá 10MB.',
         ]);
+
 
         if ($validator->fails()) {
             return response()->json([
