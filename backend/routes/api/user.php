@@ -13,6 +13,13 @@ Route::middleware(['auth:sanctum', 'checkRole:admin'])->group(function () {
 
     // Cập nhật profile của người dùng khác – quyền admin
     Route::post('profile/update/{id}', [UserController::class, 'updateUser']);
+
+});
+
+Route::middleware(['auth:sanctum', 'checkRole:user'])->group(function () {
+    Route::apiResource('users', UserController::class);
+
+
 });
 
 // Lấy danh sách theo vai trò – cho phép admin + seller

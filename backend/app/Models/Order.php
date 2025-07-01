@@ -39,15 +39,16 @@ class Order extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function address()
-    {
-        return $this->belongsTo(Address::class);
-    }
+        public function address()
+        {
+            return $this->belongsTo(Address::class);
+        }
 
     public function discount()
     {
         return $this->belongsTo(Discount::class)->withDefault();
     }
+
 
     public function orderItems()
     {
@@ -59,7 +60,6 @@ class Order extends Model
         return $this->hasMany(Payment::class);
     }
 
-    
 
 
     // Phương thức kiểm tra và áp dụng mã giảm giá

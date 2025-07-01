@@ -5,6 +5,7 @@ Dự án tốt nghiệp, xây dựng sàn thương mại điện tử Passion
 Lệnh:
 composer install
 composer require illuminate/filesystem
+composer require nesbot/carbon
 php artisan migrate
 
 # frontend

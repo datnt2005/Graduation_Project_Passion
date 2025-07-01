@@ -127,7 +127,7 @@
       </section>
 
       <!-- Customer Reviews -->
-      <ProductReviews />
+      <ProductReviews :product-id="product.id" />
     </div>
   </main>
 </template>

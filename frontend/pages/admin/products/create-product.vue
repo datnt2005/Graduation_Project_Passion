@@ -71,16 +71,12 @@
 
                 <!-- Description -->
                 <label for="description" class="block text-sm text-gray-700 mb-1">Mô tả</label>
-                <Editor
-                    v-model="formData.description"
-                    api-key="rlas5j7eqa6dogiwnt1ld8iilzj3q074o4rw75lsxcygu1zd" 
-                    :init="{
-                      height: 300,
-                      menubar: false,
-                      plugins: 'lists link image preview',
-                      toolbar: 'undo redo | formatselect | bold italic underline |alignjustify alignleft aligncenter alignright | bullist numlist |  | removeformat | preview | link image | code  | h1 h2 h3 h4 h5 h6  ',
-                    }"
-                  />
+                <Editor v-model="formData.description" api-key="rlas5j7eqa6dogiwnt1ld8iilzj3q074o4rw75lsxcygu1zd" :init="{
+                  height: 300,
+                  menubar: false,
+                  plugins: 'lists link image preview',
+                  toolbar: 'undo redo | formatselect | bold italic underline |alignjustify alignleft aligncenter alignright | bullist numlist |  | removeformat | preview | link image | code  | h1 h2 h3 h4 h5 h6  ',
+                }" />
                 <span v-if="errors.description" class="text-red-500 text-xs mt-1">{{ errors.description }}</span>
 
                 <!-- Tabbed Content -->
@@ -101,6 +97,7 @@
                           class="w-full md:w-60 rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
                           <option value="active">Hoạt động</option>
                           <option value="inactive">Không hoạt động</option>
+                          <option value="trash">Thùng rác</option>
                         </select>
                         <span v-if="errors.status" class="text-red-500 text-xs mt-1">{{ errors.status }}</span>
                       </div>
@@ -401,6 +398,36 @@
                   <span v-if="errors.tags" class="text-red-500 text-xs mt-1 block">{{ errors.tags }}</span>
                 </div>
               </section>
+
+              <!-- Product Sellers -->
+              <section class="border border-gray-300 rounded-md shadow-sm bg-white">
+                <header
+                  class="flex justify-between items-center px-4 py-3 border-b border-gray-300 font-semibold cursor-pointer select-none"
+                  @click="togglePanel('sellers')" :aria-expanded="panels.sellers"
+                  aria-label="Toggle Product sellers panel">
+                  <span>Người bán</span>
+                  <i class="fas" :class="panels.sellers ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+                </header>
+                <div v-if="panels.sellers" class="p-4 text-xs">
+                  <div v-if="apiErrors.sellers" class="text-red-500 text-xs mb-2">
+                    {{ apiErrors.sellers }}
+                  </div>
+                  <div v-else-if="!sellers.length" class="text-gray-500 text-xs mb-2">
+                    Không có người bán nào để hiển thị.
+                  </div>
+                  <div v-else class="relative mb-3">
+                    <select v-model="formData.sellers"
+                      class="w-full rounded border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                      @change="selectSeller">
+                      <option value="">Chọn người bán</option>
+                      <option v-for="seller in sellers" :key="seller.id" :value="seller.id">
+                        {{ seller.store_name }} (#{{ seller.id }})
+                      </option>
+                    </select>
+                    <span v-if="errors.sellers" class="text-red-500 text-xs mt-1 block">{{ errors.sellers }}</span>
+                  </div>
+                </div>
+              </section>
             </div>
           </div>
         </form>
@@ -425,7 +452,7 @@
                   class="w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-sm placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Nhập tên thuộc tính (VD: Màu sắc)" />
                 <span v-if="newAttributeErrors.name" class="text-red-500 text-xs mt-1">{{ newAttributeErrors.name
-                  }}</span>
+                }}</span>
               </div>
               <!-- Attribute Values -->
               <div class="mb-4">
@@ -511,7 +538,6 @@ import { library } from '@fortawesome/fontawesome-svg-core';
 import { faChevronUp, faChevronDown } from '@fortawesome/free-solid-svg-icons';
 import Editor from '@tinymce/tinymce-vue'
 
-
 library.add(faChevronUp, faChevronDown);
 
 definePageMeta({
@@ -527,16 +553,18 @@ const notificationType = ref('success');
 const activeDropdown = ref(null);
 const categorySearch = ref('');
 const tagSearch = ref('');
+const sellerSearch = ref(''); // Không cần nữa vì dùng select
 const errors = reactive({});
 const fileInput = ref(null);
 const config = useRuntimeConfig();
 const apiBase = config.public.apiBaseUrl;
-const mediaBase = config.public.mediaBaseUrl ;
+const mediaBase = config.public.mediaBaseUrl;
 
 const apiErrors = reactive({
   categories: null,
   tags: null,
-  attributes: null
+  attributes: null,
+  sellers: null
 });
 const showAddAttributeModal = ref(false);
 const newAttribute = reactive({
@@ -552,6 +580,7 @@ const formData = reactive({
   status: 'active',
   categories: [],
   tags: [],
+  sellers: '',
   variants: [
     {
       price: 0,
@@ -568,12 +597,14 @@ const formData = reactive({
 
 const panels = ref({
   categories: true,
-  tags: true
+  tags: true,
+  sellers: true
 });
 
 const categories = ref([]);
 const tags = ref([]);
 const attributes = ref([]);
+const sellers = ref([]);
 
 // Extract array from various API response formats
 const extractArray = (data, key) => {
@@ -593,7 +624,7 @@ const fetchCategories = async () => {
     if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     const data = await response.json();
     console.log('Categories API response:', data);
-    const categoryArray = extractArray(data, 'categories');
+    const categoryArray = data?.data?.data || [];
     if (categoryArray.length) {
       categories.value = categoryArray.map(item => ({
         id: item.id,
@@ -603,6 +634,8 @@ const fetchCategories = async () => {
       console.log('Processed categories:', categories.value);
     } else {
       throw new Error('Unexpected response format for categories');
+      console.log();
+
     }
   } catch (error) {
     console.error('Error fetching categories:', error);
@@ -632,6 +665,29 @@ const fetchTags = async () => {
     console.error('Error fetching tags:', error);
   }
 };
+const fetchSellers = async () => {
+  try {
+    const response = await fetch(`${apiBase}/sellers/verified`, {
+      headers: { Accept: 'application/json' }
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    const data = await response.json();
+    const sellerArray = extractArray(data, 'data');
+    if (sellerArray.length) {
+      sellers.value = sellerArray.map(item => ({
+        id: item.id,
+        store_name: item.store_name || item.title || 'Không có tên'
+      }));
+      // Thêm option "Passion" cho Admin
+      sellers.value.unshift({ id: 'passion', store_name: 'Passion (Admin)' });
+      apiErrors.sellers = null;
+    } else {
+      throw new Error('Unexpected response format for sellers');
+    }
+  } catch (error) {
+    console.error('Error fetching sellers:', error);
+  }
+};
 
 const fetchAttributes = async () => {
   try {
@@ -641,7 +697,7 @@ const fetchAttributes = async () => {
     if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     const data = await response.json();
     console.log('Attributes API response:', data);
-    const attributeArray = extractArray(data, 'attributes');
+    const attributeArray = extractArray(data, 'data');
     if (attributeArray.length) {
       attributes.value = attributeArray.map(attr => ({
         id: attr.id,
@@ -769,6 +825,14 @@ const filteredTags = computed(() => {
   );
 });
 
+const filteredSellers = computed(() => {
+  if (!sellerSearch.value) return sellers.value;
+  const searchTerm = removeVietnameseTones(sellerSearch.value.toLowerCase());
+  return sellers.value.filter(seller =>
+    removeVietnameseTones(seller.store_name.toLowerCase()).includes(searchTerm)
+  );
+})
+
 const getAttributeValues = (attributeId) => {
   const attribute = attributes.value.find(a => a.id === attributeId);
   return attribute ? attribute.values : [];
@@ -876,6 +940,12 @@ const toggleTag = (tag) => {
     formData.tags.splice(index, 1);
   }
 };
+const selectSeller = (event) => {
+  formData.sellers = event.target.value; // Chỉ giữ một giá trị
+  if (!formData.sellers) errors.sellers = 'Vui lòng chọn người bán.';
+  else delete errors.sellers;
+};
+
 
 // Form validation
 const validateFormData = () => {
@@ -896,6 +966,10 @@ const validateFormData = () => {
     isValid = false;
   }
 
+  if (!formData.sellers) {
+    errors.sellers = 'Vui lòng chọn người bán.';
+    isValid = false;
+  }
 
   // if (!formData.variants.length) {
   //   errors.variants = 'Phải có ít nhất một biến thể.';
@@ -933,7 +1007,7 @@ const validateFormData = () => {
     }
 
   });
-const attributeSets = formData.variants.map((variant, index) => ({
+  const attributeSets = formData.variants.map((variant, index) => ({
     index: index,
     attributes: variant.attributes
       .sort((a, b) => a.attribute_id - b.attribute_id)
@@ -967,7 +1041,7 @@ const createProduct = async () => {
   if (formData.slug) formDataToSend.append('slug', formData.slug.trim());
   formDataToSend.append('description', formData.description.trim());
   formDataToSend.append('status', formData.status);
-
+  formDataToSend.append('sellers', formData.sellers)
   // Append categories as individual elements
   formData.categories.forEach(categoryId => {
     formDataToSend.append('categories[]', categoryId);
@@ -977,7 +1051,7 @@ const createProduct = async () => {
   formData.tags.forEach(tagId => {
     formDataToSend.append('tags[]', tagId);
   });
-
+  
   // Only include variants with valid data
   const validVariants = formData.variants.filter(variant =>
     variant.price !== null && Number.isFinite(variant.price) && variant.cost_price !== null && Number.isFinite(variant.cost_price)
@@ -1016,17 +1090,21 @@ const createProduct = async () => {
   formData.images.forEach((img, index) => {
     formDataToSend.append(`images[${index}]`, img.file);
   });
-
+  
   try {
     loading.value = true;
     console.log('Sending product creation request with payload:');
     for (let [key, value] of formDataToSend.entries()) {
       console.log(`${key}: ${value instanceof File ? value.name : value}`);
     }
+    const token = localStorage.getItem('access_token');
     const response = await fetch(`${apiBase}/products`, {
       method: 'POST',
       body: formDataToSend,
-      headers: { Accept: 'application/json' }
+      headers: { 
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`
+       }
     });
     const data = await response.json();
     console.log('Product creation response:', data);
@@ -1081,17 +1159,19 @@ onMounted(async () => {
   } catch (e) {
     console.warn('Runtime config not available, using fallback API base:', apiBase);
   }
-  await Promise.allSettled([fetchCategories(), fetchTags(), fetchAttributes()]).then(([catResult, tagResult, attrResult]) => {
+  await Promise.allSettled([fetchCategories(), fetchTags(), fetchAttributes(), fetchSellers()]).then(([catResult, tagResult, attrResult, sellerResult]) => {
     console.log('Fetch results:', { catResult, tagResult, attrResult });
     console.log('API Errors after fetch:', apiErrors);
     console.log('Categories:', categories.value.length);
     console.log('Tags:', tags.value.length);
     console.log('Attributes:', attributes.value.length);
+    console.log('Sellers:', sellers.value.length);
   });
   document.addEventListener('click', closeDropdowns);
 });
 
 onUnmounted(() => {
+  
   document.removeEventListener('click', closeDropdowns);
 });
 </script>

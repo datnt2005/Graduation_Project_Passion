@@ -4,8 +4,11 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DiscountController;
 
 
-// Discounts
+// Đặt ở trên
+Route::middleware('auth:sanctum')->get('/discounts/my-vouchers', [DiscountController::class, 'myVouchers']);
+
 Route::prefix('discounts')->group(function () {
+    Route::middleware('auth:sanctum')->get('/my-vouchers', [DiscountController::class, 'myVouchers']);
     Route::get('/', [DiscountController::class, 'index']);
     Route::get('/{id}', [DiscountController::class, 'show']);
     Route::post('/', [DiscountController::class, 'store']);
@@ -25,3 +28,5 @@ Route::prefix('discounts')->group(function () {
     Route::delete('/flash-sales/{id}', [DiscountController::class, 'destroyFlashSale']);
 });
 
+Route::middleware('auth:sanctum')->post('/discounts/save-by-code', [DiscountController::class, 'saveVoucherByCode']);
+Route::middleware('auth:sanctum')->delete('/discounts/my-voucher/{id}', [DiscountController::class, 'deleteUserVoucher']);

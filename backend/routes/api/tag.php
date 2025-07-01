@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\TagController;
 
+
 //tags
 Route::prefix('tags')->group(function () {
     Route::get('/', [TagController::class, 'index']);

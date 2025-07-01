@@ -238,6 +238,7 @@ class PaymentController extends Controller
             return response()->json([
                 'message' => 'Thanh toán thành công',
                 'order_id' => $orderId,
+                'tracking_code' => $order->shipping->tracking_code ?? null,
                 'transaction_id' => $vnpTranId,
                 'amount' => $vnp_Amount / 100,
                 'bank_code' => $vnp_BankCode
@@ -367,6 +368,7 @@ class PaymentController extends Controller
                 'message' => 'Thanh toán thành công',
                 'success' => true,
                 'order_id' => $orderId,
+                'tracking_code' => $order->shipping->tracking_code ?? null,
                 'transaction_id' => $vnpTranId,
                 'amount' => $vnp_Amount / 100,
                 'bank_code' => $vnp_BankCode
@@ -589,7 +591,10 @@ class PaymentController extends Controller
 
             return response()->json([
                 'message' => 'Thanh toán thành công',
-                'order_id' => $originalOrderId
+                'order_id' => $originalOrderId,
+                'tracking_code' => $order->shipping->tracking_code ?? null,
+                'amount' => $amount,
+                'transId' => $transId
             ]);
         }
 

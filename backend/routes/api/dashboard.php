@@ -14,3 +14,5 @@ Route::middleware(['auth:sanctum', 'checkRole:admin'])
         Route::get('/revenue-chart', [DashboardController::class, 'revenueChart']);
         Route::get('/revenue-profit-chart', [DashboardController::class, 'revenueProfitChart']);
     });
+
+    

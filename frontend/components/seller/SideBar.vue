@@ -42,7 +42,7 @@
             <ul v-if="userOpen" class="ml-8 mt-1 space-y-0.5">
               <li>
                 <NuxtLink to="/seller/seller_profile" class="flex items-center px-4 py-2 hover:bg-gray-800 rounded"
-                  :class="route.path.startsWith('/admin/users') ? 'bg-gray-800 text-green-400 font-bold' : 'text-gray-300'"
+                  :class="route.path.startsWith('/seller/users') ? 'bg-gray-800 text-green-400 font-bold' : 'text-gray-300'"
                   @click="$emit('close')">
                   <font-awesome-icon class="w-4 h-4 mr-2" :icon="['fas', 'user']" />
                   Cá nhân
@@ -50,7 +50,7 @@
               </li>
               <li>
                 <NuxtLink to="/seller/business_seller_profile" class="flex items-center px-4 py-2 hover:bg-gray-800 rounded"
-                  :class="route.path.startsWith('/admin/sellers') ? 'bg-gray-800 text-green-400 font-bold' : 'text-gray-300'"
+                  :class="route.path.startsWith('/seller/sellers') ? 'bg-gray-800 text-green-400 font-bold' : 'text-gray-300'"
                   @click="$emit('close')">
                   <font-awesome-icon class="w-4 h-4 mr-2" :icon="['fas', 'store']" />
                   Doanh nghiệp
@@ -77,40 +77,22 @@
           </button>
           <ul v-show="productOpen" class="pl-11 mt-1 space-y-0.5 text-gray-300 text-[13px]">
             <li>
-              <NuxtLink to="/admin/products/list-product" class="block py-1 hover:text-white rounded"
-                :class="route.path.startsWith('/admin/products') ? 'text-green-400 font-bold' : ''"
+              <NuxtLink to="/seller/products/list-product" class="block py-1 hover:text-white rounded"
+                :class="route.path.startsWith('/seller/products') ? 'text-green-400 font-bold' : ''"
                 @click="$emit('close')">Tất cả sản phẩm</NuxtLink>
             </li>
             <li>
-              <NuxtLink to="/admin/products/create-product" class="block py-1 font-semibold text-white rounded"
-                :class="route.path.startsWith('/admin/products/create-product') ? 'text-green-400 font-bold' : ''"
+              <NuxtLink to="/seller/products/create-product" class="block py-1 font-semibold text-white rounded"
+                :class="route.path.startsWith('/seller/products/create-product') ? 'text-green-400 font-bold' : ''"
                 @click="$emit('close')">Thêm sản phẩm</NuxtLink>
-            </li>
-            <li>
-              <NuxtLink to="/admin/attributes/list-attribute" class="block py-1 hover:text-white rounded"
-                :class="route.path.startsWith('/admin/attributes') ? 'text-green-400 font-bold' : ''"
-                @click="$emit('close')">Thuộc tính</NuxtLink>
-            </li>
-            <li>
-              <NuxtLink to="/seller/categories/list-category" class="block py-1 hover:text-white rounded"
-                :class="route.path.startsWith('/seller/categories') ? 'text-green-400 font-bold' : ''"
-                @click="$emit('close')">Danh mục</NuxtLink>
-            </li>
-            <li>
-              <NuxtLink to="/admin/tags/list-tag" class="block py-1 hover:text-white rounded"
-                :class="route.path.startsWith('/admin/tags') ? 'text-green-400 font-bold' : ''" @click="$emit('close')">
-                Thẻ sản phẩm</NuxtLink>
-            </li>
-            <li>
-              <NuxtLink to="#" class="block py-1 hover:text-white rounded" @click="$emit('close')">Đánh giá</NuxtLink>
             </li>
           </ul>
         </li>
 
         <!-- Đơn hàng -->
         <li class="pt-2 border-t border-gray-800">
-          <NuxtLink to="/admin/orders/list-order" class="flex items-center px-4 py-2 hover:bg-gray-800 gap-3 rounded"
-            :class="route.path.startsWith('/admin/orders') ? 'bg-gray-800 text-green-400 font-bold' : 'text-white'"
+          <NuxtLink to="/seller/orders/list-order" class="flex items-center px-4 py-2 hover:bg-gray-800 gap-3 rounded"
+            :class="route.path.startsWith('/seller/orders') ? 'bg-gray-800 text-green-400 font-bold' : 'text-white'"
             @click="$emit('close')">
             <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round"
@@ -122,8 +104,8 @@
 
         <!-- Chiết khấu -->
         <li class="pt-2 border-t border-gray-800">
-          <NuxtLink to="/admin/coupons/list-coupon" class="flex items-center px-4 py-2 hover:bg-gray-800 gap-3 rounded"
-            :class="route.path.startsWith('/admin/coupons') ? 'bg-gray-800 text-green-400 font-bold' : 'text-white'"
+          <NuxtLink to="/seller/coupons/list-coupon" class="flex items-center px-4 py-2 hover:bg-gray-800 gap-3 rounded"
+            :class="route.path.startsWith('/seller/coupons') ? 'bg-gray-800 text-green-400 font-bold' : 'text-white'"
             @click="$emit('close')">
             <svg class="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round"
@@ -182,7 +164,7 @@
 
         <!-- Cài đặt -->
         <li>
-          <NuxtLink to="/admin/settings/list-paymentMethod" class="flex items-center px-4 py-2 hover:bg-gray-800 gap-3" @click="$emit('close')">
+          <NuxtLink to="/seller/settings/list-paymentMethod" class="flex items-center px-4 py-2 hover:bg-gray-800 gap-3" @click="$emit('close')">
             <font-awesome-icon :icon="['fas', 'gear']" class="text-gray-400 w-4 h-4" />
             Cài đặt
           </NuxtLink>
@@ -203,16 +185,16 @@ const route = useRoute()
 const userOpen = ref(false)
 const toggleUser = () => userOpen.value = !userOpen.value
 const userActive = computed(() =>
-  route.path.startsWith('/admin/users') || route.path.startsWith('/admin/sellers')
+  route.path.startsWith('/seller/users') || route.path.startsWith('/seller/sellers')
 )
 
 const productOpen = ref(false)
 const toggleProduct = () => productOpen.value = !productOpen.value
 const productActive = computed(() =>
-  route.path.startsWith('/admin/products')
-  || route.path.startsWith('/admin/attributes')
-  || route.path.startsWith('/admin/categories')
-  || route.path.startsWith('/admin/tags')
+  route.path.startsWith('/seller/products')
+  || route.path.startsWith('/seller/attributes')
+  || route.path.startsWith('/seller/categories')
+  || route.path.startsWith('/seller/tags')
 )
 </script>
 
