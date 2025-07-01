@@ -269,6 +269,7 @@ import axios from 'axios'
 definePageMeta({ 
   layout: 'default-admin'
 });
+import { secureAxios } from '@/utils/secureAxios'
 
 import { useNotification } from '~/composables/useNotification'
 const { showNotification  } = useNotification()
@@ -300,16 +301,19 @@ const mediaBase = config.public.mediaBaseUrl;
 const fetchSellers = async () => {
   loading.value = true
   try {
-    const res = await axios.get(`${API}/admin/sellers`)
+    const res = await secureAxios(`${API}/admin/sellers`, {
+      method: 'GET'
+    }, ['admin'])
     sellers.value = res.data || []
-  } catch {
+  } catch (error) {
+    console.error(error)
     sellers.value = []
     showNotification('Không thể tải danh sách seller. Vui lòng thử lại sau!', 'error')
-    
   } finally {
     loading.value = false
   }
 }
+
 onMounted(fetchSellers)
 
 
@@ -419,9 +423,12 @@ showNotification('error', 'Vui lòng nhập lý do từ chối!')
 
   loadingReject.value = true
   try {
-    await axios.post(`${API}/admin/sellers/${rejectSellerId.value}/reject`, {
+  await secureAxios(`${API}/admin/sellers/${rejectSellerId.value}/reject`, {
+    method: 'POST', 
+    data: {
       reason: rejectReason.value.trim()
-    })
+    }
+  }, ['admin'])
     await fetchSellers()
     rejectModal.value = false
     detailModal.value = false

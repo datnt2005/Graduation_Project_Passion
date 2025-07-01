@@ -418,14 +418,17 @@
               </svg>
               Tài khoản
             </div>
-            <ul
+           <ul
               class="absolute left-0 top-full hidden group-hover:flex flex-col bg-white border border-gray-200 rounded shadow-lg w-48 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300 ease-in-out z-50 text-sm text-gray-700">
               <li><a href="/users/profile" class="block px-4 py-2 hover:bg-gray-100">Thông tin tài khoản</a></li>
               <li><a href="/users/orders" class="block px-4 py-2 hover:bg-gray-100">Đơn hàng của tôi</a></li>
               <li><a href="/support" class="block px-4 py-2 hover:bg-gray-100">Trung tâm hỗ trợ</a></li>
-              <li><a href="#" class="block px-4 py-2 hover:bg-gray-100">Đăng xuất</a></li>
+              <li id="admin-menu" class="hidden"><a href="/admin/dashboard" class="block px-4 py-2 hover:bg-gray-100">Trang quản lý (Admin)</a></li>
+              <li id="seller-menu" class="hidden"><a href="/seller/dashboard" class="block px-4 py-2 hover:bg-gray-100">Trang quản lý (Seller)</a></li>
             </ul>
+
           </div>
+
           <!-- Giỏ hàng -->
           <NuxtLink href="/cart"
             class="hover:text-blue-600 transition-colors duration-200 tracking-wide flex items-center gap-1 relative">
@@ -489,7 +492,6 @@
               <li><a href="#" class="block px-4 py-2 hover:bg-gray-100">Thông tin tài khoản</a></li>
               <li><a href="#" class="block px-4 py-2 hover:bg-gray-100">Đơn hàng của tôi</a></li>
               <li><a href="#" class="block px-4 py-2 hover:bg-gray-100">Trung tâm hỗ trợ</a></li>
-              <li><a href="#" class="block px-4 py-2 hover:bg-gray-100">Đăng xuất</a></li>
             </ul>
           </div>
           <a href="#" class="block text-gray-700 hover:text-blue-600"><font-awesome-icon
@@ -955,11 +957,35 @@ const submitResetPassword = async () => {
   }
 };
 
+const showRoleBasedMenu = async () => {
+  const token = localStorage.getItem('access_token');
+  if (!token) return;
+
+  try {
+    const res = await axios.get(`${api}/me`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    const role = res.data.data?.role;
+    if (role === 'admin') {
+      document.getElementById('admin-menu')?.classList.remove('hidden');
+    }
+    if (role === 'seller') {
+      document.getElementById('seller-menu')?.classList.remove('hidden');
+    }
+
+  } catch (error) {
+    console.error('Cannot fetch user role:', error);
+  }
+};
+
+
 onMounted(() => {
   updateLoginState();
   fetchCategories(); // Fetch categories on mount
   fetchNotifications()
   updateLoginState()
+  showRoleBasedMenu();
   window.addEventListener('storage', (e) => {
     if (e.key === 'access_token') updateLoginState();
   });

@@ -111,6 +111,7 @@ import { ref, onMounted } from 'vue'
 import axios from 'axios'
 import { useRuntimeConfig } from '#app'
 import { Eye, Check, X } from 'lucide-vue-next'
+import { secureAxios } from '@/utils/secureAxios'
 
 definePageMeta({ layout: 'default-admin' })
 
@@ -151,11 +152,7 @@ const reasonLabel = (code) => {
 const fetchReports = async () => {
   loading.value = true
   try {
-    const token = localStorage.getItem('access_token')
-    const res = await axios.get(`${apiBase}/admin/reports/reviews`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-
+    const res = await secureAxios(`${apiBase}/admin/reports/reviews`, {}, ['admin'])
     console.log('Danh sách trả về:', res.data.data)
     allReports.value = res.data.data
     applyFilters()
@@ -165,7 +162,6 @@ const fetchReports = async () => {
     loading.value = false
   }
 }
-
 
 const applyFilters = () => {
   let filtered = [...allReports.value]

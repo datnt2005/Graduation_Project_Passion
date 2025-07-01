@@ -520,6 +520,8 @@ definePageMeta({
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useRuntimeConfig } from '#imports'
+import { secureFetch } from '@/utils/secureFetch' 
+
 
 const router = useRouter();
 const config = useRuntimeConfig()
@@ -771,7 +773,7 @@ const createCoupon = async () => {
 
   try {
     loading.value = true;
-    const response = await fetch(`${apiBase}/discounts`, {
+    const response = await secureFetch(`${apiBase}/discounts`,{}, ['admin'], {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(requestData)
@@ -781,30 +783,33 @@ const createCoupon = async () => {
     if (data.success) {
       const couponId = data.data.id;
 
-      // Gán sản phẩm
-      if (selectedProducts.value.length > 0) {
-        await fetch(`${apiBase}/discounts/${couponId}/products`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ product_ids: selectedProducts.value.map(p => p.id) })
-        });
-      }
-      // Gán danh mục
-      if (selectedCategories.value.length > 0) {
-        await fetch(`${apiBase}/discounts/${couponId}/categories`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ category_ids: selectedCategories.value.map(c => c.id) })
-        });
-      }
-      // Gán user
-      if (selectedUsers.value.length > 0) {
-        await fetch(`${apiBase}/discounts/${couponId}/users`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ user_ids: selectedUsers.value.map(u => u.id) })
-        });
-      }
+    // Gán sản phẩm
+if (selectedProducts.value.length > 0) {
+  await secureFetch(`${apiBase}/discounts/${couponId}/products`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ product_ids: selectedProducts.value.map(p => p.id) }),
+  }, ['admin'])
+}
+
+// Gán danh mục
+if (selectedCategories.value.length > 0) {
+  await secureFetch(`${apiBase}/discounts/${couponId}/categories`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ category_ids: selectedCategories.value.map(c => c.id) }),
+  }, ['admin'])
+}
+
+// Gán user
+if (selectedUsers.value.length > 0) {
+  await secureFetch(`${apiBase}/discounts/${couponId}/users`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ user_ids: selectedUsers.value.map(u => u.id) }),
+  }, ['admin'])
+}
+  
 
       showSuccessNotification('Tạo mã giảm giá thành công!');
       setTimeout(() => {
