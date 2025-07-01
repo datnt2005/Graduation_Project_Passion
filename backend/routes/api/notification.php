@@ -16,6 +16,7 @@ Route::prefix('notifications')->middleware('auth:sanctum')->group(function () {
     Route::delete('/destroy-all', [NotificationController::class, 'destroyAll']);
 });
 
+
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/my-notifications', [NotificationController::class, 'getMyNotifications']);
 

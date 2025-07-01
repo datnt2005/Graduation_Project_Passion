@@ -210,16 +210,17 @@ const fetchUser = async () => {
     const UrlAvatar = config.public.mediaBaseUrl
     if (data && data.data) {
       userId.value = data.data.id
-      Object.assign(formData, {
-        name: data.data.name || '',
-        email: data.data.email || '',
-        phone: data.data.phone || '',
-        avatar_url: data.data.avatar
-          ? `${UrlAvatar}${data.data.avatar}`
-          : DEFAULT_AVATAR,
-        role: data.data.role || '',
-        avatar: null
-      })
+ Object.assign(formData, {
+  name: data.data.name || '',
+  email: data.data.email || '',
+  phone: data.data.phone || '',
+  avatar_url: data.data.avatar?.startsWith('http')
+    ? data.data.avatar
+    : `${UrlAvatar}${data.data.avatar}`,
+  role: data.data.role || '',
+  avatar: null
+})
+
       imagePreview.value = formData.avatar_url
     }
   } catch (e) {

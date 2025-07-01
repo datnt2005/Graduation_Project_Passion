@@ -91,11 +91,12 @@ const fetchUser = async () => {
     })
     const data = await res.json()
     if (data && data.data) {
+      const avatar = data.data.avatar || ''
       user.value = {
         name: data.data.name || '',
-        avatar_url: data.data.avatar
-          ? config.public.mediaBaseUrl + data.data.avatar
-          : defaultAvatar
+        avatar_url: avatar.startsWith('http')
+          ? avatar
+          : config.public.mediaBaseUrl + avatar || defaultAvatar
       }
     }
   } catch (e) {
@@ -104,6 +105,7 @@ const fetchUser = async () => {
     loading.value = false
   }
 }
+
 
 onMounted(fetchUser)
 
