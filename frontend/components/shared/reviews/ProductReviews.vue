@@ -1,123 +1,186 @@
 <template>
   <section class="w-full mb-12 py-6 bg-gray-50">
     <h3 class="text-sm font-semibold mb-4">Khách hàng đánh giá</h3>
-    <div class="flex flex-col sm:flex-row gap-4 mb-4">
-      <!-- Tổng quan -->
-      <div class="flex-1 text-xs">
-        <p class="font-semibold mb-1">Tổng quan</p>
-        <div class="flex items-center gap-1 mb-1">
-          <span class="text-yellow-400 font-bold text-lg">{{ reviews.summary.rating }}</span>
-          <span class="text-yellow-400 text-lg">★★★★★</span>
-        </div>
-        <p class="text-gray-500 mb-2">({{ reviews.summary.count }} đánh giá)</p>
-        <div class="space-y-1">
-          <div v-for="rating in reviews.summary.ratings" :key="rating.stars" class="flex items-center gap-2">
-            <span>{{ rating.stars }}</span>
-            <div class="w-full bg-gray-200 rounded h-2">
-              <div class="bg-yellow-400 h-2 rounded" :style="{ width: rating.percentage + '%' }"></div>
+    <!-- Gộp tổng quan và form đánh giá vào cùng một khối -->
+    <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-4 mb-6">
+      <div class="flex flex-col sm:flex-row gap-6">
+        <!-- Tổng quan -->
+        <div class="flex-1">
+          <p class="text-sm font-semibold mb-3 text-gray-800">Tổng quan đánh giá</p>
+
+          <!-- Tổng điểm sao -->
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-yellow-500 font-bold text-3xl">{{ reviews.summary.rating.toFixed(1) }}</span>
+            <div class="flex items-center text-yellow-400 text-lg">
+              <template v-for="i in 5" :key="i">
+                <i v-if="i <= Math.floor(reviews.summary.rating)" class="fas fa-star"></i>
+                <i v-else-if="i - reviews.summary.rating <= 0.5" class="fas fa-star-half-alt"></i>
+                <i v-else class="far fa-star text-gray-300"></i>
+              </template>
             </div>
-            <span>{{ rating.count }}</span>
+          </div>
+          <p class="text-xs text-gray-500 mb-4">({{ reviews.summary.count }} đánh giá)</p>
+
+          <!-- Biểu đồ đánh giá -->
+          <div class="space-y-2 text-xs">
+            <div v-for="rating in fullRatings" :key="rating.stars" class="flex items-center gap-2">
+              <span class="w-10 flex items-center gap-1 text-gray-700">
+                <i class="fas fa-star text-yellow-400 text-sm"></i> {{ rating.stars }}
+              </span>
+              <div class="flex-1 h-2 bg-gray-200 rounded">
+                <div class="h-2 bg-yellow-400 rounded" :style="{ width: rating.percentage + '%' }"></div>
+              </div>
+              <span class="w-6 text-right text-gray-600">{{ rating.count }}</span>
+            </div>
           </div>
         </div>
+
+        <!-- Form đánh giá -->
+        <form @submit.prevent="submitReview" class="flex-1 space-y-4">
+          <div class="flex justify-between items-center">
+            <h4 class="font-semibold text-sm text-gray-800">
+              {{ editingReviewId ? 'Chỉnh sửa đánh giá của bạn' : 'Gửi đánh giá sản phẩm' }}
+            </h4>
+            <button v-if="editingReviewId" type="button" class="text-xs text-gray-500 hover:text-red-500"
+              @click="cancelEdit">Huỷ</button>
+          </div>
+
+          <!-- Rating -->
+          <div class="space-y-1">
+            <label class="block text-xs text-gray-600 font-medium">Chọn số sao</label>
+            <div class="flex items-center gap-1">
+              <span v-for="star in 5" :key="star" class="cursor-pointer text-xl" @click="newReviewRating = star">
+                <span :class="newReviewRating >= star ? 'text-yellow-500' : 'text-gray-300'">★</span>
+              </span>
+              <span class="text-xs ml-2 text-gray-500">({{ newReviewRating }} / 5)</span>
+            </div>
+          </div>
+
+          <!-- Upload hình ảnh & video -->
+          <div class="flex flex-col gap-2">
+            <div class="flex gap-2 flex-wrap">
+              <!-- Chọn ảnh -->
+              <label for="review-upload"
+                class="inline-flex items-center gap-2 px-3 py-1.5 border border-gray-300 rounded bg-white cursor-pointer hover:bg-gray-50 text-xs">
+                <i class="fas fa-camera text-gray-500"></i>
+                <span>Chọn ảnh</span>
+                <input id="review-upload" type="file" accept="image/*" multiple class="hidden"
+                  @change="handleImageUpload" />
+              </label>
+
+              <!-- Chọn video -->
+              <label for="review-video-upload"
+                class="inline-flex items-center gap-2 px-3 py-1.5 border border-gray-300 rounded bg-white cursor-pointer hover:bg-gray-50 text-xs">
+                <i class="fas fa-video text-gray-500"></i>
+                <span>Chọn video</span>
+                <input id="review-video-upload" type="file" accept="video/*" multiple class="hidden"
+                  @change="handleVideoUpload" />
+              </label>
+            </div>
+
+            <!-- Preview ảnh -->
+            <div v-if="uploadedImages.length" class="flex gap-2 flex-wrap">
+              <div v-for="(file, i) in uploadedImages" :key="i"
+                class="relative w-16 h-16 border rounded overflow-hidden group">
+                <img :src="getImagePreview(file)" class="w-full h-full object-cover" />
+                <button type="button"
+                  class="absolute top-0 right-0 bg-black/60 text-white text-[10px] px-1 rounded hidden group-hover:block"
+                  @click="removeImage(i)">
+                  ×
+                </button>
+              </div>
+            </div>
+
+            <!-- Preview video -->
+            <div v-if="uploadedVideos.length" class="flex gap-2 flex-wrap">
+              <div v-for="(video, i) in uploadedVideos" :key="'video-' + i"
+                class="relative w-28 h-20 border rounded overflow-hidden group">
+                <video :src="getVideoPreview(video)" class="w-full h-full object-cover" controls></video>
+                <button type="button"
+                  class="absolute top-0 right-0 bg-black/60 text-white text-[10px] px-1 rounded hidden group-hover:block"
+                  @click="removeVideo(i)">
+                  ×
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Nội dung -->
+          <div class="space-y-1">
+            <label class="block text-xs text-gray-600 font-medium">Nội dung đánh giá</label>
+            <textarea v-model="newReviewComment" rows="5"
+              class="w-full border border-gray-300 rounded p-2 text-sm resize-none focus:outline-none focus:ring focus:ring-blue-100"
+              placeholder="Viết cảm nhận của bạn về sản phẩm..."></textarea>
+          </div>
+
+          <!-- Submit -->
+          <div class="flex justify-end">
+            <button type="submit"
+              class="px-4 py-2 text-sm bg-[#1BA0E2] hover:bg-[#1790cc] text-white rounded transition">
+              {{ editingReviewId ? 'Cập nhật đánh giá' : 'Gửi đánh giá' }}
+            </button>
+          </div>
+        </form>
       </div>
-
-      <!-- Form gửi hoặc sửa đánh giá -->
-      <form @submit.prevent="submitReview" class="flex-1 text-xs">
-        <p class="font-semibold mb-1">
-          {{ editingReviewId ? 'Chỉnh sửa đánh giá của bạn' : 'Bình luận - xem đánh giá' }}
-        </p>
-
-        <!-- Rating -->
-        <div class="flex items-center gap-1 mb-2">
-          <span v-for="star in 5" :key="star" class="cursor-pointer text-yellow-500 text-lg"
-            @click="newReviewRating = star">
-            <span v-if="newReviewRating >= star">★</span>
-            <span v-else class="text-gray-300">☆</span>
-          </span>
-        </div>
-
-        <!-- Nút chọn ảnh đẹp hơn -->
-        <label for="review-upload"
-          class="inline-flex items-center gap-2 px-3 py-1.5 border border-gray-300 rounded bg-white cursor-pointer hover:bg-gray-50 transition text-xs">
-          <i class="fas fa-camera text-gray-500"></i>
-          <span>Chọn ảnh</span>
-          <input id="review-upload" type="file" accept="image/*" multiple class="hidden" @change="handleImageUpload" />
-        </label>
-        <!-- Nút chọn video -->
-        <label for="review-video-upload"
-          class="inline-flex items-center gap-2 px-3 py-1.5 border border-gray-300 rounded bg-white cursor-pointer hover:bg-gray-50 transition text-xs mt-2">
-          <i class="fas fa-video text-gray-500"></i>
-          <span>Chọn video</span>
-          <input id="review-video-upload" type="file" accept="video/*" multiple class="hidden"
-            @change="handleVideoUpload" />
-        </label>
-
-
-        <!-- Xem trước ảnh đã chọn -->
-        <div class="flex gap-2 flex-wrap mt-2" v-if="uploadedImages.length">
-          <div v-for="(file, i) in uploadedImages" :key="i"
-            class="relative w-16 h-16 border rounded overflow-hidden group">
-            <img v-if="getImagePreview(file)" :src="getImagePreview(file)" class="w-full h-full object-cover" />
-            <button type="button"
-              class="absolute top-0 right-0 bg-black/60 text-white text-[10px] px-1 rounded hidden group-hover:block"
-              @click="removeImage(i)">
-              ×
-            </button>
-          </div>
-        </div>
-        <!-- Xem trước video đã chọn -->
-        <div class="flex gap-2 flex-wrap mt-2" v-if="uploadedVideos.length">
-          <div v-for="(video, i) in uploadedVideos" :key="'video-' + i"
-            class="relative w-28 h-20 border rounded overflow-hidden group">
-            <video :src="getVideoPreview(video)" class="w-full h-full object-cover" controls></video>
-            <button type="button"
-              class="absolute top-0 right-0 bg-black/60 text-white text-[10px] px-1 rounded hidden group-hover:block"
-              @click="removeVideo(i)">
-              ×
-            </button>
-          </div>
-        </div>
-
-        <textarea v-model="newReviewComment" class="w-full border border-gray-300 rounded p-2 resize-none" rows="6"
-          placeholder="Viết cảm nhận của bạn..."></textarea>
-
-        <div class="flex items-center gap-2 mt-2">
-          <button type="submit" class="px-3 py-1 text-xs border border-gray-300 rounded hover:bg-gray-100 transition">
-            {{ editingReviewId ? 'Cập nhật' : 'Gửi' }}
-          </button>
-          <button v-if="editingReviewId" type="button" class="text-gray-600 text-xs hover:underline"
-            @click="cancelEdit">
-            Huỷ chỉnh sửa
-          </button>
-        </div>
-      </form>
-
     </div>
+
     <!-- Bộ lọc -->
-    <div class="flex flex-wrap sm:flex-nowrap justify-between items-center text-xs mb-4 gap-2">
-      <h4 class="font-semibold">Bộ lọc đánh giá</h4>
-      <div class="flex flex-wrap gap-2 items-center">
-        <label class="text-gray-600">Sắp xếp:</label>
-        <select v-model="sortBy" class="border border-gray-300 rounded px-2 py-1 min-w-[100px]">
-          <option value="newest">Mới nhất</option>
-          <option value="oldest">Cũ nhất</option>
-        </select>
+    <div class="flex flex-wrap gap-2 my-6 items-center text-sm font-medium text-gray-700">
+      <button @click="filterStar = ''; filterByComment = false; filterByMedia = false" :class="[
+        filterStar === '' && !filterByComment && !filterByMedia
+          ? 'text-red-600 border-red-600'
+          : 'text-gray-600 border-gray-300',
+        'px-3 py-1.5 border rounded hover:bg-gray-100 transition'
+      ]">
+        Tất Cả
+      </button>
 
-        <label class="text-gray-600">Sao:</label>
-        <select v-model="filterStar" class="border border-gray-300 rounded px-2 py-1 min-w-[100px]">
-          <option value="">Tất cả sao</option>
-          <option v-for="n in 5" :key="n" :value="n">{{ n }} sao</option>
-        </select>
-      </div>
+      <button v-for="n in [5, 4, 3, 2, 1]" :key="n"
+        @click="filterStar = n; filterByComment = false; filterByMedia = false" :class="[
+          filterStar === n
+            ? 'text-red-600 border-red-600'
+            : 'text-gray-600 border-gray-300',
+          'px-3 py-1.5 border rounded hover:bg-gray-100 transition'
+        ]">
+        {{ n }} Sao ({{ getStarCount(n) }})
+      </button>
+
+      <button @click="filterByMedia = !filterByMedia" :class="[
+        filterByMedia
+          ? 'text-red-600 border-red-600'
+          : 'text-gray-600 border-gray-300',
+        'px-3 py-1.5 border rounded hover:bg-gray-100 transition'
+      ]">
+        Có Hình Ảnh / Video ({{ getMediaCount() }})
+      </button>
+
+      <button @click="sortBy = 'newest'" :class="[
+        sortBy === 'newest'
+          ? 'text-red-600 border-red-600'
+          : 'text-gray-600 border-gray-300',
+        'px-3 py-1.5 border rounded hover:bg-gray-100 transition text-xs'
+      ]">
+        Mới nhất
+      </button>
+
+      <button @click="sortBy = 'oldest'" :class="[
+        sortBy === 'oldest'
+          ? 'text-red-600 border-red-600'
+          : 'text-gray-600 border-gray-300',
+        'px-3 py-1.5 border rounded hover:bg-gray-100 transition text-xs'
+      ]">
+        Cũ nhất
+      </button>
     </div>
+
+
 
     <!-- Danh sách đánh giá -->
-    <template v-if="userId !== null">
-      <transition-group name="fade" tag="div" class="space-y-4">
-        <ReviewItem v-for="review in paginatedReviews" :key="`${review.id}-${refreshKey}`" :review="review"
-          :current-user-id="userId" @edit-review="startEdit" @delete-review="deleteReview" />
-      </transition-group>
-    </template>
+    <transition-group name="fade" tag="div" class="space-y-4">
+      <ReviewItem v-for="review in paginatedReviews" :key="`${review.id}-${refreshKey}`" :review="review"
+        :current-user-id="userId" @edit-review="startEdit" @delete-review="deleteReview" />
+    </transition-group>
+
 
 
 
@@ -159,6 +222,7 @@ const config = useRuntimeConfig()
 const apiBase = config.public.apiBaseUrl
 const mediaBase = config.public.mediaBaseUrl
 const refreshKey = ref(0)
+const filterByMedia = ref(false)
 
 
 const token = ref(null)
@@ -179,6 +243,26 @@ const uploadedVideos = ref([])
 const deletedImages = ref([])
 const deletedVideos = ref([])
 const reviewSection = ref(null)
+
+const getStarCount = (star) => {
+  return reviews.value.list.filter((r) => r.rating === star).length
+}
+
+const getMediaCount = () => {
+  return reviews.value.list.filter((r) => (r.images?.length || 0) > 0 || (r.videos?.length || 0) > 0).length
+}
+
+const fullRatings = computed(() => {
+  const rawRatings = reviews.value.summary.ratings || {}
+  const totalCount = reviews.value.summary.count || 0
+
+  return [5, 4, 3, 2, 1].map(star => {
+    const count = rawRatings[star] || 0
+    const percentage = totalCount > 0 ? Math.round((count / totalCount) * 100) : 0
+    return { stars: star, count, percentage }
+  })
+})
+
 
 const handleImageUpload = (event) => {
   const files = Array.from(event.target.files || [])
@@ -250,9 +334,14 @@ const fetchUser = async () => {
 
 onMounted(async () => {
   token.value = localStorage.getItem('access_token')
-  await fetchUser()
+
+  if (token.value) {
+    await fetchUser()
+  }
+
   await fetchReviews()
 })
+
 
 const sortBy = ref('newest')
 const filterStar = ref('')
@@ -261,6 +350,11 @@ const filteredAndSortedReviews = computed(() => {
   let list = [...reviews.value.list]
   if (filterStar.value) {
     list = list.filter(r => r.rating === Number(filterStar.value))
+  }
+  if (filterByMedia.value) {
+    list = list.filter(r =>
+      (r.images?.length || 0) > 0 || (r.videos?.length || 0) > 0
+    )
   }
   if (sortBy.value === 'newest') {
     list.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
@@ -301,13 +395,21 @@ const fetchReviews = async () => {
 
     const data = await res.json()
 
-    reviews.value.summary = structuredClone(data.summary)
+    console.log('✅ DATA trả về từ API:', data)
+
+    reviews.value.summary = {
+      ...data.summary,
+      ratings: data.summary.ratings || {} // giữ nguyên object
+    }
+
+
     reviews.value.list = structuredClone(data.list)
 
   } catch (err) {
     await showError('Lỗi lấy đánh giá', err.message)
   }
 }
+
 
 
 
@@ -417,7 +519,7 @@ const submitReview = async () => {
 
     if (!res.ok) {
       const firstError = Object.values(data.errors || {})[0]?.[0]
-      return showError('Lỗi', firstError || data.message || 'Có lỗi xảy ra')
+      return showError('', firstError || data.message || 'Có lỗi xảy ra')
     }
 
     // Sau khi gửi form thành công

@@ -20,9 +20,11 @@ export function useToast() {
     })
   }
 
-  const showError = async (message = 'Đã xảy ra lỗi', title = 'Lỗi') => {
-    toast('error', `${title}: ${message}`)
+  const showError = async (message = 'Đã xảy ra lỗi', title = '') => {
+    const fullMessage = title ? `${title} ${message}` : message
+    toast('error', fullMessage)
   }
+
 
   const showSuccess = async (message = 'Thành công') => {
     toast('success', message)
