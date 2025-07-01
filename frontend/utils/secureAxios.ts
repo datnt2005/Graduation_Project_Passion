@@ -24,7 +24,7 @@ export async function secureAxios<T = any>(
   if (!role) throw new Error('Không lấy được vai trò người dùng')
 
   if (allowedRoles.length && !allowedRoles.includes(role)) {
-    navigateTo('/unauthorized') // ⛔ Đuổi về trang không có quyền
+    navigateTo('/unauthorized') //  
     throw new Error('Bạn không có quyền truy cập')
   }
 

@@ -307,6 +307,7 @@ public function update(Request $request, User $user)
                 'status'  => 'sometimes|nullable|in:active,inactive,banned',
             ], [
                 'password.regex' => 'Mật khẩu phải chứa ít nhất 1 chữ hoa, 1 chữ thường, 1 số và 1 ký tự đặc biệt.',
+                'password.min' => 'Mật hàng phải có ít nhất 6 ký tự.',
                 'name.max' => 'Tên không được vượt quá 255 ký tự.',
                 'email.email' => 'Email không hợp lệ.',
                 'email.unique' => 'Email đã tồn tại.',
