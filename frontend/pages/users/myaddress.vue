@@ -35,9 +35,23 @@
                 </span>
               </h3>
               <div class="flex gap-4 text-sm font-medium">
-                <NuxtLink :to="`/users/add_address?id=${address.id}`" class="text-blue-600 hover:text-blue-800">
+                <NuxtLink :to="{
+                  path: '/users/add_address',
+                  query: {
+                    id: address.id,
+                    name: address.name,
+                    phone: address.phone,
+                    detail: address.detail,
+                    province_id: address.province_id,
+                    district_id: address.district_id,
+                    ward_code: address.ward_code,
+                    address_type: address.address_type,
+                    is_default: address.is_default
+                  }
+                }" class="text-blue-600 hover:text-blue-800">
                   Chỉnh sửa
                 </NuxtLink>
+
                 <button class="text-red-500 hover:text-red-700" @click="deleteAddress(address.id)"
                   aria-label="Xoá địa chỉ">
                   Xoá
@@ -67,15 +81,18 @@
 import SidebarProfile from '~/components/shared/layouts/Sidebar-profile.vue'
 import { ref, onMounted } from 'vue'
 import { useRuntimeConfig } from '#app'
-import Swal from 'sweetalert2'
 import axios from 'axios'
 import { useAuthHeaders } from '~/composables/useAuthHeaders'
 import { useAddressForm } from '~/composables/useAddressForm'
+import { useToast } from '~/composables/useToast'
+import Swal from 'sweetalert2'
+
+
+const { showSuccess, showError } = useToast()
 
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBaseUrl
 
-// Khởi tạo form tỉnh / quận / xã
 const {
   provinces,
   districts,
@@ -87,31 +104,20 @@ const {
 
 const addresses = ref([])
 
-const Toast = Swal.mixin({
-  toast: true,
-  position: 'top-end',
-  showConfirmButton: false,
-  timer: 2000,
-  timerProgressBar: true,
-})
-
-
 const loadAddresses = async () => {
   try {
     const res = await axios.get(`${apiBase}/address`, useAuthHeaders())
     addresses.value = res.data.data || []
 
-    // Lấy danh sách các tỉnh đã có
     const provinceIds = [...new Set(addresses.value.map(a => a.province_id))]
     const districtIds = [...new Set(addresses.value.map(a => a.district_id))]
 
-    // Tải tất cả quận/huyện theo tỉnh
     for (const pid of provinceIds) {
       const resDistricts = await axios.post(`${apiBase}/ghn/districts`, {
         province_id: pid
       }, useAuthHeaders())
+
       if (Array.isArray(resDistricts.data.data)) {
-        // Tránh trùng lặp
         const newDistricts = resDistricts.data.data.filter(
           d => !districts.value.find(existing => existing.DistrictID === d.DistrictID)
         )
@@ -119,11 +125,11 @@ const loadAddresses = async () => {
       }
     }
 
-    // Tải tất cả phường/xã theo quận
     for (const did of districtIds) {
       const resWards = await axios.post(`${apiBase}/ghn/wards`, {
         district_id: did
       }, useAuthHeaders())
+
       if (Array.isArray(resWards.data.data)) {
         const newWards = resWards.data.data.filter(
           w => !wards.value.find(existing => existing.WardCode === w.WardCode)
@@ -132,10 +138,9 @@ const loadAddresses = async () => {
       }
     }
   } catch (e) {
-    Toast.fire({ icon: 'error', title: 'Không thể tải địa chỉ' })
+    showError('Không thể tải địa chỉ')
   }
 }
-
 
 const getProvinceName = (province_id) => {
   const p = provinces.value.find(p => p.ProvinceID == province_id)
@@ -152,8 +157,6 @@ const getWardName = (ward_code, district_id) => {
   return w ? w.WardName : ''
 }
 
-
-
 const deleteAddress = async (id) => {
   const confirm = await Swal.fire({
     title: 'Xoá địa chỉ?',
@@ -163,22 +166,24 @@ const deleteAddress = async (id) => {
     confirmButtonText: 'Xoá',
     cancelButtonText: 'Huỷ',
   })
+
   if (!confirm.isConfirmed) return
 
   try {
     await axios.delete(`${apiBase}/address/${id}`, useAuthHeaders())
-    Toast.fire({ icon: 'success', title: 'Đã xoá thành công' })
+    showSuccess('Đã xoá thành công')
     await loadAddresses()
   } catch (e) {
-    Toast.fire({ icon: 'error', title: 'Không thể xoá địa chỉ' })
+    showError('Không thể xoá địa chỉ')
   }
 }
 
 onMounted(() => {
   loadAddresses()
-  loadProvinces() // Đừng quên dòng này
+  loadProvinces()
 })
 </script>
+
 
 
 
