@@ -21,8 +21,8 @@
                   d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-
           </div>
+
           <h2 class="text-3xl font-extrabold text-green-600 mb-3 animate-fade-in">Thanh Toán Thành Công!</h2>
           <p class="text-gray-600 mb-6 text-lg">Cảm ơn bạn đã mua hàng. Bạn sẽ được chuyển về trang chủ sau {{ countdown
             }} giây.</p>

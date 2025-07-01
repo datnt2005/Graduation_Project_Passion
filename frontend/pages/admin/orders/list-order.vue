@@ -243,6 +243,7 @@
 <script setup>
 import { ref, onMounted, computed, onUnmounted } from 'vue';
 import axios from 'axios';
+import { secureAxios } from '@/utils/secureAxios'
 
 definePageMeta({
     layout: 'default-admin'
@@ -304,8 +305,8 @@ const fetchOrders = async () => {
             page: currentPage.value,
             per_page: perPage.value
         };
-        
-        const response = await axios.get('http://localhost:8000/api/orders', { params });
+         
+        const response = await secureAxios('http://localhost:8000/api/orders', { params } ['admin']);
         
         // Format the orders data if needed
         orders.value = response.data.data.map(order => ({
@@ -382,9 +383,10 @@ const confirmUpdateStatus = async () => {
 
     try {
         loading.value = true;
-        const response = await axios.put(`http://localhost:8000/api/orders/${orderToUpdate.value.id}`, {
-            status: newStatus.value
-        });
+            await secureAxios(`http://localhost:8000/api/orders/${orderToUpdate.value.id}`, {
+          method: 'PUT',
+          data: { status: newStatus.value }
+        }, ['admin', 'seller'])
 
         if (response.data.success) {
             showNotification(response.data.status_message || 'Cập nhật trạng thái thành công', true);

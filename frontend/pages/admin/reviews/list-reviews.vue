@@ -130,6 +130,7 @@ import axios from 'axios'
 import { useRuntimeConfig } from '#app'
 import { useNotification } from '~/composables/useNotification'
 definePageMeta({ layout: 'default-admin' })
+import { secureAxios } from '@/utils/secureAxios'
 
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBaseUrl
@@ -198,19 +199,17 @@ async function deleteReview(id) {
 
 
 onMounted(async () => {
-    try {
-        const token = localStorage.getItem('access_token')
-        const res = await axios.get(`${apiBase}/admin/reviews`, {
-            headers: { Authorization: `Bearer ${token}` }
-        })
-        allReviews.value = res.data.data
-        applyFilters() // Áp dụng lọc ban đầu
-    } catch (e) {
-        console.error('Lỗi khi tải danh sách đánh giá:', e)
-    } finally {
-        loading.value = false
-    }
+  try {
+    const res = await secureAxios(`${apiBase}/admin/reviews`, {}, ['admin'])
+    allReviews.value = res.data.data
+    applyFilters()  
+  } catch (e) {
+    console.error('Lỗi khi tải danh sách đánh giá:', e)
+  } finally {
+    loading.value = false
+  }
 })
+
 
 function applyFilters() {
     let filtered = [...allReviews.value]

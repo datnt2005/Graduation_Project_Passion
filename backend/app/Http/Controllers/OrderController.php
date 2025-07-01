@@ -312,8 +312,14 @@ class OrderController extends Controller
     public function show(string $id)
     {
         try {
-            $order = Order::with(['orderItems.product', 'orderItems.productVariant', 'user', 'address', 'payments.paymentMethod'])
-                ->findOrFail($id);
+          $order = Order::with([
+            'orderItems.product',
+            'orderItems.productVariant',
+            'user',
+            'address',
+            'payments.paymentMethod'
+        ])->findOrFail($id);
+
 
             return response()->json([
                 'data' => $this->formatOrderResponse($order)
@@ -506,8 +512,13 @@ class OrderController extends Controller
             ],
             'address' => [
                 'id' => $order->address->id,
-                'address' => $order->address->address,
+                'name' => $order->address->name,
                 'phone' => $order->address->phone,
+                'province_id' => $order->address->province_id,
+                'district_id' => $order->address->district_id,
+                'ward_code' => $order->address->ward_code,
+                'detail' => $order->address->detail,
+
             ],
             'note' => $order->note ?? '',
             'status' => $order->status,

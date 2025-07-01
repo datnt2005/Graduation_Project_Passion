@@ -412,6 +412,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
+import { secureFetch } from '@/utils/secureFetch' 
 
 definePageMeta({
   layout: 'default-admin'
@@ -440,7 +441,7 @@ const confirmAction = ref(null);
 // Fetch coupons from API
 const fetchCoupons = async () => {
   try {
-    const response = await fetch('http://localhost:8000/api/discounts');
+    const response = await secureFetch('http://localhost:8000/api/discounts', {}, ['admin']);
     const data = await response.json();
     coupons.value = data.data;
     totalCoupons.value = data.data.length;

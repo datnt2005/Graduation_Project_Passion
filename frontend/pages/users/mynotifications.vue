@@ -1,6 +1,6 @@
 <template>
     <div class="bg-[#f5f7fa] font-sans text-[#1a1a1a]">
-        <div class="min-h-screen flex flex-col md:flex-row max-w-[1200px] mx-auto p-4 sm:p-6">
+    <div class="flex flex-col md:flex-row max-w-screen-2xl mx-auto px-4 sm:px-6 py-6 gap-6">
             <SidebarProfile class="flex-shrink-0 border-r border-gray-200" />
 
             <main class="flex-1 p-4 sm:p-6 overflow-y-auto">
@@ -118,6 +118,9 @@
 <script setup>
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import SidebarProfile from '~/components/shared/layouts/Sidebar-profile.vue'
+import { useToast } from '~/composables/useToast'
+
+const { showError, showSuccess } = useToast()
 
 const api = useRuntimeConfig().public.apiBaseUrl
 const notifications = ref([])
@@ -126,159 +129,171 @@ const showDropdown = ref(false)
 const selectedNotificationIds = ref([])
 
 const toggleDropdown = () => {
-    showDropdown.value = !showDropdown.value
+  showDropdown.value = !showDropdown.value
 }
 
 const handleClickOutside = (e) => {
-    if (showDropdown.value && !e.target.closest('.relative.inline-block')) {
-        showDropdown.value = false
-    }
+  if (showDropdown.value && !e.target.closest('.relative.inline-block')) {
+    showDropdown.value = false
+  }
 }
 
 const selectAll = ref(false)
 
-// Khi checkbox "Chọn tất cả" thay đổi
+watch(selectedNotificationIds, (newVal) => {
+  selectAll.value = newVal.length === notifications.value.length
+})
+
 const toggleSelectAll = () => {
-  if (selectAll.value) {
-    selectedNotificationIds.value = notifications.value.map(item => item.id)
-  } else {
-    selectedNotificationIds.value = []
-  }
+  selectAll.value
+    ? selectedNotificationIds.value = notifications.value.map(item => item.id)
+    : selectedNotificationIds.value = []
 }
 
-// Đồng bộ lại checkbox chọn tất cả nếu user chọn thủ công từng item
-watch(selectedNotificationIds, (newVal) => {
-  if (newVal.length === notifications.value.length) {
-    selectAll.value = true
-  } else {
-    selectAll.value = false
-  }
-})
-
-
 onMounted(() => {
-    fetchNotifications()
-    document.addEventListener('click', handleClickOutside)
+  fetchNotifications()
+  document.addEventListener('click', handleClickOutside)
 })
+
 onUnmounted(() => {
-    document.removeEventListener('click', handleClickOutside)
+  document.removeEventListener('click', handleClickOutside)
 })
 
 const fetchNotifications = async () => {
-    try {
-        const token = localStorage.getItem('access_token')
-        if (!token) return
-
-        const res = await fetch(`${api}/my-notifications`, {
-            headers: { Authorization: `Bearer ${token}` }
-        })
-
-        const data = await res.json()
-        if (data?.data) {
-            notifications.value = data.data
-            unreadCount.value = data.data.filter(n => !n.is_read).length
-        }
-    } catch (e) {
-        console.error('Lỗi khi lấy thông báo:', e)
-    }
-}
-
-const handleNotificationClick = async (item) => {
-    try {
-        const token = localStorage.getItem('access_token')
-        if (!token) return
-
-        if (item.is_read === 0) {
-            await fetch(`${api}/notifications/${item.id}/read`, {
-                method: 'POST',
-                headers: { Authorization: `Bearer ${token}` }
-            })
-            item.is_read = 1
-            unreadCount.value = notifications.value.filter(n => !n.is_read).length
-        }
-
-        if (item.link) {
-            window.location.href = item.link
-        }
-    } catch (err) {
-        console.error('Lỗi khi xử lý thông báo:', err)
-    }
-}
-
-const markAllAsRead = async () => {
+  try {
     const token = localStorage.getItem('access_token')
     if (!token) return
 
+    const res = await fetch(`${api}/my-notifications`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+
+    const data = await res.json()
+    if (data?.data) {
+      notifications.value = data.data
+      unreadCount.value = data.data.filter(n => !n.is_read).length
+    }
+  } catch (e) {
+    showError('Không thể lấy thông báo')
+  }
+}
+
+const handleNotificationClick = async (item) => {
+  try {
+    const token = localStorage.getItem('access_token')
+    if (!token) return
+
+    if (item.is_read === 0) {
+      await fetch(`${api}/notifications/${item.id}/read`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      item.is_read = 1
+      unreadCount.value = notifications.value.filter(n => !n.is_read).length
+    }
+
+    if (item.link) {
+      window.location.href = item.link
+    }
+  } catch (err) {
+    showError('Không thể xử lý thông báo')
+  }
+}
+
+const markAllAsRead = async () => {
+  const token = localStorage.getItem('access_token')
+  if (!token) return
+
+  try {
     await Promise.all(notifications.value.map(item =>
-        fetch(`${api}/notifications/${item.id}/read`, {
-            method: 'POST', headers: { Authorization: `Bearer ${token}` }
-        })
+      fetch(`${api}/notifications/${item.id}/read`, {
+        method: 'POST', headers: { Authorization: `Bearer ${token}` }
+      })
     ))
 
     notifications.value.forEach(item => item.is_read = 1)
     unreadCount.value = 0
+    showSuccess('Đã đánh dấu tất cả là đã đọc')
+  } catch (err) {
+    showError('Không thể đánh dấu tất cả là đã đọc')
+  }
 }
 
 const deleteAllNotifications = async () => {
-    const token = localStorage.getItem('access_token')
-    if (!token) return
+  const token = localStorage.getItem('access_token')
+  if (!token) return
 
+  try {
     await Promise.all(notifications.value.map(item =>
-        fetch(`${api}/notifications/${item.id}`, {
-            method: 'DELETE', headers: { Authorization: `Bearer ${token}` }
-        })
+      fetch(`${api}/notifications/${item.id}`, {
+        method: 'DELETE', headers: { Authorization: `Bearer ${token}` }
+      })
     ))
 
     notifications.value = []
     selectedNotificationIds.value = []
     unreadCount.value = 0
+    showSuccess('Đã xóa tất cả thông báo')
+  } catch (err) {
+    showError('Không thể xóa tất cả thông báo')
+  }
 }
 
 const markSelectedAsRead = async () => {
-    const token = localStorage.getItem('access_token')
-    if (!token) return
+  const token = localStorage.getItem('access_token')
+  if (!token) return
 
+  try {
     await Promise.all(selectedNotificationIds.value.map(id =>
-        fetch(`${api}/notifications/${id}/read`, {
-            method: 'POST', headers: { Authorization: `Bearer ${token}` }
-        })
+      fetch(`${api}/notifications/${id}/read`, {
+        method: 'POST', headers: { Authorization: `Bearer ${token}` }
+      })
     ))
 
     notifications.value.forEach(item => {
-        if (selectedNotificationIds.value.includes(item.id)) {
-            item.is_read = 1
-        }
+      if (selectedNotificationIds.value.includes(item.id)) {
+        item.is_read = 1
+      }
     })
     unreadCount.value = notifications.value.filter(n => !n.is_read).length
     selectedNotificationIds.value = []
+    showSuccess('Đã đánh dấu đã đọc')
+  } catch (err) {
+    showError('Không thể đánh dấu đã đọc')
+  }
 }
 
 const deleteSelectedNotifications = async () => {
-    const token = localStorage.getItem('access_token')
-    if (!token || selectedNotificationIds.value.length === 0) return
+  const token = localStorage.getItem('access_token')
+  if (!token || selectedNotificationIds.value.length === 0) return
 
+  try {
     await fetch(`${api}/notifications/delete-multiple`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ ids: selectedNotificationIds.value })
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ ids: selectedNotificationIds.value })
     })
 
     notifications.value = notifications.value.filter(
-        item => !selectedNotificationIds.value.includes(item.id)
+      item => !selectedNotificationIds.value.includes(item.id)
     )
     selectedNotificationIds.value = []
     unreadCount.value = notifications.value.filter(n => !n.is_read).length
+    showSuccess('Đã xóa thông báo đã chọn')
+  } catch (err) {
+    showError('Không thể xóa thông báo đã chọn')
+  }
 }
-
 
 const stripHTML = (html) => {
-    const div = document.createElement('div')
-    div.innerHTML = html
-    return div.textContent || div.innerText || ''
+  const div = document.createElement('div')
+  div.innerHTML = html
+  return div.textContent || div.innerText || ''
 }
 </script>
+
 
 <style scoped></style>

@@ -163,6 +163,7 @@ import { ref, onMounted } from 'vue';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import { navigateTo } from '#app';
+import { secureAxios } from '@/utils/secureAxios'
 
 const config = useRuntimeConfig();
 const API = config.public.apiBaseUrl;
@@ -188,9 +189,8 @@ onMounted(async () => {
       return;
     }
 
-    const { data } = await axios.get(`${API}/sellers/seller/me`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+  const { data } = await secureAxios(`${API}/sellers/seller/me`, {}, ['seller'])
+
 
     seller.value = data.seller;
   } catch (error) {
