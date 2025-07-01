@@ -141,7 +141,18 @@
             Đánh giá
           </NuxtLink>
         </li>
-
+        <li>
+          <NuxtLink to="/admin/reports/reviews/list-reports"
+            class="flex items-center px-4 py-2 hover:bg-gray-800 gap-3 rounded"
+            :class="route.path.startsWith('/admin/reports/reviews') ? 'bg-gray-800 text-green-400 font-bold' : 'text-white'"
+            @click="$emit('close')">
+            <svg class="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+            </svg>
+            Đánh giá bị báo cáo
+          </NuxtLink>
+        </li>
         <!-- Bài viết -->
         <li class="pt-2 border-t border-gray-800">
           <NuxtLink to="#" class="flex items-center px-4 py-2 hover:bg-gray-800 gap-3 rounded" @click="$emit('close')">
@@ -208,6 +219,7 @@ import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 defineProps({ show: Boolean })
 defineEmits(['close'])
+
 
 const route = useRoute()
 

@@ -1,6 +1,6 @@
 <template>
   <div class="bg-[#f5f7fa] font-sans text-[#1a1a1a]">
-    <div class="min-h-screen flex flex-col md:flex-row max-w-[1200px] mx-auto p-4 sm:p-6">
+    <div class="flex flex-col md:flex-row max-w-screen-2xl mx-auto px-4 sm:px-6 py-6 gap-6">
       <SidebarProfile class="flex-shrink-0 border-r border-gray-200" />
 
       <main class="flex-1 p-4 sm:p-6 overflow-y-auto">
@@ -159,13 +159,14 @@ import SidebarProfile from '~/components/shared/layouts/Sidebar-profile.vue'
 import { onMounted, computed } from 'vue'
 import axios from 'axios'
 import { useAuthHeaders } from '~/composables/useAuthHeaders'
+import { useToast } from '~/composables/useToast'
 
+const { showSuccess, showError } = useToast()
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBaseUrl
 const route = useRoute()
 const router = useRouter()
 
-// Nếu có user_id thì truyền vào đây (tuỳ theo bạn lưu user thế nào)
 const user_id = useCookie('user_id')?.value || null
 
 const {
@@ -173,50 +174,63 @@ const {
   provinces,
   districts,
   wards,
-  Toast,
   loadProvinces,
-  loadDistricts,  // thêm dòng này
-  loadWards       // thêm dòng này
+  loadDistricts,
+  loadWards
 } = useAddressForm(apiBase, user_id)
-
 
 const isEditMode = !!route.query.id
 const id = route.query.id
 
 const loadAddressToEdit = async () => {
   try {
-    const res = await axios.get(`${apiBase}/address/${id}`, useAuthHeaders())
-    const data = res.data.data
+    const query = route.query
 
-    // Gán dữ liệu cơ bản
-    addressForm.value = {
-      user_id: data.user_id,
-      name: data.name,
-      phone: data.phone,
-      province_id: data.province_id,
-      district_id: '', // reset
-      ward_code: '',
-      detail: data.detail,
-      address_type: data.address_type || 'home',
-      isDefault: data.is_default === 1,
+    // Nếu đã truyền đủ thông tin từ route.query thì dùng
+    if (query.province_id && query.district_id && query.ward_code) {
+      const provinceId = +query.province_id
+      const districtId = +query.district_id
+
+      addressForm.value = {
+        user_id: user_id,
+        name: query.name,
+        phone: query.phone,
+        detail: query.detail,
+        province_id: provinceId,
+        district_id: districtId,
+        ward_code: query.ward_code,
+        address_type: query.address_type || 'home',
+        isDefault: +query.is_default === 1
+      }
+
+      await loadDistricts(provinceId)
+      await loadWards(districtId)
+
+    } else {
+      // fallback: gọi API nếu thiếu thông tin
+      const res = await axios.get(`${apiBase}/address/${id}`, useAuthHeaders())
+      const data = res.data.data
+
+      addressForm.value = {
+        user_id: data.user_id,
+        name: data.name,
+        phone: data.phone,
+        detail: data.detail,
+        province_id: data.province_id,
+        district_id: data.district_id,
+        ward_code: data.ward_code,
+        address_type: data.address_type || 'home',
+        isDefault: data.is_default === 1
+      }
+
+      await loadDistricts(data.province_id)
+      await loadWards(data.district_id)
     }
 
-    // ✅ Load quận/huyện theo tỉnh và gán lại district_id
-    await loadDistricts(data.province_id)
-    addressForm.value.district_id = data.district_id
-
-    // ✅ Load xã/phường theo quận và gán lại ward_code
-    await loadWards(data.district_id)
-    addressForm.value.ward_code = data.ward_code
-
-  } catch (e) {
-    console.error(e)
-    Toast.fire({ icon: 'error', title: 'Không tải được địa chỉ' })
+  } catch (err) {
+    showError('Không tải được địa chỉ để chỉnh sửa.')
   }
 }
-
-
-
 
 const saveAddress = async () => {
   const payload = {
@@ -227,15 +241,14 @@ const saveAddress = async () => {
   try {
     if (isEditMode) {
       await axios.put(`${apiBase}/address/${id}`, payload, useAuthHeaders())
-      Toast.fire({ icon: 'success', title: 'Cập nhật địa chỉ thành công!' })
+      showSuccess('Cập nhật địa chỉ thành công!')
     } else {
       await axios.post(`${apiBase}/address`, payload, useAuthHeaders())
-      Toast.fire({ icon: 'success', title: 'Thêm địa chỉ thành công!' })
+      showSuccess('Thêm địa chỉ thành công!')
     }
     router.push('/users/myaddress')
   } catch (e) {
-    console.error(e)
-    Toast.fire({ icon: 'error', title: 'Thất bại. Kiểm tra dữ liệu nhập.' })
+    showError('Thất bại. Kiểm tra dữ liệu nhập.')
   }
 }
 
@@ -243,7 +256,6 @@ const goBack = () => {
   router.back()
 }
 
-// Hàm helper hiển thị tên tỉnh/huyện/xã (nếu cần dùng ở nơi khác như myaddress.vue)
 const getProvinceName = (id) => {
   const item = provinces.value.find(p => p.ProvinceID === id)
   return item?.ProvinceName || ''
@@ -257,7 +269,6 @@ const getWardName = (code) => {
   return item?.WardName || ''
 }
 
-// Đăng ký các hàm này nếu component cha cần dùng (expose)
 defineExpose({
   getProvinceName,
   getDistrictName,
@@ -266,7 +277,11 @@ defineExpose({
 
 onMounted(async () => {
   await loadProvinces()
-  if (isEditMode) await loadAddressToEdit()
+
+  if (isEditMode) {
+    await loadAddressToEdit()
+  }
 })
+
 </script>
 

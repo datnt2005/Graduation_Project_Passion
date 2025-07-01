@@ -41,7 +41,6 @@
           <option value="">Hành động hàng loạt</option>
           <option value="delete">Xóa</option>
           <option value="set_admin">Đặt làm quản trị viên</option>
-          <option value="set_editor">Đặt làm biên tập viên</option>
           <option value="set_shop_manager">Đặt làm quản lý cửa hàng</option>
         </select>
         <button @click="applyBulkAction" :disabled="!selectedAction || selectedUsers.length === 0 || loading" :class="[(!selectedAction || selectedUsers.length === 0 || loading) 
@@ -54,7 +53,6 @@
           class="rounded-md border border-gray-300 py-1.5 pl-3 pr-8 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
           <option value="">Tất cả vai trò</option>
           <option value="admin">Quản trị viên</option>
-          <option value="editor">Biên tập viên</option>
           <option value="seller">Quản lý cửa hàng</option>
           <option value="user">Người dùng</option>
         </select>

@@ -1,5 +1,5 @@
 <template>
-  <section ref="reviewSection" class="w-full mb-12 py-6 bg-gray-50">
+  <section class="w-full mb-12 py-6 bg-gray-50">
     <h3 class="text-sm font-semibold mb-4">Khách hàng đánh giá</h3>
     <div class="flex flex-col sm:flex-row gap-4 mb-4">
       <!-- Tổng quan -->
@@ -43,6 +43,15 @@
           <span>Chọn ảnh</span>
           <input id="review-upload" type="file" accept="image/*" multiple class="hidden" @change="handleImageUpload" />
         </label>
+        <!-- Nút chọn video -->
+        <label for="review-video-upload"
+          class="inline-flex items-center gap-2 px-3 py-1.5 border border-gray-300 rounded bg-white cursor-pointer hover:bg-gray-50 transition text-xs mt-2">
+          <i class="fas fa-video text-gray-500"></i>
+          <span>Chọn video</span>
+          <input id="review-video-upload" type="file" accept="video/*" multiple class="hidden"
+            @change="handleVideoUpload" />
+        </label>
+
 
         <!-- Xem trước ảnh đã chọn -->
         <div class="flex gap-2 flex-wrap mt-2" v-if="uploadedImages.length">
@@ -56,6 +65,19 @@
             </button>
           </div>
         </div>
+        <!-- Xem trước video đã chọn -->
+        <div class="flex gap-2 flex-wrap mt-2" v-if="uploadedVideos.length">
+          <div v-for="(video, i) in uploadedVideos" :key="'video-' + i"
+            class="relative w-28 h-20 border rounded overflow-hidden group">
+            <video :src="getVideoPreview(video)" class="w-full h-full object-cover" controls></video>
+            <button type="button"
+              class="absolute top-0 right-0 bg-black/60 text-white text-[10px] px-1 rounded hidden group-hover:block"
+              @click="removeVideo(i)">
+              ×
+            </button>
+          </div>
+        </div>
+
         <textarea v-model="newReviewComment" class="w-full border border-gray-300 rounded p-2 resize-none" rows="6"
           placeholder="Viết cảm nhận của bạn..."></textarea>
 
@@ -90,10 +112,14 @@
     </div>
 
     <!-- Danh sách đánh giá -->
-    <transition-group name="fade" tag="div" class="space-y-4">
-      <ReviewItem v-for="review in paginatedReviews" :key="review.id" :review="review" @edit-review="startEdit"
-        @delete-review="deleteReview" />
-    </transition-group>
+    <template v-if="userId !== null">
+      <transition-group name="fade" tag="div" class="space-y-4">
+        <ReviewItem v-for="review in paginatedReviews" :key="`${review.id}-${refreshKey}`" :review="review"
+          :current-user-id="userId" @edit-review="startEdit" @delete-review="deleteReview" />
+      </transition-group>
+    </template>
+
+
 
     <!-- Pagination -->
     <nav class="mt-6 flex justify-center items-center gap-3 text-xs text-gray-700 select-none">
@@ -115,13 +141,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
-import Swal from 'sweetalert2';
-import ReviewItem from './ReviewItem.vue';
-import { watch } from 'vue';
-import { nextTick } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import ReviewItem from './ReviewItem.vue'
+import { useRuntimeConfig } from '#app'
+import { useToast } from '~/composables/useToast'
 
-
+const { toast, showError, showConfirm } = useToast()
 
 const props = defineProps({
   productId: {
@@ -130,106 +155,107 @@ const props = defineProps({
   }
 })
 
+const config = useRuntimeConfig()
+const apiBase = config.public.apiBaseUrl
+const mediaBase = config.public.mediaBaseUrl
+const refreshKey = ref(0)
 
 
+const token = ref(null)
+const userId = ref(null)
 
-// ======= THÔNG BÁO TOAST THÀNH CÔNG =======
-const Toast = Swal.mixin({
-  toast: true,
-  position: 'top-end',
-  showConfirmButton: false,
-  timer: 2000,
-  timerProgressBar: true,
-});
+const currentUserId = computed(() => userId.value || null)
 
-// ======= THÔNG BÁO LỖI CHUNG =======
-const showError = async (title = 'Lỗi', message = 'Đã xảy ra lỗi.') => {
-  await Swal.fire({
-    icon: 'error',
-    title,
-    text: message,
-  });
-};
-
-// ======= BIẾN =======
 const reviews = ref({
   summary: { rating: 0, count: 0, ratings: [] },
   list: [],
-});
+})
 
-const newReviewRating = ref(0);
-const newReviewComment = ref('');
-const editingReviewId = ref(null);
-const reviewSection = ref(null);
+const newReviewRating = ref(0)
+const newReviewComment = ref('')
+const editingReviewId = ref(null)
+const uploadedImages = ref([])
+const uploadedVideos = ref([])
+const deletedImages = ref([])
+const deletedVideos = ref([])
+const reviewSection = ref(null)
 
-const uploadedImages = ref([]); // ← Biến lưu ảnh đang hiển thị trong form
-// ← Biến lưu ID ảnh cũ bị xóa
 const handleImageUpload = (event) => {
-  const files = Array.from(event.target.files || []);
+  const files = Array.from(event.target.files || [])
 
   const newFiles = files.map(file => ({
     isExisting: false,
     file: file,
-  }));
+  }))
 
-  uploadedImages.value.push(...newFiles);
-};
+  uploadedImages.value.push(...newFiles)
+}
+
+const handleVideoUpload = (event) => {
+  const files = Array.from(event.target.files || [])
+  const newFiles = files.map(file => ({
+    file,
+    isExisting: false,
+  }))
+  uploadedVideos.value.push(...newFiles)
+}
 
 const getImagePreview = (file) => {
-  if (file.isExisting) return file.url;
+  if (file.isExisting) return file.url
   if (file.file instanceof File) {
     try {
-      return URL.createObjectURL(file.file);
+      return URL.createObjectURL(file.file)
     } catch {
-      return null;
+      return null
     }
   }
-  return null;
-};
+  return null
+}
 
+const getVideoPreview = (file) => {
+  if (file.isExisting) return file.url
+  if (file.file instanceof File) {
+    try {
+      return URL.createObjectURL(file.file)
+    } catch {
+      return null
+    }
+  }
+  return null
+}
 
-
-// ======= BIẾN BẢO MẬT ĐƯỜNG LINK =======
-const config = useRuntimeConfig();
-const apiBase = config.public.apiBaseUrl;
-const mediaBase = config.public.mediaBaseUrl;
-
-const userId = ref(null);
-const token = ref(null); // ban đầu null
 
 const fetchUser = async () => {
   try {
-    if (!token.value) return;
+    if (!token.value) return
 
     const res = await fetch(`${apiBase}/me`, {
       headers: {
         Authorization: `Bearer ${token.value}`,
       },
-    });
+    })
 
-    if (!res.ok) throw new Error('Lỗi khi lấy thông tin người dùng');
+    if (!res.ok) throw new Error('Lỗi khi lấy thông tin người dùng')
 
-    const json = await res.json();
+    const json = await res.json()
     if (json && json.data) {
-      userId.value = json.data.id;
+      userId.value = json.data.id
     } else {
-      throw new Error('Không có dữ liệu người dùng');
+      throw new Error('Không có dữ liệu người dùng')
     }
   } catch (err) {
-    await showError('Lỗi lấy thông tin người dùng', err.message);
+    await showError('Lỗi lấy thông tin người dùng', err.message)
   }
-};
+}
 
 onMounted(async () => {
-  token.value = localStorage.getItem('access_token');
+  token.value = localStorage.getItem('access_token')
+  await fetchUser()
+  await fetchReviews()
+})
 
-  await fetchUser();
-  await fetchReviews();
-});
-
-// Filter + sort
-const sortBy = ref('newest') // 'newest' | 'oldest'
-const filterStar = ref('') // '' hoặc số 1-5
+const sortBy = ref('newest')
+const filterStar = ref('')
 
 const filteredAndSortedReviews = computed(() => {
   let list = [...reviews.value.list]
@@ -244,55 +270,56 @@ const filteredAndSortedReviews = computed(() => {
   return list
 })
 
-// ======= PHÂN TRANG =======
-const currentPage = ref(1);
-const itemsPerPage = 3;
+const currentPage = ref(1)
+const itemsPerPage = 3
 
 watch([sortBy, filterStar], async () => {
-  currentPage.value = 1;
-
-  await nextTick(); // đợi DOM cập nhật lại sau khi sort/filter
+  currentPage.value = 1
+  await nextTick()
   if (reviewSection.value) {
-    reviewSection.value.scrollIntoView({ behavior: 'smooth' });
+    reviewSection.value.scrollIntoView({ behavior: 'smooth' })
   }
-});
+})
 
 const totalPages = computed(() =>
   Math.ceil(filteredAndSortedReviews.value.length / itemsPerPage)
-);
+)
 
 const paginatedReviews = computed(() => {
-  const start = (currentPage.value - 1) * itemsPerPage;
-  return filteredAndSortedReviews.value.slice(start, start + itemsPerPage);
-});
+  const start = (currentPage.value - 1) * itemsPerPage
+  return filteredAndSortedReviews.value.slice(start, start + itemsPerPage)
+})
 
-
-// ======= KIỂM TRA ĐÃ ĐÁNH GIÁ CHƯA =======
 const hasUserReviewed = computed(() => {
-  return reviews.value.list.some((r) => r.user_id === userId.value);
-});
+  return reviews.value.list.some((r) => r.user_id === userId.value)
+})
 
-// ======= LẤY DANH SÁCH ĐÁNH GIÁ =======
 const fetchReviews = async () => {
   try {
-    const res = await fetch(`${apiBase}/reviews?product_id=${props.productId}`);
-    if (!res.ok) throw new Error('Lỗi khi lấy đánh giá');
-    reviews.value = await res.json();
+    const res = await fetch(`${apiBase}/reviews?product_id=${props.productId}`)
+    if (!res.ok) throw new Error('Lỗi khi lấy đánh giá')
+
+    const data = await res.json()
+
+    reviews.value.summary = structuredClone(data.summary)
+    reviews.value.list = structuredClone(data.list)
+
   } catch (err) {
-    await showError('Lỗi lấy đánh giá', err.message);
+    await showError('Lỗi lấy đánh giá', err.message)
   }
-};
+}
+
+
 
 const startEdit = (review) => {
-  editingReviewId.value = review.id;
-  newReviewRating.value = review.rating;
-  newReviewComment.value = review.content;
+  editingReviewId.value = review.id
+  newReviewRating.value = review.rating
+  newReviewComment.value = review.content
+  uploadedImages.value = []
+  uploadedVideos.value = []
+  deletedImages.value = []
+  deletedVideos.value = []
 
-  // Reset trước
-  uploadedImages.value = [];
-  deletedImages.value = [];
-
-  // Gán lại ảnh cũ
   if (Array.isArray(review.images)) {
     uploadedImages.value = review.images.map((img) => ({
       isExisting: true,
@@ -301,153 +328,172 @@ const startEdit = (review) => {
         id: img.id,
         url: img.url,
       }
-    }));
+    }))
   }
-};
 
-const deletedImages = ref([]);
-const removeImage = (index) => {
-  const file = uploadedImages.value[index];
-  if (file.isExisting && file.original?.id) {
-    deletedImages.value.push(file.original.id);
+  if (Array.isArray(review.videos)) {
+    uploadedVideos.value = review.videos.map((vid) => ({
+      isExisting: true,
+      url: vid.url,
+      original: {
+        id: vid.id,
+        url: vid.url,
+      }
+    }))
   }
-  uploadedImages.value.splice(index, 1);
-};
-
-
-// Trong submitReview
-if (deletedImages.value.length) {
-  deletedImages.value.forEach(id => formData.append('deleted_images[]', id));
 }
 
 
-// ======= GỬI/CẬP NHẬT ĐÁNH GIÁ =======
+const removeImage = (index) => {
+  const file = uploadedImages.value[index]
+  if (file.isExisting && file.original?.id) {
+    deletedImages.value.push(file.original.id)
+  }
+  uploadedImages.value.splice(index, 1)
+}
+const removeVideo = (index) => {
+  const file = uploadedVideos.value[index]
+  if (file.isExisting && file.original?.id) {
+    deletedVideos.value.push(file.original.id)
+  }
+  uploadedVideos.value.splice(index, 1)
+}
+
 const submitReview = async () => {
   if (!token.value) {
-    return Swal.fire({ icon: 'warning', title: 'Bạn cần đăng nhập để gửi đánh giá' });
+    return toast('warning', 'Bạn cần đăng nhập để gửi đánh giá')
   }
 
   if (!editingReviewId.value && hasUserReviewed.value) {
-    return Swal.fire({ icon: 'info', title: 'Bạn đã đánh giá sản phẩm này rồi!' });
+    return toast('info', 'Bạn đã đánh giá sản phẩm này rồi!')
   }
 
-  const formData = new FormData();
-  formData.append('rating', newReviewRating.value);
-  formData.append('content', newReviewComment.value);
+  const formData = new FormData()
+  formData.append('rating', newReviewRating.value)
+  formData.append('content', newReviewComment.value)
 
   uploadedImages.value.forEach(file => {
     if (!file.isExisting) {
-      formData.append('images[]', file);
+      formData.append('images[]', file.file)
     }
-  });
+  })
+
+  uploadedVideos.value.forEach(video => {
+    if (!video.isExisting) {
+      formData.append('videos[]', video.file)
+    }
+  })
 
   if (editingReviewId.value) {
-    formData.append('_method', 'PUT'); //  TRỌNG TÂM: spoof method PUT
+    formData.append('_method', 'PUT')
 
-    const keptIds = uploadedImages.value
+    const keptImageIds = uploadedImages.value
       .filter(img => img.isExisting && img.original?.id)
-      .map(img => img.original.id);
+      .map(img => img.original.id)
+    keptImageIds.forEach(id => formData.append('kept_images[]', id))
 
-    keptIds.forEach(id => formData.append('kept_images[]', id));
+    const keptVideoIds = uploadedVideos.value
+      .filter(vid => vid.isExisting && vid.original?.id)
+      .map(vid => vid.original.id)
+    keptVideoIds.forEach(id => formData.append('kept_videos[]', id))
+
+    deletedVideos.value.forEach(id => formData.append('deleted_videos[]', id))
   }
+
+  deletedImages.value.forEach(id => formData.append('deleted_images[]', id))
 
   const url = editingReviewId.value
     ? `${apiBase}/reviews/${editingReviewId.value}`
-    : `${apiBase}/reviews?product_id=${props.productId}`;
+    : `${apiBase}/reviews?product_id=${props.productId}`
 
   try {
     const res = await fetch(url, {
-      method: 'POST', //  luôn dùng POST
+      method: 'POST',
       headers: { Authorization: `Bearer ${token.value}` },
       body: formData,
-    });
+    })
 
-    const data = await res.json();
+    const data = await res.json()
 
     if (!res.ok) {
-      const firstError = Object.values(data.errors || {})[0]?.[0];
-      return showError('Lỗi', firstError || data.message || 'Có lỗi xảy ra');
+      const firstError = Object.values(data.errors || {})[0]?.[0]
+      return showError('Lỗi', firstError || data.message || 'Có lỗi xảy ra')
     }
 
-    await Toast.fire({ icon: 'success', title: editingReviewId.value ? 'Cập nhật thành công' : 'Đã gửi đánh giá' });
+    // Sau khi gửi form thành công
+    toast('success', editingReviewId.value ? 'Cập nhật thành công' : 'Đã gửi đánh giá')
 
-    newReviewRating.value = 0;
-    newReviewComment.value = '';
-    editingReviewId.value = null;
-    uploadedImages.value = [];
+    // Reset form
+    newReviewRating.value = 0
+    newReviewComment.value = ''
+    editingReviewId.value = null
+    uploadedImages.value = []
+    uploadedVideos.value = []
+    deletedImages.value = []
+    deletedVideos.value = []
 
-    await fetchReviews();
+    await fetchReviews()
+    refreshKey.value++          // ✅ Bắt Vue render lại bằng key mới
+    await nextTick()
+    reviewSection.value?.scrollIntoView({ behavior: 'smooth' })
+
+
   } catch (err) {
-    showError('Lỗi gửi đánh giá', err.message);
+    showError('Lỗi gửi đánh giá', err.message)
   }
-};
+}
 
 
-// ======= XOÁ ĐÁNH GIÁ =======
 const deleteReview = async (id) => {
-  if (!token.value) return;
+  if (!token.value) return
 
-  const confirmResult = await Swal.fire({
-    title: 'Bạn có chắc chắn?',
-    text: 'Đánh giá sẽ bị xoá và không thể khôi phục',
-    icon: 'warning',
-    showCancelButton: true,
-    confirmButtonColor: '#d33',
-    cancelButtonColor: '#3085d6',
-    confirmButtonText: 'Xoá',
-    cancelButtonText: 'Huỷ',
-  });
+  const confirmResult = await showConfirm('Bạn có chắc chắn?', 'Đánh giá sẽ bị xoá và không thể khôi phục', 'Xoá')
 
-  if (!confirmResult.isConfirmed) return;
+  if (!confirmResult.isConfirmed) return
 
   try {
     const res = await fetch(`${apiBase}/reviews/${id}`, {
       method: 'DELETE',
       headers: {
-        Authorization: `Bearer ${token.value}`, // ✅ dùng token.value
+        Authorization: `Bearer ${token.value}`,
       },
-    });
+    })
 
-    if (!res.ok) throw new Error('Xoá không thành công');
+    if (!res.ok) throw new Error('Xoá không thành công')
 
-    await Toast.fire({
-      icon: 'success',
-      title: 'Đã xoá đánh giá',
-    });
-
-    await fetchReviews();
+    toast('success', 'Đã xoá đánh giá')
+    await fetchReviews()
   } catch (err) {
-    await showError('Xoá không thành công', err.message);
+    await showError('Xoá không thành công', err.message)
   }
-};
+}
 
-// ======= CHỈNH SỬA =======
 const editReview = (review) => {
-  newReviewRating.value = review.rating;
-  newReviewComment.value = review.content;
-  editingReviewId.value = review.id;
-};
-
-// ======= HUỶ CHỈNH SỬA =======
+  newReviewRating.value = review.rating
+  newReviewComment.value = review.content
+  editingReviewId.value = review.id
+}
 const cancelEdit = () => {
-  newReviewRating.value = 0;
-  newReviewComment.value = '';
-  editingReviewId.value = null;
-};
+  editingReviewId.value = null
+  newReviewRating.value = 0
+  newReviewComment.value = ''
 
-// ======= CUỘN TỚI PHẦN ĐÁNH GIÁ =======
+  uploadedImages.value = []
+  uploadedVideos.value = []
+  deletedImages.value = []
+  deletedVideos.value = []
+}
+
+
+
 const scrollToReview = () => {
-  reviewSection.value?.scrollIntoView({ behavior: 'smooth' });
-};
+  reviewSection.value?.scrollIntoView({ behavior: 'smooth' })
+}
 
-// ======= CHUYỂN TRANG =======
 const goToPage = (page) => {
   if (page >= 1 && page <= totalPages.value) {
-    currentPage.value = page;
-    scrollToReview();
+    currentPage.value = page
+    scrollToReview()
   }
-};
-
-// ======= LẤY DỮ LIỆU BAN ĐẦU =======
-onMounted(fetchReviews);
+}
 </script>

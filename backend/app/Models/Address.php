@@ -26,6 +26,4 @@ class Address extends Model
 
 }
 
-
-
     // Relationships
