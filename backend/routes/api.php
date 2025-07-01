@@ -294,6 +294,7 @@ Route::prefix('sellers')->group(function ()
     Route::get('/store/{slug}', [SellerController::class, 'showStore']);
     Route::post('/update', [SellerController::class, 'update'])->middleware('auth:sanctum');
     Route::get('/verified', [SellerController::class, 'getVerifiedSellers']);
+    Route::get('/store/{slug}/deals', [SellerController::class, 'getDeals']);
 
 });
 
