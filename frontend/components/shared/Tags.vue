@@ -70,7 +70,10 @@ const scrollRight = () => {
   })
 }
 
-const canNavigate = computed(() => tags.value.length > 5)
+const canNavigate = computed(() => {
+  return scrollContainer.value && scrollContainer.value.scrollWidth > scrollContainer.value.clientWidth
+});
+
 
 onMounted(fetchTags)
 </script>

@@ -154,6 +154,7 @@ class OrderController extends Controller
     /**
      * Store a newly created resource in storage.
      */
+
     public function store(Request $request)
     {
         $request->validate([
@@ -168,34 +169,18 @@ class OrderController extends Controller
             'payment_method' => 'required|string|in:COD,VNPAY,MOMO',
             'address_id' => 'required|exists:addresses,id',
             'service_id' => 'required|integer|min:1',
-        ], [
-            'user_id.required' => 'ID người dùng là bắt buộc',
-            'user_id.exists' => 'ID người dùng không tồn tại',
-            'discount_id.exists' => 'ID mã giảm giá không tồn tại',
-            'items.required' => 'Danh sách sản phẩm là bắt buộc',
-            'items.array' => 'Danh sách sản phẩm phải là một mảng',
-            'items.min' => 'Phải có ít nhất một sản phẩm',
-            'items.*.product_id.required' => 'ID sản phẩm là bắt buộc',
-            'items.*.product_id.exists' => 'ID sản phẩm không tồn tại',
-            'items.*.product_variant_id.exists' => 'ID biến thể sản phẩm không tồn tại',
-            'items.*.quantity.required' => 'Số lượng sản phẩm là bắt buộc',
-            'items.*.quantity.integer' => 'Số lượng phải là số nguyên',
-            'items.*.quantity.min' => 'Số lượng phải lớn hơn 0',
-            'items.*.price.required' => 'Giá sản phẩm là bắt buộc',
-            'items.*.price.numeric' => 'Giá phải là số',
-            'items.*.price.min' => 'Giá phải lớn hơn hoặc bằng 0',
-            'payment_method.required' => 'Phương thức thanh toán là bắt buộc',
-            'payment_method.in' => 'Phương thức thanh toán không hợp lệ',
-            'address_id.required' => 'Địa chỉ là bắt buộc',
-            'address_id.exists' => 'Địa chỉ không tồn tại',
-            'service_id.required' => 'Phương thức giao hàng là bắt buộc',
-            'service_id.integer' => 'Phương thức giao hàng không hợp lệ',
+
+            // ✅ Các trường tính toán
+            'final_price' => 'required|numeric|min:0',
+            'shipping_fee' => 'nullable|numeric|min:0',
+            'shipping_discount' => 'nullable|numeric|min:0',
+            'product_discount' => 'nullable|numeric|min:0',
         ]);
 
         try {
             DB::beginTransaction();
 
-            // Tạo đơn hàng
+            // 1. Tạo đơn hàng
             $order = Order::create([
                 'user_id' => $request->user_id,
                 'address_id' => $request->address_id,
@@ -204,10 +189,10 @@ class OrderController extends Controller
                 'status' => 'pending',
                 'total_price' => 0,
                 'discount_price' => 0,
-                'final_price' => 0,
+                'final_price' => 0, // tạm thời
             ]);
 
-            // Order items
+            // 2. Order items
             $totalPrice = 0;
             foreach ($request->items as $item) {
                 OrderItem::create([
@@ -216,11 +201,12 @@ class OrderController extends Controller
                     'product_variant_id' => $item['product_variant_id'] ?? null,
                     'quantity' => $item['quantity'],
                     'price' => $item['price'],
+                    'cart_item_id' => $item['id'] ?? null,
                 ]);
                 $totalPrice += $item['price'] * $item['quantity'];
             }
 
-            // Discount
+            // 3. Discount (nếu có)
             $discountPrice = 0;
             if ($request->discount_id) {
                 $discount = Discount::find($request->discount_id);
@@ -228,8 +214,10 @@ class OrderController extends Controller
                     $discountPrice = $discount->discount_type === 'percentage'
                         ? $totalPrice * ($discount->discount_value / 100)
                         : $discount->discount_value;
+
                     $discountPrice = min($discountPrice, $totalPrice);
 
+                    // đánh dấu đã dùng mã
                     DiscountUser::create([
                         'discount_id' => $discount->id,
                         'user_id' => $request->user_id,
@@ -238,15 +226,14 @@ class OrderController extends Controller
                 }
             }
 
-            $finalPrice = $totalPrice - $discountPrice;
-
+            // 4. Cập nhật order
             $order->update([
                 'total_price' => $totalPrice,
                 'discount_price' => $discountPrice,
-                'final_price' => $finalPrice,
+                'final_price' => $request->final_price, // ✅ frontend gửi vào chính xác
             ]);
 
-            // Payment
+            // 5. Tạo payment
             $paymentMethod = PaymentMethod::firstOrCreate(
                 ['name' => $request->payment_method],
                 ['status' => 'active']
@@ -255,15 +242,13 @@ class OrderController extends Controller
             Payment::create([
                 'order_id' => $order->id,
                 'payment_method_id' => $paymentMethod->id,
-                'amount' => $finalPrice,
+                'amount' => $request->final_price, // ✅ chính xác theo order
                 'status' => 'pending'
             ]);
 
-            // Giao hàng
+            // 6. Giao hàng
             $address = Address::find($request->address_id);
             $ghn = new GHNService();
-
-            // Lưu ý: bạn cần sửa GHNService để truyền service_id vào payload
             $ghnOrder = $ghn->createShippingOrder($order, $address, $request->service_id, $request->payment_method);
 
             // Shipping method
@@ -272,18 +257,18 @@ class OrderController extends Controller
                 ['name' => $ghnOrder['service_type_id'] ?? 'GHN', 'carrier' => 'GHN', 'estimated_days' => 3, 'cost' => $ghnOrder['total_fee'] ?? 0]
             );
 
-            // Shipping
             Shipping::create([
                 'order_id' => $order->id,
                 'shipping_method_id' => $shippingMethod->id,
                 'estimated_delivery' => $ghnOrder['expected_delivery_time'] ?? null,
-                'shipping_fee' => $ghnOrder['total_fee'] ?? 0,
+                'shipping_fee' => $request->shipping_fee ?? 0,
                 'tracking_code' => $ghnOrder['order_code'] ?? null,
                 'status' => 'pending',
             ]);
 
             DB::commit();
 
+            // Load lại dữ liệu order kèm quan hệ
             $order->load([
                 'orderItems.product',
                 'orderItems.productVariant',
@@ -304,7 +289,6 @@ class OrderController extends Controller
             ], 500);
         }
     }
-
 
     /**
      * Display the specified resource.

@@ -67,8 +67,10 @@
 
       <!-- Tổng tiền -->
       <div class="text-right text-lg font-bold text-blue-700 border-t pt-4 mt-4">
-        Tổng thanh toán: {{ formatPrice(amount || parsePrice(orderDetail?.final_price) || 0) }} đ
-      </div>
+      Tổng thanh toán: {{ formatPrice(parsePrice(orderDetail?.final_price)) }} đ
+      
+    </div>
+
 
       <!-- DANH SÁCH SẢN PHẨM -->
       <div>
@@ -169,67 +171,71 @@ const loadWards = async (district_id) => {
   wards.value = data.data || []
 }
 
+
 onMounted(async () => {
-  const orderId = route.query.id || route.query.vnp_TxnRef?.split('_')[0]
+  const orderId = route.query.id || route.query.vnp_TxnRef?.split('_')[0];
 
   if (!orderId) {
-    success.value = false
-    loading.value = false
-    message.value = 'Không tìm thấy thông tin đơn hàng.'
-    return
+    success.value = false;
+    loading.value = false;
+    message.value = 'Không tìm thấy thông tin đơn hàng.';
+    return;
   }
 
   try {
-    const token = localStorage.getItem('access_token')
+    const token = localStorage.getItem('access_token');
     if (!token) {
-      message.value = 'Vui lòng đăng nhập để xem thông tin đơn hàng.'
-      success.value = false
-      loading.value = false
-      window.dispatchEvent(new CustomEvent('openLoginModal'))
-      return
+      message.value = 'Vui lòng đăng nhập để xem thông tin đơn hàng.';
+      success.value = false;
+      loading.value = false;
+      window.dispatchEvent(new CustomEvent('openLoginModal'));
+      return;
     }
 
+    // 1. Lấy thông tin đơn hàng
     const orderRes = await fetch(`${config.public.apiBaseUrl}/orders/${orderId}`, {
       headers: {
         Accept: 'application/json',
         Authorization: `Bearer ${token}`,
       },
-    })
+    });
 
-    const orderData = await orderRes.json()
+    const orderData = await orderRes.json();
     if (!orderRes.ok || !orderData.data) {
-      throw new Error(orderData.message || 'Không thể lấy thông tin đơn hàng')
+      throw new Error(orderData.message || 'Không thể lấy thông tin đơn hàng');
     }
 
-    orderDetail.value = orderData.data
-    tracking_code.value = orderDetail.value.shipping?.tracking_code || 'Đang cập nhật'
+    orderDetail.value = orderData.data;
+    tracking_code.value = orderDetail.value.shipping?.tracking_code || 'Đang cập nhật';
 
-    // Load địa chỉ
-    await loadProvinces()
-    await loadDistricts(orderDetail.value.address.province_id)
-    await loadWards(orderDetail.value.address.district_id)
+    // 2. Load địa chỉ đầy đủ
+    await loadProvinces();
+    await loadDistricts(orderDetail.value.address.province_id);
+    await loadWards(orderDetail.value.address.district_id);
 
-    const province = provinces.value.find(p => p.ProvinceID === orderDetail.value.address.province_id)
-    const district = districts.value.find(d => d.DistrictID === orderDetail.value.address.district_id)
-    const ward = wards.value.find(w => w.WardCode == orderDetail.value.address.ward_code)
+    const province = provinces.value.find(p => p.ProvinceID === orderDetail.value.address.province_id);
+    const district = districts.value.find(d => d.DistrictID === orderDetail.value.address.district_id);
+    const ward = wards.value.find(w => w.WardCode == orderDetail.value.address.ward_code);
 
-    orderDetail.value.address.province_name = province?.ProvinceName || ''
-    orderDetail.value.address.district_name = district?.DistrictName || ''
-    orderDetail.value.address.ward_name = ward?.WardName || ''
+    orderDetail.value.address.province_name = province?.ProvinceName || '';
+    orderDetail.value.address.district_name = district?.DistrictName || '';
+    orderDetail.value.address.ward_name = ward?.WardName || '';
 
-    // Xác minh thanh toán
-    const isCOD = orderDetail.value.payments?.[0]?.method === 'COD' ||
-      (!orderDetail.value.payments?.[0]?.method && !Object.keys(route.query).some(key => key.startsWith('vnp_')))
+    // 3. Xác minh thanh toán
+    const isCOD =
+      orderDetail.value.payments?.[0]?.method === 'COD' ||
+      (!orderDetail.value.payments?.[0]?.method &&
+        !Object.keys(route.query).some(key => key.startsWith('vnp_')));
 
     if (isCOD) {
-      amount.value = parsePrice(orderDetail.value.final_price) || 0
-      bankCode.value = 'Thanh toán khi nhận'
-      transactionId.value = 'Không áp dụng'
-      success.value = true
+      amount.value = parsePrice(orderDetail.value.final_price) || 0;
+      bankCode.value = 'Thanh toán khi nhận';
+      transactionId.value = 'Không áp dụng';
+      success.value = true;
     } else {
-      const queryParams = { ...route.query }
+      const queryParams = { ...route.query };
       if (!queryParams.vnp_TxnRef || !queryParams.vnp_ResponseCode || !queryParams.vnp_SecureHash) {
-        throw new Error('Thiếu tham số từ VNPAY.')
+        throw new Error('Thiếu tham số từ VNPAY.');
       }
 
       const vnpRes = await fetch(
@@ -240,29 +246,47 @@ onMounted(async () => {
             Authorization: `Bearer ${token}`,
           },
         }
-      )
+      );
 
-      const vnpData = await vnpRes.json()
+      const vnpData = await vnpRes.json();
 
       if (!vnpRes.ok || !vnpData.success) {
-        throw new Error(vnpData.message || 'Không nhận được dữ liệu từ VNPAY')
+        throw new Error(vnpData.message || 'Không nhận được dữ liệu từ VNPAY');
       }
 
-      transactionId.value = vnpData.transaction_id || queryParams.vnp_TransactionNo || '-'
-      bankCode.value = vnpData.bank_code || queryParams.vnp_BankCode || '-'
-      amount.value = vnpData.amount || (Number(queryParams.vnp_Amount) / 100) || 0
-      success.value = true
+      transactionId.value = vnpData.transaction_id || queryParams.vnp_TransactionNo || '-';
+      bankCode.value = vnpData.bank_code || queryParams.vnp_BankCode || '-';
+      amount.value = vnpData.amount || (Number(queryParams.vnp_Amount) / 100) || 0;
+      success.value = true;
     }
 
-    await clearCart()
-    loading.value = false
+    // 4. XÓA sản phẩm đã đặt khỏi giỏ hàng (dùng localStorage lưu tạm cartItemIds khi đặt hàng)
+    const cartItemIds = JSON.parse(localStorage.getItem('lastOrderCartItemIds') || '[]');
+
+    if (success.value && cartItemIds.length > 0) {
+      const cartRes = await fetch(`${config.public.apiBaseUrl}/cart`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const cartData = await cartRes.json();
+      const cartItems = cartData.data?.stores?.flatMap(s => s.items) || [];
+      const itemsToDelete = cartItems.filter(i => cartItemIds.includes(i.id));
+
+      if (itemsToDelete.length > 0) {
+        await clearCart(itemsToDelete);
+      }
+
+      localStorage.removeItem('lastOrderCartItemIds');
+ }
+
+    loading.value = false;
   } catch (err) {
-    console.error('Error fetching order:', err)
-    success.value = false
-    loading.value = false
-    message.value = err.message || 'Có lỗi xảy ra khi xác minh thanh toán'
+    console.error('Error fetching order:', err);
+    success.value = false;
+    loading.value = false;
+    message.value = err.message || 'Có lỗi xảy ra khi xác minh thanh toán';
   }
-})
+});
+
 
 onUnmounted(() => {
   // Nếu bạn có dùng countdown thì clear tại đây

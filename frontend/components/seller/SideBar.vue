@@ -181,6 +181,7 @@ defineProps({ show: Boolean })
 defineEmits(['close'])
 
 const route = useRoute()
+const notificationOpen = ref(false)
 
 const userOpen = ref(false)
 const toggleUser = () => userOpen.value = !userOpen.value
@@ -195,6 +196,11 @@ const productActive = computed(() =>
   || route.path.startsWith('/seller/attributes')
   || route.path.startsWith('/seller/categories')
   || route.path.startsWith('/seller/tags')
+)
+
+const toggleNotification = () => notificationOpen.value = !notificationOpen.value
+const notificationActive = computed(() =>
+  route.path.startsWith('/seller/notifications')
 )
 </script>
 

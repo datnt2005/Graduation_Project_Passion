@@ -1,0 +1,386 @@
+<template>
+  <!-- Nút mở chat -->
+  <button
+    class="fixed bottom-6 right-6 bg-white text-[#1BA0E2] font-bold px-4 py-2 rounded-lg shadow-lg flex items-center space-x-2 border border-[#1BA0E2] hover:bg-[#1BA0E2]/10 z-50"
+    :class="{ 'animate-shake': hasNewMessage }"
+    @click="open = true; hasNewMessage = false"
+  >
+    <i class="fas fa-comment-alt text-xl"></i>
+    <span>Chat</span>
+  </button>
+
+  <!-- Modal Chat -->
+  <transition name="fade">
+    <div
+      v-if="open"
+      class="fixed bottom-20 right-6 w-[360px] h-[500px] sm:w-full sm:h-screen sm:bottom-0 sm:right-0 bg-white rounded-lg sm:rounded-none shadow-lg border border-gray-300 z-50 flex flex-col overflow-hidden"
+    >
+      <!-- Header -->
+      <div class="flex items-center justify-between px-4 py-2 bg-[#1BA0E2] text-white">
+        <h2 class="font-semibold text-base">
+          {{ selectedSession ? `\u0110ang chat với: ${selectedSession?.seller?.store_name || 'Cửa hàng'}` : 'Chat với cửa hàng' }}
+        </h2>
+        <button @click="open = false" class="hover:opacity-80">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <!-- Nội dung -->
+      <div class="flex-1 flex overflow-hidden">
+        <!-- Sidebar -->
+        <aside class="w-1/3 border-r p-2 bg-gray-50 hidden sm:block">
+          <input
+            v-model="search"
+            type="text"
+            placeholder=" Tìm cửa hàng"
+            class="w-full px-2 py-1 text-sm border rounded mb-2"
+          />
+          <ul class="space-y-2 overflow-y-auto max-h-[400px] pr-1">
+            <li
+              v-for="session in filteredSessions"
+              :key="session.id"
+              @click="selectSession(session)"
+              :class="[
+                'flex items-center gap-2 p-2 rounded cursor-pointer transition',
+                selectedSession?.id === session.id ? 'bg-blue-100' : 'hover:bg-gray-100'
+              ]"
+            >
+              <img
+                :src="getAvatarUrl(session.seller?.avatar)"
+                class="w-8 h-8 rounded-full object-cover"
+                alt="avatar"
+              />
+              <span class="text-sm truncate">
+                {{ session.seller?.store_name || 'Cửa hàng' }}
+              </span>
+            </li>
+          </ul>
+        </aside>
+
+        <!-- Chat chính -->
+        <section class="flex-1 flex flex-col bg-gray-100 overflow-hidden">
+          <!-- Danh sách tin nhắn -->
+        <div class="flex-1 min-h-0 overflow-y-auto p-3 space-y-3" ref="chatBox">
+
+          <div
+            v-for="msg in messages"
+            :key="msg.id"
+            class="flex flex-col space-y-1 relative"
+            :class="msg.sender_type === 'user' ? 'items-end' : 'items-start'"
+          >
+            <!-- Tin nhắn văn bản -->
+            <div
+              v-if="msg.message"
+              class="max-w-[75%] p-2 rounded-lg shadow relative"
+              :class="[
+                msg.sender_type === 'user' ? 'bg-blue-500 text-white' : 'bg-white text-gray-800',
+                msg.pending ? 'opacity-60' : '',
+                msg.error ? 'border border-red-500' : ''
+              ]"
+            >
+              <p class="whitespace-pre-line break-words">{{ msg.message }}</p>
+            
+            </div>
+
+            <!-- File đính kèm -->
+            <div v-if="Array.isArray(msg.attachments) && msg.attachments.length" class="flex flex-wrap gap-2">
+              <template v-for="file in msg.attachments" :key="file.id">
+                <img
+                  v-if="file.file_type === 'image'"
+                  :src="file.file_url"
+                  class="w-[80px] h-[80px] object-cover rounded border border-gray-200 shadow"
+                  :class="msg.pending ? 'opacity-60' : ''"
+                />
+                <a
+                  v-else
+                  :href="file.file_url"
+                  target="_blank"
+                  class="text-blue-500 underline text-sm truncate max-w-[200px]"
+                >
+                  📎 {{ file.file_name }}
+                </a>
+              </template>
+            </div>
+
+            <!-- Trạng thái gửi cho tin nhắn và ảnh or file message -->
+           <div
+              v-if="msg.pending"
+              class="text-xs text-gray-500 italic mt-1 ml-1"
+            >
+              <i class="fas fa-spinner animate-spin mr-1"></i> Đang gửi...
+            </div>
+
+            
+          </div>
+        </div>
+
+          <!-- Gửi tin nhắn -->
+          <form @submit.prevent="sendMessage" class="p-3 border-t bg-white flex flex-col gap-3">
+            <!-- Preview ảnh -->
+            <div v-if="imagePreview.length" class="flex flex-wrap gap-3 px-2">
+              <div
+                v-for="(img, i) in imagePreview"
+                :key="i"
+                class="relative w-[70px] h-[70px] group"
+              >
+                <img
+                  :src="img"
+                  class="w-full h-full object-cover rounded border border-gray-300 shadow-sm"
+                  alt="preview"
+                />
+                <button
+                  type="button"
+                  @click="removeImage(i)"
+                  class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center"
+                >×</button>
+              </div>
+            </div>
+
+            <!-- Emoji + nhập tin nhắn + file -->
+            <div class="flex items-center gap-2">
+              <input
+                v-model="form.message"
+                type="text"
+                placeholder="Nhập tin nhắn... 😄"
+                class="flex-1 border rounded px-3 py-2 text-sm min-w-0"
+              />
+              <input ref="fileInput" type="file" multiple @change="handleFile" class="hidden" />
+              <button type="button" @click="fileInput.click()" class="text-xl">📎</button>
+              <button type="submit" class="bg-[#1BA0E2] text-white px-4 py-2 rounded text-sm hover:bg-[#178fca]">
+                Gửi
+              </button>
+            </div>
+          </form>
+        </section>
+      </div>
+    </div>
+  </transition>
+</template>
+
+<script setup>
+import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue'
+import axios from 'axios'
+import { watch } from 'vue'
+
+const open = ref(false)
+const form = ref({ message: '', file: [] })
+const fileInput = ref(null)
+const imagePreview = ref([])
+const chatBox = ref(null)
+const token = ref('')
+const user = ref(null)
+const userId = ref(null)
+const sessions = ref([])
+const messages = ref([])
+const selectedSession = ref(null)
+const search = ref('')
+
+const config = useRuntimeConfig()
+const API = config.public.apiBaseUrl
+const hasNewMessage = ref(false)
+let polling = null
+const pendingId = () => 'pending_' + Date.now()
+
+const DEFAULT_AVATAR = 'https://pub-3fc809b4396849cba1c342a5b9f50be9.r2.dev/avatars/default.jpg'
+const getAvatarUrl = (avatar) => {
+  if (!avatar) return DEFAULT_AVATAR
+  const cleaned = avatar.trim()
+  if (cleaned.startsWith('http://') || cleaned.startsWith('https://')) return cleaned
+  return `https://pub-3fc809b4396849cba1c342a5b9f50be9.r2.dev/${cleaned}`
+}
+
+const filteredSessions = computed(() => {
+  if (!search.value.trim()) return sessions.value
+  return sessions.value.filter(session =>
+    session.seller?.store_name?.toLowerCase().includes(search.value.toLowerCase())
+  )
+})
+
+const loadUserInfo = async () => {
+  const storedToken = localStorage.getItem('access_token')
+  // if (!storedToken) return alert('Vui lòng đăng nhập')
+  try {
+    token.value = storedToken
+    const { data } = await axios.get(`${API}/me`, {
+      headers: { Authorization: `Bearer ${token.value}` }
+    })
+    user.value = data?.data || null
+    userId.value = user.value?.id
+  } catch (error) {
+    console.error('❌ Lỗi khi lấy user:', error)
+    // alert('Không thể lấy thông tin người dùng.')
+  }
+}
+
+const loadSessions = async () => {
+  try {
+    const { data } = await axios.get(`${API}/chat/sessions`, {
+      params: { user_id: userId.value, type: 'user' },
+      headers: { Authorization: `Bearer ${token.value}` }
+    })
+    sessions.value = data || []
+    if (!selectedSession.value && sessions.value.length) {
+      selectedSession.value = sessions.value[0]
+      await loadMessages(selectedSession.value.id)
+    }
+  } catch (error) {
+    console.error('❌ Lỗi load sessions:', error?.response?.data || error.message)
+  }
+}
+
+const loadMessages = async (sessionId) => {
+  console.log('🔵 Gọi loadMessages cho sessionId:', sessionId);
+
+  try {
+    const { data } = await axios.get(`${API}/chat/messages/${sessionId}`, {
+      headers: { Authorization: `Bearer ${token.value}` }
+    });
+
+    console.log(`🟢 Tin nhắn cho session ${sessionId}:`, data);
+
+    messages.value = data;
+
+    await nextTick();
+    if (chatBox.value) {
+      chatBox.value.scrollTop = chatBox.value.scrollHeight;
+    }
+
+  } catch (error) {
+    console.error('❌ Lỗi load messages:', error?.response?.data || error.message);
+  }
+};
+
+const selectSession = async (session) => {
+  selectedSession.value = session
+  await loadMessages(session.id)
+}
+
+const handleFile = (e) => {
+  const files = Array.from(e.target.files)
+  form.value.file = files
+  imagePreview.value = files.map(file => URL.createObjectURL(file))
+}
+
+const removeImage = (index) => {
+  form.value.file.splice(index, 1);
+  imagePreview.value.splice(index, 1);
+};
+
+const sendMessage = async () => {
+  if (!selectedSession.value) return;
+    const hasText = form.value.message.trim() !== '';
+  const hasFiles = form.value.file.length > 0;
+
+  // Ngăn gửi nếu không có nội dung và không có file
+  if (!hasText && !hasFiles) return;
+
+  const tempId = pendingId()
+  const newMsg = {
+    id: tempId,
+    sender_type: 'user',
+    message: form.value.message,
+    attachments: imagePreview.value.map((img, i) => ({
+      id: i,
+      file_type: 'image',
+      file_url: img
+    })),
+    pending: true // đánh dấu đang gửi
+  }
+  // Push tin nhắn tạm vào khung chat
+  messages.value.push(newMsg)
+
+  await nextTick()
+  if (chatBox.value) chatBox.value.scrollTop = chatBox.value.scrollHeight
+
+  // Gửi thực tế
+  const payload = new FormData()
+  payload.append('session_id', selectedSession.value.id)
+  payload.append('sender_id', userId.value)
+  payload.append('receiver_id', selectedSession.value.seller.id)
+  payload.append('sender_type', 'user')
+  // payload.append('message_type', form.value.file.length ? 'image' : 'text')
+  payload.append('message_type', hasFiles ? 'image' : 'text');
+
+  if (form.value.message) payload.append('message', form.value.message)
+  form.value.file.forEach(file => payload.append('file[]', file))
+
+  try {
+    const { data } = await axios.post(`${API}/chat/send-message`, payload, {
+      headers: {
+        Authorization: `Bearer ${token.value}`,
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+
+    // Xoá tin nhắn tạm
+    messages.value = messages.value.filter(msg => msg.id !== tempId)
+
+    // Thêm lại tin nhắn thật từ server
+    messages.value.push(data)
+
+    await nextTick()
+    if (chatBox.value) chatBox.value.scrollTop = chatBox.value.scrollHeight
+
+  } catch (err) {
+    console.error('❌ Lỗi gửi:', err)
+    messages.value = messages.value.map(m => {
+      if (m.id === tempId) return { ...m, error: true }
+      return m
+    })
+  }
+
+  // Reset form
+  form.value.message = ''
+  form.value.file = []
+  imagePreview.value = []
+  fileInput.value.value = ''
+}
+
+watch(messages, async () => {
+  await nextTick()
+  if (chatBox.value) {
+    chatBox.value.scrollTop = chatBox.value.scrollHeight
+  }
+}, { deep: true })
+
+function onNewIncomingMessage(msg) {
+  messages.value.push(msg)
+  hasNewMessage.value = true
+  nextTick(() => {
+    if (chatBox.value) {
+      chatBox.value.scrollTop = chatBox.value.scrollHeight
+    }
+  })
+}
+
+onMounted(() => {
+  polling = setInterval(async () => {
+    if (selectedSession.value) {
+      await loadMessages(selectedSession.value.id)
+    }
+  }, 3000) // 3 giây
+})
+
+onUnmounted(() => {
+  clearInterval(polling)
+})
+
+
+onMounted(async () => {
+  await loadUserInfo()
+  if (userId.value) await loadSessions()
+})
+ </script>
+
+
+<style scoped>
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+.animate-shake {
+  animation: shake 0.5s;
+}
+
+</style>

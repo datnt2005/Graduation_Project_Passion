@@ -84,8 +84,8 @@ const { fetchCart } = useCart();
 
 const { toast } = useToast()
 const config = useRuntimeConfig();
-const route = useRoute();
 const router = useRouter();
+const route = useRoute();
 const apiBase = config.public.apiBaseUrl;
 const mediaBase = config.public.mediaBaseUrl;
 

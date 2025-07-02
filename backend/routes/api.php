@@ -31,7 +31,16 @@ use App\Http\Controllers\SellerController;
 use App\Http\Controllers\AdminSellerController;
 use App\Http\Controllers\SellerFollowerController;
 
+// api chat user width seller
+use App\Http\Controllers\ChatController;
 
+
+// api chat user width seller
+Route::prefix('chat')->group(function () {
+    Route::post('/send-message', [ChatController::class, 'sendMessage']);
+    Route::get('/messages/{sessionId}', [ChatController::class, 'getMessages']);
+    Route::get('/sessions', [ChatController::class, 'getSessions']);
+});
 
 // Category
 Route::prefix('categories')->group(function () {
