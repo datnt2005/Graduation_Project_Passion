@@ -23,6 +23,7 @@ class Discount extends Model
         'start_date',
         'end_date',
         'status',
+        'seller_id',
     ];
 
     protected $casts = [
@@ -55,5 +56,9 @@ class Discount extends Model
     public function orders()
     {
         return $this->belongsToMany(Order::class, 'discount_order');
+    }
+    public function seller()
+    {
+        return $this->belongsTo(Seller::class);
     }
 }

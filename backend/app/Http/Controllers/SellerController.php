@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Seller;
+use App\Models\Discount;
 use App\Models\User;
 use App\Models\BusinessSeller;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Storage;
@@ -221,7 +223,7 @@ class SellerController extends Controller
         ]);
     }
 
- public function showStore($slug)
+    public function showStore($slug)
     {
         try {
             // Validate slug
@@ -296,18 +298,21 @@ class SellerController extends Controller
             $phone = $seller->phone_number
                 ? substr($seller->phone_number, 0, 4) . str_repeat('*', max(0, strlen($seller->phone_number) - 7)) . substr($seller->phone_number, -5)
                 : 'N/A';
+
             // Format last active time (Vietnamese localization)
             $lastActive = $seller->last_active_at
                 ? $seller->last_active_at->locale('vi')->diffForHumans()
                 : 'Chưa hoạt động';
 
-            // Check if user is following
-            $isFollowing = false;
+            // Check if user is authenticated and get user
             $user = auth('sanctum')->user();
-            if ($user && $user->id !== $seller->user_id) {
+            $isOwner = $user && $user->id === $seller->user_id; // Kiểm tra xem user có phải là chủ sở hữu không
+            $isFollowing = false;
+
+            // Check if user is following (only if not the owner)
+            if ($user && !$isOwner) {
                 $isFollowing = $seller->followers()->where('user_id', $user->id)->exists();
             }
-
 
             // Calculate cancellation rate
             $totalOrders = DB::table('orders')
@@ -352,19 +357,20 @@ class SellerController extends Controller
                 'total_sold' => (string) $totalSold,
                 'last_active' => $lastActive,
                 'created_at' => $seller->created_at ? $seller->created_at->locale('vi')->isoFormat('LL') : 'N/A',
-                'description' => $seller->bio ? $seller->bio ?? 'Chưa có mô tả.' : 'Chưa có mô tả.',
-                'address' => $seller->personal_address ? $seller->personal_address ?? 'Chưa cung cấp địa chỉ.' : 'Chưa cung cấp địa chỉ.',
+                'description' => $seller->bio ?? 'Chưa có mô tả.',
+                'address' => $seller->personal_address ?? 'Chưa cung cấp địa chỉ.',
                 'member_since' => $seller->created_at ? $seller->created_at->format('Y') : 'N/A',
                 'cancellation_rate' => $cancellationRate,
                 'return_rate' => $returnRate,
                 'business' => $seller->business ? [
                     'name' => $seller->business->name ?? 'N/A',
-                    'address' => $seller->business->company_address  ?? 'N/A',
+                    'address' => $seller->business->company_address ?? 'N/A',
                     'description' => $seller->business->description ?? 'N/A',
                     'tax_code' => $seller->business->tax_code ?? 'N/A',
                 ] : null,
                 'followers_count' => $seller->followers()->count(),
                 'is_following' => $isFollowing,
+                'is_owner' => $isOwner, // Thêm cờ để frontend nhận diện
                 'total_products' => $productsCount,
             ];
 
@@ -507,6 +513,85 @@ class SellerController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Đã xảy ra lỗi khi lấy danh sách ưu đãi. Vui lòng thử lại sau.',
+                'error' => app()->environment('local') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+    public function getDiscounts($slug)
+    {
+        try {
+            // Validate slug
+            if (empty($slug) || !is_string($slug)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Slug không hợp lệ.',
+                ], 400);
+            }
+
+            // Get per_page query parameter
+            $perPage = max(1, min(100, (int) request()->query('per_page', 24)));
+
+            // Tìm seller theo slug
+            $seller = Seller::where('store_slug', $slug)->firstOrFail();
+
+            // Lấy người dùng đang đăng nhập
+            $user = auth('sanctum')->user();
+
+            // Lấy danh sách voucher theo seller
+            $vouchersPaginated = $seller->discounts()
+                ->where('status', 'active')
+                ->where(function ($query) {
+                    $now = now();
+                    $query->whereNull('start_date')->orWhere('start_date', '<=', $now);
+                })
+                ->where(function ($query) {
+                    $now = now();
+                    $query->whereNull('end_date')->orWhere('end_date', '>=', $now);
+                })
+                ->orderByDesc('id')
+                ->paginate($perPage);
+
+            // Format dữ liệu voucher
+            $vouchers = collect($vouchersPaginated->items())->map(function ($voucher) use ($user) {
+                return [
+                    'id' => $voucher->id,
+                    'name' => $voucher->name,
+                    'code' => $voucher->code,
+                    'description' => $voucher->description,
+                    'discount_type' => $voucher->discount_type, // 'percent' hoặc 'fixed'
+                    'discount_value' => $voucher->discount_value,
+                    'max_discount' => $voucher->max_discount ?? null,
+                    'min_order_value' => $voucher->min_order_value,
+                    'start_date' => $voucher->start_date?->format('Y-m-d H:i:s'),
+                    'end_date' => $voucher->end_date?->format('Y-m-d H:i:s'),
+                    'usage_limit' => $voucher->usage_limit,
+                    'used_count' => $voucher->used_count,
+                    'status' => $voucher->status,
+                    'is_saved' => $user ? $voucher->users()->where('user_id', $user->id)->exists() : false,
+
+                    'applies_to_products' => $voucher->products->pluck('name'), // tên sản phẩm áp dụng
+                    'applies_to_categories' => $voucher->categories->pluck('name'), // tên danh mục
+                    'applies_to_users' => $voucher->users->pluck('name'), // người dùng được áp dụng (nếu có)
+                ];
+            })->values()->toArray();
+
+
+            // Trả về response
+            return response()->json([
+                'success' => true,
+                'message' => 'Lấy danh sách voucher thành công.',
+                'data' => $vouchers,
+                'pagination' => [
+                    'current_page' => $vouchersPaginated->currentPage(),
+                    'last_page' => $vouchersPaginated->lastPage(),
+                    'per_page' => $vouchersPaginated->perPage(),
+                    'total' => $vouchersPaginated->total(),
+                ],
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Đã xảy ra lỗi khi lấy danh sách voucher. Vui lòng thử lại sau.',
                 'error' => app()->environment('local') ? $e->getMessage() : null,
             ], 500);
         }
