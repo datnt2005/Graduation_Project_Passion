@@ -92,11 +92,10 @@
                             @click="$emit('decrease-quantity')" aria-label="Decrease quantity">
                             <i class="fas fa-minus"></i>
                         </button>
-                        <input
+                        <input v-model.number="localQuantity" @input="handleQuantityInput($event.target.value)"
+                            @keydown="blockInvalidKeys" type="number" step="1"
                             class="input-no-spinner w-full h-10 text-center text-sm text-gray-900 bg-transparent border-x border-gray-200 focus:outline-none"
-                            type="number" step="1" :value="quantity" min="1" :max="selectedVariant?.stock || 0"
-                            @input="handleQuantityInput($event.target.value)" @keydown="blockInvalidKeys"
-                            aria-label="Quantity" />
+                            :min="1" :max="selectedVariant?.stock || 0" aria-label="Quantity" />
                         <button class="w-10 h-10 text-gray-600 hover:bg-gray-100 rounded-r-md"
                             :disabled="quantity >= (selectedVariant?.stock || 0)" @click="$emit('increase-quantity')"
                             aria-label="Increase quantity">
@@ -148,7 +147,6 @@ const props = defineProps({
     variants: { type: Array, required: true },
     validationMessage: { type: String, default: '' }
 });
-console.log(props.validationMessage);
 
 const emit = defineEmits([
     'toggle-favorite',
@@ -160,8 +158,12 @@ const emit = defineEmits([
     'add-to-cart',
     'buy-now',
     'update:quantity',
+    'update:validationMessage',
+    'update:selectedOptions',
     'clear-validation'
 ]);
+
+const localQuantity = ref(props.quantity);
 
 function isOptionAvailable(attrName, value) {
     const otherSelections = { ...props.selectedOptions };
@@ -187,37 +189,77 @@ function formatPrice(price) {
     return parsedPrice.toLocaleString('vi-VN', { style: 'decimal' });
 }
 
+watch(
+    () => [props.selectedVariant, props.quantity],
+    () => {
+        localQuantity.value = props.quantity;
+    },
+    { immediate: true }
+);
+
 function handleQuantityInput(value) {
     const maxStock = props.selectedVariant?.stock || 0;
-
     let newQuantity = parseInt(value, 10);
 
     if (isNaN(newQuantity) || newQuantity < 1) {
         newQuantity = 1;
+        emit('update:validationMessage', 'Số lượng phải từ 1 trở lên.');
     } else if (newQuantity > maxStock) {
         newQuantity = maxStock;
+        emit('update:validationMessage', `Chỉ còn lại ${maxStock} sản phẩm.`);
+    } else {
+        emit('update:validationMessage', '');
     }
 
+    localQuantity.value = newQuantity;
     emit('update:quantity', newQuantity);
     emit('validate-selection');
 }
 
 function handleAddToCart() {
-    emit('validate-selection');
+    const maxStock = props.selectedVariant?.stock || 0;
+
     if (!props.isVariantFullySelected) return;
+    if (localQuantity.value < 1) {
+        emit('update:validationMessage', 'Số lượng phải từ 1 trở lên.');
+        return;
+    }
+    if (localQuantity.value > maxStock) {
+        emit('update:validationMessage', `Chỉ còn lại ${maxStock} sản phẩm.`);
+        return;
+    }
+
     emit('add-to-cart');
 }
 
 function handleBuyNow() {
-    emit('validate-selection');
+    const maxStock = props.selectedVariant?.stock || 0;
+
     if (!props.isVariantFullySelected) return;
+    if (localQuantity.value < 1) {
+        emit('update:validationMessage', 'Số lượng phải từ 1 trở lên.');
+        return;
+    }
+    if (localQuantity.value > maxStock) {
+        emit('update:validationMessage', `Chỉ còn lại ${maxStock} sản phẩm.`);
+        return;
+    }
+
     emit('buy-now');
 }
+
 
 function blockInvalidKeys(event) {
     const invalidKeys = ['-', '+', 'e', 'E', '.', ','];
     if (invalidKeys.includes(event.key)) {
         event.preventDefault();
+    }
+    // Prevent pasting invalid values
+    if (event.type === 'paste') {
+        const pastedText = event.clipboardData.getData('text');
+        if (!/^\d+$/.test(pastedText)) {
+            event.preventDefault();
+        }
     }
 }
 
