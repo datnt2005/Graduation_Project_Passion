@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ChatSession;
 use App\Models\ChatMessage;
 use App\Models\ChatAttachment;
+use App\Events\MessageChanged;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Cache;
@@ -117,12 +118,14 @@ class ChatController extends Controller
         try {
             $cacheKey = "chat_messages_session_{$sessionId}";
 
-            $messages = Cache::store('redis')->remember($cacheKey, 60, function () use ($sessionId) {
-                return ChatMessage::with('attachments')
-                    ->where('session_id', $sessionId)
-                    ->orderBy('created_at')
-                    ->get();
-            });
+           $messages = Cache::store('redis')->remember($cacheKey, 60, function () use ($sessionId) {
+            return ChatMessage::with('attachments')
+                ->where('session_id', $sessionId)
+                ->latest()
+                ->take(30)
+                ->get()
+                ->reverse(); // đảo lại theo thời gian tăng dần
+        });
 
             return response()->json($messages);
         } catch (\Exception $e) {
@@ -167,4 +170,90 @@ class ChatController extends Controller
         return response()->json($sessions);
     }
 
+
+
+public function updateMessage(Request $request, $id)
+{
+    try {
+        $message = ChatMessage::with('attachments')->findOrFail($id);
+        $action = $request->input('action');
+
+        if ($action === 'revoke') {
+            // 🔥 Xoá file vật lý nếu có (R2 hoặc local)
+            $message->timestamps = false;
+           $message->update([
+                'message' => '[Tin nhắn đã bị thu hồi]',
+                'message_type' => 'revoked'
+            ]);
+
+
+
+            // 🧹 Xoá cache liên quan
+            Cache::store('redis')->forget("chat_messages_session_{$message->session_id}");
+
+            return response()->json(['success' => true, 'deleted' => true]);
+        }
+
+        if ($action === 'edit') {
+            $newContent = $request->input('message');
+            if (!$newContent || !trim($newContent)) {
+                return response()->json(['error' => 'Không được để trống'], 422);
+            }
+
+            $message->update([
+                'message' => $newContent,
+                'message_type' => 'edited'
+            ]);
+
+            // 🧹 Xoá cache để frontend thấy ngay
+            Cache::store('redis')->forget("chat_messages_session_{$message->session_id}");
+
+            return response()->json(['success' => true, 'edited' => true]);
+        }
+
+        return response()->json(['error' => 'Hành động không hợp lệ'], 400);
+
+    } catch (\Exception $e) {
+        \Log::error('❌ updateMessage ERROR: ' . $e->getMessage());
+        return response()->json(['error' => 'Lỗi hệ thống: ' . $e->getMessage()], 500);
+    }
 }
+
+
+}
+
+    // public function updateMessage(Request $request, $id)
+    // {
+    //     $message = ChatMessage::findOrFail($id);
+
+    //     // if ($message->sender_id !== auth()->id()) {
+    //     //     return response()->json(['error' => 'Không có quyền'], 403);
+    //     // }
+
+    //     $action = $request->input('action');
+
+    //     if ($action === 'revoke') {
+    //         $message->update([
+    //             'message' => '[Tin nhắn đã bị thu hồi]',
+    //             'message_type' => 'revoked'
+    //         ]);
+    //         broadcast(new MessageChanged($message->id, $message->session_id, 'revoked'))->toOthers();
+    //         return response()->json(['success' => true]);
+    //     }
+
+    //     if ($action === 'edit') {
+    //         $newContent = $request->input('message');
+    //         if (!$newContent) {
+    //             return response()->json(['error' => 'Không được để trống'], 422);
+    //         }
+
+    //         $message->update([
+    //             'message' => $newContent,
+    //             'message_type' => 'edited'
+    //         ]);
+    //         broadcast(new MessageChanged($message->id, $message->session_id, 'edited', $newContent))->toOthers();
+    //         return response()->json(['success' => true]);
+    //     }
+
+    //     return response()->json(['error' => 'Hành động không hợp lệ'], 400);
+    // }

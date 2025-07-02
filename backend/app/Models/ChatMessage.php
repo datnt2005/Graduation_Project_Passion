@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ChatMessage extends Model
 {
-    protected $fillable = ['session_id', 'sender_type', 'sender_id', 'message', 'message_type', 'is_read'];
+    protected $fillable = ['session_id', 'sender_type', 'sender_id', 'message', 'message_type', 'is_read','status'];
 
     public function session()
     {
