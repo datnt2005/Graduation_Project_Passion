@@ -59,20 +59,55 @@
         <h2 class="text-2xl font-bold mb-2">Trợ giúp</h2>
         <p class="text-gray-600 text-sm">Gửi thông tin liên hệ hoặc trợ giúp tại đây.</p>
       </div>
-      <form class="space-y-3 text-left">
-        <input type="text" placeholder="Tên của bạn" class="w-full px-3 py-2 rounded border text-sm" />
-        <input type="email" placeholder="Email" class="w-full px-3 py-2 rounded border text-sm" />
-        <input type="text" placeholder="Số điện thoại" class="w-full px-3 py-2 rounded border text-sm" />
-        <input type="text" placeholder="Chủ đề" class="w-full px-3 py-2 rounded border text-sm" />
-        <textarea rows="4" placeholder="Nội dung" class="w-full px-3 py-2 rounded border text-sm"></textarea>
+      <form class="space-y-3 text-left" @submit.prevent="submitSupport">
+        <input v-model="form.name" type="text" placeholder="Tên của bạn" class="w-full px-3 py-2 rounded border text-sm" required />
+        <input v-model="form.email" type="email" placeholder="Email" class="w-full px-3 py-2 rounded border text-sm" required />
+        <input v-model="form.phone" type="text" placeholder="Số điện thoại" class="w-full px-3 py-2 rounded border text-sm" />
+        <input v-model="form.subject" type="text" placeholder="Chủ đề" class="w-full px-3 py-2 rounded border text-sm" />
+        <textarea v-model="form.content" rows="4" placeholder="Nội dung" class="w-full px-3 py-2 rounded border text-sm" required></textarea>
         <button
           type="submit"
           class="bg-[#1BA0E2] text-white px-6 py-2 rounded hover:bg-blue-600 transition w-full text-sm"
+          :disabled="submitting"
         >
           Gửi
         </button>
+        <div v-if="message" class="text-center text-green-600 mt-2">{{ message }}</div>
       </form>
     </div>
   </div>
   </div>
 </template>
+
+<script setup>
+import { ref } from 'vue'
+
+const form = ref({
+  name: '',
+  email: '',
+  phone: '',
+  subject: '',
+  content: ''
+})
+const submitting = ref(false)
+const message = ref('')
+
+const submitSupport = async () => {
+  submitting.value = true
+  try {
+    await $fetch('http://localhost:8000/api/supports', {
+      method: 'POST',
+      body: form.value
+    })
+    message.value = 'Gửi hỗ trợ thành công!'
+    form.value = { name: '', email: '', phone: '', subject: '', content: '' }
+  } catch (e) {
+    message.value = 'Gửi thất bại, vui lòng thử lại.'
+  }
+  submitting.value = false
+}
+</script>
+
+<style scoped>
+/* Thêm CSS tùy chỉnh tại đây nếu cần */
+</style>

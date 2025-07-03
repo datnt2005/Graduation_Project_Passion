@@ -63,6 +63,8 @@
             <span>{{ item.label }}</span>
           </router-link>
         </li>
+        <!-- sản phẩm yêu thích -->
+
       </ul>
     </nav>
   </aside>

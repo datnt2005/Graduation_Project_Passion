@@ -3,8 +3,7 @@
         <!-- Title -->
         <div class="flex items-center justify-between">
             <h1 class="text-lg font-normal leading-tight">{{ product.name }}</h1>
-            <button @click="$emit('toggle-favorite')" class="text-red-500 text-xl focus:outline-none"
-                aria-label="Toggle favorite">
+            <button @click="toggleFavorite" class="text-red-500 text-xl focus:outline-none">
                 <i :class="[isFavorite ? 'fas' : 'far', 'fa-heart']"></i>
             </button>
         </div>
@@ -93,7 +92,8 @@
                         <input
                             class="input-no-spinner w-full h-10 text-center text-sm text-gray-900 bg-transparent border-x border-gray-200 focus:outline-none"
                             type="number" step="1" :value="quantity" min="1" :max="selectedVariant?.stock || 0"
-                            @input="handleQuantityInput($event.target.value)" @keydown="blockInvalidKeys" aria-label="Quantity" />
+                            @input="handleQuantityInput($event.target.value)" @keydown="blockInvalidKeys"
+                            aria-label="Quantity" />
                         <button class="w-10 h-10 text-gray-600 hover:bg-gray-100 rounded-r-md"
                             :disabled="quantity >= (selectedVariant?.stock || 0)" @click="$emit('increase-quantity')"
                             aria-label="Increase quantity">
@@ -130,7 +130,16 @@
 </template>
 
 <script setup>
+import { ref, onMounted } from "vue";
 import { computed } from 'vue';
+import { useToast } from '~composables/useToast';
+import { useRouter } from "vue-router";
+import { useAuthStore } from "~/stores/authStore";
+
+const auth = useAuthStore();
+const { toast } = useToast();
+const router = useRouter();
+
 
 const props = defineProps({
     product: { type: Object, required: true },
@@ -159,6 +168,47 @@ const emit = defineEmits([
     'update:quantity',
     'clear-validation'
 ]);
+
+const isFavorite = ref(props.isFavorite)
+
+const toggleFavorite = async () => {
+  if (!auth.isLoggedIn) {
+    toast('error', 'Vui lòng đăng nhập để sử dụng tính năng yêu thích!')
+    return
+  }
+  try {
+    const token = localStorage.getItem('access_token')
+    const res = await $fetch('/favorite/toggle', {
+      method: 'POST',
+      body: { product_id: props.product.id },
+      headers: {
+        Authorization: `Bearer ${token}`,
+      }
+    })
+    isFavorite.value = res.favorited
+    toast('success', res.message)
+    // Nếu là thêm → chuyển sang /favorite sau 1s
+    if (res.favorited) {
+      setTimeout(() => router.push('/favorite'), 1000)
+    }
+  } catch (err) {
+    toast('error', 'Đã xảy ra lỗi khi cập nhật yêu thích!')
+    console.error(err)
+  }
+}
+
+onMounted(async () => {
+  if (!auth.isLoggedIn) return
+  try {
+    const token = localStorage.getItem('access_token')
+    const favorites = await $fetch('/favorite/list', {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    isFavorite.value = favorites.some(f => f.product_id === props.product.id)
+  } catch (err) {
+    console.error('Lỗi khi tải trạng thái yêu thích:', err)
+  }
+})
 
 function isOptionAvailable(attrName, value) {
     const otherSelections = { ...props.selectedOptions };
@@ -212,10 +262,10 @@ function handleBuyNow() {
 }
 
 function blockInvalidKeys(event) {
-  const invalidKeys = ['-', '+', 'e', 'E', '.', ','];
-  if (invalidKeys.includes(event.key)) {
-    event.preventDefault();
-  }
+    const invalidKeys = ['-', '+', 'e', 'E', '.', ','];
+    if (invalidKeys.includes(event.key)) {
+        event.preventDefault();
+    }
 }
 
 </script>

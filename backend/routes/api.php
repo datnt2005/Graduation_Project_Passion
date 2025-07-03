@@ -19,6 +19,13 @@ use App\Http\Controllers\GoogleAuthController;
 use App\Http\Controllers\ChatbotController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\BannerController;
+use App\Http\Controllers\FavoriteController;
+use App\Http\Controllers\PostController;
+use App\Http\Controllers\PostCategoryController;
+use App\Http\Controllers\PostCommentController;
+use App\Http\Controllers\SupportController;
+use App\Http\Controllers\RefundController;
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\Middleware\HandleCors;
@@ -226,8 +233,21 @@ Route::post('/ghn/wards', [GHNController::class, 'getWards']);
 Route::post('/shipping/calculate-fee', [GHNController::class, 'calculateFee']);
 Route::post('/ghn/services', [GHNController::class, 'getServices']);
 
+// Banner
+Route::prefix('banners')->group(function () {
+    Route::get('/', [BannerController::class, 'index']);
+    Route::get('/{id}', [BannerController::class, 'show']);
+    Route::post('/', [BannerController::class, 'store']);
+    Route::put('/{id}', [BannerController::class, 'update']);
+    Route::delete('/{id}', [BannerController::class, 'destroy']);
+    Route::get('/active', [BannerController::class, 'getActiveBanners']);
+    });
 
-
+// Favorite (Wishlist)
+Route::middleware('auth:sanctum')->prefix('favorites')->group(function () {
+    Route::post('/toggle', [FavoriteController::class, 'toggle']);
+    Route::get('/', [FavoriteController::class, 'list']);
+});
 
 // crud user
 Route::apiResource('users', UserController::class);
@@ -284,6 +304,7 @@ Route::prefix('admin')->group(function () {
    Route::post('/sellers/{id}/reject', [AdminSellerController::class, 'reject']);
 });
 
+
 // chat bot
 Route::post('/chatbot', [ChatbotController::class, 'chat']);
 
@@ -317,3 +338,54 @@ Route::get('inventory/list', [App\Http\Controllers\InventoryController::class, '
 Route::get('inventory/low-stock', [App\Http\Controllers\InventoryController::class, 'lowStock']);
 Route::get('inventory/best-sellers', [App\Http\Controllers\InventoryController::class, 'bestSellers']);
 
+
+// Post Management
+Route::prefix('posts')->group(function () {
+    Route::get('/', [PostController::class, 'index']);
+    Route::get('/{id}', [PostController::class, 'show']);
+    Route::get('/{post}/comments', [PostCommentController::class, 'getByPost']);
+    Route::get('/categories/{category}/posts', [PostController::class, 'getByCategory']);
+    Route::get('/tags/{tag}/posts', [PostController::class, 'getByTag']);
+    Route::get('/users/{user}/posts', [PostController::class, 'getByUser']);
+
+    // Các route cần đăng nhập
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::post('/', [PostController::class, 'store']);
+        Route::put('/{id}', [PostController::class, 'update']);
+        Route::delete('/{id}', [PostController::class, 'destroy']);
+    });
+});
+
+// Post Comments
+Route::prefix('post-comments')->group(function () {
+    Route::get('/', [PostCommentController::class, 'index']);
+    Route::get('/{id}', [PostCommentController::class, 'show']);
+    Route::patch('/{id}', [PostCommentController::class, 'update']);
+    Route::put('/{id}', [PostCommentController::class, 'update']);
+    Route::delete('/{id}', [PostCommentController::class, 'destroy']);
+
+    // Các route cần đăng nhập
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::post('/', [PostCommentController::class, 'store']);
+    });
+});
+
+// Support
+Route::prefix('supports')->group(function () {
+    Route::get('/', [SupportController::class, 'index']);
+    Route::post('/', [SupportController::class, 'store']);
+    Route::get('/{id}', [SupportController::class, 'show']);
+    Route::put('/{id}', [SupportController::class, 'update']);
+    Route::delete('/{id}', [SupportController::class, 'destroy']);
+    Route::post('/{id}/reply', [SupportController::class, 'reply']);
+    Route::get('/{id}/replies', [SupportController::class, 'getReplies']);
+});
+
+// Refunds
+Route::prefix('refunds')->group(function () {
+    Route::get('/', [RefundController::class, 'index']);
+    Route::get('/{id}', [RefundController::class, 'show']);
+    Route::post('/', [RefundController::class, 'store']);
+    Route::put('/{id}', [RefundController::class, 'update']);
+    Route::delete('/{id}', [RefundController::class, 'destroy']);
+});
