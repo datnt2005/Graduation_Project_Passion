@@ -127,24 +127,12 @@
 
           <!-- Menu chỉnh sửa / thu hồi -->
         <div
-          v-if="contextMenu.open && contextMenu.messageId === msg.id && msg.sender_type === 'user'"
-          :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }"
-          class="absolute z-50 text-sm text-gray-700"
-        >
-          <button
-            @click="editMessage(msg)"
-            class="block w-full text-left px-2 py-1 hover:bg-gray-100 rounded"
+            v-if="contextMenu.open && contextMenu.messageId === msg.id && msg.sender_type === 'user'"
+            class="z-50 bg-white border rounded shadow-md text-sm mt-1"
           >
-            Sửa tin nhắn
-          </button>
-          <button
-            @click="revokeMessage(msg)"
-            class="block w-full text-left px-2 py-1 hover:bg-gray-100 rounded"
-          >
-            Thu hồi
-          </button>
-        </div>
-
+            <button @click="editMessage(msg)" class="block w-full text-left px-3 py-2 hover:bg-gray-100">✏️ Sửa</button>
+            <button @click="revokeMessage(msg)" class="block w-full text-left px-3 py-2 hover:bg-gray-100">🗑️ Thu hồi</button>
+          </div>
         </div>
       </div>
 
@@ -387,23 +375,8 @@ function onNewIncomingMessage(msg) {
 }
 
 const openContext = (id, e) => {
-  const containerRight = window.innerWidth
-  const menuWidth = 160 // độ rộng của menu
-  let x = e.clientX
-
-  // Nếu quá gần mép phải thì lùi lại
-  if (x + menuWidth > containerRight) {
-    x = containerRight - menuWidth - 10
-  }
-
-  contextMenu.value = {
-    open: true,
-    messageId: id,
-    x,
-    y: e.clientY
-  }
+  contextMenu.value = { open: true, messageId: id, x: e.clientX, y: e.clientY }
 }
-
 
 const closeContext = () => {
   contextMenu.value = { open: false, messageId: null, x: 0, y: 0 }
@@ -417,7 +390,10 @@ const editMessage = async (msg) => {
         action: 'edit',
         message: newContent
       }, { headers: { Authorization: `Bearer ${token.value}` } })
-      if (res.data.success) await loadMessages(selectedSession.value.id)
+     if (res.data.success) {
+  lastLoadedSessionId = null
+  await loadMessages(selectedSession.value.id)
+}
     } catch (err) {
       alert('❌ Không thể sửa tin nhắn.')
       console.error(err)
@@ -432,7 +408,10 @@ const revokeMessage = async (msg) => {
     const res = await axios.put(`${API}/chat/messages/${msg.id}/action`, {
       action: 'revoke'
     }, { headers: { Authorization: `Bearer ${token.value}` } })
-    if (res.data.success) await loadMessages(selectedSession.value.id)
+  if (res.data.success) {
+  lastLoadedSessionId = null
+  await loadMessages(selectedSession.value.id)
+}
   } catch (err) {
     alert('❌ Không thể thu hồi.')
     console.error(err)
