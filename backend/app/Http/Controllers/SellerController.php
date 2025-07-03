@@ -19,7 +19,6 @@ class SellerController extends Controller
     public function index()
     {
         $sellers = User::whereHas('seller')
-            ->with('seller.business')
             ->get();
         return response()->json($sellers);
     }
@@ -31,7 +30,7 @@ class SellerController extends Controller
         $user = auth()->user();
 
         // Kiểm tra user có phải seller không
-        $seller = Seller::with(['business', 'user:id,name,email,avatar'])
+        $seller = Seller::with(['user:id,name,email,avatar'])
             ->where('user_id', auth()->id())
             ->first();
 

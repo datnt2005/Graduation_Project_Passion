@@ -24,8 +24,10 @@
           <!-- Thông tin cơ bản -->
           <div class="bg-white rounded-xl p-6 shadow space-y-6">
             <div class="flex items-center gap-4">
-            <img
-              :src="`https://pub-3fc809b4396849cba1c342a5b9f50be9.r2.dev/${seller.user?.avatar || 'default.jpg'}`"
+           <img
+              :src="seller.user?.avatar?.startsWith('https://') 
+                ? seller.user.avatar 
+                : `https://pub-3fc809b4396849cba1c342a5b9f50be9.r2.dev/${seller.user?.avatar || 'default.jpg'}`"
               class="w-20 h-20 rounded-full border object-cover"
               alt="avatar"
             />
@@ -167,7 +169,7 @@ import { secureAxios } from '@/utils/secureAxios'
 
 const config = useRuntimeConfig();
 const API = config.public.apiBaseUrl;
-const mediaBase = (config.public.mediaBaseUrl || 'http://localhost:8000').replace(/\/?$/, '/');
+const mediaBaseUrl = (config.public.mediaBaseUrl || 'http://localhost:8000').replace(/\/?$/, '/');
 
 const seller = ref(null);
 const sellerProfile = ref(null);
@@ -208,10 +210,13 @@ const closeImagePreview = () => {
 
 // Lấy ảnh CCCD
 const getCccdImage = (seller, side) => {
-  if (side === 'front' && seller?.cccd_front) return mediaBase + seller.cccd_front;
-  if (side === 'back' && seller?.cccd_back) return mediaBase + seller.cccd_back;
-  return null;
-};
+  const path =
+    side === 'front' ? seller.id_card_front_url : seller.id_card_back_url
+
+  if (!path) return null
+
+  return path.startsWith('http') ? path : `${mediaBaseUrl}${path}`
+}
 
 // Ảnh giấy tờ
 const getDocumentImage = (seller, type) => {
