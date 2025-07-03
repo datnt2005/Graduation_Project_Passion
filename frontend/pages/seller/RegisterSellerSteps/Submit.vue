@@ -1,6 +1,9 @@
 <template>
-    <div class="min-h-screen bg-gradient-to-b from-white to-blue-50 px-4 py-10 flex items-start justify-center">
-        <div class="w-full max-w-2xl text-center space-y-6">
+  <div class="min-h-screen bg-gradient-to-b from-white to-blue-50 px-4 py-10 flex items-start justify-center relative">
+    <div class="absolute top-0 left-0 right-0 z-10 px-6 pt-6 bg-white">
+            <RegisterSteps :currentStep="4" />
+        </div>
+    <div class="w-full max-w-2xl text-center space-y-6 pt-24">
             <!-- Icon + tiêu đề -->
             <div class="flex flex-col items-center gap-2">
                 <div class="bg-blue-100 text-blue-600 rounded-full p-3">
@@ -77,17 +80,37 @@
                     class="px-6 py-2 rounded-lg border border-blue-500 text-blue-600 font-medium hover:bg-blue-50">
                     <i class="fas fa-arrow-left mr-1"></i> Quay lại
                 </button>
-                <button @click="submit"
-                    class="px-6 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700">
-                    <i class="fas fa-paper-plane mr-1"></i> Gửi đăng ký
-                </button>
+               <button
+  @click="submit"
+  :disabled="loading"
+  class="px-6 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 flex items-center justify-center min-w-[150px]"
+>
+  <svg
+    v-if="loading"
+    class="animate-spin h-4 w-4 mr-2 text-white"
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+  >
+    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+    <path
+      class="opacity-75"
+      fill="currentColor"
+      d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z"
+    />
+  </svg>
+  <i v-else class="fas fa-paper-plane mr-1"></i>
+  <span>{{ loading ? 'Đang gửi...' : 'Gửi đăng ký' }}</span>
+</button>
             </div>
             <p class="text-xs text-gray-500 text-center max-w-sm mx-auto">
                 Khi nhấn <span class="font-medium">Gửi đăng ký</span>, bạn đồng ý với
-                <a href="/seller/terms-of-service" target="_blank" class="text-blue-600 underline hover:text-blue-800">Điều
+                <a href="/seller/terms-of-service" target="_blank"
+                    class="text-blue-600 underline hover:text-blue-800">Điều
                     khoản</a>
                 và
-                <a href="/seller/privacy-policy" target="_blank" class="text-blue-600 underline hover:text-blue-800">Chính
+                <a href="/seller/privacy-policy" target="_blank"
+                    class="text-blue-600 underline hover:text-blue-800">Chính
                     sách</a>
                 của chúng tôi.
             </p>
@@ -104,6 +127,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import { useToast } from '~/composables/useToast'
+const loading = ref(false)
 
 const config = useRuntimeConfig()
 const api = config.public.apiBaseUrl
@@ -136,6 +160,7 @@ onMounted(() => {
 
 const submit = async () => {
     errorMessage.value = ''
+     loading.value = true 
     const token = localStorage.getItem('access_token')
 
     try {
@@ -199,8 +224,10 @@ const submit = async () => {
             }
         } else {
             toast('error', 'Đã xảy ra lỗi khi gửi đăng ký.')
-        }
-    }
+        } 
+    }finally {
+    loading.value = false  
+  }
 }
 
 const goBackStep = () => {

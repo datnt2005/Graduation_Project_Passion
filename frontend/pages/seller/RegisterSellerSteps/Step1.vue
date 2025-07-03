@@ -1,14 +1,19 @@
 <template>
-  <div class="grid grid-cols-1 lg:grid-cols-2 min-h-screen bg-white">
+  <div class="grid grid-cols-1 lg:grid-cols-2 min-h-screen bg-white relative">
+
+    <!-- 🟦 Thanh bước ở trên cùng toàn trang -->
+    <div class="absolute top-0 left-0 right-0 z-10 px-6 pt-6 bg-white">
+      <RegisterSteps :currentStep="0" />
+    </div>
     <!-- Cột trái: Ảnh minh họa -->
     <div class="hidden lg:flex items-center justify-center">
       <img src="/images/SellerCenter2.png" alt="Đăng ký bán hàng" class="max-h-[500px] rounded-xl shadow-md" />
     </div>
 
     <!-- Cột phải: Form -->
-    <div class="flex items-center justify-center px-8 py-12">
+    <div class="flex items-center justify-center px-8 py-20">
       <div class="w-full max-w-xl">
-        <div class="mb-8">
+        <div class="mb-8 mt-6">
           <h1 class="text-2xl font-bold">Tạo tài khoản bán hàng</h1>
           <p class="text-gray-600">Tham gia để tiếp cận hàng triệu khách hàng</p>
         </div>
@@ -42,11 +47,13 @@
   </div>
 </template>
 
+
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import axios from 'axios'
 import { useRouter } from 'vue-router'
 import { useToast } from '~/composables/useToast'
+import RegisterSteps from '@/components/RegisterSteps.vue'
 
 const { toast } = useToast()
 const router = useRouter()

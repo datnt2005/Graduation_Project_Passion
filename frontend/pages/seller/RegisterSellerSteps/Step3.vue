@@ -1,6 +1,8 @@
 <template>
-  <div class="grid grid-cols-1 lg:grid-cols-2 min-h-screen bg-white">
-    <!-- Cột trái: Ảnh minh họa -->
+<div class="grid grid-cols-1 lg:grid-cols-2 min-h-screen bg-white relative">
+      <div class="absolute top-0 left-0 right-0 z-10 px-6 pt-6 bg-white">
+      <RegisterSteps :currentStep="2" />
+    </div>    <!-- Cột trái: Ảnh minh họa -->
     <div class="hidden lg:flex items-center justify-center bg-gray-50">
       <img
         src="/images/SellerCenter2.png"
@@ -70,6 +72,7 @@ import { ref, onMounted } from 'vue'
 import axios from 'axios'
 import { useRouter } from 'vue-router'
 import { useToast } from '~/composables/useToast'
+import RegisterSteps from '@/components/RegisterSteps.vue'
 
 const router = useRouter()
 const { toast } = useToast()

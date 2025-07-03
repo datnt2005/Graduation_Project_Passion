@@ -1,6 +1,8 @@
 <template>
-    <div class="grid grid-cols-1 lg:grid-cols-2 min-h-screen bg-white">
-        <!-- Cột trái: Ảnh -->
+<div class="grid grid-cols-1 lg:grid-cols-2 min-h-screen bg-white relative">
+      <div class="absolute top-0 left-0 right-0 z-10 px-6 pt-6 bg-white">
+      <RegisterSteps :currentStep="3" />
+    </div>        <!-- Cột trái: Ảnh -->
         <div class="hidden lg:flex items-center justify-center">
             <img src="/images/SellerCenter2.png" alt="CCCD" class="max-h-[500px] rounded-xl shadow-md" />
         </div>
@@ -8,7 +10,7 @@
         <!-- Cột phải: Form -->
         <div class="flex items-center justify-center px-8 py-12">
             <div class="w-full max-w-xl">
-                <div class="mb-8">
+                <div class="mb-8 pt-20">
                     <h1 class="text-2xl font-bold text-blue-700">Xác minh danh tính</h1>
                     <p class="text-gray-600">Vui lòng cung cấp thông tin và ảnh CCCD của bạn</p>
                 </div>
@@ -128,6 +130,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useToast } from '~/composables/useToast'
+import RegisterSteps from '@/components/RegisterSteps.vue'
 
 const router = useRouter()
 const loading = ref(false)

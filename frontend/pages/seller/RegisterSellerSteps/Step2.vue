@@ -1,12 +1,18 @@
 <template>
-  <div class="grid grid-cols-1 lg:grid-cols-2 min-h-screen bg-white">
+  <div class="grid grid-cols-1 lg:grid-cols-2 min-h-screen bg-white relative">
+      <div class="absolute top-0 left-0 right-0 z-10 px-6 pt-6 bg-white">
+      <RegisterSteps :currentStep="1" />
+    </div>
     <!-- Cột trái -->
     <div class="hidden lg:flex items-center justify-center bg-gray-50">
+      
       <img src="/images/SellerCenter2.png" alt="Đăng ký bán hàng" class="max-h-[500px] rounded-xl shadow-md" />
+      
     </div>
 
     <!-- Cột phải -->
     <div class="flex flex-col justify-center p-8 max-w-md w-full mx-auto">
+      
       <h2 class="text-2xl font-bold text-blue-600 mb-2">Chọn dịch vụ vận chuyển</h2>
       <p class="text-gray-600 mb-6">Chọn các dịch vụ vận chuyển phù hợp với cửa hàng của bạn</p>
 
@@ -37,9 +43,6 @@
             </div>
           </div>
         </div>
-
-        
-
         <!-- Nút -->
         <div class="flex justify-between items-center mt-6">
           <button type="button" @click="goBack" class="text-blue-600 underline">← Quay lại</button>
@@ -53,6 +56,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import RegisterSteps from '@/components/RegisterSteps.vue'
 
 const selected = ref(true)
 const router = useRouter()
