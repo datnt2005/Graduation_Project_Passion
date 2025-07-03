@@ -247,14 +247,20 @@ const loadMessages = async (sessionId) => {
       headers: { Authorization: `Bearer ${token.value}` }
     })
     const newMessages = res.data
+
+    // 👉 Đảm bảo thứ tự từ cũ -> mới
+    messages.value = newMessages.sort(
+      (a, b) => new Date(a.created_at) - new Date(b.created_at)
+    )
+
     const shouldScroll = newMessages.length !== lastMessageCount
-    messages.value = newMessages
     lastMessageCount = newMessages.length
     if (shouldScroll) scrollToBottom()
   } catch (err) {
     console.error('❌ Lỗi load messages:', err)
   }
 }
+
 
 // --- UI HANDLERS ---
 const scrollToBottom = () => {
@@ -283,6 +289,7 @@ const pendingId = () => 'pending_' + Date.now()
 
 const sendMessage = async () => {
   if (!selectedSession.value) return
+
   const hasText = form.value.message.trim() !== ''
   const hasFiles = form.value.file.length > 0
   if (!hasText && !hasFiles) return
@@ -292,9 +299,19 @@ const sendMessage = async () => {
     id: tempId,
     sender_type: 'seller',
     message: form.value.message,
-    attachments: imagePreview.value.map((img, i) => ({ id: `temp_${i}`, file_type: 'image', file_url: img })),
+    attachments: imagePreview.value.map((img, i) => ({
+      id: `temp_${i}`,
+      file_type: 'image',
+      file_url: img
+    })),
     pending: true
   }
+
+  // Đảm bảo messages là mảng
+  if (!Array.isArray(messages.value)) {
+    messages.value = []
+  }
+
   messages.value.push(newMsg)
   scrollToBottom()
 
@@ -314,19 +331,42 @@ const sendMessage = async () => {
         'Content-Type': 'multipart/form-data'
       }
     })
+
+    // Xoá tin nhắn tạm
     messages.value = messages.value.filter(m => m.id !== tempId)
-    messages.value.push(data)
+
+    // Kiểm tra dữ liệu và thêm tin nhắn thực tế
+    if (data && typeof data.chat_message === 'object') {
+      const finalMessage = {
+          ...data.chat_message,
+          attachments: data.chat_message.attachments ?? []
+        }
+messages.value.push(finalMessage)
+    } else {
+      console.warn('⚠️ Phản hồi không hợp lệ:', data)
+    }
+
     scrollToBottom()
   } catch (err) {
-    messages.value = messages.value.map(m => m.id === tempId ? { ...m, error: true } : m)
+    // Đảm bảo messages là mảng trước khi map
+    if (!Array.isArray(messages.value)) {
+      messages.value = []
+    }
+
+    messages.value = messages.value.map(m =>
+      m.id === tempId ? { ...m, error: true } : m
+    )
     console.error('❌ Lỗi gửi tin nhắn:', err)
   }
 
+  // Reset form
   form.value.message = ''
   form.value.file = []
   imagePreview.value = []
   if (fileInput.value) fileInput.value.value = ''
 }
+
+
 
 const openContext = (id, e) => {
   contextMenu.value = { open: true, messageId: id, x: e.clientX, y: e.clientY }

@@ -18,7 +18,7 @@
       <!-- Header -->
       <div class="flex items-center justify-between px-4 py-2 bg-[#1BA0E2] text-white">
         <h2 class="font-semibold text-base">
-          {{ selectedSession ? `\u0110ang chat với: ${selectedSession?.seller?.store_name || 'Cửa hàng'}` : 'Chat với cửa hàng' }}
+          {{ selectedSession ? `Đang chat với: ${selectedSession?.seller?.store_name || 'Cửa hàng'}` : 'Chat với cửa hàng' }}
         </h2>
         <button @click="open = false" class="hover:opacity-80">
           <i class="fas fa-times"></i>
@@ -26,13 +26,13 @@
       </div>
 
       <!-- Nội dung -->
-      <div class="flex-1 flex overflow-hidden">
+      <div class="flex-1 flex overflow-hidden" @click="closeContext">
         <!-- Sidebar -->
         <aside class="w-1/3 border-r p-2 bg-gray-50 hidden sm:block">
           <input
             v-model="search"
             type="text"
-            placeholder=" Tìm cửa hàng"
+            placeholder="Tìm cửa hàng"
             class="w-full px-2 py-1 text-sm border rounded mb-2"
           />
           <ul class="space-y-2 overflow-y-auto max-h-[400px] pr-1">
@@ -50,69 +50,105 @@
                 class="w-8 h-8 rounded-full object-cover"
                 alt="avatar"
               />
-              <span class="text-sm truncate">
-                {{ session.seller?.store_name || 'Cửa hàng' }}
-              </span>
+              <span class="text-sm truncate">{{ session.seller?.store_name || 'Cửa hàng' }}</span>
             </li>
           </ul>
         </aside>
 
         <!-- Chat chính -->
         <section class="flex-1 flex flex-col bg-gray-100 overflow-hidden">
-          <!-- Danh sách tin nhắn -->
-        <div class="flex-1 min-h-0 overflow-y-auto p-3 space-y-3" ref="chatBox">
-
+        <!-- Danh sách tin nhắn -->
+      <div class="flex-1 p-3 space-y-3 overflow-y-auto" ref="chatBox">
+        <div
+          v-for="msg in messages"
+          :key="msg.id"
+          class="flex gap-2 items-start"
+          :class="msg.sender_type === 'user' ? 'justify-end' : 'justify-start'"
+          @contextmenu.prevent="openContext(msg.id, $event)"
+        >
+          <!-- Nội dung tin nhắn -->
           <div
-            v-for="msg in messages"
-            :key="msg.id"
-            class="flex flex-col space-y-1 relative"
-            :class="msg.sender_type === 'user' ? 'items-end' : 'items-start'"
+            class="relative p-2 rounded-lg shadow max-w-[85%] sm:max-w-[70%]"
+            :class="[
+              msg.sender_type === 'user' ? 'bg-blue-500 text-white' : 'bg-white text-gray-800',
+              msg.pending ? 'opacity-60' : '',
+              msg.error ? 'border border-red-500' : ''
+            ]"
           >
-            <!-- Tin nhắn văn bản -->
-            <div
-              v-if="msg.message"
-              class="max-w-[75%] p-2 rounded-lg shadow relative"
-              :class="[
-                msg.sender_type === 'user' ? 'bg-blue-500 text-white' : 'bg-white text-gray-800',
-                msg.pending ? 'opacity-60' : '',
-                msg.error ? 'border border-red-500' : ''
-              ]"
+            <!-- Nội dung chính -->
+            <p
+              class="whitespace-pre-line break-words break-all"
+              :class="msg.message_type === 'revoked' ? 'italic text-gray-300' : ''"
             >
-              <p class="whitespace-pre-line break-words">{{ msg.message }}</p>
-            
-            </div>
+              {{ msg.message }}
+              <span
+                v-if="msg.message_type === 'edited'"
+                class="text-xs italic text-gray-300 ml-1"
+              >
+                (Đã chỉnh sửa)
+              </span>
+            </p>
 
             <!-- File đính kèm -->
-            <div v-if="Array.isArray(msg.attachments) && msg.attachments.length" class="flex flex-wrap gap-2">
+            <div v-if="msg.message_type !== 'revoked' && msg.attachments?.length" class="flex flex-wrap gap-2 mt-2">
               <template v-for="file in msg.attachments" :key="file.id">
                 <img
                   v-if="file.file_type === 'image'"
                   :src="file.file_url"
                   class="w-[80px] h-[80px] object-cover rounded border border-gray-200 shadow"
                   :class="msg.pending ? 'opacity-60' : ''"
+                  alt="Attachment"
                 />
                 <a
                   v-else
                   :href="file.file_url"
                   target="_blank"
-                  class="text-blue-500 underline text-sm truncate max-w-[200px]"
+                  class="text-blue-200 underline text-sm truncate max-w-[200px]"
                 >
                   📎 {{ file.file_name }}
                 </a>
               </template>
             </div>
 
-            <!-- Trạng thái gửi cho tin nhắn và ảnh or file message -->
-           <div
-              v-if="msg.pending"
-              class="text-xs text-gray-500 italic mt-1 ml-1"
-            >
+            <!-- Trạng thái gửi -->
+            <div v-if="msg.pending" class="text-xs text-gray-200 italic mt-1">
               <i class="fas fa-spinner animate-spin mr-1"></i> Đang gửi...
             </div>
-
-            
           </div>
+
+          <!-- Nút 3 chấm -->
+          <button
+            v-if="msg.sender_type === 'user' && msg.message_type !== 'revoked'"
+            @click.stop="openContext(msg.id, $event)"
+            class="text-gray-400 hover:text-gray-600 text-lg px-1"
+          >
+            ⋮
+          </button>
+
+          <!-- Menu chỉnh sửa / thu hồi -->
+        <div
+          v-if="contextMenu.open && contextMenu.messageId === msg.id && msg.sender_type === 'user'"
+          :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }"
+          class="absolute z-50 text-sm text-gray-700"
+        >
+          <button
+            @click="editMessage(msg)"
+            class="block w-full text-left px-2 py-1 hover:bg-gray-100 rounded"
+          >
+            Sửa tin nhắn
+          </button>
+          <button
+            @click="revokeMessage(msg)"
+            class="block w-full text-left px-2 py-1 hover:bg-gray-100 rounded"
+          >
+            Thu hồi
+          </button>
         </div>
+
+        </div>
+      </div>
+
+
 
           <!-- Gửi tin nhắn -->
           <form @submit.prevent="sendMessage" class="p-3 border-t bg-white flex flex-col gap-3">
@@ -136,7 +172,7 @@
               </div>
             </div>
 
-            <!-- Emoji + nhập tin nhắn + file -->
+            <!-- Nhập tin nhắn -->
             <div class="flex items-center gap-2">
               <input
                 v-model="form.message"
@@ -157,10 +193,10 @@
   </transition>
 </template>
 
+
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick, computed, watch } from 'vue'
 import axios from 'axios'
-import { watch } from 'vue'
 
 const open = ref(false)
 const form = ref({ message: '', file: [] })
@@ -180,6 +216,7 @@ const API = config.public.apiBaseUrl
 const hasNewMessage = ref(false)
 let polling = null
 const pendingId = () => 'pending_' + Date.now()
+const contextMenu = ref({ open: false, messageId: null, x: 0, y: 0 })
 
 const DEFAULT_AVATAR = 'https://pub-3fc809b4396849cba1c342a5b9f50be9.r2.dev/avatars/default.jpg'
 const getAvatarUrl = (avatar) => {
@@ -198,7 +235,6 @@ const filteredSessions = computed(() => {
 
 const loadUserInfo = async () => {
   const storedToken = localStorage.getItem('access_token')
-  // if (!storedToken) return alert('Vui lòng đăng nhập')
   try {
     token.value = storedToken
     const { data } = await axios.get(`${API}/me`, {
@@ -208,7 +244,6 @@ const loadUserInfo = async () => {
     userId.value = user.value?.id
   } catch (error) {
     console.error('❌ Lỗi khi lấy user:', error)
-    // alert('Không thể lấy thông tin người dùng.')
   }
 }
 
@@ -228,27 +263,27 @@ const loadSessions = async () => {
   }
 }
 
+let lastLoadedSessionId = null
+
 const loadMessages = async (sessionId) => {
-  console.log('🔵 Gọi loadMessages cho sessionId:', sessionId);
+  if (sessionId === lastLoadedSessionId) return
+  lastLoadedSessionId = sessionId
+
+  console.log('🔵 Gọi loadMessages cho sessionId:', sessionId)
 
   try {
     const { data } = await axios.get(`${API}/chat/messages/${sessionId}`, {
       headers: { Authorization: `Bearer ${token.value}` }
-    });
-
-    console.log(`🟢 Tin nhắn cho session ${sessionId}:`, data);
-
-    messages.value = data;
-
-    await nextTick();
+    })
+    messages.value = data
+    await nextTick()
     if (chatBox.value) {
-      chatBox.value.scrollTop = chatBox.value.scrollHeight;
+      chatBox.value.scrollTop = chatBox.value.scrollHeight
     }
-
   } catch (error) {
-    console.error('❌ Lỗi load messages:', error?.response?.data || error.message);
+    console.error('❌ Lỗi load messages:', error?.response?.data || error.message)
   }
-};
+}
 
 const selectSession = async (session) => {
   selectedSession.value = session
@@ -262,17 +297,15 @@ const handleFile = (e) => {
 }
 
 const removeImage = (index) => {
-  form.value.file.splice(index, 1);
-  imagePreview.value.splice(index, 1);
-};
+  form.value.file.splice(index, 1)
+  imagePreview.value.splice(index, 1)
+}
 
 const sendMessage = async () => {
-  if (!selectedSession.value) return;
-    const hasText = form.value.message.trim() !== '';
-  const hasFiles = form.value.file.length > 0;
-
-  // Ngăn gửi nếu không có nội dung và không có file
-  if (!hasText && !hasFiles) return;
+  if (!selectedSession.value) return
+  const hasText = form.value.message.trim() !== ''
+  const hasFiles = form.value.file.length > 0
+  if (!hasText && !hasFiles) return
 
   const tempId = pendingId()
   const newMsg = {
@@ -284,52 +317,52 @@ const sendMessage = async () => {
       file_type: 'image',
       file_url: img
     })),
-    pending: true // đánh dấu đang gửi
+    pending: true
   }
-  // Push tin nhắn tạm vào khung chat
   messages.value.push(newMsg)
-
   await nextTick()
   if (chatBox.value) chatBox.value.scrollTop = chatBox.value.scrollHeight
 
-  // Gửi thực tế
   const payload = new FormData()
   payload.append('session_id', selectedSession.value.id)
   payload.append('sender_id', userId.value)
   payload.append('receiver_id', selectedSession.value.seller.id)
   payload.append('sender_type', 'user')
-  // payload.append('message_type', form.value.file.length ? 'image' : 'text')
-  payload.append('message_type', hasFiles ? 'image' : 'text');
-
+  payload.append('message_type', hasFiles ? 'image' : 'text')
   if (form.value.message) payload.append('message', form.value.message)
   form.value.file.forEach(file => payload.append('file[]', file))
 
-  try {
-    const { data } = await axios.post(`${API}/chat/send-message`, payload, {
-      headers: {
-        Authorization: `Bearer ${token.value}`,
-        'Content-Type': 'multipart/form-data'
-      }
-    })
+ try {
+  const { data } = await axios.post(`${API}/chat/send-message`, payload, {
+    headers: {
+      Authorization: `Bearer ${token.value}`,
+      'Content-Type': 'multipart/form-data'
+    }
+  })
 
-    // Xoá tin nhắn tạm
-    messages.value = messages.value.filter(msg => msg.id !== tempId)
+  // Xoá pending
+  messages.value = messages.value.filter(msg => msg.id !== tempId)
 
-    // Thêm lại tin nhắn thật từ server
+  // Nếu API trả về object message, push vào
+  if (data && data.id) {
     messages.value.push(data)
-
-    await nextTick()
-    if (chatBox.value) chatBox.value.scrollTop = chatBox.value.scrollHeight
-
-  } catch (err) {
-    console.error('❌ Lỗi gửi:', err)
-    messages.value = messages.value.map(m => {
-      if (m.id === tempId) return { ...m, error: true }
-      return m
-    })
+  } else {
+    // fallback: reload từ server
+    lastLoadedSessionId = null
+    await loadMessages(selectedSession.value.id)
   }
 
-  // Reset form
+  await nextTick()
+  if (chatBox.value) chatBox.value.scrollTop = chatBox.value.scrollHeight
+
+} catch (err) {
+  console.error('❌ Lỗi gửi:', err)
+  messages.value = messages.value.map(m => {
+    if (m.id === tempId) return { ...m, error: true }
+    return m
+  })
+}
+
   form.value.message = ''
   form.value.file = []
   imagePreview.value = []
@@ -353,25 +386,77 @@ function onNewIncomingMessage(msg) {
   })
 }
 
+const openContext = (id, e) => {
+  const containerRight = window.innerWidth
+  const menuWidth = 160 // độ rộng của menu
+  let x = e.clientX
+
+  // Nếu quá gần mép phải thì lùi lại
+  if (x + menuWidth > containerRight) {
+    x = containerRight - menuWidth - 10
+  }
+
+  contextMenu.value = {
+    open: true,
+    messageId: id,
+    x,
+    y: e.clientY
+  }
+}
+
+
+const closeContext = () => {
+  contextMenu.value = { open: false, messageId: null, x: 0, y: 0 }
+}
+
+const editMessage = async (msg) => {
+  const newContent = prompt('✏️ Nhập nội dung mới:', msg.message)
+  if (newContent && newContent.trim()) {
+    try {
+      const res = await axios.put(`${API}/chat/messages/${msg.id}/action`, {
+        action: 'edit',
+        message: newContent
+      }, { headers: { Authorization: `Bearer ${token.value}` } })
+      if (res.data.success) await loadMessages(selectedSession.value.id)
+    } catch (err) {
+      alert('❌ Không thể sửa tin nhắn.')
+      console.error(err)
+    }
+  }
+  closeContext()
+}
+
+const revokeMessage = async (msg) => {
+  if (!confirm('🗑️ Bạn có chắc muốn thu hồi không?')) return
+  try {
+    const res = await axios.put(`${API}/chat/messages/${msg.id}/action`, {
+      action: 'revoke'
+    }, { headers: { Authorization: `Bearer ${token.value}` } })
+    if (res.data.success) await loadMessages(selectedSession.value.id)
+  } catch (err) {
+    alert('❌ Không thể thu hồi.')
+    console.error(err)
+  }
+  closeContext()
+}
+
 onMounted(() => {
   polling = setInterval(async () => {
     if (selectedSession.value) {
       await loadMessages(selectedSession.value.id)
     }
-  }, 3000) // 3 giây
+  }, 3000)
 })
 
 onUnmounted(() => {
   clearInterval(polling)
 })
 
-
 onMounted(async () => {
   await loadUserInfo()
   if (userId.value) await loadSessions()
 })
- </script>
-
+</script>
 
 <style scoped>
 @keyframes shake {
@@ -382,5 +467,4 @@ onMounted(async () => {
 .animate-shake {
   animation: shake 0.5s;
 }
-
 </style>

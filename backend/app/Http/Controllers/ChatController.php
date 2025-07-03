@@ -119,13 +119,15 @@ class ChatController extends Controller
             $cacheKey = "chat_messages_session_{$sessionId}";
 
            $messages = Cache::store('redis')->remember($cacheKey, 60, function () use ($sessionId) {
-            return ChatMessage::with('attachments')
-                ->where('session_id', $sessionId)
-                ->latest()
-                ->take(30)
-                ->get()
-                ->reverse(); // đảo lại theo thời gian tăng dần
-        });
+                return ChatMessage::with('attachments')
+                    ->where('session_id', $sessionId)
+                    ->latest()
+                    ->take(50)
+                    ->get()
+                    ->reverse()
+                    ->values()    // reset key
+                    ->all();      // ép thành mảng JSON
+            });
 
             return response()->json($messages);
         } catch (\Exception $e) {
