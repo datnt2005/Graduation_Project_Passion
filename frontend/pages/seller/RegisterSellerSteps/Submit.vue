@@ -159,76 +159,88 @@ onMounted(() => {
 })
 
 const submit = async () => {
-    errorMessage.value = ''
-     loading.value = true 
-    const token = localStorage.getItem('access_token')
+  errorMessage.value = ''
+  loading.value = true
+  const token = localStorage.getItem('access_token')
 
-    try {
-        const formData = new FormData()
-        formData.append('store_name', step1.value.store_name || '')
-        formData.append('phone_number', step1.value.phone_number || '')
-        formData.append('pickup_address', step1.value.pickup_address || '')
-        formData.append('shipping_options[express]', step2.value.express ? 'true' : '')
+  try {
+    const formData = new FormData()
+    formData.append('store_name', step1.value.store_name || '')
+    formData.append('phone_number', step1.value.phone_number || '')
+    formData.append('pickup_address', step1.value.pickup_address || '')
+    formData.append('shipping_options[express]', step2.value.express ? 'true' : '')
 
-        formData.append('seller_type', step3.value.seller_type || '')
-        formData.append('tax_code', step3.value.tax_code || '')
-        formData.append('business_name', step3.value.business_name || '')
-        formData.append('business_email', step3.value.business_email || '')
+    formData.append('seller_type', step3.value.seller_type || '')
+    formData.append('tax_code', step3.value.tax_code || '')
+    formData.append('business_name', step3.value.business_name || '')
+    formData.append('business_email', step3.value.business_email || '')
 
-        formData.append('identity_card_number', step4.value.identity_card_number || '')
-        formData.append('date_of_birth', step4.value.date_of_birth || '')
-        formData.append('personal_address', step4.value.personal_address || '')
+    formData.append('identity_card_number', step4.value.identity_card_number || '')
+    formData.append('date_of_birth', step4.value.date_of_birth || '')
+    formData.append('personal_address', step4.value.personal_address || '')
 
-        if (step4.value.frontImageBase64) {
-            formData.append('id_card_front_url', dataURLtoFile(step4.value.frontImageBase64, 'cccd-front.png'))
-        }
-        if (step4.value.backImageBase64) {
-            formData.append('id_card_back_url', dataURLtoFile(step4.value.backImageBase64, 'cccd-back.png'))
-        }
+    // Ảnh CCCD mặt trước
+    if (step4.value.frontImageBase64) {
+      formData.append('id_card_front_url', dataURLtoFile(step4.value.frontImageBase64, 'cccd-front.png'))
+    }
 
-        await axios.post(`${api}/sellers/register/full`, formData, {
-            headers: {
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'multipart/form-data',
-            },
-        })
+    // Ảnh CCCD mặt sau
+    if (step4.value.backImageBase64) {
+      formData.append('id_card_back_url', dataURLtoFile(step4.value.backImageBase64, 'cccd-back.png'))
+    }
 
-        localStorage.removeItem('register_step1')
-        localStorage.removeItem('register_step2')
-        localStorage.removeItem('register_step3')
-        localStorage.removeItem('register_step4')
+    // 👉 Nếu là doanh nghiệp thì gửi file xác minh doanh nghiệp
+    if (step3.value.seller_type === 'business' && step3.value.identity_card_file_base64) {
+      formData.append(
+        'identity_card_file',
+        dataURLtoFile(step3.value.identity_card_file_base64, step3.value.identity_card_file_name || 'business-file.pdf')
+      )
+    }
 
-        toast('success', 'Gửi đăng ký thành công! Vui lòng chờ xác minh.')
-        router.push('/seller/RegisterSellerSteps/Success')
-    } catch (err) {
-        console.error(err)
-        if (err.response?.status === 422) {
-            const errors = err.response.data.errors || {}
+    await axios.post(`${api}/sellers/register/full`, formData, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'multipart/form-data',
+      },
+    })
 
-            if (errors.store_name || errors.phone_number || errors.pickup_address) {
-                lastStepWithError.value = 'step1'
-            } else if (errors.shipping_options) {
-                lastStepWithError.value = 'step2'
-            } else if (errors.tax_code || errors.business_email || errors.seller_type) {
-                lastStepWithError.value = 'step3'
-            } else if (errors.identity_card_number || errors.id_card_front_url || errors.date_of_birth) {
-                lastStepWithError.value = 'step4'
-            }
+    localStorage.removeItem('register_step1')
+    localStorage.removeItem('register_step2')
+    localStorage.removeItem('register_step3')
+    localStorage.removeItem('register_step4')
 
-            errorMessage.value = 'Có lỗi trong hồ sơ đăng ký. Vui lòng quay lại sửa.'
-            for (const field in errors) {
-                const messages = errors[field]
-                Array.isArray(messages)
-                    ? messages.forEach(msg => toast('error', msg))
-                    : toast('error', messages)
-            }
-        } else {
-            toast('error', 'Đã xảy ra lỗi khi gửi đăng ký.')
-        } 
-    }finally {
-    loading.value = false  
+    toast('success', 'Gửi đăng ký thành công! Vui lòng chờ xác minh.')
+    router.push('/seller/RegisterSellerSteps/Success')
+  } catch (err) {
+    console.error(err)
+    if (err.response?.status === 422) {
+      const errors = err.response.data.errors || {}
+
+      if (errors.store_name || errors.phone_number || errors.pickup_address) {
+        lastStepWithError.value = 'step1'
+      } else if (errors.shipping_options) {
+        lastStepWithError.value = 'step2'
+      } else if (errors.tax_code || errors.business_email || errors.seller_type || errors.identity_card_file) {
+        lastStepWithError.value = 'step3'
+      } else if (errors.identity_card_number || errors.id_card_front_url || errors.date_of_birth) {
+        lastStepWithError.value = 'step4'
+      }
+
+      errorMessage.value = 'Có lỗi trong hồ sơ đăng ký. Vui lòng quay lại sửa.'
+      for (const field in errors) {
+        const messages = errors[field]
+        Array.isArray(messages)
+          ? messages.forEach(msg => toast('error', msg))
+          : toast('error', messages)
+      }
+    } else {
+      toast('error', 'Đã xảy ra lỗi khi gửi đăng ký.')
+    }
+  } finally {
+    loading.value = false
   }
 }
+
 
 const goBackStep = () => {
     router.push(`/seller/RegisterSellerSteps/${lastStepWithError.value}`)
