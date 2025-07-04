@@ -44,13 +44,42 @@
             <label class="block mb-1 font-medium">Email doanh nghiệp</label>
             <input v-model="form.business_email" type="email" class="input" />
           </div>
-          <div>
-            <label class="block mb-1 font-medium">Tài liệu xác minh doanh nghiệp (PDF/JPG/PNG)</label>
-            <input type="file" @change="handleFileUpload" accept=".pdf,.jpg,.jpeg,.png" class="input" />
-          </div>
-          <div v-if="form.identity_card_file_name" class="text-sm text-gray-600 italic">
-            📎 Đã chọn: {{ form.identity_card_file_name }}
-          </div>
+         <div>
+  <label class="block mb-2 font-medium">Tài liệu xác minh doanh nghiệp (PDF/JPG/PNG)</label>
+
+  <div
+    v-if="form.identity_card_file_name"
+    class="w-full max-w-md border border-gray-200 bg-gray-50 rounded-2xl p-4 flex items-center justify-between shadow-sm"
+  >
+    <div class="flex items-center gap-3 text-gray-700">
+      <i class="fas fa-file-alt text-xl text-blue-500"></i>
+      <div class="flex flex-col text-sm">
+        <span class="font-medium truncate">{{ form.identity_card_file_name }}</span>
+        <span class="text-xs text-gray-500 italic">Tệp đã chọn</span>
+      </div>
+    </div>
+    <button @click="removeIdentityCardFile" class="text-gray-500 hover:text-red-500 transition">
+      <i class="fas fa-times"></i>
+    </button>
+  </div>
+
+  <div
+    v-else
+    class="w-full max-w-md h-40 flex flex-col items-center justify-center bg-gray-100 text-gray-400 rounded-2xl border border-dashed border-gray-300 cursor-pointer hover:shadow-md transition"
+    @click="$refs.identityCardFile.click()"
+  >
+    <i class="fas fa-file-upload text-3xl mb-2"></i>
+    <p class="text-sm">Kéo thả tài liệu vào đây hoặc <span class="text-blue-600 underline">chọn file</span></p>
+   <input
+  type="file"
+  ref="identityCardFile"
+  @change="handleFileUpload"
+  accept=".pdf,.jpg,.jpeg,.png"
+  class="hidden"
+/>
+  </div>
+</div>
+
         </div>
 
         <!-- Nút -->
@@ -83,6 +112,8 @@ const form = ref({
   identity_card_file_name: '',
 })
 
+const identityCardFile = ref(null)
+
 onMounted(() => {
   const saved = localStorage.getItem('register_step3')
   if (saved) Object.assign(form.value, JSON.parse(saved))
@@ -98,6 +129,12 @@ const handleFileUpload = (e) => {
     form.value.identity_card_file_name = file.name
   }
   reader.readAsDataURL(file)
+}
+
+const removeIdentityCardFile = () => {
+  form.value.identity_card_file_name = ''
+  form.value.identity_card_file_base64 = ''
+  if (identityCardFile.value) identityCardFile.value.value = null
 }
 
 const submitStep3 = () => {
@@ -116,6 +153,7 @@ const goBackStep = () => {
   router.push('/seller/RegisterSellerSteps/step2')
 }
 </script>
+
 
 <style scoped>
 .input {
