@@ -20,6 +20,7 @@ class UserOrderController extends Controller
             'orderItems.productVariant',
             'address',
             'payments.paymentMethod',
+            'shipping',
         ])
             ->where('user_id', $user->id)
             ->orderBy('created_at', 'desc')
@@ -34,8 +35,23 @@ class UserOrderController extends Controller
                     'final_price' => number_format((float) $order->final_price, 0, '', ',') . ' đ',
                     'created_at' => $order->created_at->format('d/m/Y H:i:s'),
                     'user' => optional($order->user)->only(['name', 'email']),
-                    'address' => optional($order->address)->only(['address', 'phone']),
+                    'address' => $order->address ? [
+                        'name' => $order->address->name,
+                        'phone' => $order->address->phone,
+                        'detail' => $order->address->detail,
+                        'province_id' => $order->address->province_id,
+                        'district_id' => $order->address->district_id,
+                        'ward_code' => $order->address->ward_code,
+                        'province_name' => optional($order->address->province)->name ?? null,
+                        'district_name' => optional($order->address->district)->name ?? null,
+                        'ward_name' => optional($order->address->ward)->name ?? null,
+                    ] : null,
                     'can_delete' => in_array($order->status, ['pending']),
+                    'shipping' => $order->shipping ? [
+                        'tracking_code' => $order->shipping->tracking_code,
+                        'status' => $order->shipping->status,
+                        'estimated_delivery' => $order->shipping->estimated_delivery,
+                    ] : null,
                     'order_items' => $order->orderItems->map(function ($item) {
                         return [
                             'id' => $item->id,
@@ -63,21 +79,20 @@ class UserOrderController extends Controller
     // show đơn hàng
     public function show(Order $order)
     {
-        // 1. Kiểm tra quyền truy cập
         if ($order->user_id !== Auth::id()) {
             return response()->json(['message' => 'Không có quyền xem đơn này'], 403);
         }
 
-        // 2. Load các quan hệ cần thiết (không load ward/district/province)
+        // Load đủ các quan hệ
         $order->load([
             'user:id,name,email',
-            'address', // không cần gọi .ward, .district, .province
+            'address',
+            'shipping',
             'orderItems.product.productPic',
             'orderItems.productVariant',
-            'payments',
+            'payments.paymentMethod',
         ]);
 
-        // 3. Trả dữ liệu chi tiết đơn hàng
         return response()->json([
             'id' => $order->id,
             'status' => $order->status,
@@ -87,12 +102,10 @@ class UserOrderController extends Controller
             'discount_price' => $order->discount_price,
             'shipping_fee' => $order->shipping_fee,
             'final_price' => $order->final_price,
-
             'user' => [
                 'name' => $order->user->name ?? '',
                 'email' => $order->user->email ?? '',
             ],
-
             'address' => $order->address ? [
                 'name' => $order->address->name,
                 'phone' => $order->address->phone,
@@ -100,26 +113,49 @@ class UserOrderController extends Controller
                 'province_id' => $order->address->province_id,
                 'district_id' => $order->address->district_id,
                 'ward_code' => $order->address->ward_code,
+                'province_name' => optional($order->address->province)->name ?? null,
+                'district_name' => optional($order->address->district)->name ?? null,
+                'ward_name' => optional($order->address->ward)->name ?? null,
             ] : null,
-
-            'items' => $order->orderItems->map(function ($item) {
+            'shipping' => $order->shipping ? [
+                'tracking_code' => $order->shipping->tracking_code,
+                'status' => $order->shipping->status,
+                'estimated_delivery' => $order->shipping->estimated_delivery,
+            ] : null,
+            'order_items' => $order->orderItems->map(function ($item) {
                 $product = $item->product;
-                $image = optional($product->productPic->first())->url;
-                $slug = $item->slug ?? $product->slug;
+                $variant = $item->productVariant;
+                // Sinh tên variant động từ các thuộc tính
+                $variantName = null;
+                if ($variant && $variant->attributes && $variant->attributes->count()) {
+                    $variantName = $variant->attributes->map(function($attr) {
+                        $value = $attr->values->where('id', $attr->pivot->value_id)->first();
+                        return $value ? $value->value : null;
+                    })->filter()->implode(' - ');
+                }
                 return [
-                    'product_name' => $product->name ?? '',
-                    'variant' => $item->productVariant->name ?? '',
-                    'image_url' => $image ? asset('storage/' . $image) : asset('images/no-image.png'),
+                    'product' => [
+                        'id' => $product->id ?? null,
+                        'name' => $product->name ?? '',
+                        'thumbnail' => $product->thumbnail
+                            ? config('app.media_base_url') . $product->thumbnail
+                            : ($product->productPic && $product->productPic->first()
+                                ? config('app.media_base_url') . $product->productPic->first()->imagePath
+                                : null),
+                        'slug' => $product->slug ?? '',
+                    ],
+                    'variant' => $variant ? [
+                        'id' => $variant->id,
+                        'name' => $variantName,
+                    ] : null,
                     'quantity' => $item->quantity,
                     'price' => $item->price,
                     'total' => $item->quantity * $item->price,
-                    'slug' => $slug,
                 ];
             })->values(),
-
             'payments' => $order->payments->map(function ($payment) {
                 return [
-                    'method' => $payment->method,
+                    'method' => $payment->paymentMethod ? $payment->paymentMethod->name : null,
                     'amount' => $payment->amount,
                     'status' => $payment->status,
                     'created_at' => $payment->created_at->format('d/m/Y H:i'),

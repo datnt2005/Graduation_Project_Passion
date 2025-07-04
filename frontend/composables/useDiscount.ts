@@ -16,73 +16,7 @@ interface Discount {
 }
 
 export const useDiscount = () => {
-    const discounts = ref<Discount[]>([
-        {
-            id: 1,
-            name: 'Giảm 50K đơn từ 300K',
-            code: 'SAVE50K',
-            description: 'Giảm 50.000đ cho đơn hàng từ 300.000đ',
-            discount_type: 'fixed',
-            discount_value: 50000,
-            usage_limit: 100,
-            min_order_value: 300000,
-            start_date: '2024-01-01',
-            end_date: '2024-12-31',
-            status: 'active'
-        },
-        {
-            id: 2,
-            name: 'Giảm 15% tối đa 100K',
-            code: 'PERCENT15',
-            description: 'Giảm 15% tối đa 100.000đ cho mọi đơn hàng',
-            discount_type: 'percentage',
-            discount_value: 15,
-            usage_limit: 50,
-            min_order_value: 0,
-            start_date: '2024-01-01',
-            end_date: '2024-12-31',
-            status: 'active'
-        },
-        {
-            id: 3,
-            name: 'Giảm 100K đơn từ 1 triệu',
-            code: 'SAVE100K',
-            description: 'Giảm 100.000đ cho đơn hàng từ 1.000.000đ',
-            discount_type: 'fixed',
-            discount_value: 100000,
-            usage_limit: 30,
-            min_order_value: 1000000,
-            start_date: '2024-01-01',
-            end_date: '2024-12-31',
-            status: 'active'
-        },
-        {
-            id: 4,
-            name: 'Giảm 20% tối đa 200K',
-            code: 'PERCENT20',
-            description: 'Giảm 20% tối đa 200.000đ cho đơn từ 500.000đ',
-            discount_type: 'percentage',
-            discount_value: 20,
-            usage_limit: 20,
-            min_order_value: 500000,
-            start_date: '2024-01-01',
-            end_date: '2024-12-31',
-            status: 'active'
-        },
-        {
-            id: 5,
-            name: 'Freeship đơn từ 200K',
-            code: 'FREESHIP',
-            description: 'Miễn phí vận chuyển cho đơn từ 200.000đ',
-            discount_type: 'fixed',
-            discount_value: 35000,
-            usage_limit: 200,
-            min_order_value: 200000,
-            start_date: '2024-01-01',
-            end_date: '2024-12-31',
-            status: 'active'
-        }
-    ])
+    const discounts = ref<Discount[]>([])
     const loading = ref<boolean>(false)
     const error = ref<string | null>(null)
     const selectedDiscounts = ref<Discount[]>([])
@@ -119,6 +53,38 @@ export const useDiscount = () => {
             )
         } catch (err) {
             console.error('Error fetching discounts:', err)
+            error.value = err instanceof Error ? err.message : 'Lỗi không xác định'
+        } finally {
+            loading.value = false
+        }
+    }
+
+    const fetchMyVouchers = async () => {
+        const token = localStorage.getItem('access_token')
+        if (!token) {
+            error.value = 'Vui lòng đăng nhập để tiếp tục'
+            return navigateTo('/auth/login')
+        }
+
+        loading.value = true
+        error.value = null
+
+        try {
+            const res = await fetch(`${config.public.apiBaseUrl}/discounts/my-vouchers`, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+
+            if (!res.ok) {
+                throw new Error('Lỗi khi lấy danh sách voucher của bạn')
+            }
+
+            const data = await res.json()
+            discounts.value = data.data || []
+        } catch (err) {
             error.value = err instanceof Error ? err.message : 'Lỗi không xác định'
         } finally {
             loading.value = false
@@ -271,6 +237,48 @@ export const useDiscount = () => {
         return Math.floor(price).toLocaleString('vi-VN') // đảm bảo không có dấu sai
     }
 
+    const saveVoucherByCode = async (code: string) => {
+        const token = localStorage.getItem('access_token')
+        if (!token) {
+            return { success: false, message: 'Vui lòng đăng nhập để lưu voucher' }
+        }
+        try {
+            const res = await fetch(`${config.public.apiBaseUrl}/discounts/save-by-code`, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ code })
+            })
+            const data = await res.json()
+            return { success: res.ok, message: data.message || (res.ok ? 'Lưu voucher thành công' : 'Lưu voucher thất bại') }
+        } catch (e) {
+            return { success: false, message: 'Lỗi hệ thống' }
+        }
+    }
+
+    const deleteUserCoupon = async (discountId: number) => {
+        const token = localStorage.getItem('access_token')
+        if (!token) {
+            return { success: false, message: 'Vui lòng đăng nhập để xoá voucher' }
+        }
+        try {
+            const res = await fetch(`${config.public.apiBaseUrl}/discounts/my-voucher/${discountId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Accept': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+            const data = await res.json()
+            return { success: res.ok, message: data.message || (res.ok ? 'Xoá voucher thành công' : 'Xoá voucher thất bại') }
+        } catch (e) {
+            return { success: false, message: 'Lỗi hệ thống' }
+        }
+    }
+
     return {
         discounts,
         selectedDiscounts,
@@ -278,9 +286,12 @@ export const useDiscount = () => {
         error,
         formatPrice,
         fetchDiscounts,
+        fetchMyVouchers,
         applyDiscount,
         removeDiscount,
         calculateDiscount,
-        getShippingDiscount
+        getShippingDiscount,
+        saveVoucherByCode,
+        deleteUserCoupon
     }
 } 

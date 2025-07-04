@@ -34,41 +34,35 @@ class InventoryController extends Controller
 
     public function list(Request $request)
     {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['error' => 'Chưa đăng nhập!'], 401);
+        }
+        $seller = \App\Models\Seller::where('user_id', $user->id)->first();
+        if (!$seller) {
+            return response()->json(['error' => 'Bạn không phải seller hoặc chưa đăng nhập!'], 403);
+        }
         $inventories = \App\Models\Inventory::with(['productVariant.product.categories'])
-            ->whereHas('productVariant.product', function($query) {
-                $query->where('status', '!=', 'trash');
+            ->whereHas('productVariant.product', function($query) use ($seller) {
+                $query->where('seller_id', $seller->id)
+                      ->where('status', '!=', 'trash');
             })
             ->get()
-            ->groupBy('productVariant.product_id') // Group by main product ID
+            ->groupBy('productVariant.product_id')
             ->map(function($groupedInventories) {
                 $firstInventory = $groupedInventories->first();
                 $product = $firstInventory->productVariant->product;
                 $categoryName = $product->categories->first()?->name;
-                
-                // Calculate total quantity for all variants
                 $totalQuantity = $groupedInventories->sum('quantity');
-                
-                // Get the first variant's prices
                 $firstVariant = $firstInventory->productVariant;
                 $costPrice = $firstVariant->cost_price ?? 0;
                 $sellPrice = $firstVariant->price ?? 0;
-                
-                // Debug log
-                \Log::info('Product Price Debug', [
-                    'product_name' => $firstVariant->product->name,
-                    'sale_price' => $firstVariant->sale_price,
-                    'price' => $firstVariant->price,
-                    'variant_id' => $firstVariant->id
-                ]);
-                
-                // Determine status based on total quantity
                 $status = 'Hết hàng';
                 if ($totalQuantity > 0 && $totalQuantity <= 5) {
                     $status = 'Gần hết';
                 } elseif ($totalQuantity > 5) {
                     $status = 'Còn hàng';
                 }
-
                 return [
                     'id' => $product->id,
                     'product_name' => $product->name,
@@ -79,7 +73,7 @@ class InventoryController extends Controller
                     'status' => $status,
                 ];
             })
-            ->values(); // Convert to array and reindex
+            ->values();
         return response()->json($inventories);
     }
 
@@ -155,67 +149,50 @@ class InventoryController extends Controller
     /**
      * Lấy danh sách sản phẩm bán chạy nhất dựa theo số lượng bán ra (order_items)
      */
-    public function bestSellers()
+    public function bestSellers(Request $request)
     {
-        try {
-            $bestSellers = \App\Models\OrderItem::select('product_variant_id', \DB::raw('SUM(quantity) as total_sold'))
-                ->whereHas('order', function($q) {
-                    $q->where('status', 'delivered');
-                })
-                ->whereHas('productVariant.product', function($query) {
-                    $query->where('status', '!=', 'trash');
-                })
-                ->with(['productVariant.product.categories', 'productVariant.inventories'])
-                ->groupBy('product_variant_id')
-                ->get()
-                ->groupBy('productVariant.product_id') // Group by main product ID
-                ->map(function($items) {
-                    $firstItem = $items->first();
-                    $product = $firstItem->productVariant->product;
-                    $categoryName = $product->categories->first()?->name;
-                    
-                    // Calculate total quantity for all variants
-                    $totalQuantity = $items->reduce(function($carry, $item) {
-                        return $carry + $item->productVariant->inventories->sum('quantity');
-                    }, 0);
-                    
-                    // Calculate total sold for all variants
-                    $totalSold = $items->sum('total_sold');
-                    
-                    // Get first variant's prices
-                    $firstVariant = $firstItem->productVariant;
-                    $costPrice = $firstVariant->cost_price ?? 0;
-                    $sellPrice = $firstVariant->price ?? 0;
-                    
-                    // Determine status based on total quantity
-                    $status = 'Hết hàng';
-                    if ($totalQuantity > 0 && $totalQuantity <= 5) {
-                        $status = 'Gần hết';
-                    } elseif ($totalQuantity > 5) {
-                        $status = 'Còn hàng';
-                    }
-
-                    return [
-                        'product_name' => $product->name,
-                        'category_name' => $categoryName,
-                        'quantity' => $totalQuantity,
-                        'cost_price' => round($costPrice),
-                        'sell_price' => round($sellPrice),
-                        'status' => $status,
-                        'total_sold' => $totalSold,
-                    ];
-                })
-                ->sortByDesc('total_sold')
-                ->take(10)
-                ->values();
-                
-            return response()->json($bestSellers);
-        } catch (\Exception $e) {
-            \Log::error('Best Sellers Error:', [
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-            return response()->json(['error' => 'Không thể tải dữ liệu sản phẩm bán chạy!'], 500);
-        }
+        $user = $request->user();
+        $seller = \App\Models\Seller::where('user_id', $user->id)->first();
+        $bestSellers = \App\Models\OrderItem::select('product_variant_id', \DB::raw('SUM(quantity) as total_sold'))
+            ->whereHas('order', function($q) {
+                $q->where('status', 'delivered');
+            })
+            ->whereHas('productVariant.product', function($query) use ($seller) {
+                $query->where('seller_id', $seller->id)
+                      ->where('status', '!=', 'trash');
+            })
+            ->with(['productVariant.product.categories', 'productVariant.inventories'])
+            ->groupBy('product_variant_id')
+            ->get()
+            ->groupBy('productVariant.product_id')
+            ->map(function($items) {
+                $firstItem = $items->first();
+                $product = $firstItem->productVariant->product;
+                $categoryName = $product->categories->first()?->name;
+                $totalQuantity = $items->reduce(function($carry, $item) {
+                    return $carry + $item->productVariant->inventories->sum('quantity');
+                }, 0);
+                $totalSold = $items->sum('total_sold');
+                $firstVariant = $firstItem->productVariant;
+                $costPrice = $firstVariant->cost_price ?? 0;
+                $sellPrice = $firstVariant->price ?? 0;
+                $status = 'Hết hàng';
+                if ($totalQuantity > 0 && $totalQuantity <= 5) {
+                    $status = 'Gần hết';
+                } elseif ($totalQuantity > 5) {
+                    $status = 'Còn hàng';
+                }
+                return [
+                    'product_name' => $product->name,
+                    'category_name' => $categoryName,
+                    'quantity' => $totalQuantity,
+                    'total_sold' => $totalSold,
+                    'cost_price' => round($costPrice),
+                    'sell_price' => round($sellPrice),
+                    'status' => $status,
+                ];
+            })
+            ->values();
+        return response()->json($bestSellers);
     }
 }

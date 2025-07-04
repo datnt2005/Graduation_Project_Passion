@@ -439,6 +439,7 @@ import Swal from 'sweetalert2';
 import SelectedAddress from '~/components/shared/SelectedAddress.vue';
 import ShippingSelector from '~/components/shared/ShippingSelector.vue';
 import { useCheckout } from '~/composables/useCheckout';
+import { useDiscount } from '~/composables/useDiscount';
 
 const config = useRuntimeConfig();
 const apiBase = config.public.apiBaseUrl;
@@ -532,6 +533,8 @@ const {
     placeOrder,
     selectStoreItems,
 } = useCheckout(shippingRef, selectedShippingMethod, selectedAddress);
+
+const { fetchMyVouchers } = useDiscount();
 
 // Address loading
 const loadProvinces = async () => {
@@ -716,7 +719,7 @@ onMounted(async () => {
         await Promise.all([
             selectStoreItems(),
             fetchPaymentMethods(),
-            fetchDiscounts(),
+            fetchMyVouchers(),
             loadSelectedAddress(),
         ]);
     } catch (err) {

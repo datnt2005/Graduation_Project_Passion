@@ -542,4 +542,16 @@ class DiscountController extends Controller
             ], 404);
         }
     }
+
+    // Public: Lấy tất cả voucher đang hoạt động cho user
+    public function indexPublic()
+    {
+        $discounts = \App\Models\Discount::where('status', 'active')
+            ->where('end_date', '>', now())
+            ->get();
+        return response()->json([
+            'success' => true,
+            'data' => $discounts
+        ]);
+    }
 }
