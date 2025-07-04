@@ -1413,7 +1413,7 @@ class ProductController extends Controller
                             $query->withCount('reviews')->orderBy('reviews_count', 'desc');
                             break;
                         case 'bestseller':
-                            $query->orderByRaw('(SELECT SUM(quantity) FROM order_items JOIN product_variants ON order_items.product_variant_id = product_variants.id WHERE product_variants.product_id = products.id) DESC');
+                            $query->orderByRaw('(SELECT SUM(quantity) FROM order_items WHERE order_items.product_variant_id IN (SELECT id FROM product_variants WHERE product_variants.product_id = products.id)) DESC');
                             break;
                         default:
                             $query->orderBy('created_at', 'desc');
