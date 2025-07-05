@@ -1,6 +1,6 @@
 <template>
   <section v-if="address"
-    class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+    class="bg-white p-6 rounded-[4px] shadow-sm">
     <div class="flex items-center justify-between mb-4">
       <h3 class="text-xl font-bold text-gray-800">Giao tới</h3>
       <NuxtLink href="/address" class="text-blue-600 text-sm font-medium">Thay đổi</NuxtLink>
@@ -17,7 +17,7 @@
   </section>
 
   <section v-else
-    class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 text-gray-600 italic">
+    class="bg-white p-6 rounded-lg shadow-sm text-gray-600 ">
     Bạn chưa có địa chỉ giao hàng.
     <NuxtLink to="/address" class="text-blue-500 underline">Thêm địa chỉ</NuxtLink>
   </section>

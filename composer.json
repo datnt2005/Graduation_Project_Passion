@@ -1,7 +1,0 @@
-{
-    "require": {
-        "twilio/sdk": "^8.6",
-        "predis/predis": "^3.0",
-        "intervention/image-laravel": "*"
-    }
-}

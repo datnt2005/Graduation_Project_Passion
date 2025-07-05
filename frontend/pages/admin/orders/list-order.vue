@@ -43,7 +43,7 @@
       <table class="min-w-full border-collapse border border-gray-300 text-sm">
         <thead class="bg-white border-b border-gray-300">
           <tr>
-            <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Mã đơn</th>
+            <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Mã vận đơn</th>
             <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Khách hàng</th>
             <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Tổng tiền</th>
             <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Phương thức thanh toán</th>
@@ -54,7 +54,7 @@
         </thead>
         <tbody>
           <tr v-for="order in orders" :key="order.id" :class="{'bg-gray-50': order.id % 2 === 0}" class="border-b border-gray-300">
-            <td class="border border-gray-300 px-3 py-2 text-left font-semibold text-blue-700">#{{ order.id }}</td>
+            <td class="border border-gray-300 px-3 py-2 text-left font-semibold text-blue-700">{{ order.shipping?.tracking_code || 'Chưa có' }}</td>
             <td class="border border-gray-300 px-3 py-2 text-left">
               {{ order.user.name }}<br>
               <span class="text-xs">{{ order.user.email }}</span>
@@ -194,7 +194,7 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
           </svg>
         </button>
-        <h2 class="text-lg font-semibold mb-4">Chi tiết đơn hàng #{{ selectedOrder.id }}</h2>
+        <h2 class="text-lg font-semibold mb-4">Chi tiết đơn hàng - Mã vận đơn: {{ selectedOrder.shipping?.tracking_code || 'Chưa có' }}</h2>
         <div>
           <div><b>Khách hàng:</b> {{ selectedOrder.user.name }} ({{ selectedOrder.user.email }})</div>
           <div><b>Trạng thái:</b> {{ getStatusText(selectedOrder.status) }}</div>
@@ -222,7 +222,7 @@
         </button>
         <h2 class="text-lg font-semibold mb-4">Cập nhật trạng thái đơn hàng</h2>
         <div class="mb-4">
-          <div><b>Đơn hàng #{{ orderToUpdate?.id }}</b></div>
+          <div><b>Đơn hàng - Mã vận đơn: {{ orderToUpdate?.shipping?.tracking_code || 'Chưa có' }}</b></div>
           <div>Trạng thái hiện tại: <span :class="getStatusClass(orderToUpdate?.status)" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full">{{ getStatusText(orderToUpdate?.status) }}</span></div>
         </div>
         <div class="mb-4">
@@ -243,6 +243,7 @@
 <script setup>
 import { ref, onMounted, computed, onUnmounted } from 'vue';
 import axios from 'axios';
+import { secureAxios } from '@/utils/secureAxios'
 
 definePageMeta({
     layout: 'default-admin'
@@ -304,8 +305,8 @@ const fetchOrders = async () => {
             page: currentPage.value,
             per_page: perPage.value
         };
-        
-        const response = await axios.get('http://localhost:8000/api/orders', { params });
+         
+        const response = await secureAxios('http://localhost:8000/api/orders', { params } ['admin']);
         
         // Format the orders data if needed
         orders.value = response.data.data.map(order => ({
@@ -382,9 +383,10 @@ const confirmUpdateStatus = async () => {
 
     try {
         loading.value = true;
-        const response = await axios.put(`http://localhost:8000/api/orders/${orderToUpdate.value.id}`, {
-            status: newStatus.value
-        });
+            await secureAxios(`http://localhost:8000/api/orders/${orderToUpdate.value.id}`, {
+          method: 'PUT',
+          data: { status: newStatus.value }
+        }, ['admin', 'seller'])
 
         if (response.data.success) {
             showNotification(response.data.status_message || 'Cập nhật trạng thái thành công', true);

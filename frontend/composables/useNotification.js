@@ -1,25 +1,32 @@
-import Swal from 'sweetalert2'
+import { ref } from 'vue'
+
+const notification = ref({
+  show: false,
+  message: '',
+  type: 'success' // 'success' or 'error'
+})
 
 export function useNotification() {
   const showNotification = (message, type = 'success') => {
-    Swal.fire({
-      toast: true,
-      position: 'top',
-      icon: type,
-      title: message,
-      width: '350px',
-      padding: '10px 20px',
-      customClass: { popup: 'text-sm rounded-md shadow-md' },
-      showConfirmButton: false,
-      timer: 1500,
-      timerProgressBar: true,
-      didOpen: (toastEl) => {
-        toastEl.addEventListener('mouseenter', () => Swal.stopTimer());
-        toastEl.addEventListener('mouseleave', () => Swal.resumeTimer());
-      }
-    });
+    notification.value = {
+      show: true,
+      message,
+      type
+    }
+    
+    // Auto hide after 3 seconds
+    setTimeout(() => {
+      hideNotification()
+    }, 3000)
   }
+
+  const hideNotification = () => {
+    notification.value.show = false
+  }
+
   return {
-    showNotification
+    notification,
+    showNotification,
+    hideNotification
   }
-}
+} 

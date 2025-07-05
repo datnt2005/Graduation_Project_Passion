@@ -13,233 +13,507 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Storage;
 use Google\Cloud\Vision\V1\ImageAnnotatorClient;
-
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class SellerController extends Controller
 {
 
-  public function index(){
-     $sellers = User::whereHas('seller')
-                    ->with('seller.business')
-                    ->get();
-            return response()->json($sellers);
-  }
+    public function index()
+    {
+        $sellers = User::whereHas('seller')
+            ->with('seller.business')
+            ->get();
+        return response()->json($sellers);
+    }
 
 
 
-public function getMySellerInfo()
-{
-    $user = auth()->user();
+    public function getMySellerInfo()
+    {
+        $user = auth()->user();
 
-    // Kiểm tra user có phải seller không
-    $seller = Seller::with(['business', 'user:id,name,email,avatar'])
-    ->where('user_id', auth()->id())
-    ->first();
+        // Kiểm tra user có phải seller không
+        $seller = Seller::with(['business', 'user:id,name,email,avatar'])
+            ->where('user_id', auth()->id())
+            ->first();
 
-    if (!$seller) {
+        if (!$seller) {
+            return response()->json([
+                'message' => 'Bạn không phải là người bán (seller).'
+            ], 403); // Hoặc 404 nếu muốn ẩn thông tin
+        }
+        $avatarFile = $seller->user->avatar;
+        $avatarUrl = $avatarFile
+            ? env('R2_AVATAR_URL') . $avatarFile
+            : env('R2_AVATAR_URL') . 'default.jpg';
+
+        // Gắn vào response
+        $seller->user->avatar_url = $avatarUrl;
+
         return response()->json([
-            'message' => 'Bạn không phải là người bán (seller).'
-        ], 403); // Hoặc 404 nếu muốn ẩn thông tin
+            'seller' => $seller
+        ]);
     }
-     $avatarFile = $seller->user->avatar;
-    $avatarUrl = $avatarFile
-        ? env('R2_AVATAR_URL') . $avatarFile
-        : env('R2_AVATAR_URL') . 'default.jpg';
+    public function update(Request $request)
+    {
+        $user = auth()->user();
+        $seller = Seller::where('user_id', $user->id)->firstOrFail();
 
-    // Gắn vào response
-    $seller->user->avatar_url = $avatarUrl;
+        $validator = Validator::make($request->all(), [
+            'store_name' => 'required_if:seller_type,personal|string|max:255',
+            'store_slug' => 'nullable|string|max:255|regex:/^[a-z0-9-]+$/',
+            'seller_type' => 'required|in:personal,business',
+            'identity_card_number' => 'required_if:seller_type,personal|string|max:20',
+            'date_of_birth' => 'required_if:seller_type,personal|date',
+            'personal_address' => 'required_if:seller_type,personal|string',
+            'phone_number' => 'required_if:seller_type,personal|string|max:20',
+            'document' => 'nullable|file|mimes:jpg,png,pdf|max:4048',
+            'bio' => 'nullable|string',
+            'cccd_front' => 'required_if:seller_type,personal|file|mimes:jpg,jpeg,png|max:4096',
+            'cccd_back' => 'required_if:seller_type,personal|file|mimes:jpg,jpeg,png|max:4096',
 
-    return response()->json([
-        'seller' => $seller
-    ]);
-}
-public function update(Request $request)
-{
-    $user = auth()->user();
-    $seller = Seller::where('user_id', $user->id)->firstOrFail();
+            // Business fields
+            'business' => 'required_if:seller_type,business|array',
+            'business.tax_code' => 'required_if:seller_type,business|string',
+            'business.company_name' => 'required_if:seller_type,business|string',
+            'business.company_address' => 'required_if:seller_type,business|string',
+            'business.representative_name' => 'required_if:seller_type,business|string',
+            'business.representative_phone' => 'required_if:seller_type,business|string|max:20',
+            'business.business_license' => 'nullable|file|mimes:jpg,png,pdf|max:4048',
+        ], [
+            'store_name.required_if' => 'Vui lòng nhập tên cửa hàng (áp dụng cho người bán cá nhân).',
+            'store_name.string' => 'Tên cửa hàng phải là chuỗi.',
+            'store_name.max' => 'Tên cửa hàng không được vượt quá 255 ký tự.',
 
-    $validator = Validator::make($request->all(), [
-        'store_name' => 'required_if:seller_type,personal|string|max:255',
-        'store_slug' => 'nullable|string|max:255|regex:/^[a-z0-9-]+$/',
-        'seller_type' => 'required|in:personal,business',
-        'identity_card_number' => 'required_if:seller_type,personal|string|max:20',
-        'date_of_birth' => 'required_if:seller_type,personal|date',
-        'personal_address' => 'required_if:seller_type,personal|string',
-        'phone_number' => 'required_if:seller_type,personal|string|max:20',
-        'document' => 'nullable|file|mimes:jpg,png,pdf|max:4048',
-        'bio' => 'nullable|string',
-        'cccd_front' => 'required_if:seller_type,personal|file|mimes:jpg,jpeg,png|max:4096',
-        'cccd_back' => 'required_if:seller_type,personal|file|mimes:jpg,jpeg,png|max:4096',
+            'store_slug.regex' => 'Slug chỉ được chứa chữ thường, số và dấu gạch ngang.',
 
-        // Business fields
-        'business' => 'required_if:seller_type,business|array',
-        'business.tax_code' => 'required_if:seller_type,business|string',
-        'business.company_name' => 'required_if:seller_type,business|string',
-        'business.company_address' => 'required_if:seller_type,business|string',
-        'business.representative_name' => 'required_if:seller_type,business|string',
-        'business.representative_phone' => 'required_if:seller_type,business|string|max:20',
-        'business.business_license' => 'nullable|file|mimes:jpg,png,pdf|max:4048',
-    ], [
-        'store_name.required_if' => 'Vui lòng nhập tên cửa hàng (áp dụng cho người bán cá nhân).',
-        'store_name.string' => 'Tên cửa hàng phải là chuỗi.',
-        'store_name.max' => 'Tên cửa hàng không được vượt quá 255 ký tự.',
+            'seller_type.required' => 'Loại người bán là bắt buộc.',
+            'seller_type.in' => 'Loại người bán phải là "personal" hoặc "business".',
 
-        'store_slug.regex' => 'Slug chỉ được chứa chữ thường, số và dấu gạch ngang.',
+            'identity_card_number.required_if' => 'Vui lòng nhập số CMND/CCCD.',
+            'identity_card_number.string' => 'Số CMND/CCCD phải là chuỗi.',
+            'identity_card_number.max' => 'Số CMND/CCCD không được vượt quá 20 ký tự.',
 
-        'seller_type.required' => 'Loại người bán là bắt buộc.',
-        'seller_type.in' => 'Loại người bán phải là "personal" hoặc "business".',
+            'date_of_birth.required_if' => 'Vui lòng nhập ngày sinh.',
+            'date_of_birth.date' => 'Ngày sinh không hợp lệ.',
 
-        'identity_card_number.required_if' => 'Vui lòng nhập số CMND/CCCD.',
-        'identity_card_number.string' => 'Số CMND/CCCD phải là chuỗi.',
-        'identity_card_number.max' => 'Số CMND/CCCD không được vượt quá 20 ký tự.',
+            'personal_address.required_if' => 'Vui lòng nhập địa chỉ cá nhân.',
+            'personal_address.string' => 'Địa chỉ phải là chuỗi.',
 
-        'date_of_birth.required_if' => 'Vui lòng nhập ngày sinh.',
-        'date_of_birth.date' => 'Ngày sinh không hợp lệ.',
+            'phone_number.required_if' => 'Vui lòng nhập số điện thoại cá nhân.',
+            'phone_number.string' => 'Số điện thoại phải là chuỗi.',
+            'phone_number.max' => 'Số điện thoại không được vượt quá 20 ký tự.',
 
-        'personal_address.required_if' => 'Vui lòng nhập địa chỉ cá nhân.',
-        'personal_address.string' => 'Địa chỉ phải là chuỗi.',
+            'document.file' => 'Tài liệu phải là tệp hợp lệ.',
+            'document.mimes' => 'Tài liệu phải có định dạng: jpg, png, hoặc pdf.',
+            'document.max' => 'Tài liệu không được vượt quá 4MB.',
 
-        'phone_number.required_if' => 'Vui lòng nhập số điện thoại cá nhân.',
-        'phone_number.string' => 'Số điện thoại phải là chuỗi.',
-        'phone_number.max' => 'Số điện thoại không được vượt quá 20 ký tự.',
+            'bio.string' => 'Giới thiệu phải là chuỗi văn bản.',
 
-        'document.file' => 'Tài liệu phải là tệp hợp lệ.',
-        'document.mimes' => 'Tài liệu phải có định dạng: jpg, png, hoặc pdf.',
-        'document.max' => 'Tài liệu không được vượt quá 4MB.',
+            'cccd_front.required_if' => 'Vui lòng tải lên ảnh mặt trước CCCD.',
+            'cccd_front.file' => 'Ảnh mặt trước CCCD phải là tệp hợp lệ.',
+            'cccd_front.mimes' => 'Ảnh mặt trước CCCD phải có định dạng: jpg, jpeg hoặc png.',
+            'cccd_front.max' => 'Ảnh mặt trước CCCD không được vượt quá 4MB.',
 
-        'bio.string' => 'Giới thiệu phải là chuỗi văn bản.',
+            'cccd_back.required_if' => 'Vui lòng tải lên ảnh mặt sau CCCD.',
+            'cccd_back.file' => 'Ảnh mặt sau CCCD phải là tệp hợp lệ.',
+            'cccd_back.mimes' => 'Ảnh mặt sau CCCD phải có định dạng: jpg, jpeg hoặc png.',
+            'cccd_back.max' => 'Ảnh mặt sau CCCD không được vượt quá 4MB.',
 
-        'cccd_front.required_if' => 'Vui lòng tải lên ảnh mặt trước CCCD.',
-        'cccd_front.file' => 'Ảnh mặt trước CCCD phải là tệp hợp lệ.',
-        'cccd_front.mimes' => 'Ảnh mặt trước CCCD phải có định dạng: jpg, jpeg hoặc png.',
-        'cccd_front.max' => 'Ảnh mặt trước CCCD không được vượt quá 4MB.',
+            'business.tax_code.required_if' => 'Vui lòng nhập mã số thuế.',
+            'business.company_name.required_if' => 'Vui lòng nhập tên công ty.',
+            'business.company_address.required_if' => 'Vui lòng nhập địa chỉ công ty.',
+            'business.representative_name.required_if' => 'Vui lòng nhập tên người đại diện.',
+            'business.representative_phone.required_if' => 'Vui lòng nhập số điện thoại người đại diện.',
+            'business.representative_phone.max' => 'Số điện thoại người đại diện không được vượt quá 20 ký tự.',
+            'business.business_license.file' => 'Giấy phép kinh doanh phải là tệp hợp lệ.',
+            'business.business_license.mimes' => 'Giấy phép kinh doanh phải có định dạng: jpg, png, hoặc pdf.',
+            'business.business_license.max' => 'Giấy phép kinh doanh không được vượt quá 4MB.',
+        ]);
 
-        'cccd_back.required_if' => 'Vui lòng tải lên ảnh mặt sau CCCD.',
-        'cccd_back.file' => 'Ảnh mặt sau CCCD phải là tệp hợp lệ.',
-        'cccd_back.mimes' => 'Ảnh mặt sau CCCD phải có định dạng: jpg, jpeg hoặc png.',
-        'cccd_back.max' => 'Ảnh mặt sau CCCD không được vượt quá 4MB.',
-
-        'business.tax_code.required_if' => 'Vui lòng nhập mã số thuế.',
-        'business.company_name.required_if' => 'Vui lòng nhập tên công ty.',
-        'business.company_address.required_if' => 'Vui lòng nhập địa chỉ công ty.',
-        'business.representative_name.required_if' => 'Vui lòng nhập tên người đại diện.',
-        'business.representative_phone.required_if' => 'Vui lòng nhập số điện thoại người đại diện.',
-        'business.representative_phone.max' => 'Số điện thoại người đại diện không được vượt quá 20 ký tự.',
-        'business.business_license.file' => 'Giấy phép kinh doanh phải là tệp hợp lệ.',
-        'business.business_license.mimes' => 'Giấy phép kinh doanh phải có định dạng: jpg, png, hoặc pdf.',
-        'business.business_license.max' => 'Giấy phép kinh doanh không được vượt quá 4MB.',
-    ]);
-
-    if ($validator->fails()) {
-        return response()->json([
-            'message' => 'Dữ liệu không hợp lệ',
-            'errors' => $validator->errors()
-        ], 422);
-    }
-
-    $data = $request->only([
-        'store_name', 'store_slug', 'seller_type', 'bio',
-        'identity_card_number', 'date_of_birth',
-        'personal_address', 'phone_number'
-    ]);
-
-    // Upload document
-    if ($request->hasFile('document') && $request->file('document')->isValid()) {
-        if ($seller->document) {
-            Storage::disk('r2')->delete($seller->document);
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Dữ liệu không hợp lệ',
+                'errors' => $validator->errors()
+            ], 422);
         }
 
-        $file = $request->file('document');
-        $filename = 'seller-documents/personal/' . time() . '_' . Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) . '.' . $file->getClientOriginalExtension();
+        $data = $request->only([
+            'store_name',
+            'store_slug',
+            'seller_type',
+            'bio',
+            'identity_card_number',
+            'date_of_birth',
+            'personal_address',
+            'phone_number'
+        ]);
 
-        if (Storage::disk('r2')->put($filename, file_get_contents($file))) {
-            $data['document'] = $filename;
-        } else {
-            throw new \Exception('Không thể upload file giấy tờ cá nhân lên R2.');
-        }
-    }
-
-    // CCCD front
-    if ($request->hasFile('cccd_front') && $request->file('cccd_front')->isValid()) {
-        if ($seller->cccd_front) {
-            Storage::disk('r2')->delete($seller->cccd_front);
-        }
-
-        $cccdFrontPath = $request->file('cccd_front')->store('seller-documents', 'r2');
-        $data['cccd_front'] = $cccdFrontPath;
-    }
-
-    // CCCD back
-    if ($request->hasFile('cccd_back') && $request->file('cccd_back')->isValid()) {
-        if ($seller->cccd_back) {
-            Storage::disk('r2')->delete($seller->cccd_back);
-        }
-
-        $cccdBackPath = $request->file('cccd_back')->store('seller-documents', 'r2');
-        $data['cccd_back'] = $cccdBackPath;
-    }
-
-    $seller->update($data);
-
-    // Business info
-    if ($request->seller_type === 'business' && $request->has('business')) {
-        $businessData = $request->input('business');
-
-        if ($request->hasFile('business.business_license') && $request->file('business.business_license')->isValid()) {
-            if ($seller->business?->business_license) {
-                Storage::disk('r2')->delete($seller->business->business_license);
+        // Upload document
+        if ($request->hasFile('document') && $request->file('document')->isValid()) {
+            if ($seller->document) {
+                Storage::disk('r2')->delete($seller->document);
             }
 
-            $file = $request->file('business.business_license');
-            $filename = 'seller-documents/business/' . time() . '_' . Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) . '.' . $file->getClientOriginalExtension();
+            $file = $request->file('document');
+            $filename = 'seller-documents/personal/' . time() . '_' . Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) . '.' . $file->getClientOriginalExtension();
 
             if (Storage::disk('r2')->put($filename, file_get_contents($file))) {
-                $businessData['business_license'] = $filename;
+                $data['document'] = $filename;
             } else {
-                throw new \Exception('Không thể upload file giấy phép kinh doanh lên R2.');
+                throw new \Exception('Không thể upload file giấy tờ cá nhân lên R2.');
             }
         }
 
-        BusinessSeller::updateOrCreate(
-            ['seller_id' => $seller->id],
-            $businessData
-        );
+        // CCCD front
+        if ($request->hasFile('cccd_front') && $request->file('cccd_front')->isValid()) {
+            if ($seller->cccd_front) {
+                Storage::disk('r2')->delete($seller->cccd_front);
+            }
+
+            $cccdFrontPath = $request->file('cccd_front')->store('seller-documents', 'r2');
+            $data['cccd_front'] = $cccdFrontPath;
+        }
+
+        // CCCD back
+        if ($request->hasFile('cccd_back') && $request->file('cccd_back')->isValid()) {
+            if ($seller->cccd_back) {
+                Storage::disk('r2')->delete($seller->cccd_back);
+            }
+
+            $cccdBackPath = $request->file('cccd_back')->store('seller-documents', 'r2');
+            $data['cccd_back'] = $cccdBackPath;
+        }
+
+        $seller->update($data);
+
+        // Business info
+        if ($request->seller_type === 'business' && $request->has('business')) {
+            $businessData = $request->input('business');
+
+            if ($request->hasFile('business.business_license') && $request->file('business.business_license')->isValid()) {
+                if ($seller->business?->business_license) {
+                    Storage::disk('r2')->delete($seller->business->business_license);
+                }
+
+                $file = $request->file('business.business_license');
+                $filename = 'seller-documents/business/' . time() . '_' . Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) . '.' . $file->getClientOriginalExtension();
+
+                if (Storage::disk('r2')->put($filename, file_get_contents($file))) {
+                    $businessData['business_license'] = $filename;
+                } else {
+                    throw new \Exception('Không thể upload file giấy phép kinh doanh lên R2.');
+                }
+            }
+
+            BusinessSeller::updateOrCreate(
+                ['seller_id' => $seller->id],
+                $businessData
+            );
+        }
+
+        $seller = Seller::with(['user:id,name,email', 'business'])->findOrFail($seller->id);
+
+        return response()->json([
+            'message' => 'Cập nhật thành công',
+            'seller' => $seller
+        ]);
     }
-
-    $seller = Seller::with(['user:id,name,email', 'business'])->findOrFail($seller->id);
-
-    return response()->json([
-        'message' => 'Cập nhật thành công',
-        'seller' => $seller
-    ]);
-}
 
  public function showStore($slug)
-{
-    $seller = Seller::with([
-        'user',
-        'business',
-        'products' => function ($query) {
-            $query->with(['productVariants', 'productPic', 'categories', 'tags']);
+    {
+        try {
+            // Validate slug
+            if (empty($slug) || !is_string($slug)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Slug không hợp lệ.',
+                ], 400);
+            }
+
+            // Get query parameters
+            $page = request()->query('page', 1);
+            $perPage = max(1, min(100, (int) request()->query('per_page', 24)));
+            $search = request()->query('search');
+            $category = request()->query('category');
+
+            // Fetch seller with relationships and paginate products
+            $seller = Seller::with([
+                'user',
+                'business',
+                'products' => function ($query) use ($page, $perPage, $search, $category) {
+                    $query->where('status', 'active')
+                        ->with(['productVariants', 'productPic', 'categories', 'tags', 'reviews']);
+                    if ($search) {
+                        $query->where('name', 'like', '%' . $search . '%');
+                    }
+                    if ($category) {
+                        $query->whereHas('categories', function ($q) use ($category) {
+                            $q->where('name', $category);
+                        });
+                    }
+                    $query->orderByDesc('id');
+                },
+                'followers'
+            ])->where('store_slug', $slug)->firstOrFail();
+
+            // Get paginated products
+            $productsQuery = $seller->products();
+            $productsQuery->where('status', 'active');
+            if ($search) {
+                $productsQuery->where('name', 'like', '%' . $search . '%');
+            }
+            if ($category) {
+                $productsQuery->whereHas('categories', function ($q) use ($category) {
+                    $q->where('name', $category);
+                });
+            }
+            $productsPaginated = $productsQuery->with(['productVariants', 'productPic', 'categories', 'tags', 'reviews'])
+                ->orderByDesc('id')
+                ->paginate($perPage, ['*'], 'page', $page);
+
+            // Calculate seller rating
+            $sellerRating = round(
+                DB::table('reviews')
+                    ->join('products', 'reviews.product_id', '=', 'products.id')
+                    ->where('products.seller_id', $seller->id)
+                    ->avg('reviews.rating') ?: 0,
+                2
+            );
+
+            // Total active products
+            $productsCount = $seller->products()->where('status', 'active')->count();
+
+            // Total sold items
+            $totalSold = $seller->products->flatMap(function ($product) {
+                return $product->productVariants->flatMap(function ($variant) {
+                    return $variant->orderItems ?? collect();
+                });
+            })->sum('quantity') ?? 0;
+
+            // Mask phone number
+            $phone = $seller->phone_number
+                ? substr($seller->phone_number, 0, 4) . str_repeat('*', max(0, strlen($seller->phone_number) - 7)) . substr($seller->phone_number, -5)
+                : 'N/A';
+            // Format last active time (Vietnamese localization)
+            $lastActive = $seller->last_active_at
+                ? $seller->last_active_at->locale('vi')->diffForHumans()
+                : 'Chưa hoạt động';
+
+            // Check if user is following
+            $isFollowing = false;
+            $user = auth('sanctum')->user();
+            if ($user && $user->id !== $seller->user_id) {
+                $isFollowing = $seller->followers()->where('user_id', $user->id)->exists();
+            }
+
+
+            // Calculate cancellation rate
+            $totalOrders = DB::table('orders')
+                ->join('users', 'orders.user_id', '=', 'users.id')
+                ->join('sellers', 'users.id', '=', 'sellers.user_id')
+                ->where('sellers.id', $seller->id)
+                ->count();
+            $canceledOrders = DB::table('orders')
+                ->join('users', 'orders.user_id', '=', 'users.id')
+                ->join('sellers', 'users.id', '=', 'sellers.user_id')
+                ->where('sellers.id', $seller->id)
+                ->where('orders.status', 'canceled')
+                ->count();
+            $cancellationRate = $totalOrders > 0 ? round(($canceledOrders / $totalOrders) * 100, 2) . '%' : '0%';
+
+            // Calculate return rate
+            $deliveredOrders = DB::table('orders')
+                ->join('users', 'orders.user_id', '=', 'users.id')
+                ->join('sellers', 'users.id', '=', 'sellers.user_id')
+                ->where('sellers.id', $seller->id)
+                ->where('orders.status', 'delivered')
+                ->count();
+            $returnedOrders = DB::table('orders')
+                ->join('users', 'orders.user_id', '=', 'users.id')
+                ->join('sellers', 'users.id', '=', 'sellers.user_id')
+                ->where('sellers.id', $seller->id)
+                ->where('orders.status', 'returned')
+                ->count();
+            $returnRate = $deliveredOrders > 0 ? round(($returnedOrders / $deliveredOrders) * 100, 2) . '%' : '0%';
+
+            // Format seller data
+            $formattedSeller = [
+                'id' => $seller->id,
+                'store_name' => $seller->store_name ?? 'N/A',
+                'store_slug' => $seller->store_slug,
+                'bio' => $seller->bio ?? 'N/A',
+                'avatar' => $seller->user->avatar ?? 'avatars/default.jpg',
+                'phone' => $phone,
+                'rating' => $sellerRating,
+                'stars' => (int) round($sellerRating),
+                'products_count' => $productsCount,
+                'total_sold' => (string) $totalSold,
+                'last_active' => $lastActive,
+                'created_at' => $seller->created_at ? $seller->created_at->locale('vi')->isoFormat('LL') : 'N/A',
+                'description' => $seller->bio ? $seller->bio ?? 'Chưa có mô tả.' : 'Chưa có mô tả.',
+                'address' => $seller->personal_address ? $seller->personal_address ?? 'Chưa cung cấp địa chỉ.' : 'Chưa cung cấp địa chỉ.',
+                'member_since' => $seller->created_at ? $seller->created_at->format('Y') : 'N/A',
+                'cancellation_rate' => $cancellationRate,
+                'return_rate' => $returnRate,
+                'business' => $seller->business ? [
+                    'name' => $seller->business->name ?? 'N/A',
+                    'address' => $seller->business->company_address  ?? 'N/A',
+                    'description' => $seller->business->description ?? 'N/A',
+                    'tax_code' => $seller->business->tax_code ?? 'N/A',
+                ] : null,
+                'followers_count' => $seller->followers()->count(),
+                'is_following' => $isFollowing,
+                'total_products' => $productsCount,
+            ];
+
+            // Format products to match ProductCard props
+            $products = collect($productsPaginated->items())->map(function ($product) {
+                $defaultVariant = $product->productVariants->first();
+                $defaultPrice = $defaultVariant?->price ?? 0.0;
+                $defaultSalePrice = $defaultVariant?->sale_price ?? null;
+                $defaultPercent = ($defaultSalePrice && $defaultPrice > 0)
+                    ? round((($defaultPrice - $defaultSalePrice) / $defaultPrice) * 100)
+                    : 0;
+                $rating = round($product->reviews->avg('rating') ?: 0, 2);
+
+                return [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'slug' => $product->slug,
+                    'price' => $defaultPrice,
+                    'discount' => $defaultSalePrice,
+                    'percent' => $defaultPercent,
+                    'rating' => str_repeat('★', (int) round($rating)) . str_repeat('☆', 5 - (int) round($rating)),
+                    'sold' => (int) ($product->productVariants->flatMap(function ($variant) {
+                        return $variant->orderItems ?? collect();
+                    })->sum('quantity') ?? 0),
+                    'image' => $product->productPic->first()->imagePath ?? 'images/default-product.jpg',
+                    'categories' => $product->categories->pluck('name')->toArray(),
+                    'tags' => $product->tags->pluck('name')->toArray(),
+                ];
+            })->values()->toArray();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Lấy thông tin cửa hàng thành công.',
+                'data' => [
+                    'seller' => $formattedSeller,
+                    'products' => $products,
+                    'pagination' => [
+                        'current_page' => $productsPaginated->currentPage(),
+                        'last_page' => $productsPaginated->lastPage(),
+                        'per_page' => $productsPaginated->perPage(),
+                        'total' => $productsPaginated->total(),
+                    ],
+                ],
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Đã xảy ra lỗi khi lấy thông tin cửa hàng. Vui lòng thử lại sau.',
+                'error' => app()->environment('local') ? $e->getMessage() : null,
+            ], 500);
         }
-    ])->where('store_slug', $slug)->firstOrFail();
+    }
+    public function getDeals($slug)
+    {
+        try {
+            // Validate slug
+            if (empty($slug) || !is_string($slug)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Slug không hợp lệ.',
+                ], 400);
+            }
 
-    $isFollowing = false;
-    $user = auth('sanctum')->user(); // dùng sanctum thay vì auth()->check()
+            // Validate query parameters
+            $perPage = max(1, min(100, (int) request()->query('per_page', 24)));
 
-    if ($user && $user->id !== $seller->user_id) {
-        $isFollowing = $seller->followers()->where('user_id', $user->id)->exists();
+            // Fetch seller
+            $seller = Seller::where('store_slug', $slug)->firstOrFail();
+
+            // Fetch deals (products with active discounts)
+            $dealsQuery = $seller->products()->where('status', 'active')
+                ->whereHas('productVariants', function ($query) {
+                    $query->whereNotNull('sale_price')
+                        ->whereColumn('sale_price', '<', 'price');
+                })
+                ->with([
+                    'productVariants' => function ($q) {
+                        $q->select('id', 'product_id', 'price', 'sale_price')
+                            ->whereNotNull('sale_price')
+                            ->whereColumn('sale_price', '<', 'price');
+                    },
+                    'productPic' => function ($q) {
+                        $q->select('id', 'product_id', 'imagePath');
+                    },
+                    'categories' => function ($q) {
+                        $q->select('id', 'name');
+                    },
+                    'tags' => function ($q) {
+                        $q->select('id', 'name');
+                    },
+                    'reviews' => function ($q) {
+                        $q->select('id', 'product_id', 'rating');
+                    }
+                ])
+                ->orderByDesc('id');
+
+            $dealsPaginated = $dealsQuery->paginate($perPage);
+
+            // Format deals to match ProductCard props
+            $deals = collect($dealsPaginated->items())->map(function ($product) {
+                $defaultVariant = $product->productVariants->first();
+                $defaultPrice = $defaultVariant?->price ?? 0.0;
+                $defaultSalePrice = $defaultVariant?->sale_price ?? null;
+                $defaultPercent = ($defaultSalePrice && $defaultPrice > 0)
+                    ? round((($defaultPrice - $defaultSalePrice) / $defaultPrice) * 100)
+                    : 0;
+                $rating = round($product->reviews->avg('rating') ?: 0, 2);
+
+                return [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'slug' => $product->slug,
+                    'price' => $defaultPrice,
+                    'discount' => $defaultSalePrice,
+                    'percent' => $defaultPercent,
+                    'rating' => str_repeat('★', (int) round($rating)) . str_repeat('☆', 5 - (int) round($rating)),
+                    'sold' => (int) ($product->productVariants->flatMap(function ($variant) {
+                        return $variant->orderItems ?? collect();
+                    })->sum('quantity') ?? 0),
+                    'image' => $product->productPic->first() ? $product->productPic->first()->imagePath : 'images/default-product.jpg',
+                    'categories' => $product->categories->pluck('name')->toArray(),
+                    'tags' => $product->tags->pluck('name')->toArray(),
+                ];
+            })->values()->toArray();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Lấy danh sách ưu đãi thành công.',
+                'data' => [
+                    'deals' => $deals,
+                    'pagination' => [
+                        'current_page' => $dealsPaginated->currentPage(),
+                        'last_page' => $dealsPaginated->lastPage(),
+                        'per_page' => $dealsPaginated->perPage(),
+                        'total' => $dealsPaginated->total(),
+                    ],
+                ],
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Đã xảy ra lỗi khi lấy danh sách ưu đãi. Vui lòng thử lại sau.',
+                'error' => app()->environment('local') ? $e->getMessage() : null,
+            ], 500);
+        }
     }
 
-    return response()->json([
-        'seller' => $seller,
-        'followers_count' => $seller->followers()->count(),
-        'is_following' => $isFollowing,
-    ]);
-}
+    public function register(Request $request)
 
-
- public function register(Request $request)
 
     {
         try {
@@ -450,7 +724,12 @@ public function update(Request $request)
         }
     }
 
-
-
-
- }
+    public function getVerifiedSellers()
+    {
+        $sellers = Seller::where('verification_status', 'verified')->get();
+        return response()->json([
+            'message' => 'Lấy danh sách người bán.',
+            'data' => $sellers
+        ], 200);
+    }
+}

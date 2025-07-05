@@ -64,12 +64,15 @@ class ReviewController extends Controller
                 ])
                 ->values();
 
-
             return [
                 'id' => $review->id,
-                'user' => 'Ẩn danh',
-                'joined' => 'Tháng 1, 2024',
-                'totalReviews' => 5,
+                'user_id' => $review->user_id,
+                'user' => [
+                    'name' => $review->user->name ?? 'Ẩn danh',
+                    'avatar' => $review->user->avatar ? Storage::disk('r2')->url($review->user->avatar) : null,
+                ],
+                'joined' => 'Tháng 1, 2024', // nếu muốn thực tế thì dùng $review->user->created_at->format(...)
+                'totalReviews' => 5, // nếu cần thật thì count từ DB
                 'purchased' => true,
                 'rating' => $review->rating,
                 'content' => $review->content,
@@ -100,14 +103,29 @@ class ReviewController extends Controller
             'content' => 'required|string|min:10|max:1000',
             'rating' => 'required|integer|min:1|max:5',
             'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
-            'videos.*' => 'nullable|mimes:mp4,mkv,avi|max:10240',  // Thêm validation cho video
+            'videos.*' => 'nullable|mimes:mp4,mkv,avi|max:10240',
         ], [
-            'images.*.image' => 'Tệp phải là hình ảnh.',
-            'images.*.mimes' => 'Hình ảnh phải có định dạng jpeg, png, jpg, gif, svg hoặc webp.',
-            'images.*.max' => 'Hình ảnh không được vượt quá 2MB.',
-            'videos.*.mimes' => 'Tệp video phải có định dạng mp4, mkv, avi.',
-            'videos.*.max' => 'Video không được vượt quá 10MB.',
+            'product_id.required' => 'Mã sản phẩm là bắt buộc.',
+            'product_id.exists' => 'Sản phẩm không tồn tại.',
+
+            'content.required' => 'Nội dung đánh giá là bắt buộc.',
+            'content.string' => 'Nội dung đánh giá không hợp lệ.',
+            'content.min' => 'Nội dung đánh giá phải có ít nhất :min ký tự.',
+            'content.max' => 'Nội dung đánh giá không được vượt quá :max ký tự.',
+
+            'rating.required' => 'Vui lòng chọn số sao đánh giá.',
+            'rating.integer' => 'Giá trị đánh giá phải là số nguyên.',
+            'rating.min' => 'Đánh giá tối thiểu là :min sao.',
+            'rating.max' => 'Đánh giá tối đa là :max sao.',
+
+            'images.*.image' => 'Tệp tải lên phải là hình ảnh.',
+            'images.*.mimes' => 'Hình ảnh chỉ được chấp nhận định dạng: jpeg, png, jpg, gif, svg, webp.',
+            'images.*.max' => 'Dung lượng hình ảnh không được vượt quá 2MB.',
+
+            'videos.*.mimes' => 'Video chỉ được chấp nhận định dạng: mp4, mkv, avi.',
+            'videos.*.max' => 'Dung lượng video không được vượt quá 10MB.',
         ]);
+
 
         if ($validator->fails()) {
             return response()->json([
@@ -214,13 +232,21 @@ class ReviewController extends Controller
     public function update(Request $request, $id)
     {
         $review = Review::findOrFail($id);
+        $user = Auth::user();
+
+        if (!$user || $review->user_id !== $user->id) {
+            return response()->json(['message' => 'Bạn không có quyền sửa đánh giá này.'], 403);
+        }
 
         $validator = Validator::make($request->all(), [
             'content' => 'required|string|min:10|max:1000',
             'rating' => 'required|integer|min:1|max:5',
             'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
+            'videos.*' => 'nullable|mimes:mp4,mov,avi,wmv|max:10240',
             'kept_images' => 'nullable|array',
             'kept_images.*' => 'integer',
+            'kept_videos' => 'nullable|array',
+            'kept_videos.*' => 'integer',
         ]);
 
         if ($validator->fails()) {
@@ -231,14 +257,9 @@ class ReviewController extends Controller
             ], 422);
         }
 
-        if ($review->user_id !== $request->user()->id) {
-            return response()->json(['message' => 'Bạn không có quyền sửa đánh giá này.'], 403);
-        }
-
-        // Kiểm tra đã mua sản phẩm
         $hasPurchased = DB::table('orders')
             ->join('order_items', 'orders.id', '=', 'order_items.order_id')
-            ->where('orders.user_id', $request->user()->id)
+            ->where('orders.user_id', $user->id)
             ->where('orders.status', 'completed')
             ->where('order_items.product_id', $review->product_id)
             ->exists();
@@ -255,11 +276,18 @@ class ReviewController extends Controller
         try {
             $mediaUrls = [];
 
-            // Xoá ảnh không giữ lại
+            // Xoá hình ảnh không giữ lại
             $keptImageIds = $request->input('kept_images', []);
             $review->media()
                 ->where('media_type', 'image')
                 ->whereNotIn('id', $keptImageIds)
+                ->delete();
+
+            // Xoá video không giữ lại
+            $keptVideoIds = $request->input('kept_videos', []);
+            $review->media()
+                ->where('media_type', 'video')
+                ->whereNotIn('id', $keptVideoIds)
                 ->delete();
 
             // Upload ảnh mới
@@ -271,7 +299,15 @@ class ReviewController extends Controller
                 }
             }
 
-            // Lưu media
+            // Upload video mới
+            if ($request->hasFile('videos')) {
+                foreach ($request->file('videos') as $video) {
+                    $filename = 'reviews/videos/' . time() . '_' . uniqid() . '.' . $video->getClientOriginalExtension();
+                    Storage::disk('r2')->put($filename, file_get_contents($video));
+                    $mediaUrls[] = ['media_url' => $filename, 'media_type' => 'video'];
+                }
+            }
+
             foreach ($mediaUrls as $media) {
                 $review->media()->create($media);
             }
@@ -290,8 +326,6 @@ class ReviewController extends Controller
             ], 500);
         }
     }
-
-
 
 
 
@@ -425,6 +459,8 @@ class ReviewController extends Controller
         ]);
     }
 
+
+
     public function adminIndex()
     {
         try {
@@ -471,8 +507,8 @@ class ReviewController extends Controller
     public function adminShow($id)
     {
         try {
-            $review = Review::with(['media', 'reply', 'product'])
-                ->withCount('likes') // 👈 Thêm dòng này để lấy likes_count
+            $review = Review::with(['media', 'reply', 'product', 'user']) // 👈 Thêm 'user'
+                ->withCount('likes')
                 ->findOrFail($id);
 
             return response()->json([
@@ -480,10 +516,11 @@ class ReviewController extends Controller
                 'product_id' => $review->product_id,
                 'product_name' => optional($review->product)->name ?? 'Không rõ',
                 'user_id' => $review->user_id,
+                'user_name' => optional($review->user)->name ?? 'Không rõ', // 👈 THÊM DÒNG NÀY
                 'content' => $review->content,
                 'rating' => $review->rating,
                 'status' => $review->status,
-                'likes_count' => $review->likes_count, // 👈 Dùng đúng trường `likes_count`
+                'likes_count' => $review->likes_count,
                 'reply' => $review->reply ? [
                     'id' => $review->reply->id,
                     'content' => $review->reply->content,
@@ -509,8 +546,6 @@ class ReviewController extends Controller
     }
 
 
-
-
     public function adminUpdate(Request $request, $id)
     {
         $review = Review::with('media', 'reply')->findOrFail($id);
@@ -529,15 +564,14 @@ class ReviewController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        // Cập nhật fields
+        // Cập nhật đánh giá chính
         $review->update([
             'content' => $request->content,
             'rating' => $request->rating,
             'status' => $request->status,
         ]);
 
-        // Cập nhật hoặc tạo mới phản hồi
-        // Trong phần cập nhật hoặc tạo mới phản hồi
+        // Xử lý phản hồi
         if ($request->filled('reply')) {
             if ($review->reply) {
                 $review->reply->update([
@@ -546,13 +580,16 @@ class ReviewController extends Controller
             } else {
                 $review->reply()->create([
                     'content' => $request->input('reply'),
-                    'user_id' => auth()->id(), // hoặc ID admin cố định
+                    'user_id' => auth()->id() ?? 1,
                     'status' => 'approved',
+                    'product_id' => $review->product_id,   // ✅ THÊM
+                    'parent_id' => $review->id,
+                    'rating' => 0         // ✅ THÊM
                 ]);
             }
         }
 
-        // Xóa ảnh không giữ
+        // Xử lý ảnh bị xoá
         $kept = $request->input('kept_images', []);
         $review->media()->where('media_type', 'image')
             ->whereNotIn('id', $kept)
@@ -577,30 +614,28 @@ class ReviewController extends Controller
     }
 
 
-
     public function adminDestroy($id)
-{
-    try {
-        $review = Review::with('media', 'reply')->findOrFail($id);
+    {
+        try {
+            $review = Review::with('media', 'reply')->findOrFail($id);
 
-        // Xóa media
-        foreach ($review->media as $media) {
-            Storage::disk('r2')->delete($media->media_url);
-            $media->delete();
+            // Xóa media
+            foreach ($review->media as $media) {
+                Storage::disk('r2')->delete($media->media_url);
+                $media->delete();
+            }
+
+            // Xóa reply nếu có
+            if ($review->reply) {
+                $review->reply->delete();
+            }
+
+            $review->delete();
+
+            return response()->json(['message' => 'Xóa đánh giá thành công']);
+        } catch (\Exception $e) {
+            Log::error('Lỗi khi xóa đánh giá: ' . $e->getMessage());
+            return response()->json(['error' => 'Không thể xóa đánh giá'], 500);
         }
-
-        // Xóa reply nếu có
-        if ($review->reply) {
-            $review->reply->delete();
-        }
-
-        $review->delete();
-
-        return response()->json(['message' => 'Xóa đánh giá thành công']);
-    } catch (\Exception $e) {
-        Log::error('Lỗi khi xóa đánh giá: ' . $e->getMessage());
-        return response()->json(['error' => 'Không thể xóa đánh giá'], 500);
     }
-}
-
 }

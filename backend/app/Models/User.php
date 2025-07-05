@@ -34,7 +34,10 @@ class User extends Authenticatable
     {
          return $this->hasOne(Seller::class);
     }
-
+    public function discounts()
+    {
+        return $this->belongsToMany(Discount::class, 'discount_users', 'user_id', 'discount_id');
+    }
 
     public function getAvatarUrlAttribute()
         {

@@ -186,6 +186,8 @@
             </td>
             <td class="border border-gray-300 px-3 py-2 text-left">
               {{ product.seller?.store_name || '–' }}
+              <span v-if="product.is_admin_added === 1" class="text-xs text-gray-500">(Admin thêm sản phẩm)</span>
+
             </td>
             <td class="border border-gray-300 px-3 py-2 text-left">
               <div class="relative inline-block text-left">
@@ -204,6 +206,7 @@
       </table>
     </div>
   </div>
+  <Pagination :currentPage="currentPage" :lastPage="lastPage" @change="fetchProducts" />
 
   <!-- Dropdown Portal -->
   <Teleport to="body">
@@ -352,6 +355,8 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
+import Pagination from '~/components/Pagination.vue';
+
 
 definePageMeta({
   layout: 'default-admin'
@@ -386,8 +391,11 @@ const confirmDialogTitle = ref('');
 const confirmDialogMessage = ref('');
 const confirmAction = ref(null);
 const config = useRuntimeConfig();
-const apiBase = config.public.apiBaseUrl || 'http://localhost:8000/api';
-const mediaBase = config.public.mediaBaseUrl || 'http://localhost:8000';
+const apiBase = config.public.apiBaseUrl;
+const mediaBase = config.public.mediaBaseUrl;
+const currentPage = ref(1);
+const lastPage = ref(1);
+const perPage = 10;
 
 // Fetch product counts (total, instock, trash)
 const fetchProductCounts = async () => {
@@ -421,26 +429,25 @@ const fetchProductCounts = async () => {
 };
 
 // Fetch products from API
-const fetchProducts = async () => {
+const fetchProducts = async (page = 1) => {
   try {
     loading.value = true;
-    const endpoint = filterTrash.value === 'trash' ? `${apiBase}/products/trash` : `${apiBase}/products`;
+    currentPage.value = page;
+    const endpoint = filterTrash.value === 'trash'
+      ? `${apiBase}/products/trash?page=${page}&per_page=${perPage}`
+      : `${apiBase}/products?page=${page}&per_page=${perPage}`;
     const response = await fetch(endpoint, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
+      headers: { 'Content-Type': 'application/json' }
     });
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     const data = await response.json();
-    console.log('API Response:', data); // Debug API response
     products.value = data.data?.data || data.data || data || [];
+    lastPage.value = data.data?.last_page || 1;
+    currentPage.value = data.data?.current_page || page;
     if (!products.value.length) {
       showNotificationMessage(filterTrash.value === 'trash' ? 'Không có sản phẩm nào trong thùng rác' : 'Không có sản phẩm nào');
     }
-    // Update counts after fetching products
     await fetchProductCounts();
   } catch (error) {
     console.error('Error fetching products:', error);
@@ -461,7 +468,7 @@ const fetchCategories = async () => {
       }
     });
     const data = await response.json();
-    categories.value = data.data || data.categories || [];
+    categories.value = data.data.data || data.categories || [];
   } catch (error) {
     console.error('Error fetching categories:', error);
     showNotificationMessage('Có lỗi xảy ra khi tải danh mục', 'error');
@@ -471,7 +478,7 @@ const fetchCategories = async () => {
 // Fetch brands
 const fetchBrands = async () => {
   try {
-    const response = await fetch(`${apiBase}/users`, {
+    const response = await fetch(`${apiBase}/sellers/verified`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json'
@@ -479,6 +486,7 @@ const fetchBrands = async () => {
     });
     const data = await response.json();
     brands.value = data.data || [];
+    
   } catch (error) {
     console.error('Error fetching brands:', error);
     showNotificationMessage('Có lỗi xảy ra khi tải thương hiệu', 'error');
@@ -495,7 +503,9 @@ const fetchTags = async () => {
       }
     });
     const data = await response.json();
-    tags.value = data.data || data.tags || [];
+    tags.value = data.data.tags || [];
+    console.log('tags', tags.value);
+    
   } catch (error) {
     console.error('Error fetching tags:', error);
     showNotificationMessage('Có lỗi xảy ra khi tải thẻ', 'error');
@@ -553,6 +563,7 @@ const applyBulkAction = async () => {
               method: 'DELETE',
               headers: {
                 'Content-Type': 'application/json'
+
               }
             })
           );
@@ -582,11 +593,13 @@ const applyBulkAction = async () => {
       const status = selectedAction.value === 'active' ? 'active' :
         selectedAction.value === 'inactive' ? 'inactive' :
           selectedAction.value === 'trash' ? 'trash' : 'active';
+      const token = localStorage.getItem('access_token');
       const updatePromises = selectedProducts.value.map(id =>
         fetch(`${apiBase}/products/change-status/${id}`, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({ status })
         })
@@ -623,15 +636,18 @@ const editProduct = (id) => {
 
 // Move to trash
 const moveToTrash = async (product) => {
+  const token = localStorage.getItem('access_token');
   showConfirmationDialog(
     'Xác nhận chuyển vào thùng rác',
     `Bạn có chắc chắn muốn chuyển sản phẩm "${product.name}" vào thùng rác?`,
+
     async () => {
       try {
         const response = await fetch(`${apiBase}/products/change-status/${product.id}`, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({ status: 'trash' })
         });
@@ -653,6 +669,7 @@ const moveToTrash = async (product) => {
 
 // Restore product
 const restoreProduct = async (product) => {
+  const token = localStorage.getItem('access_token');
   showConfirmationDialog(
     'Xác nhận khôi phục',
     `Bạn có chắc chắn muốn khôi phục sản phẩm "${product.name}"?`,
@@ -661,7 +678,8 @@ const restoreProduct = async (product) => {
         const response = await fetch(`${apiBase}/products/change-status/${product.id}`, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({ status: 'active' })
         });
@@ -688,10 +706,12 @@ const confirmDelete = async (product) => {
     `Bạn có chắc chắn muốn xóa vĩnh viễn sản phẩm "${product.name}" không?`,
     async () => {
       try {
+        const token = localStorage.getItem('access_token');
         const response = await fetch(`${apiBase}/products/${product.id}`, {
           method: 'DELETE',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
           }
         });
 

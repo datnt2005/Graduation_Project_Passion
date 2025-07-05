@@ -156,6 +156,7 @@
       </table>
     </div>
   </div>
+  <Pagination :currentPage="currentPage" :lastPage="lastPage" @change="fetchCategories" />
 
   <!-- Dropdown Portal -->
   <Teleport to="body">
@@ -376,6 +377,8 @@
 import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { useRuntimeConfig } from '#app';
+import Pagination from '~/components/Pagination.vue';
+
 
 definePageMeta({
   layout: 'default-admin'
@@ -403,22 +406,36 @@ const confirmDialogTitle = ref('');
 const confirmDialogMessage = ref('');
 const confirmAction = ref(null);
 
+const currentPage = ref(1);
+const lastPage = ref(1);
+const perPage = 10;
 // Fetch categories from API
-const fetchCategories = async () => {
+const fetchCategories = async (page = 1) => {
   try {
-    const response = await fetch(`${apiBase}/categories`);
-    const data = await response.json();
-    // Map categories to include parent name
-    categories.value = data.categories.map(category => ({
-      ...category,
-      parent: category.parent_id ? data.categories.find(c => c.id === category.parent_id) : null
-    }));
-    totalCategories.value = data.categories.length;
+    loading.value = true;
+    currentPage.value = page;
+
+    const response = await fetch(`${apiBase}/categories?page=${page}&per_page=${perPage}`);
+    const result = await response.json();
+
+    // ✅ Kiểm tra cấu trúc phản hồi hợp lệ
+    if (!result || !result.data || !Array.isArray(result.data.data)) {
+      throw new Error('Phản hồi API không hợp lệ');
+    }
+
+    // ✅ Gán dữ liệu đúng
+    categories.value = result.data.data;
+    currentPage.value = result.data.current_page || 1;
+    lastPage.value = result.data.last_page || 1;
+    totalCategories.value = result.data.total || result.data.data.length;
   } catch (error) {
-    console.error('Error fetching categories:', error);
-    showNotificationMessage('Có lỗi xảy ra khi lấy danh sách danh mục' , 'error');
+    console.error('Lỗi khi fetch categories:', error);
+    showNotificationMessage('Lỗi khi tải danh sách danh mục', 'error');
+  } finally {
+    loading.value = false;
   }
 };
+
 
 // Toggle select all
 const toggleSelectAll = () => {

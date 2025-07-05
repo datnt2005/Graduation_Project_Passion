@@ -82,7 +82,7 @@
                 @click="$emit('close')">Tất cả sản phẩm</NuxtLink>
             </li>
             <li>
-              <NuxtLink to="/admin/products/create-product" class="block py-1 font-semibold text-white rounded"
+              <NuxtLink to="/admin/products/create-product" class="block py-1 font-semibold hover:text-white rounded"
                 :class="route.path.startsWith('/admin/products/create-product') ? 'text-green-400 font-bold' : ''"
                 @click="$emit('close')">Thêm sản phẩm</NuxtLink>
             </li>
@@ -100,9 +100,6 @@
               <NuxtLink to="/admin/tags/list-tag" class="block py-1 hover:text-white rounded"
                 :class="route.path.startsWith('/admin/tags') ? 'text-green-400 font-bold' : ''" @click="$emit('close')">
                 Thẻ sản phẩm</NuxtLink>
-            </li>
-            <li>
-              <NuxtLink to="#" class="block py-1 hover:text-white rounded" @click="$emit('close')">Đánh giá</NuxtLink>
             </li>
           </ul>
         </li>
@@ -133,16 +130,37 @@
           </NuxtLink>
         </li>
 
+                <!-- Đánh giá (Dropdown) -->
         <li class="pt-2 border-t border-gray-800">
-          <NuxtLink to="/admin/reviews/list-reviews" class="flex items-center px-4 py-2 hover:bg-gray-800 gap-3 rounded"
-            :class="route.path.startsWith('/admin/reviews') ? 'bg-gray-800 text-green-400 font-bold' : 'text-white'"
-            @click="$emit('close')">
-            <svg class="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <button @click="toggleReview"
+            class="flex items-center w-full px-4 py-2 hover:bg-gray-800 focus:outline-none rounded"
+            :class="reviewActive ? 'bg-gray-800 text-green-400 font-bold' : ''">
+            <svg class="w-4 h-4 mr-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round"
-                d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+                d="M12 9v3m0 0v3m0-3h3m-3 0H9m6.364-7.636a9 9 0 11-12.728 12.728A9 9 0 0118.364 4.364z" />
             </svg>
             Đánh giá
-          </NuxtLink>
+            <svg class="w-4 h-4 ml-auto transform transition-transform" :class="{ 'rotate-180': reviewOpen }"
+              fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          <ul v-show="reviewOpen" class="pl-11 mt-1 space-y-0.5 text-gray-300 text-[13px]">
+            <li>
+              <NuxtLink to="/admin/reviews/list-reviews" class="block py-1 hover:text-white rounded"
+                :class="route.path.startsWith('/admin/reviews') && !route.path.startsWith('/admin/reports/reviews') ? 'text-green-400 font-bold' : ''"
+                @click="$emit('close')">
+                Tất cả đánh giá
+              </NuxtLink>
+            </li>
+            <li>
+              <NuxtLink to="/admin/reports/reviews/list-reports" class="block py-1 hover:text-white rounded"
+                :class="route.path.startsWith('/admin/reports/reviews') ? 'text-green-400 font-bold' : ''"
+                @click="$emit('close')">
+                Đánh giá bị báo cáo
+              </NuxtLink>
+            </li>
+          </ul>
         </li>
 
         <!-- Banner -->
@@ -193,7 +211,6 @@
           </ul>
         </li>
 
-        <!-- Thông báo -->
         <!-- Thông báo (Dropdown) -->
         <li class="pt-2 border-t border-gray-800">
           <button @click="toggleNotification"
@@ -261,6 +278,7 @@ import { useRoute } from 'vue-router'
 defineProps({ show: Boolean })
 defineEmits(['close'])
 
+
 const route = useRoute()
 
 const userOpen = ref(false)
@@ -282,6 +300,11 @@ const notificationActive = computed(() =>
   route.path.startsWith('/admin/notifications')
 )
 
+const reviewOpen = ref(false)
+const toggleReview = () => reviewOpen.value = !reviewOpen.value
+const reviewActive = computed(() =>
+  route.path.startsWith('/admin/reviews') || route.path.startsWith('/admin/reports/reviews')
+)
 
 const productOpen = ref(false)
 const toggleProduct = () => productOpen.value = !productOpen.value

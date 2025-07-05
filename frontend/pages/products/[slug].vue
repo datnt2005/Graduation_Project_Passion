@@ -63,7 +63,7 @@
                     </div>
                 </section>
 
-                <ProductReviews />
+                <ProductReviews v-if="product.id" :product-id="product.id" />
             </div>
         </main>
     </template>
@@ -78,6 +78,9 @@ import ProductDescription from '../components/shared/products/ProductDescription
 import ProductReviews from '../components/shared/reviews/ProductReviews.vue';
 import PhoneNumber from '../components/shared/products/PhoneNumber.vue';
 import { useToast } from '~/composables/useToast';
+
+import { useCart } from '~/composables/useCart';
+const { fetchCart } = useCart();
 
 const { toast } = useToast()
 const config = useRuntimeConfig();
@@ -109,6 +112,7 @@ const product = ref({
 // Seller Data
 const seller = ref({
     store_name: '',
+    store_slug: '',
     avatar: null,
     products_count: 0,
     rating: 0,
@@ -397,6 +401,7 @@ async function addToCart() {
     toast('success', data.message || 'Thêm vào giỏ hàng thành công!');
     quantity.value = 1;
     validationMessage.value = '';
+    await fetchCart();
   } catch (err) {
     console.error('Add to cart error:', err);
     toast('error', err.message || 'Thêm vào giỏ hàng thất bại.');
@@ -443,7 +448,7 @@ async function buyNow() {
 }
 
 function viewShop() {
-    router.push(`/shop/${encodeURIComponent(seller.value.store_name || '')}`);
+    router.push(`/seller/${seller.value.store_slug }`);
 }
 
 async function fetchProduct() {
@@ -478,6 +483,7 @@ async function fetchProduct() {
 
         seller.value = {
             store_name: data.data?.product?.seller?.store_name || 'Unknown Seller',
+            store_slug: data.data?.product?.seller?.store_slug || 'unknown-seller',
             avatar: data.data?.product?.seller?.avatar || null,
             products_count: Number(data.data?.product?.seller?.products_count || 0),
             rating: Number(data.data?.product?.seller?.rating || 0),

@@ -7,20 +7,19 @@ use Illuminate\Database\Eloquent\Model;
 // app/Models/Notification.php
 class Notification extends Model
 {
-    protected $casts = [
-        'content' => 'array',
-    ];
+
     protected $fillable = [
-        'user_id',
-        'type',
         'title',
         'content',
-        'link',
+        'type',
         'to_role',
         'to_user_id',
-        'is_read',
-        'read_at',
+        'user_id',
+        'link',
         'image_url',
         'status',
+        'is_read',
+        'read_at',
+        'is_hidden'
     ];
 }

@@ -147,6 +147,7 @@
         </tbody>
       </table>
     </div>
+  <Pagination :currentPage="currentPage" :lastPage="lastPage" @change="fetchAttributes" />
 
     <!-- Dropdown Portal -->
     <Teleport to="body">
@@ -368,6 +369,7 @@
 import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { useRuntimeConfig } from '#app';
+import Pagination from '~/components/Pagination.vue';
 
 definePageMeta({
   layout: 'default-admin'
@@ -393,27 +395,38 @@ const showConfirmDialog = ref(false);
 const confirmDialogTitle = ref('');
 const confirmDialogMessage = ref('');
 const confirmAction = ref(null);
-
+const currentPage = ref(1);
+const lastPage = ref(1);
+const perPage = 10;
 // Fetch attributes from API
-const fetchAttributes = async () => {
+const fetchAttributes = async (page = 1) => {
   try {
-    console.log('Fetching attributes from:', `${apiBase}/attributes`);
-    const response = await fetch(`${apiBase}/attributes`, {
+    loading.value = true;
+    currentPage.value = page;
+
+    const response = await fetch(`${apiBase}/attributes?page=${page}&per_page=${perPage}`, {
       headers: { Accept: 'application/json' }
     });
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
+
+    const result = await response.json();
+
+    if (!result || !result.data || !Array.isArray(result.data.data)) {
+      throw new Error('Phản hồi API không hợp lệ');
     }
-    const data = await response.json();
-    console.log('Attributes API response:', data);
-    attributes.value = data.data || [];
-    totalAttributes.value = attributes.value.length;
+
+    attributes.value = result.data.data;
+    currentPage.value = result.data.current_page || 1;
+    lastPage.value = result.data.last_page || 1;
+    totalAttributes.value = result.data.total || result.data.data.length;
   } catch (error) {
-    console.error('Error fetching attributes:', error);
-    showNotificationMessage('Có lỗi xảy ra khi lấy danh sách thuộc tính', 'error');
-    attributes.value = []; // Ensure attributes is always an array
+    console.error('Lỗi khi fetch attributes:', error);
+    showNotificationMessage('Lỗi khi tải thuộc tính', 'error');
+    attributes.value = [];
+  } finally {
+    loading.value = false;
   }
 };
+
 
 // Toggle select all
 const toggleSelectAll = () => {
