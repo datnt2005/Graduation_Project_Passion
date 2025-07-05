@@ -2,13 +2,11 @@
 
 namespace App\Services;
 
-use App\Models\Category;
-use App\Models\Product;
-use App\Repositories\TrendRepository;
-use App\Repositories\SearchHistoryRepository;
+use App\Models\{Category, Product, SearchHistory, Trend};
+use App\Repositories\{TrendRepository, SearchHistoryRepository};
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\{Cache, Redis, DB};
+use Carbon\Carbon;
 
 class SearchService
 {
@@ -23,6 +21,25 @@ class SearchService
 
     public function addSearch($userId, $sessionId, $keyword)
     {
+        $keyword = trim($keyword);
+        if (mb_strlen($keyword) < 2 || is_numeric($keyword)) return;
+
+        $date = Carbon::now()->format('Ymd');
+        $keySuffix = $userId ? "user_{$userId}:{$date}" : "sess_{$sessionId}:{$date}";
+        $redisKey = "search_history:$keySuffix";
+        $ttl = $userId ? 60 * 60 * 24 * 7 : 60 * 60 * 24;
+
+        $lastKeyword = Redis::lindex($redisKey, 0);
+        if ($lastKeyword === $keyword) return;
+
+        Redis::lrem($redisKey, 0, $keyword);
+        Redis::lpush($redisKey, $keyword);
+        Redis::ltrim($redisKey, 0, 9);
+        Redis::expire($redisKey, $ttl);
+
+        // Thống kê keyword toàn hệ thống
+        Redis::zincrby('global:search_keywords', 1, $keyword);
+
         $this->searchHistoryRepository->addSearch($userId, $sessionId, $keyword);
         $this->trendRepository->incrementKeyword($keyword);
     }
@@ -69,19 +86,43 @@ class SearchService
             $brandKey = is_array($brands) ? implode(',', $brands) : ($brands ?? '');
             $ratingsKey = is_array($ratings) ? implode(',', $ratings) : ($ratings ?? '');
             $keyHash = md5(json_encode([
-                $slug, $search, $page, $perPage, $priceMin, $priceMax, $brandKey,
-                $ratingsKey, $onSale, $sort, $priceOrder, $categoryIds
+                $slug,
+                $search,
+                $page,
+                $perPage,
+                $priceMin,
+                $priceMax,
+                $brandKey,
+                $ratingsKey,
+                $onSale,
+                $sort,
+                $priceOrder,
+                $categoryIds
             ]));
             $cacheKey = "products_{$slug}_page_{$page}_per_{$perPage}_{$keyHash}";
             $ttl = 3600;
 
             $products = Cache::store('redis')->tags(['products'])->remember($cacheKey, $ttl, function () use (
-                $isSearchMode, $categoryIds, $search, $perPage, $priceMin, $priceMax,
-                $brands, $ratings, $onSale, $sort, $priceOrder
+                $isSearchMode,
+                $categoryIds,
+                $search,
+                $perPage,
+                $priceMin,
+                $priceMax,
+                $brands,
+                $ratings,
+                $onSale,
+                $sort,
+                $priceOrder
             ) {
                 $query = Product::with([
-                    'categories', 'productPic', 'productVariants.inventories',
-                    'productVariants.orderItems', 'reviews', 'seller', 'tags'
+                    'categories',
+                    'productPic',
+                    'productVariants.inventories',
+                    'productVariants.orderItems',
+                    'reviews',
+                    'seller',
+                    'tags'
                 ])->where('status', 'active');
 
                 if (!$isSearchMode && !empty($categoryIds)) {
@@ -90,9 +131,9 @@ class SearchService
 
                 if ($search) {
                     $query->where(function ($q) use ($search) {
-                        $q->where('name', 'like', '%' . $search . '%')
-                            ->orWhere('description', 'like', '%' . $search . '%')
-                            ->orWhereHas('tags', fn($q) => $q->where('name', 'like', '%' . $search . '%'));
+                        $q->where('name', 'like', "%$search%")
+                            ->orWhere('description', 'like', "%$search%")
+                            ->orWhereHas('tags', fn($q) => $q->where('name', 'like', "%$search%"));
                     });
                 }
 
@@ -197,8 +238,12 @@ class SearchService
 
     public function getSearchSuggestions($userId, $sessionId)
     {
-        $history = $this->searchHistoryRepository->getRecentSearches($userId, $sessionId);
-        $topKeywords = $this->trendRepository->getTopKeywords(10);
+        $date = Carbon::now()->format('Ymd');
+        $keySuffix = $userId ? "user_{$userId}:{$date}" : "sess_{$sessionId}:{$date}";
+        $redisKey = "search_history:$keySuffix";
+        $history = Redis::lrange($redisKey, 0, 9);
+
+        $topKeywords = Redis::zrevrange('global:search_keywords', 0, 9);
         $topProducts = $this->trendRepository->getTopProducts(10);
 
         $products = Product::whereIn('id', array_keys($topProducts))
@@ -217,20 +262,41 @@ class SearchService
 
         return [
             'history' => $history,
-            'top_keywords' => array_keys($topKeywords),
+            'top_keywords' => $topKeywords,
             'top_products' => array_values($products),
         ];
     }
 
     public function syncSessionToUser($sessionId, $userId)
     {
-        $this->searchHistoryRepository->syncSessionToUser($sessionId, $userId);
+        $date = Carbon::now()->format('Ymd');
+        $sessionKey = "search_history:sess_{$sessionId}:{$date}";
+        $userKey = "search_history:user_{$userId}:{$date}";
+
+        $keywords = Redis::lrange($sessionKey, 0, 9);
+        foreach (array_reverse($keywords) as $keyword) {
+            Redis::lrem($userKey, 0, $keyword);
+            Redis::lpush($userKey, $keyword);
+        }
+        Redis::ltrim($userKey, 0, 9);
+        Redis::expire($userKey, 60 * 60 * 24 * 7);
+        Redis::del($sessionKey);
     }
 
     public function deleteSearchHistory($userId, $sessionId, $keyword = null)
     {
-        $this->searchHistoryRepository->deleteSearch($userId, $sessionId, $keyword);
+        $date = Carbon::now()->format('Ymd');
+        $redisKey = $userId ? "search_history:user_{$userId}:{$date}" : "search_history:sess_{$sessionId}:{$date}";
+
+        if ($keyword) {
+            Redis::lrem($redisKey, 0, $keyword);
+            $this->searchHistoryRepository->deleteSearch($userId, $sessionId, $keyword);
+        } else {
+            Redis::del($redisKey);
+            $this->searchHistoryRepository->deleteSearch($userId, $sessionId);
+        }
     }
+
 
     private function getAllCategoryChildrenIds(Category $category)
     {
@@ -243,4 +309,3 @@ class SearchService
         return $ids;
     }
 }
-

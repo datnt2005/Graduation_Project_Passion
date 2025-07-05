@@ -357,6 +357,9 @@ const logout = async () => {
     localStorage.removeItem('access_token')
     updateLoginState()
     toast('success', 'Đăng xuất thành công!')
+    setTimeout(() => {
+      window.location.reload()
+    }, 1500)
   } catch (err) {
     toast('error', err.response?.data?.message || 'Không thể đăng xuất.')
     if (err?.response?.data?.trace) {

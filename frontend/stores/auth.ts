@@ -6,7 +6,8 @@ import axios from 'axios'
 export const useAuthStore = defineStore('auth', () => {
   const currentUser = ref(null)
   const isLoggedIn = ref(false)
-
+  const config = useRuntimeConfig();
+  const apiBase = config.public.apiBaseUrl;
   const fetchUser = async () => {
     const token = localStorage.getItem('access_token')
     if (!token) {
@@ -16,7 +17,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
 
     try {
-      const res = await axios.get('http://localhost:8000/api/me', {
+      const res = await axios.get(`${apiBase}/me`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },

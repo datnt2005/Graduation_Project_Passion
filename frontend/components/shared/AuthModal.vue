@@ -117,7 +117,7 @@
 
             <button type="submit"
               class="w-full bg-gradient-to-r from-[#1BA0E2] to-[#1591cc] text-white py-3 rounded-xl font-semibold hover:from-[#1591cc] hover:to-[#127aa3] transition-all duration-300 hover:scale-[1.02] focus:ring-2 focus:ring-[#1BA0E2] focus:ring-opacity-50 font-inter disabled:opacity-50"
-              :disabled="isSubmitting"> 
+              :disabled="isSubmitting">
               <span v-if="isSubmitting">
                 <svg class="animate-spin h-5 w-5 mr-2 inline-block" viewBox="0 0 24 24">
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -325,6 +325,9 @@ const loginWithGoogle = () => {
         if (res.ok && data.data) {
           emit('login-success', data.data)
           toast('success', 'Đăng nhập Google thành công!')
+          setTimeout(() => {
+            window.location.reload()
+          }, 1500)
           showModal.value = false
         } else {
           throw new Error(data.message || 'Không lấy được thông tin tài khoản!')
@@ -380,6 +383,9 @@ const submitForm = async () => {
       })
       emit('login-success', userRes.data.data)
       toast('success', 'Đăng nhập thành công!')
+      setTimeout(() => {
+        window.location.reload()
+      }, 1500)
       closeModal()
     } else {
       const res = await axios.post(`${api}/register`, {
@@ -531,22 +537,27 @@ watch(() => props.initialMode, (newMode) => {
 .fade-slide-leave-active {
   transition: all 0.2s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 }
+
 .fade-slide-enter-from,
 .fade-slide-leave-to {
   opacity: 0;
   transform: translateY(50px) scale(0.95);
 }
+
 .animate-spin {
   animation: spin 1s linear infinite;
 }
+
 @keyframes spin {
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
 }
+
 .relative {
   position: relative;
 }
