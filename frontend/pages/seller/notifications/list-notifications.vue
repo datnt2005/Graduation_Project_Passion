@@ -5,7 +5,7 @@
       <div class="bg-white px-4 py-4 flex items-center justify-between border-b border-gray-200">
         <h1 class="text-xl font-semibold text-gray-800">Quản lý thông báo</h1>
 
-        <nuxt-link to="/admin/notifications/create-notifications"
+        <nuxt-link to="/seller/notifications/create-notifications"
           class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 inline-block text-sm font-medium">
           + Tạo thông báo
         </nuxt-link>
@@ -13,35 +13,27 @@
 
       <!-- Filter and Bulk Action -->
       <div class="p-4 flex gap-4 items-center">
-        <label class="text-sm">Vai trò người nhận:</label>
-        <select v-model="selectedRole" class="border px-2 py-1 rounded">
-          <option value="">-- Tất cả --</option>
-          <option value="user">Người dùng</option>
-          <option value="seller">Người bán</option>
-          <option value="admin">Admin</option>
-        </select>
-
-        <label class="text-sm">Chọn người cụ thể:</label>
-        <Multiselect v-model="selectedUserIds" :options="usersByRole" :multiple="true" :close-on-select="false"
-          :clear-on-select="false" :preserve-search="true" label="name" track-by="id"
-          placeholder="Chọn nhiều người dùng" class="w-64">
-          <template #option="{ option }">
-            <div class="flex items-center gap-2">
-              <span class="font-medium">{{ option.name }}</span>
-              <span class="text-xs text-gray-500">({{ option.id }})</span>
-            </div>
-          </template>
-        </Multiselect>
-
-
-
-
         <button @click="sendSelected" :disabled="selectedIds.length === 0"
           class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 text-sm flex items-center gap-2">
           <Send class="w-4 h-4" />
           Gửi các thông báo đã chọn
         </button>
+        <!-- Gửi tất cả thông báo chưa gửi -->
+        <button @click="sendAllNotifications"
+          class="bg-green-100 text-green-700 px-4 py-2 rounded hover:bg-green-200 text-sm flex items-center gap-2">
+          <Send class="w-4 h-4" /> Gửi tất cả thông báo chưa gửi
+        </button>
+        <!-- Xoá các thông báo đã chọn -->
+        <button @click="deleteSelected" :disabled="selectedIds.length === 0"
+          class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 text-sm flex items-center gap-2">
+          <Trash2 class="w-4 h-4" /> Xoá đã chọn
+        </button>
 
+        <!-- Xoá tất cả thông báo -->
+        <button @click="deleteAll"
+          class="bg-red-100 text-red-700 px-4 py-2 rounded hover:bg-red-200 text-sm flex items-center gap-2">
+          <Trash2 class="w-4 h-4" /> Xoá tất cả
+        </button>
       </div>
 
       <!-- Notification Table -->
@@ -55,9 +47,10 @@
             <th class="border px-3 py-2 text-left font-semibold">Tiêu đề</th>
             <th class="border px-3 py-2 text-left font-semibold">Ảnh</th>
             <th class="border px-3 py-2 text-left font-semibold">Loại</th>
-            <th class="border px-3 py-2 text-left font-semibold">Người nhận</th>
+            <th class="border px-3 py-2 text-left font-semibold">Vai trò người nhận</th>
+            <th class="border px-3 py-2 text-left font-semibold">Kênh gửi</th>
             <th class="border px-3 py-2 text-left font-semibold">Trạng thái</th>
-            <th class="border px-3 py-2 text-left font-semibold">Tình trạng</th>
+            <th class="border px-3 py-2 text-left font-semibold">Hiển thị</th>
             <th class="border px-3 py-2 text-left font-semibold">Ngày gửi</th>
             <th class="border px-3 py-2 text-left font-semibold">Thao tác</th>
           </tr>
@@ -73,21 +66,49 @@
               <img v-if="item.image_url" :src="item.image_url" alt="Ảnh" class="w-14 h-14 object-cover rounded" />
               <span v-else class="text-gray-400 italic">Không có</span>
             </td>
-            <td class="px-3 py-2 capitalize">{{ item.type }}</td>
-            <td class="px-3 py-2">{{ item.to_role }}</td>
+            <td class="px-3 py-2">{{ typeLabel(item.type) }}</td>
+
+            <!-- Người nhận -->
             <td class="px-3 py-2">
-              <span :class="item.is_read == 0 ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'"
-                class="px-2 py-1 text-xs font-semibold rounded">
-                {{ item.is_read == 0 ? 'Chưa đọc' : 'Đã đọc' }}
+              <span v-if="item.to_roles && item.to_roles.length">
+                <span v-for="(role, index) in item.to_roles" :key="index"
+                  class="inline-block bg-blue-100 text-blue-800 rounded-full px-2 py-1 text-xs mr-1">
+                  {{ roleLabel(role) }}
+                </span>
               </span>
+              <span v-else class="text-gray-400 italic">Không có</span>
             </td>
+
+            <!-- Kênh gửi -->
+            <td class="px-3 py-2">
+              <span v-if="item.channels && Array.isArray(item.channels)">
+                <span v-for="(channel, index) in item.channels" :key="index"
+                  class="inline-block bg-gray-200 text-gray-700 rounded-full px-2 py-1 text-xs mr-1">
+                  {{ channelLabel(channel) }}
+                </span>
+              </span>
+              <span v-else class="text-gray-400 italic">Không có</span>
+            </td>
+
+            <!-- Trạng thái -->
             <td class="px-3 py-2">
               <span :class="item.status === 'draft' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'"
                 class="px-2 py-1 text-xs font-semibold rounded">
                 {{ item.status === 'draft' ? 'Lưu nháp' : 'Đã gửi' }}
               </span>
             </td>
+
+            <!-- Hiển thị -->
+            <td class="px-3 py-2">
+              <span :class="item.is_hidden ? 'text-red-500' : 'text-green-600'">
+                {{ item.is_hidden ? 'Đã ẩn' : 'Đang hiển thị' }}
+              </span>
+            </td>
+
+            <!-- Ngày -->
             <td class="px-3 py-2">{{ formatDate(item.created_at) }}</td>
+
+            <!-- Dropdown -->
             <td class="px-3 py-2 relative">
               <button @click="toggleDropdown(item.id, $event)"
                 class="p-1 rounded hover:bg-gray-100 focus:outline-none focus:ring-1 focus:ring-gray-300">
@@ -98,11 +119,17 @@
                 </svg>
               </button>
             </td>
-
           </tr>
           <tr v-if="notifications.length === 0">
-            <td colspan="10" class="text-center py-4 text-gray-500">Không có thông báo nào</td>
+            <td colspan="11" class="text-center py-10 text-gray-500">
+              <div class="flex flex-col items-center justify-center">
+                <BellOff class="w-12 h-12 text-gray-400 mb-2" />
+                <p class="text-base font-medium">Không có thông báo nào</p>
+                <p class="text-sm text-gray-400">Bạn chưa tạo hoặc gửi bất kỳ thông báo nào</p>
+              </div>
+            </td>
           </tr>
+
         </tbody>
       </table>
 
@@ -129,7 +156,7 @@
                   <Trash2 class="w-4 h-4 mr-2" /> Xóa
                 </button>
               </div>
-            </div>  
+            </div>
           </div>
         </Transition>
       </Teleport>
@@ -143,12 +170,12 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import axios from 'axios'
 import { useRuntimeConfig } from '#app'
 import { useRouter } from 'vue-router'
-import { Eye, Pencil, Trash2, Send } from 'lucide-vue-next'
+import { Eye, Pencil, Trash2, Send, BellOff } from 'lucide-vue-next'
 import Multiselect from 'vue-multiselect'
 import { useNotification } from '~/composables/useNotification'
 
 const { showNotification } = useNotification()
-definePageMeta({ layout: 'default-admin' })
+definePageMeta({ layout: 'default-seller' })
 const usersByRole = ref([])
 const usersByRoleEmpty = computed(() => !Array.isArray(usersByRole.value) || usersByRole.value.length === 0)
 
@@ -162,6 +189,47 @@ const selectedIds = ref([])
 const selectedRole = ref('')
 const selectedUserIds = ref([])
 
+const countUnread = (recipients) => {
+  return recipients.filter(r => r.is_read === 0).length
+}
+const channelLabel = (channel) => {
+  switch (channel) {
+    case 'web':
+      return 'Web'
+    case 'email':
+      return 'Email'
+    default:
+      return channel
+  }
+}
+
+const typeLabel = (type) => {
+  switch (type) {
+    case 'order':
+      return 'Đơn hàng'
+    case 'promotion':
+      return 'Khuyến mãi'
+    case 'message':
+      return 'Tin nhắn'
+    case 'system':
+      return 'Hệ thống'
+    default:
+      return 'Không xác định'
+  }
+}
+
+const roleLabel = (role) => {
+  switch (role) {
+    case 'user':
+      return 'Người dùng'
+    case 'seller':
+      return 'Người bán'
+    case 'admin':
+      return 'Quản trị viên'
+    default:
+      return 'Không xác định'
+  }
+}
 
 const activeDropdown = ref(null)
 const dropdownPosition = ref({ top: '0px', left: '0px' })
@@ -194,11 +262,11 @@ const toggleSelectAll = () => {
 }
 
 const viewNotification = (id) => {
-  router.push(`/admin/notifications/view/${id}`)
+  router.push(`/seller/notifications/view/${id}`)
 }
 
 const editNotification = (id) => {
-  router.push(`/admin/notifications/edit-notifications/${id}`)
+  router.push(`/seller/notifications/edit-notifications/${id}`)
 }
 
 watch(selectedRole, async (newRole) => {
@@ -240,41 +308,89 @@ const formatDate = (dateStr) => {
 }
 
 const confirmDelete = async (id) => {
-  if (!confirm('Bạn có chắc chắn muốn xóa thông báo này?')) return
   try {
     const token = localStorage.getItem('access_token')
     await axios.delete(`${apiBase}/notifications/${id}`, {
       headers: { Authorization: `Bearer ${token}` }
     })
     notifications.value = notifications.value.filter(n => n.id !== id)
-    showNotification('Đã xóa thông báo!', 'success') // ✅
+    showNotification('Đã xóa thông báo!', 'success')
   } catch (err) {
     console.error('Lỗi khi xóa thông báo:', err)
-    showNotification('Không thể xóa thông báo!', 'error') // ✅
+    showNotification('Không thể xóa thông báo!', 'error')
+  }
+}
+
+const deleteSelected = async () => {
+  if (selectedIds.value.length === 0) return // Không làm gì nếu chưa chọn
+
+  try {
+    const token = localStorage.getItem('access_token')
+    await axios.post(`${apiBase}/notifications/destroy-multiple`, {
+      ids: selectedIds.value
+    }, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+
+    showNotification('Đã xoá các thông báo đã chọn!', 'success')
+    selectedIds.value = []
+    fetchNotifications()
+  } catch (err) {
+    console.error('Lỗi khi xoá nhiều thông báo:', err)
+    showNotification('Không thể xoá các thông báo đã chọn!', 'error')
+  }
+}
+
+const deleteAll = async () => {
+  try {
+    const token = localStorage.getItem('access_token')
+    await axios.delete(`${apiBase}/notifications/destroy-all`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+
+    showNotification('Đã xoá tất cả thông báo!', 'success')
+    selectedIds.value = []
+    fetchNotifications()
+  } catch (err) {
+    console.error('Lỗi khi xoá tất cả thông báo:', err)
+    showNotification('Không thể xoá tất cả thông báo!', 'error')
   }
 }
 
 
+
 const sendSelected = async () => {
-  if (!confirm('Bạn có chắc chắn muốn gửi các thông báo đã chọn?')) return
   try {
     const token = localStorage.getItem('access_token')
     await axios.post(`${apiBase}/notifications/send-multiple`, {
-      ids: selectedIds.value,
-      to_role: selectedRole.value || null,
-      to_user_ids: selectedUserIds.value.length > 0 ? selectedUserIds.value : null
+      ids: selectedIds.value
     }, {
       headers: { Authorization: `Bearer ${token}` }
     })
-    showNotification('Đã gửi các thông báo được chọn!', 'success') // ✅
+
+    showNotification('Đã gửi các thông báo được chọn!', 'success')
     selectedIds.value = []
     fetchNotifications()
   } catch (err) {
     console.error('Lỗi khi gửi hàng loạt:', err)
-    showNotification('Không thể gửi thông báo hàng loạt!', 'error') // ✅
+    showNotification('Không thể gửi thông báo hàng loạt!', 'error')
   }
 }
 
+const sendAllNotifications = async () => {
+  try {
+    const token = localStorage.getItem('access_token')
+    await axios.post(`${apiBase}/notifications/send-all`, {}, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+
+    showNotification('Đã gửi tất cả thông báo chưa gửi!', 'success')
+    fetchNotifications()
+  } catch (err) {
+    console.error('Lỗi khi gửi tất cả thông báo:', err)
+    showNotification('Không thể gửi tất cả thông báo!', 'error')
+  }
+}
 
 onMounted(() => {
   fetchNotifications()

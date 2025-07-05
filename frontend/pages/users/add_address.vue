@@ -115,6 +115,10 @@ import { onMounted, computed } from 'vue'
 import axios from 'axios'
 import { useAuthHeaders } from '~/composables/useAuthHeaders'
 import { useToast } from '~/composables/useToast'
+import { ref } from 'vue'
+
+const errors = ref({})
+
 
 const { showSuccess, showError } = useToast()
 const config = useRuntimeConfig()
@@ -203,18 +207,19 @@ const saveAddress = async () => {
     }
     router.push('/users/myaddress')
   } catch (e) {
-  if (e.response && e.response.data) {
-    const data = e.response.data
+  if (e.response && e.response.status === 401) {
+    showError('Bạn cần đăng nhập để thêm địa chỉ.') // ✅ Ghi đè lỗi Unauthenticated
+    return
+  }
 
-    if (data.errors) {
-      errors.value = data.errors // Gán toàn bộ lỗi để hiển thị theo từng trường
-      const firstError = Object.values(data.errors)[0]?.[0]
-      showError(firstError || 'Dữ liệu không hợp lệ.')
-    } else {
-      showError(data.message || 'Có lỗi xảy ra. Vui lòng thử lại.')
-    }
+  const data = e.response?.data
+
+  if (data?.errors) {
+    errors.value = data.errors
+    const firstError = Object.values(data.errors)[0]?.[0]
+    showError(firstError || 'Dữ liệu không hợp lệ.')
   } else {
-    showError('Lỗi không xác định. Vui lòng kiểm tra lại.')
+    showError(data?.message || 'Có lỗi xảy ra. Vui lòng thử lại.')
   }
 }
 }

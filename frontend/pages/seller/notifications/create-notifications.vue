@@ -5,7 +5,7 @@
       <h1 class="text-xl font-semibold text-gray-800">Tạo thông báo</h1>
     </div>
     <div class="px-6 pb-4">
-      <NuxtLink to="/admin/notifications/list-notifications" class="text-gray-600 hover:underline text-sm">
+      <NuxtLink to="/seller/notifications/list-notifications" class="text-gray-600 hover:underline text-sm">
         Danh sách thông báo
       </NuxtLink>
       <span class="text-gray-600 text-sm"> / Tạo thông báo</span>
@@ -61,8 +61,8 @@
                     class="w-full rounded border border-gray-300 px-3 py-2 text-sm placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500" />
                   <span v-if="errors.link" class="text-xs text-red-500 mt-1">{{ errors.link }}</span>
                 </div>
-              </section>  
-              
+              </section>
+
 
               <!-- Cột phải (sidebar) -->
               <aside class="bg-white rounded border border-gray-300 shadow-sm p-3 text-xs text-gray-700 space-y-3">
@@ -100,17 +100,58 @@
                     <span v-if="errors.image" class="text-red-500 text-xs mt-1 block">{{ errors.image }}</span>
                   </div>
                 </div>
-                <!-- Vai trò -->
-                <div>
-                  <label class="block text-sm font-medium text-gray-700">Vai trò người nhận</label>
-                  <select v-model="form.to_role"
-                    class="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
-                    <option disabled value="">-- Chọn vai trò --</option>
-                    <option value="user">Người dùng</option>
-                    <option value="seller">Người bán</option>
-                    <option value="admin">Admin</option>
-                  </select>
-                  <span v-if="errors.to_role" class="text-xs text-red-500 mt-1">{{ errors.to_role }}</span>
+                <!-- Vai trò người nhận -->
+                <div class="border border-gray-200 rounded p-3 bg-gray-50">
+                  <h3 class="text-sm font-semibold mb-2 text-gray-700">Vai trò người nhận</h3>
+                  <div class="flex flex-col gap-2 pl-1">
+                    <label class="inline-flex items-center gap-2">
+                      <input type="checkbox" value="user" v-model="form.roles"
+                        class="rounded border-gray-300 text-blue-600 shadow-sm focus:ring focus:ring-blue-300" />
+                      Người dùng
+                    </label>
+                  </div>
+                </div>
+
+                <!-- Gửi đến người cụ thể -->
+                <div class="border border-gray-200 rounded p-3 bg-gray-50 max-h-64 overflow-y-auto">
+                  <h3 class="text-sm font-semibold mb-2 text-gray-700">Gửi đến người cụ thể</h3>
+
+                  <!-- Ô tìm kiếm -->
+                  <input v-model="searchUser" type="text" placeholder="Tìm theo tên hoặc email..."
+                    class="w-full mb-2 rounded border border-gray-300 px-2 py-1 text-sm placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+
+                  <div v-if="filteredUsers.length === 0" class="text-xs text-gray-500">
+                    {{ form.roles.length === 0 ? 'Vui lòng chọn vai trò trước.' : 'Không tìm thấy người dùng.' }}
+                  </div>
+
+                  <div v-else class="flex flex-col gap-1 max-h-48 overflow-y-auto pr-1">
+                    <label v-for="user in filteredUsersWithSearch" :key="user.id"
+                      class="flex items-center gap-2 text-sm text-gray-700">
+                      <input type="checkbox" :value="user.id" v-model="form.user_ids"
+                        class="rounded border-gray-300 text-blue-600 shadow-sm focus:ring focus:ring-blue-300" />
+                      <span>{{ user.name }} <span class="text-gray-400 text-xs">({{ user.email }})</span></span>
+                    </label>
+                  </div>
+
+                  <span v-if="errors.user_ids" class="text-red-500 text-xs mt-1 block">{{ errors.user_ids }}</span>
+                </div>
+
+
+                <!-- Kênh gửi -->
+                <div class="border border-gray-200 rounded p-3 bg-gray-50">
+                  <h3 class="text-sm font-semibold mb-2 text-gray-700">Kênh gửi thông báo</h3>
+                  <div class="flex flex-col gap-2 pl-1">
+                    <label class="inline-flex items-center gap-2">
+                      <input type="checkbox" value="web" v-model="form.channels"
+                        class="rounded border-gray-300 text-blue-600 shadow-sm focus:ring focus:ring-blue-300" />
+                      Web
+                    </label>
+                    <label class="inline-flex items-center gap-2">
+                      <input type="checkbox" value="email" v-model="form.channels"
+                        class="rounded border-gray-300 text-blue-600 shadow-sm focus:ring focus:ring-blue-300" />
+                      Email
+                    </label>
+                  </div>
                 </div>
 
                 <!-- Loại -->
@@ -149,39 +190,79 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import axios from 'axios'
 import { useRouter, useRuntimeConfig } from '#app'
 import Editor from '@tinymce/tinymce-vue'
 import { useNotification } from '~/composables/useNotification'
 
-definePageMeta({ layout: 'default-admin' })
+definePageMeta({ layout: 'default-seller' })
 
 const { showNotification } = useNotification()
 const router = useRouter()
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBaseUrl || ''
 
+// Form chính
 const form = ref({
   title: '',
   content: '',
-  to_role: '',
+  link: '',
   type: '',
-  link: ''
+  roles: [],        // ['user', 'seller']
+  user_ids: [],     // [1, 2, 3]
+  channels: [],     // ['web', 'email']
 })
 
+// Ảnh
 const imageFile = ref(null)
 const previewImage = ref(null)
-const errors = ref({})
-const loading = ref(false)
 const fileInput = ref(null)
 
-const triggerFileInput = () => {
-  if (fileInput.value) {
-    fileInput.value.click()
+// Trạng thái
+const errors = ref({})
+const loading = ref(false)
+const allUsers = ref([])
+const searchUser = ref('')
+
+// Tải danh sách user (trừ admin)
+const fetchUsers = async () => {
+  try {
+    const token = localStorage.getItem('access_token')
+    const res = await axios.get(`${apiBase}/user-list`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    allUsers.value = res.data.filter(user => user.role !== 'admin')
+  } catch (error) {
+    console.error('Lỗi khi tải danh sách người dùng:', error)
   }
 }
+onMounted(fetchUsers)
 
+// Lọc theo vai trò
+const filteredUsers = computed(() => {
+  if (form.value.roles.length === 0) return []
+  return allUsers.value.filter(user => form.value.roles.includes(user.role))
+})
+
+// Lọc thêm theo từ khóa
+const filteredUsersWithSearch = computed(() => {
+  const keyword = searchUser.value.toLowerCase().trim()
+  return filteredUsers.value.filter(user =>
+    user.name.toLowerCase().includes(keyword) ||
+    user.email.toLowerCase().includes(keyword)
+  )
+})
+
+// Khi đổi vai trò → reset người dùng cụ thể
+watch(() => form.value.roles, () => {
+  form.value.user_ids = []
+})
+
+// Ảnh
+const triggerFileInput = () => {
+  if (fileInput.value) fileInput.value.click()
+}
 const handleImageUpload = (event) => {
   const file = event.target.files[0]
   if (file) {
@@ -189,12 +270,10 @@ const handleImageUpload = (event) => {
     previewImage.value = URL.createObjectURL(file)
   }
 }
-
 const removeImage = () => {
   imageFile.value = null
   previewImage.value = null
 }
-
 const handleDrop = (e) => {
   const files = e.dataTransfer.files
   if (files.length) {
@@ -202,6 +281,7 @@ const handleDrop = (e) => {
   }
 }
 
+// Gửi form
 const submitNotification = async (status) => {
   loading.value = true
   errors.value = {}
@@ -209,41 +289,63 @@ const submitNotification = async (status) => {
   try {
     const formData = new FormData()
     formData.append('title', form.value.title)
-    formData.append('content', form.value.content)
-    formData.append('to_role', form.value.to_role)
+    formData.append('content', String(form.value.content || ''))
     formData.append('type', form.value.type)
     formData.append('status', status)
     formData.append('link', form.value.link || '')
-    if (imageFile.value) formData.append('image', imageFile.value)
+
+    form.value.roles.forEach(role => formData.append('roles[]', role))
+    form.value.channels.forEach(channel => formData.append('channels[]', channel))
+    form.value.user_ids.forEach(id => formData.append('user_ids[]', id))
+
+    if (imageFile.value) {
+      formData.append('image', imageFile.value)
+    }
 
     const token = localStorage.getItem('access_token')
-
-    await axios.post(`${apiBase}/notifications`, formData, {
+    const res = await axios.post(`${apiBase}/notifications`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
         'Authorization': `Bearer ${token}`
       }
     })
 
-    showNotification('Tạo thông báo thành công!', 'success') // ✅ THÊM DÒNG NÀY
+    showNotification(res.data?.message || 'Tạo thông báo thành công!', 'success')
 
-    form.value = { title: '', content: '', to_role: '', type: '', link: '' }
+    form.value = {
+      title: '',
+      content: '',
+      link: '',
+      type: '',
+      roles: [],
+      user_ids: [],
+      channels: [],
+    }
     imageFile.value = null
     previewImage.value = null
 
-    router.push('/admin/notifications/list-notifications')
+    router.push('/seller/notifications/list-notifications')
   } catch (err) {
     if (err.response?.status === 422) {
-      errors.value = err.response.data.errors
+      const validationErrors = err.response.data.errors
+      errors.value = validationErrors
+      Object.values(validationErrors).forEach((errMsgs) => {
+        if (Array.isArray(errMsgs)) {
+          errMsgs.forEach((msg) => showNotification(msg, 'error'))
+        }
+      })
     } else {
-      console.error('Lỗi:', err)
-      showNotification('Đã xảy ra lỗi, vui lòng thử lại.', 'error') // ✅ THÊM DÒNG NÀY
+      const message = err?.response?.data?.message || 'Đã xảy ra lỗi, vui lòng thử lại.'
+      showNotification(message, 'error')
     }
   } finally {
     loading.value = false
   }
 }
+
 </script>
+
+
 
 <style scoped>
 .fade-enter-active,

@@ -13,33 +13,15 @@
 
       <!-- Filter and Bulk Action -->
       <div class="p-4 flex gap-4 items-center">
-        <label class="text-sm">Vai trò người nhận:</label>
-        <select v-model="selectedRole" class="border px-2 py-1 rounded">
-          <option value="">-- Tất cả --</option>
-          <option value="user">Người dùng</option>
-          <option value="seller">Người bán</option>
-          <option value="admin">Admin</option>
-        </select>
-
-        <label class="text-sm">Chọn người cụ thể:</label>
-        <Multiselect v-model="selectedUserIds" :options="usersByRole" :multiple="true" :close-on-select="false"
-          :clear-on-select="false" :preserve-search="true" label="name" track-by="id"
-          placeholder="Chọn nhiều người dùng" class="w-64">
-          <template #option="{ option }">
-            <div class="flex items-center gap-2">
-              <span class="font-medium">{{ option.name }}</span>
-              <span class="text-xs text-gray-500">({{ option.id }})</span>
-            </div>
-          </template>
-        </Multiselect>
-
-
-
-
         <button @click="sendSelected" :disabled="selectedIds.length === 0"
           class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 text-sm flex items-center gap-2">
           <Send class="w-4 h-4" />
           Gửi các thông báo đã chọn
+        </button>
+        <!-- Gửi tất cả thông báo chưa gửi -->
+        <button @click="sendAllNotifications"
+          class="bg-green-100 text-green-700 px-4 py-2 rounded hover:bg-green-200 text-sm flex items-center gap-2">
+          <Send class="w-4 h-4" /> Gửi tất cả thông báo chưa gửi
         </button>
         <!-- Xoá các thông báo đã chọn -->
         <button @click="deleteSelected" :disabled="selectedIds.length === 0"
@@ -65,9 +47,9 @@
             <th class="border px-3 py-2 text-left font-semibold">Tiêu đề</th>
             <th class="border px-3 py-2 text-left font-semibold">Ảnh</th>
             <th class="border px-3 py-2 text-left font-semibold">Loại</th>
-            <th class="border px-3 py-2 text-left font-semibold">Người nhận</th>
+            <th class="border px-3 py-2 text-left font-semibold">Vai trò người nhận</th>
+            <th class="border px-3 py-2 text-left font-semibold">Kênh gửi</th>
             <th class="border px-3 py-2 text-left font-semibold">Trạng thái</th>
-            <th class="border px-3 py-2 text-left font-semibold">Tình trạng</th>
             <th class="border px-3 py-2 text-left font-semibold">Hiển thị</th>
             <th class="border px-3 py-2 text-left font-semibold">Ngày gửi</th>
             <th class="border px-3 py-2 text-left font-semibold">Thao tác</th>
@@ -85,25 +67,48 @@
               <span v-else class="text-gray-400 italic">Không có</span>
             </td>
             <td class="px-3 py-2">{{ typeLabel(item.type) }}</td>
-            <td class="px-3 py-2">{{ roleLabel(item.to_role) }}</td>
+
+            <!-- Người nhận -->
             <td class="px-3 py-2">
-              <span :class="item.is_read == 0 ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'"
-                class="px-2 py-1 text-xs font-semibold rounded">
-                {{ item.is_read == 0 ? 'Chưa đọc' : 'Đã đọc' }}
+              <span v-if="item.to_roles && item.to_roles.length">
+                <span v-for="(role, index) in item.to_roles" :key="index"
+                  class="inline-block bg-blue-100 text-blue-800 rounded-full px-2 py-1 text-xs mr-1">
+                  {{ roleLabel(role) }}
+                </span>
               </span>
+              <span v-else class="text-gray-400 italic">Không có</span>
             </td>
+
+            <!-- Kênh gửi -->
+            <td class="px-3 py-2">
+              <span v-if="item.channels && Array.isArray(item.channels)">
+                <span v-for="(channel, index) in item.channels" :key="index"
+                  class="inline-block bg-gray-200 text-gray-700 rounded-full px-2 py-1 text-xs mr-1">
+                  {{ channelLabel(channel) }}
+                </span>
+              </span>
+              <span v-else class="text-gray-400 italic">Không có</span>
+            </td>
+
+            <!-- Trạng thái -->
             <td class="px-3 py-2">
               <span :class="item.status === 'draft' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'"
                 class="px-2 py-1 text-xs font-semibold rounded">
                 {{ item.status === 'draft' ? 'Lưu nháp' : 'Đã gửi' }}
               </span>
             </td>
+
+            <!-- Hiển thị -->
             <td class="px-3 py-2">
               <span :class="item.is_hidden ? 'text-red-500' : 'text-green-600'">
                 {{ item.is_hidden ? 'Đã ẩn' : 'Đang hiển thị' }}
               </span>
             </td>
+
+            <!-- Ngày -->
             <td class="px-3 py-2">{{ formatDate(item.created_at) }}</td>
+
+            <!-- Dropdown -->
             <td class="px-3 py-2 relative">
               <button @click="toggleDropdown(item.id, $event)"
                 class="p-1 rounded hover:bg-gray-100 focus:outline-none focus:ring-1 focus:ring-gray-300">
@@ -114,7 +119,6 @@
                 </svg>
               </button>
             </td>
-
           </tr>
           <tr v-if="notifications.length === 0">
             <td colspan="10" class="text-center py-4 text-gray-500">Không có thông báo nào</td>
@@ -177,6 +181,20 @@ const router = useRouter()
 const selectedIds = ref([])
 const selectedRole = ref('')
 const selectedUserIds = ref([])
+
+const countUnread = (recipients) => {
+  return recipients.filter(r => r.is_read === 0).length
+}
+const channelLabel = (channel) => {
+  switch (channel) {
+    case 'web':
+      return 'Web'
+    case 'email':
+      return 'Email'
+    default:
+      return channel
+  }
+}
 
 const typeLabel = (type) => {
   switch (type) {
@@ -338,21 +356,34 @@ const sendSelected = async () => {
   try {
     const token = localStorage.getItem('access_token')
     await axios.post(`${apiBase}/notifications/send-multiple`, {
-      ids: selectedIds.value,
-      to_role: selectedRole.value || null,
-      to_user_ids: selectedUserIds.value.length > 0 ? selectedUserIds.value : null
+      ids: selectedIds.value
     }, {
       headers: { Authorization: `Bearer ${token}` }
     })
-    showNotification('Đã gửi các thông báo được chọn!', 'success') // ✅
+
+    showNotification('Đã gửi các thông báo được chọn!', 'success')
     selectedIds.value = []
     fetchNotifications()
   } catch (err) {
     console.error('Lỗi khi gửi hàng loạt:', err)
-    showNotification('Không thể gửi thông báo hàng loạt!', 'error') // ✅
+    showNotification('Không thể gửi thông báo hàng loạt!', 'error')
   }
 }
 
+const sendAllNotifications = async () => {
+  try {
+    const token = localStorage.getItem('access_token')
+    await axios.post(`${apiBase}/notifications/send-all`, {}, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+
+    showNotification('Đã gửi tất cả thông báo chưa gửi!', 'success')
+    fetchNotifications()
+  } catch (err) {
+    console.error('Lỗi khi gửi tất cả thông báo:', err)
+    showNotification('Không thể gửi tất cả thông báo!', 'error')
+  }
+}
 
 onMounted(() => {
   fetchNotifications()

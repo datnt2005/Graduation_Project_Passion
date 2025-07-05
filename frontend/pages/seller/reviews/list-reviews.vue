@@ -8,7 +8,6 @@
 
             <!-- Bộ lọc nâng cao -->
             <div class="bg-gray-200 px-4 py-3 flex flex-wrap items-center gap-3 text-sm text-gray-700">
-                <!-- Bộ lọc số sao -->
                 <div class="flex items-center gap-2 flex-wrap">
                     <button v-for="n in [null, 5, 4, 3, 2, 1]" :key="'star-' + n"
                         @click="filterRating = n; applyFilters()" :class="[
@@ -19,7 +18,6 @@
                     </button>
                 </div>
 
-                <!-- Có hình ảnh / video -->
                 <button @click="filterHasMedia = !filterHasMedia; applyFilters()" :class="[
                     'px-3 py-1 rounded border',
                     filterHasMedia ? 'bg-blue-500 text-white border-blue-500' : 'bg-white text-gray-700 border-gray-300'
@@ -27,7 +25,6 @@
                     Có ảnh / video ({{ countWithMedia }})
                 </button>
 
-                <!-- Trạng thái -->
                 <div class="flex items-center gap-2 flex-wrap">
                     <button v-for="status in ['approved', 'pending', 'rejected']" :key="'status-' + status"
                         @click="filterStatus = status; applyFilters()" :class="[
@@ -38,7 +35,6 @@
                     </button>
                 </div>
 
-                <!-- Sắp xếp -->
                 <div class="flex items-center space-x-2">
                     <label class="text-sm font-medium text-gray-600">Sắp xếp:</label>
                     <select v-model="sortOrder" @change="applyFilters"
@@ -48,7 +44,6 @@
                     </select>
                 </div>
             </div>
-
 
             <!-- Bảng đánh giá -->
             <table class="min-w-full border-collapse border border-gray-300 text-sm">
@@ -115,6 +110,7 @@
                     </tr>
                 </tbody>
             </table>
+
             <Teleport to="body">
                 <Transition enter-active-class="transition duration-100 ease-out"
                     enter-from-class="transform scale-95 opacity-0" enter-to-class="transform scale-100 opacity-100"
@@ -142,10 +138,9 @@
                 </Transition>
             </Teleport>
         </div>
-
     </div>
-
 </template>
+
 
 <script setup>
 import { Eye, Pencil, Trash2 } from 'lucide-vue-next'
@@ -153,20 +148,19 @@ import { ref, onMounted } from 'vue'
 import axios from 'axios'
 import { useRuntimeConfig } from '#app'
 import { useNotification } from '~/composables/useNotification'
-definePageMeta({ layout: 'default-admin' })
 import { secureAxios } from '@/utils/secureAxios'
+
+definePageMeta({ layout: 'default-seller' })
 
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBaseUrl
 const reviews = ref([])
-const loading = ref(true)
-const { showNotification } = useNotification()
-const activeDropdown = ref(null)
-const dropdownPosition = ref({ top: '0px', left: '0px' })
 const allReviews = ref([])
+const loading = ref(true)
 
+const { showNotification } = useNotification()
 
-const sortOrder = ref('desc')       
+const sortOrder = ref('desc')
 const filterRating = ref(null)
 const filterStatus = ref('all')
 const filterHasMedia = ref(false)
@@ -175,30 +169,77 @@ const countByRating = ref({})
 const countByStatus = ref({})
 const countWithMedia = ref(0)
 
+const activeDropdown = ref(null)
+const dropdownPosition = ref({ top: '0px', left: '0px' })
+
+// -------------------------
+// 1. Fetch reviews của seller
+onMounted(async () => {
+    try {
+        const res = await secureAxios(`${apiBase}/seller/reviews`, {}, ['seller'])
+        allReviews.value = res.data.data
+        countFilters()
+        applyFilters()
+    } catch (e) {
+        console.error('Lỗi khi tải đánh giá của seller:', e)
+    } finally {
+        loading.value = false
+    }
+})
+
+// -------------------------
+// 2. Lọc theo trạng thái, sao, ảnh
 function countFilters() {
-  const ratingCount = { all: allReviews.value.length }
-  const statusCount = { all: allReviews.value.length }
-  let withMedia = 0
+    const ratingCount = { all: allReviews.value.length }
+    const statusCount = { all: allReviews.value.length }
+    let withMedia = 0
 
-  allReviews.value.forEach(r => {
-    // Count rating
-    if (ratingCount[r.rating]) ratingCount[r.rating]++
-    else ratingCount[r.rating] = 1
+    allReviews.value.forEach(r => {
+        // Rating
+        if (ratingCount[r.rating]) ratingCount[r.rating]++
+        else ratingCount[r.rating] = 1
 
-    // Count status
-    if (statusCount[r.status]) statusCount[r.status]++
-    else statusCount[r.status] = 1
+        // Status
+        if (statusCount[r.status]) statusCount[r.status]++
+        else statusCount[r.status] = 1
 
-    // Count media
-    if (r.images && r.images.length > 0) withMedia++
-  })
+        // Media
+        if (r.images?.length) withMedia++
+    })
 
-  countByRating.value = ratingCount
-  countByStatus.value = statusCount
-  countWithMedia.value = withMedia
+    countByRating.value = ratingCount
+    countByStatus.value = statusCount
+    countWithMedia.value = withMedia
 }
 
+// -------------------------
+// 3. Áp dụng lọc
+function applyFilters() {
+    let filtered = [...allReviews.value]
 
+    if (filterRating.value) {
+        filtered = filtered.filter(r => r.rating === filterRating.value)
+    }
+
+    if (filterStatus.value !== 'all') {
+        filtered = filtered.filter(r => r.status === filterStatus.value)
+    }
+
+    if (filterHasMedia.value) {
+        filtered = filtered.filter(r => r.images?.length > 0)
+    }
+
+    filtered.sort((a, b) => {
+        const dateA = new Date(a.created_at)
+        const dateB = new Date(b.created_at)
+        return sortOrder.value === 'asc' ? dateA - dateB : dateB - dateA
+    })
+
+    reviews.value = filtered
+}
+
+// -------------------------
+// 4. Dropdown thao tác
 function toggleDropdown(event, id) {
     if (activeDropdown.value === id) {
         activeDropdown.value = null
@@ -210,6 +251,7 @@ function toggleDropdown(event, id) {
         top: `${rect.bottom + window.scrollY}px`,
         left: `${rect.left + window.scrollX - 160}px`
     }
+
     activeDropdown.value = id
 }
 
@@ -217,28 +259,30 @@ function closeDropdown() {
     activeDropdown.value = null
 }
 
+// -------------------------
+// 5. Chuyển trang view/sửa
 function viewReview(id) {
-    navigateTo(`/admin/reviews/view/${id}`)
+    navigateTo(`/seller/reviews/view/${id}`)
 }
 
 function editReview(id) {
-    navigateTo(`/admin/reviews/edit-reviews/${id}`)
+    navigateTo(`/seller/reviews/edit-reviews/${id}`)
 }
 
+// -------------------------
+// 6. Xoá đánh giá
 async function confirmDelete(id) {
     await deleteReview(id)
 }
 
-
 async function deleteReview(id) {
     try {
         const token = localStorage.getItem('access_token')
-        await axios.delete(`${apiBase}/admin/reviews/${id}`, {
+        await axios.delete(`${apiBase}/seller/reviews/${id}`, {
             headers: { Authorization: `Bearer ${token}` }
         })
 
         reviews.value = reviews.value.filter(r => r.id !== id)
-
         showNotification('Đã xóa đánh giá thành công', 'success')
     } catch (e) {
         console.error('Lỗi khi xóa đánh giá:', e)
@@ -246,47 +290,8 @@ async function deleteReview(id) {
     }
 }
 
-
-
-onMounted(async () => {
-  try {
-    const res = await secureAxios(`${apiBase}/admin/reviews`, {}, ['admin'])
-    allReviews.value = res.data.data
-    countFilters()
-    applyFilters()
-  } catch (e) {
-    console.error('Lỗi khi tải đánh giá:', e)
-  } finally {
-    loading.value = false
-  }
-})
-
-
-function applyFilters() {
-  let filtered = [...allReviews.value]
-
-  if (filterRating.value) {
-    filtered = filtered.filter(r => r.rating === filterRating.value)
-  }
-
-  if (filterStatus.value !== 'all') {
-    filtered = filtered.filter(r => r.status === filterStatus.value)
-  }
-
-  if (filterHasMedia.value) {
-    filtered = filtered.filter(r => r.images && r.images.length > 0)
-  }
-
-  filtered.sort((a, b) => {
-    const dateA = new Date(a.created_at)
-    const dateB = new Date(b.created_at)
-    return sortOrder.value === 'asc' ? dateA - dateB : dateB - dateA
-  })
-
-  reviews.value = filtered
-}
-
-
+// -------------------------
+// 7. Format
 function formatDate(dateStr) {
     const d = new Date(dateStr)
     return d.toLocaleString('vi-VN')
@@ -308,5 +313,11 @@ function statusClass(status) {
         case 'rejected': return 'bg-red-100 text-red-800'
         default: return 'bg-gray-100 text-gray-800'
     }
+}
+
+// -------------------------
+// 8. Lấy review đang chọn trong dropdown
+function getReviewById(id) {
+    return reviews.value.find(r => r.id === id)
 }
 </script>
