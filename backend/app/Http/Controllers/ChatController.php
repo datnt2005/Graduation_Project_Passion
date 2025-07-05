@@ -112,22 +112,21 @@ class ChatController extends Controller
         ]);
     }
 
-    // 📥 Lấy tin nhắn theo session (có cache)
-    public function getMessages($sessionId)
+
+    public function getMessages(Request $request, $sessionId)
     {
         try {
-            $cacheKey = "chat_messages_session_{$sessionId}";
+            $beforeId = $request->query('before_id');
+            $query = ChatMessage::with('attachments')
+                ->where('session_id', $sessionId)
+                ->orderByDesc('id')  // Quan trọng: sắp giảm dần để lấy tin mới trước
+                ->take(10);
 
-           $messages = Cache::store('redis')->remember($cacheKey, 60, function () use ($sessionId) {
-                return ChatMessage::with('attachments')
-                    ->where('session_id', $sessionId)
-                    ->latest()
-                    ->take(50)
-                    ->get()
-                    ->reverse()
-                    ->values()    // reset key
-                    ->all();      // ép thành mảng JSON
-            });
+            if ($beforeId) {
+                $query->where('id', '<', $beforeId);
+            }
+
+            $messages = $query->get()->reverse()->values(); // để trả lại theo thứ tự tăng dần
 
             return response()->json($messages);
         } catch (\Exception $e) {
@@ -135,6 +134,7 @@ class ChatController extends Controller
             return response()->json([], 500);
         }
     }
+
 
     // 📚 Lấy danh sách cuộc trò chuyện (có cache)
    public function getSessions(Request $request)
