@@ -1489,8 +1489,8 @@ class ProductController extends Controller
     public function getProducts(Request $request, $slug = null)
     {
         $result = $this->searchService->getProducts($request, $slug);
-
         return response()->json($result, $result['success'] ? 200 : ($result['errors'] ? 422 : 500));
+
     }
     protected function getAllCategoryChildrenIds($category)
     {
