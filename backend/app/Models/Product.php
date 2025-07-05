@@ -65,4 +65,26 @@ class Product extends Model
     {
         return $this->hasMany(ProductPic::class, 'product_id'); // Giả sử bảng `product_pics` có cột `product_id`
     }
+    public function scopeSearch($query, $searchTerm)
+    {
+        return $query->where('name', 'like', '%' . $searchTerm . '%')
+                     ->orWhere('description', 'like', '%' . $searchTerm . '%');
+    }
+    public function scopeActive($query)
+    {
+        return $query->where('status', 'active');
+    }
+    public function trends()
+    {
+        return $this->hasMany(Trend::class, 'entity_id', 'id')
+                    ->where('entity_type', 'product');
+    }
+    public function scopeTrending($query)
+    {
+        return $query->whereHas('trends', function ($query) {
+            $query->where('entity_type', 'product')
+                  ->orderBy('search_count', 'desc')
+                  ->orWhere('click_count', 'desc');
+        });
+    }
 }

@@ -219,7 +219,10 @@ function handleQuantityInput(value) {
 function handleAddToCart() {
     const maxStock = props.selectedVariant?.stock || 0;
 
-    if (!props.isVariantFullySelected) return;
+    if (!props.isVariantFullySelected){
+        emit('update:validationMessage', 'Vui lòng chọn Phân loại hàng');
+        return;
+    };
     if (localQuantity.value < 1) {
         emit('update:validationMessage', 'Số lượng phải từ 1 trở lên.');
         return;
@@ -235,7 +238,10 @@ function handleAddToCart() {
 function handleBuyNow() {
     const maxStock = props.selectedVariant?.stock || 0;
 
-    if (!props.isVariantFullySelected) return;
+    if (!props.isVariantFullySelected) {
+        emit('update:validationMessage', 'Vui lòng chọn Phân loại hàng');
+        return;
+    }
     if (localQuantity.value < 1) {
         emit('update:validationMessage', 'Số lượng phải từ 1 trở lên.');
         return;

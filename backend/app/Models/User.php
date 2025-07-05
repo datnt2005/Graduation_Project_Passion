@@ -53,4 +53,9 @@ class User extends Authenticatable
         {
            return $this->followedSellers()->where('seller_id', $sellerId)->exists();
         }
-    }
+    
+        public function searchHistory()
+        {
+            return $this->hasMany(SearchHistory::class);
+        }
+}

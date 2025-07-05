@@ -376,6 +376,7 @@ async function fetchProducts(page = 1) {
         price: Number(p.price),
         discount: p.discount ? Number(p.discount) : null,
       }));
+      
       pagination.value = {
         current_page: data.data.current_page || 1,
         last_page: data.data.last_page || 1,

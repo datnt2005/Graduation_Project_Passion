@@ -25,7 +25,7 @@
 
           <h2 class="text-3xl font-extrabold text-green-600 mb-3 animate-fade-in">Thanh Toán Thành Công!</h2>
           <p class="text-gray-600 mb-6 text-lg">Cảm ơn bạn đã mua hàng. Bạn sẽ được chuyển về trang chủ sau {{ countdown
-            }} giây.</p>
+          }} giây.</p>
 
           <div class="bg-gray-50 rounded-lg p-6 w-full text-left border border-gray-200 shadow-sm">
             <div class="grid grid-cols-2 gap-4">
@@ -43,11 +43,13 @@
 
         <div v-else class="flex flex-col items-center py-6">
           <div class="relative mb-6">
-            <svg class="h-20 w-20 text-red-500 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div class="absolute inset-0 bg-red-100 rounded-full blur-md opacity-50 z-0"></div>
+            <svg class="h-20 w-20 text-red-500 animate-pulse relative z-10" fill="none" viewBox="0 0 24 24"
+              stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              <div class="absolute inset-0 bg-red-100 rounded-full blur-md opacity-50"></div>
             </svg>
           </div>
+
           <h2 class="text-3xl font-extrabold text-red-600 mb-3 animate-fade-in">Thanh Toán Thất Bại!</h2>
           <p class="text-gray-600 mb-6 text-lg">{{ message }}</p>
 
