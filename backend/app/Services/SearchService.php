@@ -27,7 +27,7 @@ class SearchService
         $date = Carbon::now()->format('Ymd');
         $keySuffix = $userId ? "user_{$userId}:{$date}" : "sess_{$sessionId}:{$date}";
         $redisKey = "search_history:$keySuffix";
-        $ttl = $userId ? 60 * 60 * 24 * 7 : 60 * 60 * 24;
+        $ttl = $userId ? 60 * 60 * 24 * 7 : 60 * 60 * 24; // 7 days for user, 1 hour for session
 
         $lastKeyword = Redis::lindex($redisKey, 0);
         if ($lastKeyword === $keyword) return;
@@ -308,4 +308,6 @@ class SearchService
         }
         return $ids;
     }
+
+    
 }

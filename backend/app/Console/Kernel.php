@@ -13,6 +13,8 @@ class Kernel extends ConsoleKernel
     {
         $schedule->job(new SyncTrendsToDatabaseJob)->everyFiveMinutes();
         $schedule->job(new CleanOldDataJob)->daily();
+        $schedule->command('cleanup:search-history')->hourly(); // Xoá từ khoá tìm kiếm cũ mỗi giờ
+
     }
 
     protected function commands()
