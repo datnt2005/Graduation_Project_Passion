@@ -114,7 +114,38 @@
             Chiết khấu
           </NuxtLink>
         </li>
-
+                 <!-- Đánh giá (Dropdown) -->
+        <li class="pt-2 border-t border-gray-800">
+          <button @click="toggleReview"
+            class="flex items-center w-full px-4 py-2 hover:bg-gray-800 focus:outline-none rounded"
+            :class="reviewActive ? 'bg-gray-800 text-green-400 font-bold' : ''">
+            <svg class="w-4 h-4 mr-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M12 9v3m0 0v3m0-3h3m-3 0H9m6.364-7.636a9 9 0 11-12.728 12.728A9 9 0 0118.364 4.364z" />
+            </svg>
+            Đánh giá
+            <svg class="w-4 h-4 ml-auto transform transition-transform" :class="{ 'rotate-180': reviewOpen }"
+              fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          <ul v-show="reviewOpen" class="pl-11 mt-1 space-y-0.5 text-gray-300 text-[13px]">
+            <li>
+              <NuxtLink to="/seller/reviews/list-reviews" class="block py-1 hover:text-white rounded"
+                :class="route.path.startsWith('/seller/reviews') && !route.path.startsWith('/seller/reports/reviews') ? 'text-green-400 font-bold' : ''"
+                @click="$emit('close')">
+                Tất cả đánh giá
+              </NuxtLink>
+            </li>
+            <li>
+              <NuxtLink to="/seller/reports/reviews/list-reports" class="block py-1 hover:text-white rounded"
+                :class="route.path.startsWith('/seller/reports/reviews') ? 'text-green-400 font-bold' : ''"
+                @click="$emit('close')">
+                Đánh giá bị báo cáo
+              </NuxtLink>
+            </li>
+          </ul>
+        </li>
         <!-- Bài viết -->
         <li class="pt-2 border-t border-gray-800">
           <NuxtLink to="#" class="flex items-center px-4 py-2 hover:bg-gray-800 gap-3 rounded" @click="$emit('close')">
@@ -126,7 +157,6 @@
           </NuxtLink>
         </li>
 
-        <!-- Notifications -->
         <!-- Thông báo (Dropdown) -->
         <li class="pt-2 border-t border-gray-800">
           <button @click="toggleNotification"
@@ -154,11 +184,6 @@
                 :class="route.path === '/seller/notifications/list-from-user' ? 'text-green-400 font-bold' : ''"
                 @click="$emit('close')">Từ người dùng</NuxtLink>
             </li>
-            <li>
-              <NuxtLink to="/seller/notifications/list-from-seller" class="block py-1 hover:text-white rounded"
-                :class="route.path === '/seller/notifications/list-from-seller' ? 'text-green-400 font-bold' : ''"
-                @click="$emit('close')">Từ người bán</NuxtLink>
-            </li>
           </ul>
         </li>
 
@@ -181,11 +206,24 @@ defineProps({ show: Boolean })
 defineEmits(['close'])
 
 const route = useRoute()
+const notificationOpen = ref(false)
 
 const userOpen = ref(false)
 const toggleUser = () => userOpen.value = !userOpen.value
 const userActive = computed(() =>
   route.path.startsWith('/seller/users') || route.path.startsWith('/seller/sellers')
+)
+
+const reviewOpen = ref(false)
+const toggleReview = () => reviewOpen.value = !reviewOpen.value
+const reviewActive = computed(() =>
+  route.path.startsWith('/seller/reviews') || route.path.startsWith('/seller/reports/reviews')
+)
+
+const notificationOpen = ref(false)
+const toggleNotification = () => notificationOpen.value = !notificationOpen.value
+const notificationActive = computed(() =>
+  route.path.startsWith('/seller/notifications')
 )
 
 const productOpen = ref(false)
@@ -195,6 +233,11 @@ const productActive = computed(() =>
   || route.path.startsWith('/seller/attributes')
   || route.path.startsWith('/seller/categories')
   || route.path.startsWith('/seller/tags')
+)
+
+const toggleNotification = () => notificationOpen.value = !notificationOpen.value
+const notificationActive = computed(() =>
+  route.path.startsWith('/seller/notifications')
 )
 </script>
 

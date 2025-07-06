@@ -7,11 +7,15 @@
       <section class="flex-1 space-y-6">
         <!-- Banner -->
         <Banner />      
-      
         <!-- Brands -->
         <Brands />
         <!-- Products -->
         <Products />
+
+        <chatUser />
+
+
+   
       </section>
     </div>
   </main>
@@ -22,4 +26,7 @@ import Sidebar from '~/components/shared/layouts/Sidebar.vue'
 import Banner from '~/components/shared/Banner.vue'
 import Brands from '~/components/shared/Tags.vue'
 import Products from '~/components/shared/Products.vue'
+import chatUser from '~/components/chat/chat.vue'
+
+
 </script>

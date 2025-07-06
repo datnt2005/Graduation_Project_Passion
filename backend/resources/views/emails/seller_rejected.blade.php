@@ -65,14 +65,15 @@
         <img src="https://www.passionjewelry.co.id/uploads/logo-passion-360x145.png" alt="Logo">
         <h1>Thông báo từ chối cửa hàng</h1>
     </div>
+<div class="content">
+    <h2>Xin chào {{ $seller->user->name }},</h2>
+    <p>Rất tiếc! Cửa hàng <strong>{{ $seller->store_name }}</strong> của bạn hiện tại <strong>chưa được duyệt</strong> sau quá trình kiểm tra và đánh giá.</p>
+    <p><strong>Lý do từ chối:</strong> <em>{{ $reason }}</em></p>
+    <p>Chúng tôi hiểu rằng điều này có thể khiến bạn cảm thấy không hài lòng. Tuy nhiên, bạn hoàn toàn có thể chỉnh sửa và bổ sung lại thông tin cần thiết trong hồ sơ đăng ký để đáp ứng đầy đủ các tiêu chí mà hệ thống yêu cầu.</p>
+    <p>Sau khi hoàn tất chỉnh sửa, bạn có thể gửi lại yêu cầu xét duyệt. Chúng tôi sẽ nhanh chóng xem xét lại và hỗ trợ bạn trong thời gian sớm nhất.</p>
+    <p>Chúc bạn sớm hoàn thiện hồ sơ và sớm bắt đầu hành trình kinh doanh thuận lợi cùng chúng tôi 💪</p>
+</div>
 
-    <div class="content">
-        <h2>Xin chào {{ $seller->user->name }},</h2>
-        <p>Rất tiếc! Cửa hàng <strong>{{ $seller->store_name }}</strong> của bạn <strong>chưa được duyệt</strong>.</p>
-        <p>Lý do từ chối: <em>{{ $reason }}</em></p>
-        <p>Vui lòng kiểm tra lại thông tin và cập nhật hồ sơ nếu cần. Bạn hoàn toàn có thể gửi lại yêu cầu sau khi chỉnh sửa.</p>
-        <p>Chúc bạn sớm được duyệt và kinh doanh thành công 💪</p>
-    </div>
 
     <div class="footer">
         <p>Trân trọng,<br>Đội ngũ <strong>Passion</strong></p>

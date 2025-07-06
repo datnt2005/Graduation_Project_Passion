@@ -299,6 +299,7 @@ onMounted(async () => {
     await clearCart();
   } catch (err) {
     console.error('Error fetching orders:', err);
+
     success.value = false;
     loading.value = false;
     message.value = err.message || 'Có lỗi xảy ra khi xác minh thanh toán';

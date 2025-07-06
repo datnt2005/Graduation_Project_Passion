@@ -28,6 +28,15 @@
                     <h2 class="font-semibold text-lg">{{ seller.store_name }}</h2>
                     <!-- <p class="text-sm text-gray-500">{{ seller.address }}</p> -->
                     <div class="flex space-x-2 mt-2">
+                    <button
+                        :disabled="loading || !seller?.id"
+                        @click="emit('chat-with-shop')"
+                        class="bg-[#1BA0E2] text-white border px-3 py-1 rounded text-sm flex items-center disabled:opacity-50"
+                        aria-label="chat shop"
+                    >
+                        <i class="fas fa-comment-alt mr-1"></i> Chat Ngay
+                    </button>
+
                         <button @click="$emit('view-shop')" class="border px-3 py-1 rounded text-sm flex items-center"
                             aria-label="View shop">
                             <i class="fas fa-store mr-1"></i> Xem Shop
@@ -131,88 +140,93 @@
         </div>
     </div>
 </template>
-
 <script setup>
-import { computed } from 'vue';
+import { computed } from 'vue'
 
+// --- Props ---
 const props = defineProps({
-    product: { type: Object, required: true },
-    seller: { type: Object, required: true },
-    mediaBase: { type: String, required: true },
-    selectedVariant: { type: Object, required: true },
-    variantAttributes: { type: Array, required: true },
-    selectedOptions: { type: Object, required: true },
-    quantity: { type: Number, required: true },
-    isFavorite: { type: Boolean, required: true },
-    isVariantFullySelected: { type: Boolean, required: true },
-    variants: { type: Array, required: true },
-    validationMessage: { type: String, default: '' }
-});
-console.log(props.validationMessage);
+  product: { type: Object, required: true },
+  seller: { type: Object, required: true },
+  mediaBase: { type: String, required: true },
+  selectedVariant: { type: Object, required: true },
+  variantAttributes: { type: Array, required: true },
+  selectedOptions: { type: Object, required: true },
+  quantity: { type: Number, required: true },
+  isFavorite: { type: Boolean, required: true },
+  isVariantFullySelected: { type: Boolean, required: true },
+  variants: { type: Array, required: true },
+  validationMessage: { type: String, default: '' }
 
+})
+
+// --- Emits ---
 const emit = defineEmits([
-    'toggle-favorite',
-    'view-shop',
-    'select-option',
-    'increase-quantity',
-    'decrease-quantity',
-    'validate-selection',
-    'add-to-cart',
-    'buy-now',
-    'update:quantity',
-    'clear-validation'
-]);
+  'toggle-favorite',
+  'view-shop',
+  'select-option',
+  'increase-quantity',
+  'decrease-quantity',
+  'validate-selection',
+  'add-to-cart',
+  'buy-now',
+  'update:quantity',
+  'clear-validation',
+  'chat-with-shop'
+])
 
+
+
+// --- Utilities ---
 function isOptionAvailable(attrName, value) {
-    const otherSelections = { ...props.selectedOptions };
-    delete otherSelections[attrName];
+  const otherSelections = { ...props.selectedOptions }
+  delete otherSelections[attrName]
 
-    return props.variants.some(variant =>
-        variant.attributes.some(attr => attr.attribute_name === attrName && attr.value === value) &&
-        variant.stock > 0 &&
-        Object.entries(otherSelections).every(([key, val]) =>
-            !val || variant.attributes.some(attr => attr.attribute_name === key && attr.value === val)
-        )
-    );
+  return props.variants.some(variant =>
+    variant.attributes.some(attr => attr.attribute_name === attrName && attr.value === value) &&
+    variant.stock > 0 &&
+    Object.entries(otherSelections).every(([key, val]) =>
+      !val || variant.attributes.some(attr => attr.attribute_name === key && attr.value === val)
+    )
+  )
 }
 
 function formatPrice(price) {
-    if (!price || price === 'null' || price === null || price === undefined) {
-        return '0';
-    }
-    const parsedPrice = parseFloat(price);
-    if (isNaN(parsedPrice)) {
-        return '0';
-    }
-    return parsedPrice.toLocaleString('vi-VN', { style: 'decimal' });
+  if (!price || price === 'null' || price === null || price === undefined) {
+    return '0'
+  }
+  const parsedPrice = parseFloat(price)
+  return isNaN(parsedPrice)
+    ? '0'
+    : parsedPrice.toLocaleString('vi-VN', { style: 'decimal' })
 }
 
 function handleQuantityInput(value) {
-    const maxStock = props.selectedVariant?.stock || 0;
+  const maxStock = props.selectedVariant?.stock || 0
+  let newQuantity = parseInt(value, 10)
 
-    let newQuantity = parseInt(value, 10);
+  if (isNaN(newQuantity) || newQuantity < 1) {
+    newQuantity = 1
+  } else if (newQuantity > maxStock) {
+    newQuantity = maxStock
+  }
 
-    if (isNaN(newQuantity) || newQuantity < 1) {
-        newQuantity = 1;
-    } else if (newQuantity > maxStock) {
-        newQuantity = maxStock;
-    }
-
-    emit('update:quantity', newQuantity);
-    emit('validate-selection');
+  emit('update:quantity', newQuantity)
+  emit('validate-selection')
 }
 
 function handleAddToCart() {
-    emit('validate-selection');
-    if (!props.isVariantFullySelected) return;
-    emit('add-to-cart');
+  emit('validate-selection')
+  if (!props.isVariantFullySelected) return
+  emit('add-to-cart')
 }
 
 function handleBuyNow() {
-    emit('validate-selection');
-    if (!props.isVariantFullySelected) return;
-    emit('buy-now');
+  emit('validate-selection')
+  if (!props.isVariantFullySelected) return
+  emit('buy-now')
 }
+
+
 
 function blockInvalidKeys(event) {
     const invalidKeys = ['-', '+', 'e', 'E', '.', ','];
@@ -221,7 +235,12 @@ function blockInvalidKeys(event) {
     }
 }
 
+// --- Debug log (optional) ---
+console.log('✅ validationMessage:', props.validationMessage)
+
+// --- Expose methods if needed ---
 </script>
+
 <style scoped>
 .input-no-spinner::-webkit-outer-spin-button,
 .input-no-spinner::-webkit-inner-spin-button {

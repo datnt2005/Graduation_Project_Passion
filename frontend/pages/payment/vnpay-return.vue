@@ -18,7 +18,6 @@
         <p class="text-gray-700 mb-6 text-lg">
           Cảm ơn bạn đã mua hàng tại <span class="font-semibold text-primary">Passion</span>.
         </p>
-
         <!-- THÔNG TIN ĐƠN HÀNG -->
         <div v-if="Array.isArray(orderDetail) && orderDetail.length" class="space-y-8">
           <div v-for="order in orderDetail" :key="order.id" class="bg-gray-50 rounded-xl p-6 w-full border border-gray-200 shadow-sm space-y-5">
