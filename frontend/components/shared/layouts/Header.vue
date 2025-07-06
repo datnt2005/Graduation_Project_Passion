@@ -464,11 +464,12 @@
               <li><a href="/users/profile" class="block px-4 py-2 hover:bg-gray-100">Thông tin tài khoản</a></li>
               <li><a href="/users/orders" class="block px-4 py-2 hover:bg-gray-100">Đơn hàng của tôi</a></li>
               <li><a href="/support" class="block px-4 py-2 hover:bg-gray-100">Trung tâm hỗ trợ</a></li>
-              <li id="admin-menu" class="hidden"><a href="/admin/dashboard"
-                  class="block px-4 py-2 hover:bg-gray-100">Trang
-                  quản lý (Admin)</a></li>
-              <li id="seller-menu" class="hidden"><a href="/seller/dashboard"
-                  class="block px-4 py-2 hover:bg-gray-100">Trang quản lý (Seller)</a></li>
+     <li v-if="userRole === 'admin'">
+  <a href="/admin/dashboard" class="block px-4 py-2 hover:bg-gray-100">Trang quản lý (Admin)</a>
+</li>
+<li v-if="userRole === 'seller'">
+  <a href="/seller/dashboard" class="block px-4 py-2 hover:bg-gray-100">Trang quản lý (Seller)</a>
+</li>
             </ul>
 
           </div>
@@ -596,6 +597,7 @@ const isResetting = ref(false)
 const userName = ref('')
 const isMobileMenuOpen = ref(false)
 const showVerifyEmailForm = ref(false)
+const userRole = ref('');
 
 const notifications = ref([])
 const unreadCount = ref(0)
@@ -657,7 +659,7 @@ const fetchNotifications = async () => {
       unreadCount.value = 0
     }
   } catch (e) {
-    console.error('Lỗi khi lấy thông báo:', e)
+    // console.error('Lỗi khi lấy thông báo:', e)
   }
 }
 
@@ -715,7 +717,7 @@ const fetchCategories = async () => {
     const data = await response.json();
     categories.value = data.categories;
   } catch (error) {
-    console.error('Error fetching categories:', error);
+    // console.error('Error fetching categories:', error);
     toast('error', 'Không thể tải danh mục sản phẩm.');
   }
 };
@@ -744,11 +746,11 @@ function loginWithGoogle() {
 
   const messageHandler = async (event) => {
     if (event.origin !== expectedOrigin) {
-      console.warn('Invalid origin:', event.origin);
+      // console.warn('Invalid origin:', event.origin);
       return;
     }
 
-    console.log('Received message from:', event.origin, event.data);
+    // console.log('Received message from:', event.origin, event.data);
 
     if (event.data?.token) {
       localStorage.setItem('access_token', event.data.token);
@@ -772,7 +774,7 @@ function loginWithGoogle() {
           throw new Error(data.message || 'Không lấy được thông tin tài khoản!');
         }
       } catch (error) {
-        console.error('Login verification failed:', error);
+        // console.error('Login verification failed:', error);
         toast('error', 'Xác thực đăng nhập thất bại.');
         localStorage.removeItem('access_token');
       } finally {
@@ -840,7 +842,8 @@ const submitForm = async () => {
 
       localStorage.setItem('access_token', res.data.token);
       await fetchUserProfile();
-      updateLoginState();
+      await updateLoginState();
+      await showRoleBasedMenu();
       toast('success', 'Đăng nhập thành công!');
       closeModal();
     } else {
@@ -964,7 +967,7 @@ const logout = async () => {
   } catch (err) {
     toast('error', err.response?.data?.message || 'Không thể đăng xuất.');
     if (err?.response?.data?.trace) {
-      console.error('Trace:', err.response.data.trace);
+      // console.error('Trace:', err.response.data.trace);
     }
   }
 };
@@ -1035,21 +1038,14 @@ const showRoleBasedMenu = async () => {
 
   try {
     const res = await axios.get(`${api}/me`, {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: { Authorization: `Bearer ${token}` },
     });
-
-    const role = res.data.data?.role;
-    if (role === 'admin') {
-      document.getElementById('admin-menu')?.classList.remove('hidden');
-    }
-    if (role === 'seller') {
-      document.getElementById('seller-menu')?.classList.remove('hidden');
-    }
-
+    userRole.value = res.data.data?.role || '';
   } catch (error) {
     console.error('Cannot fetch user role:', error);
   }
 };
+
 
 
 onMounted(() => {

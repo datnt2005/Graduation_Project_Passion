@@ -18,12 +18,30 @@ class Seller extends Model
         'identity_card_number',
         'date_of_birth',
         'personal_address',
+        'pickup_address',
         'phone_number',
+        'identity_card_file',
         'document',
         'verification_status',
-        'cccd_front',
-        'cccd_back',
+        'verified_at',
+        'tax_code',
+        'business_name',
+        'business_email',
+        'shipping_options',
+        'id_card_front_url',
+        'id_card_back_url',
     ];
+
+    protected $casts = [
+        'shipping_options' => 'array',
+        'verified_at' => 'datetime',
+    ];
+
+    /*
+    |--------------------------------------------------------------------------
+    | Relationships
+    |--------------------------------------------------------------------------
+    */
 
     public function user()
     {

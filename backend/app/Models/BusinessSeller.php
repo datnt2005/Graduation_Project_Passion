@@ -13,8 +13,5 @@ class BusinessSeller extends Model
         'business_license', 'representative_name', 'representative_phone',
     ];
 
-    public function seller()
-    {
-        return $this->belongsTo(Seller::class);
-    }
+
 }

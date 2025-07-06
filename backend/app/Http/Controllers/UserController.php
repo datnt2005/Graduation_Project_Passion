@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\Validator;
 use Intervention\Image\Facades\Image;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Database\QueryException;
+
 
 class UserController extends Controller
 {
@@ -26,20 +28,47 @@ class UserController extends Controller
         return response()->json(['data' => $users]);
     }
 
-    public function getAllUsers()
-    {
-        $users = User::select('id', 'name', 'email', 'role')->get();
-        return response()->json($users);
+   public function batchDelete(Request $request)
+{
+    $ids = $request->input('ids', []);
+
+    if (empty($ids) || !is_array($ids)) {
+        return response()->json(['error' => 'Danh sách người dùng không hợp lệ.'], 400);
     }
 
-    public function batchDelete(Request $request)
-    {
-        $ids = $request->input('ids', []);
+    // Tìm các user là admin để chặn xoá
+    $adminUsers = User::whereIn('id', $ids)->where('role', 'admin')->pluck('id')->toArray();
+    if (!empty($adminUsers)) {
+        return response()->json([
+            'error' => 'Không thể xóa admin.',
+            'admin_ids' => $adminUsers
+        ], 403);
+    }
+
+    try {
         User::whereIn('id', $ids)->delete();
-        \Log::debug('Batch delete IDs:', $ids);
+
+        Log::info('Batch deleted users successfully.', ['ids' => $ids]);
 
         return response()->json(['success' => true]);
+    } catch (QueryException $e) {
+        Log::error('Batch delete failed due to DB constraint.', [
+            'error' => $e->getMessage(),
+            'code' => $e->getCode(),
+            'ids' => $ids,
+        ]);
+
+        if ($e->getCode() === '23000') {
+            return response()->json([
+                'error' => 'Không thể xoá vì có ràng buộc dữ liệu liên quan (ví dụ: đơn hàng hoặc địa chỉ).'
+            ], 409);
+        }
+
+        return response()->json([
+            'error' => 'Đã xảy ra lỗi khi xoá người dùng.'
+        ], 500);
     }
+}
 
     public function batchAddRole(Request $request)
     {
@@ -180,7 +209,7 @@ class UserController extends Controller
     {
         try {
             $validator = Validator::make($request->all(), [
-                'name'     => 'sometimes|required|string|max:255',
+                'name' => 'sometimes|required|string|max:255',
                 'password' => [
                     'sometimes',
                     'required',
@@ -188,9 +217,9 @@ class UserController extends Controller
                     'min:6',
                     'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).+$/'
                 ],
-                'avatar'  => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
-                'role'    => 'sometimes|required|in:user,seller,admin',
-                'status'  => 'sometimes|required|in:active,inactive,banned',
+                'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
+                'role' => 'sometimes|required|in:user,seller,admin',
+                'status' => 'sometimes|required|in:active,inactive,banned',
             ], [
                 'password.regex' => 'Mật khẩu phải chứa ít nhất 1 chữ hoa, 1 chữ thường, 1 số và 1 ký tự đặc biệt.',
                 'name.required' => 'Tên không được để trống.',
@@ -209,7 +238,6 @@ class UserController extends Controller
             }
 
             $data = $validator->validated();
-
             // Đổi mật khẩu (nếu có)
             if (isset($data['password'])) {
                 $data['password'] = Hash::make($data['password']);
@@ -275,7 +303,7 @@ class UserController extends Controller
             $user->avatar_url = $user->avatar ? Storage::disk('r2')->url($user->avatar) : null;
 
             logger()->info('User updated successfully', [
-                'user_id'    => $user->id,
+                'user_id' => $user->id,
                 'avatar_path' => $user->avatar,
             ]);
 
@@ -298,7 +326,7 @@ class UserController extends Controller
     {
         try {
             $validator = Validator::make($request->all(), [
-                'name'     => 'sometimes|nullable|string|max:255',
+                'name' => 'sometimes|nullable|string|max:255',
                 'email' => 'sometimes|nullable|email|max:255|:users,email,' . $user->id,
                 'password' => [
                     'sometimes',
@@ -308,9 +336,9 @@ class UserController extends Controller
                     'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).+$/'
                 ],
                 'old_password' => 'required_with:password|string',
-                'avatar'  => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
-                'role'    => 'sometimes|nullable|in:user,seller,admin',
-                'status'  => 'sometimes|nullable|in:active,inactive,banned',
+                'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
+                'role' => 'sometimes|nullable|in:user,seller,admin',
+                'status' => 'sometimes|nullable|in:active,inactive,banned',
             ], [
                 'password.regex' => 'Mật khẩu phải chứa ít nhất 1 chữ hoa, 1 chữ thường, 1 số và 1 ký tự đặc biệt.',
                 'password.min' => 'Mật hàng phải có ít nhất 6 ký tự.',
@@ -385,6 +413,12 @@ class UserController extends Controller
     public function destroy(User $user)
     {
         try {
+            if ($user->role === 'admin') {
+                return response()->json([
+                    'error' => 'Không thể xoá người dùng có vai trò là admin.'
+                ], 403);
+            }
+
             if ($user->avatar) {
                 Storage::disk('r2')->delete($user->avatar);
             }

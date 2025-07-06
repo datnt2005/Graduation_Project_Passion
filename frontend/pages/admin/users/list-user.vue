@@ -346,10 +346,27 @@ const statusLabel = {
 
 const confirmDelete = (user) => {
   userToDelete.value = user
-  confirmDialogTitle.value = 'Xác nhận xóa người dùng'
-  confirmDialogMessage.value = `Bạn có chắc muốn xóa người dùng "${user.username}" không?`
+  confirmDialogTitle.value = 'Xác nhận xoá người dùng'
+  confirmDialogMessage.value = `Bạn có chắc chắn muốn xoá người dùng "${user.username}"? Hành động này không thể hoàn tác.`
   showConfirmDialog.value = true
 }
+const handleDeleteConfirmed = async () => {
+  try {
+    await secureFetch(`${api}/users/${userToDelete.value.id}`, {}, ['admin'], {
+      method: 'DELETE'
+    })
+    notificationMessage.value = `Đã xoá người dùng "${userToDelete.value.username}" thành công.`
+    showNotification.value = true
+  } catch (error) {
+    notificationMessage.value = `Xoá người dùng thất bại: ${error.message}`
+    showNotification.value = true
+  } finally {
+    showConfirmDialog.value = false
+    userToDelete.value = null
+    await fetchUsers()
+  }
+}
+
 
 const closeConfirmDialog = () => {
   showConfirmDialog.value = false
@@ -360,33 +377,41 @@ const handleConfirmAction = async () => {
   showConfirmDialog.value = false
   loading.value = true
 
-  // Bulk delete
-  if (!userToDelete.value) {
-      await secureFetch(`${api}/users/batch-delete`,
-   {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ids: selectedUsers.value }),
-  },
-  ['admin']
-    )
-    notificationMessage.value = 'Đã xóa người dùng đã chọn.'
-    selectedUsers.value = []
-    selectAll.value = false
-    selectedAction.value = ''
-  } else {
-    await secureFetch(`${api}/users/${userToDelete.value.id}`, {
-      method: 'DELETE'
-    },
-    ['admin'])
-    
-    notificationMessage.value = 'Đã xóa người dùng.'
-    userToDelete.value = null
+  try {
+    if (!userToDelete.value) {
+      const res = await secureFetch(`${api}/users/batch-delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selectedUsers.value }),
+      }, ['admin'])
+
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Xoá người dùng thất bại.')
+      
+      notificationMessage.value = 'Đã xóa người dùng đã chọn.'
+      selectedUsers.value = []
+      selectAll.value = false
+      selectedAction.value = ''
+    } else {
+      const res = await secureFetch(`${api}/users/${userToDelete.value.id}`, {
+        method: 'DELETE'
+      }, ['admin'])
+
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Xoá người dùng thất bại.')
+
+      notificationMessage.value = `Đã xoá người dùng "${userToDelete.value.username}".`
+      userToDelete.value = null
+    }
+  } catch (err) {
+    notificationMessage.value = `Lỗi: ${err.message}`
+  } finally {
+    await fetchUsers()
+    showNotification.value = true
+    loading.value = false
   }
-  await fetchUsers()
-  showNotification.value = true
-  loading.value = false
 }
+
 
 const convertRole = (role) => {
   if (!role) return 'Người dùng'
