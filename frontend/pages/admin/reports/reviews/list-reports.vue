@@ -93,7 +93,7 @@
                                     class="flex items-center w-full px-4 py-2 text-sm text-green-700 hover:bg-green-50">
                                     <Check class="w-4 h-4 mr-2" /> Ẩn
                                 </button>
-                                <button @click="updateStatus(activeDropdown, 'rejected'); closeDropdown()"
+                                <button @click="updateStatus(activeDropdown, 'dismissed'); closeDropdown()"
                                     class="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50">
                                     <X class="w-4 h-4 mr-2" /> Bỏ qua
                                 </button>
@@ -112,6 +112,11 @@ import axios from 'axios'
 import { useRuntimeConfig } from '#app'
 import { Eye, Check, X } from 'lucide-vue-next'
 import { secureAxios } from '@/utils/secureAxios'
+import { useToast } from '~/composables/useToast'
+import Swal from 'sweetalert2'
+
+const { toast } = useToast()
+
 
 definePageMeta({ layout: 'default-admin' })
 
@@ -153,10 +158,10 @@ const fetchReports = async () => {
   loading.value = true
   try {
     const res = await secureAxios(`${apiBase}/admin/reports/reviews`, {}, ['admin'])
-    console.log('Danh sách trả về:', res.data.data)
     allReports.value = res.data.data
     applyFilters()
   } catch (error) {
+    toast('error', 'Lỗi khi tải danh sách báo cáo')
     console.error('Lỗi khi tải danh sách báo cáo:', error)
   } finally {
     loading.value = false
@@ -182,19 +187,42 @@ const applyFilters = () => {
 
 //  Cập nhật trạng thái
 const updateStatus = async (id, status) => {
+  const statusLabels = {
+    resolved: 'ẩn đánh giá',
+    dismissed: 'bỏ qua báo cáo',
+  }
+
+  const confirmText = statusLabels[status] || 'cập nhật trạng thái'
+
+  const result = await Swal.fire({
+    title: `Xác nhận ${confirmText}?`,
+    text: `Bạn có chắc chắn muốn ${confirmText} này không?`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#3085d6',
+    cancelButtonColor: '#d33',
+    confirmButtonText: 'Xác nhận',
+    cancelButtonText: 'Hủy'
+  })
+
+  if (!result.isConfirmed) return
+
   try {
     const token = localStorage.getItem('access_token')
-    await axios.put(`${apiBase}/admin/reports/reviews/${id}/status`, { status }, {
+    const res = await axios.put(`${apiBase}/admin/reports/reviews/${id}/status`, { status }, {
       headers: {
         Authorization: `Bearer ${token}`
       }
     })
+
+    toast('success', `Đã ${statusLabels[status] || 'cập nhật'} thành công`)
     await fetchReports()
   } catch (err) {
+    const message = err?.response?.data?.message || 'Lỗi khi cập nhật trạng thái'
+    toast('error', message)
     console.error('Lỗi khi cập nhật trạng thái:', err)
   }
 }
-
 
 //  Dropdown thao tác
 function toggleDropdown(event, id) {
@@ -225,7 +253,7 @@ const statusText = (status) => {
   switch (status) {
     case 'pending': return 'Chờ xử lý'
     case 'resolved': return 'Đã ẩn'
-    case 'rejected': return 'Đã bỏ qua'
+    case 'dismissed': return 'Đã bỏ qua'
     default: return 'Không rõ'
   }
 }
@@ -236,7 +264,7 @@ const badgeClass = (status) => {
       return 'inline-block px-2 py-1 text-xs font-semibold text-yellow-700 bg-yellow-100 rounded'
     case 'resolved':
       return 'inline-block px-2 py-1 text-xs font-semibold text-green-700 bg-green-100 rounded'
-    case 'rejected':
+    case 'dismissed':
       return 'inline-block px-2 py-1 text-xs font-semibold text-red-700 bg-red-100 rounded'
     default:
       return 'inline-block px-2 py-1 text-xs font-semibold text-gray-700 bg-gray-100 rounded'

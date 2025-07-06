@@ -3,23 +3,40 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
-// app/Models/Notification.php
 class Notification extends Model
 {
+    use HasFactory;
 
     protected $fillable = [
         'title',
         'content',
         'type',
-        'to_role',
-        'to_user_id',
+        'to_roles',
+        'from_role',
         'user_id',
         'link',
         'image_url',
         'status',
-        'is_read',
-        'read_at',
-        'is_hidden'
+        'channels',
+        'sent_at',
     ];
+
+    protected $casts = [
+        'channels' => 'array',
+        'to_roles' => 'array', // ✅ Tự động decode JSON thành mảng
+    ];
+
+    // Notification.php
+
+    public function recipients()
+    {
+        return $this->hasMany(NotificationRecipient::class);
+    }
+
+    public function users()
+    {
+        return $this->belongsToMany(User::class, 'notification_recipients', 'notification_id', 'user_id');
+    }
 }

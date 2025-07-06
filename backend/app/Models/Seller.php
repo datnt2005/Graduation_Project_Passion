@@ -48,6 +48,11 @@ class Seller extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function business()
+    {
+        return $this->hasOne(BusinessSeller::class);
+    }
+
     public function products()
     {
         return $this->hasMany(Product::class, 'seller_id');
@@ -55,11 +60,22 @@ class Seller extends Model
 
     public function followers()
     {
-        return $this->belongsToMany(User::class, 'seller_followers')->withTimestamps();
+        return $this->belongsToMany(User::class, 'seller_followers')
+            ->withTimestamps();
     }
-
     public function followersCount()
     {
         return $this->followers()->count();
+    }
+
+    public function followed()
+    {
+        return $this->belongsToMany(User::class, 'seller_followed')
+            ->withTimestamps();
+    }
+    public function follows()
+    {
+        return $this->belongsToMany(User::class, 'seller_followed', 'seller_id', 'followed_user_id')
+            ->withTimestamps();
     }
 }

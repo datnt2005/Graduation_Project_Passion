@@ -238,7 +238,6 @@ class UserController extends Controller
             }
 
             $data = $validator->validated();
-
             // Đổi mật khẩu (nếu có)
             if (isset($data['password'])) {
                 $data['password'] = Hash::make($data['password']);
@@ -440,5 +439,4 @@ class UserController extends Controller
             ], 500);
         }
     }
-
 }

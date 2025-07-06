@@ -26,3 +26,13 @@ Route::prefix('admin/reviews')
         Route::put('/{id}', [ReviewController::class, 'adminUpdate']);
         Route::delete('/{id}', [ReviewController::class, 'adminDestroy']);
     });
+
+Route::prefix('seller/reviews')
+    ->middleware(['auth:sanctum', 'checkRole:seller'])
+    ->group(function () {
+        Route::get('/', [ReviewController::class, 'sellerIndex']);
+        Route::get('/{id}', [ReviewController::class, 'sellerShow']);
+        Route::put('/{id}', [ReviewController::class, 'sellerUpdate']);
+        Route::delete('/{id}', [ReviewController::class, 'sellerDestroy']);
+    });
+

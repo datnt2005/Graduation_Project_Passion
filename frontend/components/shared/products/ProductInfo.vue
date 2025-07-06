@@ -20,11 +20,13 @@
         <!-- Seller Info -->
         <div class="flex justify-between items-center bg-white border rounded-sm p-4">
             <div class="flex items-center space-x-4">
-                <img :src="seller.avatar ? `${mediaBase}${seller.avatar}` : `${mediaBase}/default-avatar.png`"
-                    :alt="seller.store_name + ' avatar'" class="w-16 h-16 rounded-full border" loading="lazy" />
+                <img v-if="seller.avatar"
+                    :src="seller.avatar.startsWith('http') ? seller.avatar : `${mediaBase}${seller.avatar}`"
+                    alt="Avatar" class="w-14 h-14  rounded-full object-cover" />
+                <span v-else>📘</span>
                 <div>
                     <h2 class="font-semibold text-lg">{{ seller.store_name }}</h2>
-                    <p class="text-sm text-gray-500">{{ seller.last_active }}</p>
+                    <!-- <p class="text-sm text-gray-500">{{ seller.address }}</p> -->
                     <div class="flex space-x-2 mt-2">
                         <button @click="$emit('view-shop')" class="border px-3 py-1 rounded text-sm flex items-center"
                             aria-label="View shop">
@@ -93,7 +95,8 @@
                         <input
                             class="input-no-spinner w-full h-10 text-center text-sm text-gray-900 bg-transparent border-x border-gray-200 focus:outline-none"
                             type="number" step="1" :value="quantity" min="1" :max="selectedVariant?.stock || 0"
-                            @input="handleQuantityInput($event.target.value)" @keydown="blockInvalidKeys" aria-label="Quantity" />
+                            @input="handleQuantityInput($event.target.value)" @keydown="blockInvalidKeys"
+                            aria-label="Quantity" />
                         <button class="w-10 h-10 text-gray-600 hover:bg-gray-100 rounded-r-md"
                             :disabled="quantity >= (selectedVariant?.stock || 0)" @click="$emit('increase-quantity')"
                             aria-label="Increase quantity">
@@ -212,10 +215,10 @@ function handleBuyNow() {
 }
 
 function blockInvalidKeys(event) {
-  const invalidKeys = ['-', '+', 'e', 'E', '.', ','];
-  if (invalidKeys.includes(event.key)) {
-    event.preventDefault();
-  }
+    const invalidKeys = ['-', '+', 'e', 'E', '.', ','];
+    if (invalidKeys.includes(event.key)) {
+        event.preventDefault();
+    }
 }
 
 </script>

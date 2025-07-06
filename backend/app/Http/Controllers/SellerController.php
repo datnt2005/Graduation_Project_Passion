@@ -10,7 +10,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Storage;
 use Google\Cloud\Vision\V1\ImageAnnotatorClient;
-
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class SellerController extends Controller
 {
@@ -71,9 +72,8 @@ public function update(Request $request)
 
     if ($validator->fails()) {
         return response()->json([
-            'message' => 'Dữ liệu không hợp lệ',
-            'errors' => $validator->errors()
-        ], 422);
+            'seller' => $seller
+        ]);
     }
 
     $data = $request->only([
@@ -89,8 +89,22 @@ public function update(Request $request)
             Storage::disk('r2')->delete($seller->document);
         }
 
-        $file = $request->file('document');
-        $filename = 'seller-documents/personal/' . time() . '_' . Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) . '.' . $file->getClientOriginalExtension();
+        $data = $request->only([
+            'store_name',
+            'store_slug',
+            'seller_type',
+            'bio',
+            'identity_card_number',
+            'date_of_birth',
+            'personal_address',
+            'phone_number'
+        ]);
+
+        // Upload document
+        if ($request->hasFile('document') && $request->file('document')->isValid()) {
+            if ($seller->document) {
+                Storage::disk('r2')->delete($seller->document);
+            }
 
         if (Storage::disk('r2')->put($filename, file_get_contents($file))) {
             $data['document'] = $filename;
@@ -98,8 +112,9 @@ public function update(Request $request)
             throw new \Exception('Không thể upload file giấy tờ lên R2.');
         }
     }
-
-    $seller->update($data);
+            $cccdBackPath = $request->file('cccd_back')->store('seller-documents', 'r2');
+            $data['cccd_back'] = $cccdBackPath;
+        }
 
     $seller = Seller::with('user:id,name,email')->findOrFail($seller->id);
 
@@ -131,7 +146,6 @@ public function update(Request $request)
             'is_following' => $isFollowing,
         ]);
     }
-
 
     public function getVerifiedSellers()
     {
@@ -276,5 +290,3 @@ public function update(Request $request)
         ]);
     }
 }
-
-
