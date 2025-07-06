@@ -23,3 +23,4 @@ Route::prefix('sellers')->group(function () {
 
 });
 
+// 5. Seller có quyền xem danh sách sản phẩm của mình

@@ -119,6 +119,10 @@
 import { ref, onMounted, reactive } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import Editor from '@tinymce/tinymce-vue'
+import { useRuntimeConfig } from '#app'
+
+const config = useRuntimeConfig()
+const apiBase = config.public.apiBaseUrl
 
 definePageMeta({ layout: 'default-admin' })
 
@@ -141,7 +145,7 @@ const fileInput = ref(null)
 const fetchCategories = async () => {
   try {
     const token = localStorage.getItem('access_token')
-    const res = await $fetch('http://localhost:8000/api/post-categories', {
+    const res = await $fetch(`${apiBase}/post-categories`, {
       headers: { Authorization: `Bearer ${token}` }
     })
     categories.value = res.data || []
@@ -153,7 +157,7 @@ const fetchCategories = async () => {
 const fetchPost = async () => {
   try {
     const token = localStorage.getItem('access_token')
-    const data = await $fetch(`http://localhost:8000/api/posts/${route.params.id}`, {
+    const data = await $fetch(`${apiBase}/posts/${route.params.id}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
     title.value = data.data.title
@@ -212,7 +216,7 @@ const submitEdit = async () => {
     formData.append('category_id', category_id.value)
     if (image.value) formData.append('thumbnail', image.value)
     const token = localStorage.getItem('access_token')
-    await $fetch(`http://localhost:8000/api/posts/${route.params.id}`, {
+    await $fetch(`${apiBase}/posts/${route.params.id}`, {
       method: 'POST', // PUT bị lỗi FormData -> dùng POST + method spoofing
       body: formData,
       headers: {

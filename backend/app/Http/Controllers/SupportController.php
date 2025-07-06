@@ -32,6 +32,30 @@ class SupportController extends Controller
         ]);
     }
 
+    // Admin lấy chi tiết yêu cầu hỗ trợ
+    public function show($id)
+    {
+        $support = Support::findOrFail($id);
+        return response()->json(['success' => true, 'data' => $support]);
+    }
+    // Admin đánh dấu đã xử lý
+    public function markAsHandled($id)
+    {
+        $support = Support::findOrFail($id);
+        $support->handled = true;
+        $support->handled_at = Carbon::now();
+        $support->save();
+
+        return response()->json(['success' => true, 'message' => 'Đã đánh dấu là đã xử lý']);
+    }
+    // Admin xóa yêu cầu hỗ trợ
+    public function destroy($id)
+    {
+        $support = Support::findOrFail($id);
+        $support->delete();
+
+        return response()->json(['success' => true, 'message' => 'Yêu cầu hỗ trợ đã được xóa']);
+    }
     // Admin gửi phản hồi
     public function reply(Request $request, $id)
     {

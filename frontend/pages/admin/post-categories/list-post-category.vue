@@ -149,6 +149,10 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRuntimeConfig } from '#app'
+
+const config = useRuntimeConfig()
+const apiBase = config.public.apiBaseUrl
 
 definePageMeta({
   layout: 'default-admin'
@@ -169,7 +173,7 @@ const confirmAction = ref(null)
 const fetchCategories = async () => {
   try {
     const token = localStorage.getItem('access_token')
-    const res = await $fetch('http://localhost:8000/api/post-categories', {
+    const res = await $fetch(`${apiBase}/post-categories`, {
       headers: { Authorization: `Bearer ${token}` }
     })
     categories.value = res.data || []
@@ -193,7 +197,7 @@ const confirmDelete = (cat) => {
     async () => {
       try {
         const token = localStorage.getItem('access_token')
-        await $fetch(`http://localhost:8000/api/post-categories/${cat.id}`, {
+        await $fetch(`${apiBase}/post-categories/${cat.id}`, {
           method: 'DELETE',
           headers: { Authorization: `Bearer ${token}` }
         })

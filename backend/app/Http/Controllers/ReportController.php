@@ -2,141 +2,154 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\Report;
-use App\Models\Review;
-
+use App\Models\PostComment;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 
 class ReportController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $reports = Report::with(['review.product', 'review.user', 'reporter'])
-            ->where('type', 'review')
+        $type = $request->query('type');
+
+        $query = Report::query()->with(['reporter']);
+
+        if ($type === 'review') {
+            $query->with(['review.product', 'review.user']);
+        } elseif ($type === 'post_comment') {
+            $query->with(['postComment.user', 'postComment.media']);
+        }
+
+        $reports = $query->when($type, fn($q) => $q->where('type', $type))
             ->latest()
             ->get()
-            // Lọc những report không có đầy đủ thông tin
-            ->filter(function ($report) {
-                return $report->review && $report->review->product && $report->review->user;
-            })
             ->map(function ($report) {
-                return [
-                    'report_id' => $report->id,
+                $data = [
+                    'id' => $report->id,
+                    'type' => $report->type,
                     'reason' => $report->reason,
                     'status' => $report->status,
-                    'reported_at' => $report->created_at,
-                    'review' => [
-                        'id' => $report->review->id,
-                        'content' => $report->review->content,
-                        'product_name' => $report->review->product->name,
-                        'user_name' => $report->review->user->name,
-                    ],
                     'reporter' => $report->reporter->name ?? 'Ẩn danh',
+                    'created_at' => $report->created_at,
                 ];
-            })
-            ->values(); // Reset lại chỉ mục sau khi filter
+
+                if ($report->type === 'review' && $report->review) {
+                    $data['content'] = $report->review->content;
+                    $data['user_name'] = $report->review->user->name ?? null;
+                    $data['product'] = $report->review->product->name ?? null;
+                }
+
+                if ($report->type === 'post_comment' && $report->postComment) {
+                    $data['content'] = $report->postComment->content;
+                    $data['user_name'] = $report->postComment->user->name ?? null;
+                    $data['media'] = $report->postComment->media->map(function ($m) {
+                        return [
+                            'url' => Storage::disk('r2')->url($m->media_url),
+                            'type' => $m->media_type,
+                        ];
+                    });
+                }
+
+                return $data;
+            });
 
         return response()->json(['success' => true, 'data' => $reports]);
     }
 
     public function show($id)
     {
-        $report = Report::with([
-            'reporter',
-            'review.product',
-            'review.user',
-            'review.reply',
-            'review.media',
-        ])
-            ->where('type', 'review')
-            ->where('id', $id)
-            ->first();
+        $report = Report::with(['reporter', 'review.product', 'review.user', 'postComment.user', 'postComment.media'])
+            ->findOrFail($id);
 
-        // 👉 Bổ sung withCount thủ công nếu cần (nếu không eager loaded từ Report)
-        if ($report && $report->review) {
-            $report->review->loadCount('likes');
+        $data = [
+            'id' => $report->id,
+            'type' => $report->type,
+            'reason' => $report->reason,
+            'status' => $report->status,
+            'reporter' => $report->reporter->name ?? 'Ẩn danh',
+            'created_at' => $report->created_at,
+        ];
+
+        if ($report->type === 'review' && $report->review) {
+            $data['content'] = $report->review->content;
+            $data['rating'] = $report->review->rating;
+            $data['user_name'] = $report->review->user->name ?? null;
+            $data['product'] = $report->review->product->name ?? null;
         }
 
-        if (!$report) {
-            return response()->json(['message' => 'Không tìm thấy'], 404);
+        if ($report->type === 'post_comment' && $report->postComment) {
+            $data['content'] = $report->postComment->content;
+            $data['user_name'] = $report->postComment->user->name ?? null;
+            $data['media'] = $report->postComment->media->map(function ($m) {
+                return [
+                    'url' => Storage::disk('r2')->url($m->media_url),
+                    'type' => $m->media_type,
+                ];
+            });
         }
 
-        return response()->json([
-            'data' => [
-                'report_id' => $report->id,
-                'reason' => $report->reason,
-                'status' => $report->status,
-                'reported_at' => $report->created_at,
-                'review' => [
-                    'id' => $report->review->id,
-                    'content' => $report->review->content,
-                    'rating' => $report->review->rating,
-                    'likes_count' => $report->review->likes_count ?? 0, // ✅ Lượt thích
-                    'status' => $report->review->status,
-                    'created_at' => $report->review->created_at,
-                    'product_name' => optional($report->review->product)->name,
-                    'product_image' => optional($report->review->product)->image,
-                    'user_name' => optional($report->review->user)->name,
-                    'reply' => $report->review->reply,
-                    'media' => $report->review->media->map(function ($m) {
-                        return [
-                            'id' => $m->id,
-                            'url' => Storage::disk('r2')->url($m->media_url),
-                            'type' => $m->media_type, // 'image' hoặc 'video'
-                        ];
-                    })->values(),
-                ],
-                'reporter' => $report->reporter->name ?? 'Ẩn danh',
-            ]
-        ]);
-    }
-
-
-    public function updateStatus(Request $request, $id)
-    {
-        $report = Report::with('review')->findOrFail($id);
-        $newStatus = $request->input('status');
-
-        $report->status = $newStatus;
-        $report->save();
-
-        // Ẩn đánh giá
-        if ($newStatus === 'resolved' && $report->review) {
-            $report->review->status = 'hidden';
-            $report->review->save();
-        }
-
-        return response()->json(['message' => 'Cập nhật trạng thái báo cáo thành công']);
+        return response()->json(['success' => true, 'data' => $data]);
     }
 
     public function store(Request $request)
     {
-        $request->validate([
+        $data = $request->validate([
             'target_id' => 'required|integer',
-            'type' => 'required|in:product,user,review,post',
+            'type' => 'required|in:product,user,review,post,post_comment',
             'reason' => 'required|string|max:1000',
         ]);
 
-        $existing = Report::where('reporter_id', auth()->id())
-            ->where('target_id', $request->target_id)
-            ->where('type', $request->type)
-            ->first();
+        $exists = Report::where([
+            'reporter_id' => Auth::id(),
+            'target_id' => $data['target_id'],
+            'type' => $data['type'],
+        ])->exists();
 
-        if ($existing) {
-            return response()->json([
-                'message' => 'Bạn đã báo cáo đánh giá này trước đó rồi.'
-            ], 409);
+        if ($exists) {
+            return response()->json(['message' => 'Bạn đã báo cáo mục này trước đó.'], 409);
         }
 
         Report::create([
-            'reporter_id' => auth()->id(),
-            'target_id' => $request->target_id,
-            'type' => $request->type,
-            'reason' => $request->reason,
+            'reporter_id' => Auth::id(),
+            'target_id' => $data['target_id'],
+            'type' => $data['type'],
+            'reason' => $data['reason'],
             'status' => 'pending',
         ]);
 
-        return response()->json(['message' => 'Báo cáo đã được gửi']);
+        return response()->json(['message' => 'Báo cáo đã được gửi'], 201);
+    }
+
+    public function updateStatus(Request $request, $id)
+    {
+        $report = Report::findOrFail($id);
+
+        $data = $request->validate([
+            'status' => 'required|in:resolved,dismissed',
+        ]);
+
+        $report->status = $data['status'];
+        $report->save();
+
+        if ($data['status'] === 'resolved') {
+            if ($report->type === 'review' && $report->review) {
+                $report->review->update(['status' => 'hidden']);
+            }
+            if ($report->type === 'post_comment' && $report->postComment) {
+                $report->postComment->update(['status' => 'hidden']);
+            }
+        }
+
+        return response()->json(['message' => 'Cập nhật trạng thái thành công.']);
+    }
+
+    public function destroy($id)
+    {
+        $report = Report::findOrFail($id);
+        $report->delete();
+
+        return response()->json(['message' => 'Xóa báo cáo thành công.']);
     }
 }

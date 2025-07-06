@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Support\Facades\Storage;
 
 class PostComment extends Model
@@ -17,26 +17,48 @@ class PostComment extends Model
         'rating',
         'image',
         'admin_reply',
+        'parent_id',
     ];
 
-    // Tự động append vào JSON output
     protected $appends = ['image_url'];
 
     public function user()
     {
-        return $this->belongsTo(\App\Models\User::class);
+        return $this->belongsTo(User::class);
     }
 
     public function post()
     {
-        return $this->belongsTo(\App\Models\Post::class);
+        return $this->belongsTo(Post::class);
     }
 
-    // Accessor: trả về URL đầy đủ từ R2
+    public function likes()
+    {
+        return $this->hasMany(PostCommentLike::class);
+    }
+
+    public function parent()
+    {
+        return $this->belongsTo(PostComment::class, 'parent_id');
+    }
+
+    public function replies()
+    {
+        return $this->hasMany(PostComment::class, 'parent_id');
+    }
+
+    public function reports()
+    {
+        return $this->morphMany(Report::class, 'target');
+    }
+
     public function getImageUrlAttribute(): ?string
     {
-        return $this->image
-            ? Storage::disk('r2')->url($this->image)
-            : null;
+        return $this->image ? Storage::disk('r2')->url($this->image) : null;
+    }
+    
+    public function media()
+    {
+        return $this->hasMany(PostCommentMedia::class);
     }
 }

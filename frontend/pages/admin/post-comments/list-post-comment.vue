@@ -136,6 +136,7 @@ import { ref, onMounted, computed } from 'vue'
 definePageMeta({
   layout: 'default-admin'
 });
+const apiBase = config.public.apiBaseUrl
 const comments = ref([])
 const searchQuery = ref('')
 const showNotification = ref(false)
@@ -149,7 +150,7 @@ const confirmAction = ref(null)
 const fetchComments = async () => {
   try {
     const token = localStorage.getItem('access_token')
-    comments.value = await $fetch('http://localhost:8000/api/post-comments', {
+    comments.value = await $fetch(`${apiBase}/post-comments`, {
       headers: { Authorization: `Bearer ${token}` }
     })
   } catch (err) {
@@ -165,7 +166,7 @@ const confirmDelete = (comment) => {
     async () => {
       try {
         const token = localStorage.getItem('access_token')
-        await $fetch(`http://localhost:8000/api/post-comments/${comment.id}`, {
+        await $fetch(`${apiBase}/post-comments/${comment.id}`, {
           method: 'DELETE',
           headers: { Authorization: `Bearer ${token}` }
         })
@@ -180,7 +181,7 @@ const confirmDelete = (comment) => {
 
 const replyComment = async (comment) => {
   const token = localStorage.getItem('access_token')
-  await $fetch(`http://localhost:8000/api/post-comments/${comment.id}`, {
+  await $fetch(`${apiBase}/post-comments/${comment.id}`, {
     method: 'PATCH',
     headers: { Authorization: `Bearer ${token}` },
     body: { admin_reply: comment.admin_reply }

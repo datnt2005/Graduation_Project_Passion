@@ -187,6 +187,10 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useRuntimeConfig } from '#app'
+
+const config = useRuntimeConfig()
+const apiBase = config.public.apiBaseUrl
 
 definePageMeta({
   layout: 'default-admin'
@@ -210,7 +214,7 @@ const router = useRouter()
 const fetchPosts = async () => {
   try {
     const token = localStorage.getItem('access_token')
-    const response = await $fetch('http://localhost:8000/api/posts', {
+    const response = await $fetch(`${apiBase}/posts`, {
       headers: { Authorization: `Bearer ${token}` }
     })
     posts.value = response.data
@@ -231,7 +235,7 @@ const confirmDelete = (post) => {
     async () => {
       try {
         const token = localStorage.getItem('access_token')
-        await $fetch(`http://localhost:8000/api/posts/${post.id}`, {
+        await $fetch(`${apiBase}/posts/${post.id}`, {
           method: 'DELETE',
           headers: { Authorization: `Bearer ${token}` }
         })

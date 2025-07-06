@@ -106,6 +106,10 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useRuntimeConfig } from '#app'
+
+const config = useRuntimeConfig()
+const apiBase = config.public.apiBaseUrl
 
 definePageMeta({
   layout: 'default-admin',
@@ -127,7 +131,7 @@ const fileInput = ref(null)
 const fetchCategory = async () => {
   try {
     const token = localStorage.getItem('access_token')
-    const data = await $fetch(`http://localhost:8000/api/post-categories/${route.params.id}`, {
+    const data = await $fetch(`${apiBase}/post-categories/${route.params.id}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
 
@@ -183,7 +187,7 @@ const submitEdit = async () => {
     if (image.value) formData.append('image', image.value)
 
     const token = localStorage.getItem('access_token')
-    await $fetch(`http://localhost:8000/api/post-categories/${route.params.id}`, {
+    await $fetch(`${apiBase}/post-categories/${route.params.id}`, {
       method: 'POST', // PUT bị lỗi FormData -> dùng POST + method spoofing
       body: formData,
       headers: {

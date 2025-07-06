@@ -55,14 +55,17 @@
 
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { useRuntimeConfig } from '#app'
 
+const config = useRuntimeConfig()
+const apiBase = config.public.apiBaseUrl
 const banners = ref([])
 const index = ref(0)
 let timer = null
 
 async function fetchBanners() {
   try {
-    const res = await $fetch('http://localhost:8000/api/banners?status=active')
+    const res = await $fetch(`${apiBase}/banners?status=active`)
     banners.value = (res.data || []).map(b => b.image_url).filter(Boolean)
     if (index.value >= banners.value.length) index.value = 0
   } catch (e) {

@@ -105,7 +105,10 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useRuntimeConfig } from '#app'
 
+const config = useRuntimeConfig()
+const apiBase = config.public.apiBaseUrl
 definePageMeta({
   layout: 'default-admin',
 })
@@ -157,7 +160,7 @@ const submitCategory = async () => {
     formData.append('slug', slug.value)
     if (image.value) formData.append('image', image.value)
     const token = localStorage.getItem('access_token')
-    await $fetch('http://localhost:8000/api/post-categories', {
+    await $fetch(`${apiBase}/post-categories`, {
       method: 'POST',
       body: formData,
       headers: { Authorization: `Bearer ${token}` },

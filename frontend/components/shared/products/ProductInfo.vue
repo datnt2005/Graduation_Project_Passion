@@ -134,9 +134,9 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import { computed } from 'vue';
-import { useToast } from '~composables/useToast';
+import { useToast } from '@/composables/useToast';
 import { useRouter } from "vue-router";
-import { useAuthStore } from "~/stores/authStore";
+import { useAuthStore } from "~/stores/auth";
 
 const auth = useAuthStore();
 const { toast } = useToast();
@@ -173,31 +173,40 @@ const emit = defineEmits([
 
 const isFavorite = ref(props.isFavorite)
 
-const toggleFavorite = async () => {
-  if (!auth.isLoggedIn) {
-    toast('error', 'Vui lòng đăng nhập để sử dụng tính năng yêu thích!')
+async function toggleFavorite() {
+  const token = localStorage.getItem('access_token')
+
+  // Kiểm tra token tồn tại và người dùng đang đăng nhập
+  if (!token || !auth.isLoggedIn || !auth.currentUser) {
+    toast('error', 'Vui lòng đăng nhập để sử dụng chức năng này!')
+    router.push('/login')
     return
   }
+
   try {
-    const token = localStorage.getItem('access_token')
-    const res = await $fetch('/favorite/toggle', {
+    const res = await $fetch('/api/favorites/toggle', {
       method: 'POST',
-      body: { product_id: props.product.id },
-      headers: {
-        Authorization: `Bearer ${token}`,
-      }
+      body: { product_id: product.value.id },
+      headers: { Authorization: `Bearer ${token}` }
     })
-    isFavorite.value = res.favorited
-    toast('success', res.message)
-    // Nếu là thêm → chuyển sang /favorite sau 1s
+
     if (res.favorited) {
-      setTimeout(() => router.push('/favorite'), 1000)
+      toast('success', 'Đã thêm sản phẩm vào yêu thích!')
+    } else {
+      toast('success', 'Đã xóa sản phẩm khỏi yêu thích!')
     }
-  } catch (err) {
-    toast('error', 'Đã xảy ra lỗi khi cập nhật yêu thích!')
-    console.error(err)
+
+    // Cập nhật lại trạng thái và điều hướng
+    isFavorite.value = res.favorited
+    setTimeout(() => {
+      router.push('/users/favorites')
+    }, 1000)
+
+  } catch (e) {
+    toast('error', e?.data?.message || 'Có lỗi xảy ra, vui lòng thử lại!')
   }
 }
+
 
 onMounted(async () => {
   if (!auth.isLoggedIn) return

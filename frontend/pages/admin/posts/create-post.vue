@@ -111,6 +111,10 @@
 import { ref, onMounted, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import Editor from '@tinymce/tinymce-vue'
+import { useRuntimeConfig } from '#app'
+
+const config = useRuntimeConfig()
+const apiBase = config.public.apiBaseUrl
 
 definePageMeta({ layout: 'default-admin' })
 
@@ -158,7 +162,7 @@ const removeImage = () => {
 onMounted(async () => {
   const token = localStorage.getItem('access_token')
   try {
-    const res = await $fetch('http://localhost:8000/api/post-categories', {
+    const res = await $fetch(`${apiBase}/post-categories`, {
       headers: { Authorization: `Bearer ${token}` }
     })
     categories.value = res.data || []
@@ -186,7 +190,7 @@ const submitPost = async () => {
     if (image.value) formData.append('thumbnail', image.value)
 
     const token = localStorage.getItem('access_token')
-    await $fetch('http://localhost:8000/api/posts', {
+    await $fetch(`${apiBase}/posts`, {
       method: 'POST',
       body: formData,
       headers: { Authorization: `Bearer ${token}` },

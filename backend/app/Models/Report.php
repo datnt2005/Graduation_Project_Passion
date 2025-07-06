@@ -30,4 +30,9 @@ class Report extends Model
     {
         return $this->belongsTo(User::class, 'reporter_id');
     }
+
+    public function postComment()
+    {
+        return $this->belongsTo(PostComment::class, 'target_id');
+    }
 }

@@ -1,4 +1,4 @@
-    <template>
+<template>
         <main class="bg-[#f5f7fa] font-sans text-sm text-[#222222]">
             <div class="max-w-[1200px] mx-auto p-6 space-y-6">
                 <div class="w-full max-w-6xl">
@@ -346,29 +346,7 @@ function validateSelection() {
     return true;
 }
 
-function toggleFavorite() {
-    const favorites = JSON.parse(localStorage.getItem('favorites') || '[]').map(item => ({
-        id: Number(item.id || 0),
-        ...item
-    }));
-    if (isFavorite.value) {
-        const index = favorites.findIndex(p => p.id === product.value.id);
-        if (index >= 0) {
-            favorites.splice(index, 1);
-        }
-    } else {
-        if (!favorites.some(p => p.id === product.value.id)) {
-            favorites.push({
-                id: product.value.id || 0,
-                name: product.value.name || 'Unknown Product',
-                price: selectedVariant.value?.sale_price || selectedVariant.value?.price || '0.00',
-                image: images.value[0]?.src || ''
-            });
-        }
-    }
-    isFavorite.value = !isFavorite.value;
-    localStorage.setItem('favorites', JSON.stringify(favorites));
-}
+
 
 const isAddingToCart = ref(false);
 async function addToCart() {

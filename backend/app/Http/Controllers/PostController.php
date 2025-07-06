@@ -58,7 +58,6 @@ class PostController extends Controller
             }
 
             $validated['user_id'] = Auth::id(); 
-            // chưa có middleware auth nên phải lấy id người dùng hiện tại
         
 
             $validated['thumbnail'] = $thumbnailPath;
