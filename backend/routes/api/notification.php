@@ -12,26 +12,30 @@ Route::prefix('notifications')->middleware('auth:sanctum')->group(function () {
     Route::post('/mark-read', [NotificationController::class, 'markAsRead']);
     Route::delete('/{id}', [NotificationController::class, 'destroy']);
     Route::post('/send-multiple', [NotificationController::class, 'sendMultiple']);
+    Route::post('/send-all', [NotificationController::class, 'sendAll']);
     Route::post('/destroy-multiple', [NotificationController::class, 'destroyMultiple']);
     Route::delete('/destroy-all', [NotificationController::class, 'destroyAll']);
 });
 
 
-Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/my-notifications', [NotificationController::class, 'getMyNotifications']);
+Route::prefix('seller/notifications')
+    ->middleware(['auth:sanctum', 'checkRole:seller'])
+    ->group(function () {
+        Route::get('/my', [NotificationController::class, 'getMyNotifications']);
+        Route::post('/{id}/read', [NotificationController::class, 'markAsRead']);
+        Route::post('/mark-multiple-read', [NotificationController::class, 'markMultipleAsRead']);
+        Route::post('/mark-all-read', [NotificationController::class, 'markAllAsRead']);
+        Route::post('/delete-multiple', [NotificationController::class, 'deleteMultiple']);
+        Route::delete('/delete-all', [NotificationController::class, 'deleteAll']);
+    });
 
-    // ✅ Đánh dấu 1 thông báo là đã đọc
-    Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
-
-    // ✅ Đánh dấu nhiều thông báo là đã đọc
-    Route::post('/notifications/mark-multiple-read', [NotificationController::class, 'markMultipleAsRead']);
-
-    // ✅ Đánh dấu tất cả thông báo là đã đọc
-    Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllAsRead']);
-
-    // ✅ Ẩn (không xóa thật) nhiều thông báo
-    Route::post('/notifications/delete-multiple', [NotificationController::class, 'deleteMultiple']);
-
-    // ✅ Ẩn tất cả thông báo
-    Route::delete('/notifications/delete-all', [NotificationController::class, 'deleteAll']);
-});
+Route::prefix('admin/notifications')
+    ->middleware(['auth:sanctum', 'checkRole:admin'])
+    ->group(function () {
+        Route::get('/my', [NotificationController::class, 'getMyNotifications']);
+        Route::post('/{id}/read', [NotificationController::class, 'markAsRead']);
+        Route::post('/mark-multiple-read', [NotificationController::class, 'markMultipleAsRead']);
+        Route::post('/mark-all-read', [NotificationController::class, 'markAllAsRead']);
+        Route::post('/delete-multiple', [NotificationController::class, 'deleteMultiple']);
+        Route::delete('/delete-all', [NotificationController::class, 'deleteAll']);
+    });

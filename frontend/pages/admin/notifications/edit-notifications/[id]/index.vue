@@ -99,17 +99,52 @@
                   </div>
                 </div>
 
+                <!-- Vai trò người nhận -->
                 <div>
                   <label class="block text-sm font-medium text-gray-700">Vai trò người nhận</label>
-                  <select v-model="form.to_role"
-                    class="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
-                    <option disabled value="">-- Chọn vai trò --</option>
-                    <option value="user">Người dùng</option>
-                    <option value="seller">Người bán</option>
-                    <option value="admin">Admin</option>
-                  </select>
-                  <span v-if="errors.to_role" class="text-xs text-red-500 mt-1">{{ errors.to_role }}</span>
+                  <div class="flex flex-col gap-1 mt-1">
+                    <label v-for="role in ['user', 'seller']" :key="role" class="flex items-center gap-2 text-sm">
+                      <input type="checkbox" :value="role" v-model="form.roles" />
+                      {{ roleText(role) }}
+                    </label>
+                  </div>
+                  <span v-if="errors.roles" class="text-xs text-red-500 mt-1">{{ errors.roles[0] }}</span>
                 </div>
+
+                <!-- Người nhận cụ thể -->
+                <div class="border border-gray-200 rounded p-3 bg-gray-50 max-h-64 overflow-y-auto">
+                  <h3 class="text-sm font-semibold mb-2 text-gray-700">Gửi đến người cụ thể</h3>
+
+                  <!-- Ô tìm kiếm -->
+                  <input v-model="searchUser" type="text" placeholder="Tìm theo tên hoặc email..."
+                    class="w-full mb-2 rounded border border-gray-300 px-2 py-1 text-sm placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+
+                  <div v-if="filteredUsersWithSearch.length === 0" class="text-xs text-gray-500">
+                    {{ form.roles.length === 0 ? 'Vui lòng chọn vai trò trước.' : 'Không tìm thấy người dùng.' }}
+                  </div>
+
+                  <div v-else class="flex flex-col gap-1 max-h-48 overflow-y-auto pr-1">
+                    <label v-for="user in filteredUsersWithSearch" :key="user.id"
+                      class="flex items-center gap-2 text-sm text-gray-700">
+                      <input type="checkbox" :value="user.id" v-model="form.user_ids"
+                        class="rounded border-gray-300 text-blue-600 shadow-sm focus:ring focus:ring-blue-300" />
+                      <span>{{ user.name }} <span class="text-gray-400 text-xs">({{ user.email }})</span></span>
+                    </label>
+                  </div>
+
+                  <span v-if="errors.user_ids" class="text-red-500 text-xs mt-1 block">{{ errors.user_ids }}</span>
+                </div>
+
+                <div>
+                  <label class="block text-sm font-medium text-gray-700">Kênh gửi</label>
+                  <div class="flex flex-col gap-1 mt-1">
+                    <label v-for="ch in ['web', 'email']" :key="ch" class="flex items-center gap-2 text-sm">
+                      <input type="checkbox" :value="ch" v-model="form.channels" />
+                      {{ channelText(ch) }}
+                    </label>
+                  </div>
+                </div>
+
 
                 <div>
                   <label class="block text-sm font-medium text-gray-700">Loại thông báo</label>
@@ -142,11 +177,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute, useRouter, useRuntimeConfig } from '#app'
 import axios from 'axios'
+import Editor from '@tinymce/tinymce-vue'
 import { useNotification } from '~/composables/useNotification'
-import Editor from '@tinymce/tinymce-vue' // ✅ Bổ sung phần bị thiếu
 
 definePageMeta({ layout: 'default-admin' })
 
@@ -157,49 +192,28 @@ const apiBase = config.public.apiBaseUrl
 const { showNotification } = useNotification()
 
 const id = route.params.id
+const loading = ref(false)
+const errors = ref({})
+const fileInput = ref(null)
+const removeOldImage = ref(false)
+const imageFile = ref(null)
+const previewImage = ref(null)
+
+const searchUser = ref('')
+const allUsers = ref([])
+
 const form = ref({
   title: '',
   content: '',
-  to_role: '',
+  roles: [],
+  user_ids: [], // Array of user IDs (number)
   type: '',
-  link: ''
-})
-const imageFile = ref(null)
-const previewImage = ref(null)
-const errors = ref({})
-const loading = ref(false)
-const fileInput = ref(null)
-
-onMounted(async () => {
-  try {
-    const token = localStorage.getItem('access_token')
-    const res = await axios.get(`${apiBase}/notifications/${id}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-
-    const data = res.data
-    form.value = {
-      title: data.title,
-      content: data.content,
-      to_role: data.to_role,
-      type: data.type,
-      link: data.link || ''
-    }
-
-    if (data.image_url) {
-      previewImage.value = data.image_url
-    }
-  } catch (error) {
-    console.error('Không thể load dữ liệu:', error)
-    showNotification('Không thể tải thông báo.', 'error')
-  }
+  link: '',
+  channels: [],
+  status: 'draft'
 })
 
-const triggerFileInput = () => {
-  if (fileInput.value) {
-    fileInput.value.click()
-  }
-}
+const triggerFileInput = () => fileInput.value?.click()
 
 const handleImageUpload = (e) => {
   const file = e.target.files[0]
@@ -212,6 +226,7 @@ const handleImageUpload = (e) => {
 const removeImage = () => {
   imageFile.value = null
   previewImage.value = null
+  removeOldImage.value = true
 }
 
 const handleDrop = (e) => {
@@ -221,6 +236,73 @@ const handleDrop = (e) => {
   }
 }
 
+const fetchUsers = async () => {
+  try {
+    const token = localStorage.getItem('access_token')
+    const res = await axios.get(`${apiBase}/user-list`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    allUsers.value = res.data.filter(u => u.role !== 'admin')
+  } catch (err) {
+    console.error('Lỗi khi lấy danh sách người dùng:', err)
+  }
+}
+
+const initNotificationData = async () => {
+  try {
+    const token = localStorage.getItem('access_token')
+    const res = await axios.get(`${apiBase}/notifications/${id}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+
+    const data = res.data
+
+    form.value = {
+      ...form.value,
+      title: data.title || '',
+      content: data.content || '',
+      type: data.type || '',
+      link: data.link || '',
+      roles: Array.isArray(data.to_roles) ? data.to_roles : [],
+      channels: Array.isArray(data.channels) ? data.channels : [],
+      status: data.status || 'draft',
+      user_ids: [] // tạm thời rỗng, xử lý tiếp bên dưới
+    }
+
+    previewImage.value = data.image_url || null
+
+    await fetchUsers()
+
+    const ids = data.users?.map(u => u.id) || []
+    form.value.user_ids = ids
+  } catch (err) {
+    console.error('Lỗi khi tải thông báo:', err)
+  }
+}
+
+onMounted(initNotificationData)
+
+const filteredUsers = computed(() => {
+  if (form.value.roles.length === 0) return []
+  return allUsers.value.filter(u => form.value.roles.includes(u.role))
+})
+
+const filteredUsersWithSearch = computed(() => {
+  if (form.value.roles.length === 0) return []
+  const keyword = searchUser.value.toLowerCase()
+  return filteredUsers.value.filter(user =>
+    user.name.toLowerCase().includes(keyword) ||
+    user.email.toLowerCase().includes(keyword)
+  )
+})
+
+watch(() => form.value.roles, (newRoles) => {
+  form.value.user_ids = form.value.user_ids.filter(id => {
+    const user = allUsers.value.find(u => u.id === id)
+    return user && newRoles.includes(user.role)
+  })
+})
+
 const updateNotification = async () => {
   loading.value = true
   errors.value = {}
@@ -228,20 +310,25 @@ const updateNotification = async () => {
   try {
     const formData = new FormData()
     formData.append('title', form.value.title)
-    formData.append('content', String(form.value.content || '')) // ✅ Ép kiểu rõ ràng
-    formData.append('to_role', form.value.to_role)
+    formData.append('content', form.value.content)
     formData.append('type', form.value.type)
+    formData.append('status', form.value.status)
     formData.append('link', form.value.link || '')
+    formData.append('remove_image', removeOldImage.value ? '1' : '0')
+
+    form.value.roles.forEach(role => formData.append('roles[]', role))
+    form.value.channels.forEach(ch => formData.append('channels[]', ch))
+    form.value.user_ids.forEach(uid => formData.append('user_ids[]', uid))
+
     if (imageFile.value) {
       formData.append('image', imageFile.value)
     }
 
     const token = localStorage.getItem('access_token')
-
     await axios.post(`${apiBase}/notifications/${id}?_method=PUT`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
-        'Authorization': `Bearer ${token}`
+        Authorization: `Bearer ${token}`
       }
     })
 
@@ -251,7 +338,7 @@ const updateNotification = async () => {
     if (err.response?.status === 422) {
       errors.value = err.response.data.errors
     } else {
-      console.error('Lỗi cập nhật:', err)
+      console.error('Lỗi khi cập nhật:', err)
       showNotification('Lỗi khi cập nhật thông báo.', 'error')
     }
   } finally {
@@ -259,4 +346,16 @@ const updateNotification = async () => {
   }
 }
 
+// Helper functions
+const roleText = (role) => ({
+  admin: 'Quản trị viên',
+  seller: 'Người bán',
+  user: 'Người dùng'
+})[role] || role
+
+const channelText = (channel) => ({
+  web: 'Web',
+  email: 'Email'
+})[channel] || channel
 </script>
+
