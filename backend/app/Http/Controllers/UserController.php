@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\Validator;
 use Intervention\Image\Facades\Image;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Database\QueryException;
+
 
 class UserController extends Controller
 {
@@ -26,12 +28,47 @@ class UserController extends Controller
         return response()->json(['data' => $users]);
     }
 
-    public function batchDelete(Request $request)
-    {
-        $ids = $request->input('ids', []);
-        User::whereIn('id', $ids)->delete();
-        return response()->json(['success' => true]);
+   public function batchDelete(Request $request)
+{
+    $ids = $request->input('ids', []);
+
+    if (empty($ids) || !is_array($ids)) {
+        return response()->json(['error' => 'Danh sách người dùng không hợp lệ.'], 400);
     }
+
+    // Tìm các user là admin để chặn xoá
+    $adminUsers = User::whereIn('id', $ids)->where('role', 'admin')->pluck('id')->toArray();
+    if (!empty($adminUsers)) {
+        return response()->json([
+            'error' => 'Không thể xóa admin.',
+            'admin_ids' => $adminUsers
+        ], 403);
+    }
+
+    try {
+        User::whereIn('id', $ids)->delete();
+
+        Log::info('Batch deleted users successfully.', ['ids' => $ids]);
+
+        return response()->json(['success' => true]);
+    } catch (QueryException $e) {
+        Log::error('Batch delete failed due to DB constraint.', [
+            'error' => $e->getMessage(),
+            'code' => $e->getCode(),
+            'ids' => $ids,
+        ]);
+
+        if ($e->getCode() === '23000') {
+            return response()->json([
+                'error' => 'Không thể xoá vì có ràng buộc dữ liệu liên quan (ví dụ: đơn hàng hoặc địa chỉ).'
+            ], 409);
+        }
+
+        return response()->json([
+            'error' => 'Đã xảy ra lỗi khi xoá người dùng.'
+        ], 500);
+    }
+}
 
     public function batchAddRole(Request $request)
     {
@@ -168,44 +205,43 @@ class UserController extends Controller
         return new UserResource($user);
     }
 
-public function update(Request $request, User $user)
-{
-    try {
-        $validator = Validator::make($request->all(), [
-            'name'     => 'sometimes|required|string|max:255',
-            'password' => [
-                'sometimes',
-                'required',
-                'string',
-                'min:6',
-                'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).+$/'
-            ],
-            'avatar'  => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
-            'role'    => 'sometimes|required|in:user,seller,admin',
-            'status'  => 'sometimes|required|in:active,inactive,banned',
-        ], [
-            'password.regex' => 'Mật khẩu phải chứa ít nhất 1 chữ hoa, 1 chữ thường, 1 số và 1 ký tự đặc biệt.',
-            'name.required' => 'Tên không được để trống.',
-            'name.max' => 'Tên không được vượt quá 255 ký tự.',
-            'avatar.image' => 'Ảnh đại diện phải là file ảnh.',
-            'avatar.mimes' => 'Ảnh đại diện phải có định dạng jpeg, png, jpg, gif, svg hoặc webp.',
-            'avatar.max' => 'Ảnh đại diện không được vượt quá 2MB.',
-            'role.required' => 'Vai trò không được để trống.',
-            'role.in' => 'Vai trò không hợp lệ.',
-            'status.required' => 'Trạng thái không được để trống.',
-            'status.in' => 'Trạng thái không hợp lệ.',
-        ]);
+    public function update(Request $request, User $user)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'name' => 'sometimes|required|string|max:255',
+                'password' => [
+                    'sometimes',
+                    'required',
+                    'string',
+                    'min:6',
+                    'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).+$/'
+                ],
+                'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
+                'role' => 'sometimes|required|in:user,seller,admin',
+                'status' => 'sometimes|required|in:active,inactive,banned',
+            ], [
+                'password.regex' => 'Mật khẩu phải chứa ít nhất 1 chữ hoa, 1 chữ thường, 1 số và 1 ký tự đặc biệt.',
+                'name.required' => 'Tên không được để trống.',
+                'name.max' => 'Tên không được vượt quá 255 ký tự.',
+                'avatar.image' => 'Ảnh đại diện phải là file ảnh.',
+                'avatar.mimes' => 'Ảnh đại diện phải có định dạng jpeg, png, jpg, gif, svg hoặc webp.',
+                'avatar.max' => 'Ảnh đại diện không được vượt quá 2MB.',
+                'role.required' => 'Vai trò không được để trống.',
+                'role.in' => 'Vai trò không hợp lệ.',
+                'status.required' => 'Trạng thái không được để trống.',
+                'status.in' => 'Trạng thái không hợp lệ.',
+            ]);
 
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
+            if ($validator->fails()) {
+                return response()->json(['errors' => $validator->errors()], 422);
+            }
 
-        $data = $validator->validated();
-
-        // Đổi mật khẩu (nếu có)
-       if (isset($data['password'])) {
-            $data['password'] = Hash::make($data['password']);
-        }
+            $data = $validator->validated();
+            // Đổi mật khẩu (nếu có)
+            if (isset($data['password'])) {
+                $data['password'] = Hash::make($data['password']);
+            }
 
 
             $data = $validator->validated();
@@ -267,7 +303,7 @@ public function update(Request $request, User $user)
             $user->avatar_url = $user->avatar ? Storage::disk('r2')->url($user->avatar) : null;
 
             logger()->info('User updated successfully', [
-                'user_id'    => $user->id,
+                'user_id' => $user->id,
                 'avatar_path' => $user->avatar,
             ]);
 
@@ -290,7 +326,7 @@ public function update(Request $request, User $user)
     {
         try {
             $validator = Validator::make($request->all(), [
-                'name'     => 'sometimes|nullable|string|max:255',
+                'name' => 'sometimes|nullable|string|max:255',
                 'email' => 'sometimes|nullable|email|max:255|:users,email,' . $user->id,
                 'password' => [
                     'sometimes',
@@ -300,11 +336,12 @@ public function update(Request $request, User $user)
                     'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).+$/'
                 ],
                 'old_password' => 'required_with:password|string',
-                'avatar'  => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
-                'role'    => 'sometimes|nullable|in:user,seller,admin',
-                'status'  => 'sometimes|nullable|in:active,inactive,banned',
+                'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
+                'role' => 'sometimes|nullable|in:user,seller,admin',
+                'status' => 'sometimes|nullable|in:active,inactive,banned',
             ], [
                 'password.regex' => 'Mật khẩu phải chứa ít nhất 1 chữ hoa, 1 chữ thường, 1 số và 1 ký tự đặc biệt.',
+                'password.min' => 'Mật hàng phải có ít nhất 6 ký tự.',
                 'name.max' => 'Tên không được vượt quá 255 ký tự.',
                 'email.email' => 'Email không hợp lệ.',
                 'email.unique' => 'Email đã tồn tại.',
@@ -376,6 +413,12 @@ public function update(Request $request, User $user)
     public function destroy(User $user)
     {
         try {
+            if ($user->role === 'admin') {
+                return response()->json([
+                    'error' => 'Không thể xoá người dùng có vai trò là admin.'
+                ], 403);
+            }
+
             if ($user->avatar) {
                 Storage::disk('r2')->delete($user->avatar);
             }
@@ -396,5 +439,4 @@ public function update(Request $request, User $user)
             ], 500);
         }
     }
-
 }

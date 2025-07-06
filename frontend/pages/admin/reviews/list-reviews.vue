@@ -8,6 +8,37 @@
 
             <!-- Bộ lọc nâng cao -->
             <div class="bg-gray-200 px-4 py-3 flex flex-wrap items-center gap-3 text-sm text-gray-700">
+                <!-- Bộ lọc số sao -->
+                <div class="flex items-center gap-2 flex-wrap">
+                    <button v-for="n in [null, 5, 4, 3, 2, 1]" :key="'star-' + n"
+                        @click="filterRating = n; applyFilters()" :class="[
+                            'px-3 py-1 rounded border',
+                            filterRating === n ? 'bg-blue-500 text-white border-blue-500' : 'bg-white text-gray-700 border-gray-300'
+                        ]">
+                        {{ n ? `${n} sao` : 'Tất cả' }} ({{ countByRating[n ?? 'all'] || 0 }})
+                    </button>
+                </div>
+
+                <!-- Có hình ảnh / video -->
+                <button @click="filterHasMedia = !filterHasMedia; applyFilters()" :class="[
+                    'px-3 py-1 rounded border',
+                    filterHasMedia ? 'bg-blue-500 text-white border-blue-500' : 'bg-white text-gray-700 border-gray-300'
+                ]">
+                    Có ảnh / video ({{ countWithMedia }})
+                </button>
+
+                <!-- Trạng thái -->
+                <div class="flex items-center gap-2 flex-wrap">
+                    <button v-for="status in ['approved', 'pending', 'rejected']" :key="'status-' + status"
+                        @click="filterStatus = status; applyFilters()" :class="[
+                            'px-3 py-1 rounded border',
+                            filterStatus === status ? 'bg-blue-500 text-white border-blue-500' : 'bg-white text-gray-700 border-gray-300'
+                        ]">
+                        {{ statusText(status) }} ({{ countByStatus[status] || 0 }})
+                    </button>
+                </div>
+
+                <!-- Sắp xếp -->
                 <div class="flex items-center space-x-2">
                     <label class="text-sm font-medium text-gray-600">Sắp xếp:</label>
                     <select v-model="sortOrder" @change="applyFilters"
@@ -16,15 +47,8 @@
                         <option value="asc">Cũ nhất</option>
                     </select>
                 </div>
-                <div class="flex items-center space-x-2">
-                    <label class="text-sm font-medium text-gray-600">Số sao:</label>
-                    <select v-model="filterRating" @change="applyFilters"
-                        class="rounded-md border border-gray-300 py-1.5 pl-3 pr-8 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
-                        <option value="">Tất cả</option>
-                        <option v-for="n in 5" :key="n" :value="n">{{ n }} sao</option>
-                    </select>
-                </div>
             </div>
+
 
             <!-- Bảng đánh giá -->
             <table class="min-w-full border-collapse border border-gray-300 text-sm">
@@ -118,9 +142,9 @@
                 </Transition>
             </Teleport>
         </div>
-        
+
     </div>
-    
+
 </template>
 
 <script setup>
@@ -130,37 +154,67 @@ import axios from 'axios'
 import { useRuntimeConfig } from '#app'
 import { useNotification } from '~/composables/useNotification'
 definePageMeta({ layout: 'default-admin' })
+import { secureAxios } from '@/utils/secureAxios'
 
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBaseUrl
 const reviews = ref([])
 const loading = ref(true)
-const { showMessage } = useNotification()
+const { showNotification } = useNotification()
 const activeDropdown = ref(null)
 const dropdownPosition = ref({ top: '0px', left: '0px' })
 const allReviews = ref([])
 
 
-const sortOrder = ref('desc')       // mặc định: mới nhất
-const filterRating = ref('')        // mặc định: tất cả
+const sortOrder = ref('desc')       
+const filterRating = ref(null)
+const filterStatus = ref('all')
+const filterHasMedia = ref(false)
+
+const countByRating = ref({})
+const countByStatus = ref({})
+const countWithMedia = ref(0)
+
+function countFilters() {
+  const ratingCount = { all: allReviews.value.length }
+  const statusCount = { all: allReviews.value.length }
+  let withMedia = 0
+
+  allReviews.value.forEach(r => {
+    // Count rating
+    if (ratingCount[r.rating]) ratingCount[r.rating]++
+    else ratingCount[r.rating] = 1
+
+    // Count status
+    if (statusCount[r.status]) statusCount[r.status]++
+    else statusCount[r.status] = 1
+
+    // Count media
+    if (r.images && r.images.length > 0) withMedia++
+  })
+
+  countByRating.value = ratingCount
+  countByStatus.value = statusCount
+  countWithMedia.value = withMedia
+}
 
 
 function toggleDropdown(event, id) {
-  if (activeDropdown.value === id) {
-    activeDropdown.value = null
-    return
-  }
+    if (activeDropdown.value === id) {
+        activeDropdown.value = null
+        return
+    }
 
-  const rect = event.currentTarget.getBoundingClientRect()
-  dropdownPosition.value = {
-    top: `${rect.bottom + window.scrollY}px`,
-    left: `${rect.left + window.scrollX - 160}px`
-  }
-  activeDropdown.value = id
+    const rect = event.currentTarget.getBoundingClientRect()
+    dropdownPosition.value = {
+        top: `${rect.bottom + window.scrollY}px`,
+        left: `${rect.left + window.scrollX - 160}px`
+    }
+    activeDropdown.value = id
 }
 
 function closeDropdown() {
-  activeDropdown.value = null
+    activeDropdown.value = null
 }
 
 function viewReview(id) {
@@ -172,9 +226,7 @@ function editReview(id) {
 }
 
 async function confirmDelete(id) {
-    if (confirm('Bạn có chắc chắn muốn xóa đánh giá này?')) {
-        await deleteReview(id)
-    }
+    await deleteReview(id)
 }
 
 
@@ -187,49 +239,51 @@ async function deleteReview(id) {
 
         reviews.value = reviews.value.filter(r => r.id !== id)
 
-        showMessage('Đã xóa đánh giá thành công', 'success')
+        showNotification('Đã xóa đánh giá thành công', 'success')
     } catch (e) {
         console.error('Lỗi khi xóa đánh giá:', e)
-        showMessage('Lỗi khi xóa đánh giá', 'error')
+        showNotification('Lỗi khi xóa đánh giá', 'error')
     }
 }
 
 
 
-
 onMounted(async () => {
-    try {
-        const token = localStorage.getItem('access_token')
-        const res = await axios.get(`${apiBase}/admin/reviews`, {
-            headers: { Authorization: `Bearer ${token}` }
-        })
-        allReviews.value = res.data.data
-        applyFilters() // Áp dụng lọc ban đầu
-    } catch (e) {
-        console.error('Lỗi khi tải danh sách đánh giá:', e)
-    } finally {
-        loading.value = false
-    }
+  try {
+    const res = await secureAxios(`${apiBase}/admin/reviews`, {}, ['admin'])
+    allReviews.value = res.data.data
+    countFilters()
+    applyFilters()
+  } catch (e) {
+    console.error('Lỗi khi tải đánh giá:', e)
+  } finally {
+    loading.value = false
+  }
 })
 
+
 function applyFilters() {
-    let filtered = [...allReviews.value]
+  let filtered = [...allReviews.value]
 
-    // Lọc theo số sao nếu có
-    if (filterRating.value) {
-        filtered = filtered.filter(r => r.rating === Number(filterRating.value))
-    }
+  if (filterRating.value) {
+    filtered = filtered.filter(r => r.rating === filterRating.value)
+  }
 
-    // Sắp xếp theo ngày
-    filtered.sort((a, b) => {
-        const dateA = new Date(a.created_at)
-        const dateB = new Date(b.created_at)
-        return sortOrder.value === 'asc'
-            ? dateA - dateB
-            : dateB - dateA
-    })
+  if (filterStatus.value !== 'all') {
+    filtered = filtered.filter(r => r.status === filterStatus.value)
+  }
 
-    reviews.value = filtered
+  if (filterHasMedia.value) {
+    filtered = filtered.filter(r => r.images && r.images.length > 0)
+  }
+
+  filtered.sort((a, b) => {
+    const dateA = new Date(a.created_at)
+    const dateB = new Date(b.created_at)
+    return sortOrder.value === 'asc' ? dateA - dateB : dateB - dateA
+  })
+
+  reviews.value = filtered
 }
 
 

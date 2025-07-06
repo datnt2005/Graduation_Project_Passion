@@ -160,6 +160,7 @@
 <script setup>
 import { ref, reactive } from 'vue'
 import { useRouter, useRuntimeConfig } from '#app'
+import { secureFetch } from '@/utils/secureFetch' 
 
 definePageMeta({ layout: 'default-admin' })
 
@@ -236,10 +237,11 @@ const createUser = async () => {
 
   try {
     loading.value = true
-    const response = await fetch(`${apiBase}/users`, {
+    const response = await secureFetch(`${apiBase}/users`, {
       method: 'POST',
       body: form
-    })
+    },
+    ['admin'])
 
     const data = await response.json()
 

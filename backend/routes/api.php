@@ -1,28 +1,10 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\CategoryController;
-use App\Http\Controllers\ProductController;
-use App\Http\Controllers\AttributeController;
-use App\Http\Controllers\AuthController;
-use App\Http\Controllers\UserController;
-use App\Http\Controllers\TagController;
-use App\Http\Controllers\ReviewController;
-use App\Http\Controllers\AddressController;
-use App\Http\Controllers\GHNController;
-use App\Http\Controllers\OrderController;
-use App\Http\Controllers\OrderItemController;
-use App\Http\Controllers\PaymentController;
-use App\Http\Controllers\PaymentMethodController;
-use App\Http\Controllers\DiscountController;
-use App\Http\Controllers\GoogleAuthController;
-use App\Http\Controllers\ChatbotController;
-use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\NotificationController;
 
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Http\Middleware\HandleCors;
-use Illuminate\Support\Facades\Redis;
+foreach (glob(__DIR__.'/api/*.php') as $routeFile) {
+    require $routeFile;
+}
 
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
@@ -340,9 +322,7 @@ Route::prefix('dashboard')->group(function () {
     Route::get('/revenue-profit-chart', [DashboardController::class, 'revenueProfitChart']);
 });
 
+
 Route::get('inventory/list', [App\Http\Controllers\InventoryController::class, 'list']);
 Route::get('inventory/low-stock', [App\Http\Controllers\InventoryController::class, 'lowStock']);
 Route::get('inventory/best-sellers', [App\Http\Controllers\InventoryController::class, 'bestSellers']);
-
-Route::middleware('auth:sanctum')->post('/discounts/save-by-code', [DiscountController::class, 'saveVoucherByCode']);
-Route::middleware('auth:sanctum')->delete('/discounts/my-voucher/{id}', [DiscountController::class, 'deleteUserVoucher']);

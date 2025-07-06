@@ -24,11 +24,13 @@
           <!-- Thông tin cơ bản -->
           <div class="bg-white rounded-xl p-6 shadow space-y-6">
             <div class="flex items-center gap-4">
-            <img
-              :src="`https://pub-3fc809b4396849cba1c342a5b9f50be9.r2.dev/${seller.user?.avatar || 'default.jpg'}`"
-              class="w-20 h-20 rounded-full border object-cover"
-              alt="avatar"
-            />
+              <img
+                :src="seller.user?.avatar?.startsWith('https://') 
+                  ? seller.user.avatar 
+                  : `https://pub-3fc809b4396849cba1c342a5b9f50be9.r2.dev/${seller.user?.avatar || 'default.jpg'}`"
+                class="w-20 h-20 rounded-full border object-cover"
+                alt="avatar"
+              />
               <div>
                 <h3 class="text-lg font-semibold text-gray-800">{{ seller.store_name }}</h3>
                 <p class="text-sm text-gray-500">@{{ seller.store_slug }}</p>
@@ -59,43 +61,51 @@
               </div>
               
               <div class="flex gap-2 col-span-2">
-                <span class="text-gray-500 w-28">Địa chỉ:</span>
+                <span class="text-gray-500 w-28">Địa chỉ lấy hàng:</span>
                 <span class="font-semibold text-gray-800">{{ seller.personal_address || '—' }}</span>
               </div>
               <div class="flex gap-2 col-span-2">
                 <span class="text-gray-500 w-28">Website:</span>
                 <span class="font-semibold text-blue-600 underline">
-                  {{ seller.website || '---' }}
+                  <a class="font-semibold text-blue-600" href="#" >Passion</a>
                 </span>
               </div>
+                   
+              <div class="flex gap-2 col-span-2">
+                <span class="text-gray-500 w-28">Giới Thiệu:</span>
+                <span class="font-semibold text-gray-800">{{ seller.bio || '—' }}</span>
+              </div>
             </div>
-
           </div>
 
           <!-- Thông tin doanh nghiệp -->
           <div class="bg-white rounded-xl p-6 shadow space-y-4">
-            <template v-if="seller.seller_type === 'business' && seller.business">
+            <template v-if="seller.seller_type === 'business'">
               <h3 class="text-base font-semibold text-gray-800">🏢 Thông tin doanh nghiệp</h3>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-gray-700">
                 <div>
                   <p class="text-gray-500">Tên công ty</p>
-                  <p class="font-medium">{{ seller.business.company_name }}</p>
+                  <p class="font-medium">{{ seller.business_name || '—' }}</p>
                 </div>
                 <div>
                   <p class="text-gray-500">Mã số thuế</p>
-                  <p class="font-medium">{{ seller.business.tax_code }}</p>
+                  <p class="font-medium">{{ seller.tax_code || '—' }}</p>
                 </div>
-                <div class="sm:col-span-2">
+                <div>
+                  <p class="text-gray-500">Email doanh nghiệp</p>
+                  <p class="font-medium">{{ seller.business_email || '—' }}</p>
+                </div>
+                <div>
                   <p class="text-gray-500">Địa chỉ công ty</p>
-                  <p class="font-medium">{{ seller.business.company_address }}</p>
+                  <p class="font-medium">{{ seller.business?.company_address || seller.pickup_address || '—' }}</p>
                 </div>
                 <div>
                   <p class="text-gray-500">Người đại diện</p>
-                  <p class="font-medium">{{ seller.business.representative_name }}</p>
+                  <p class="font-medium">{{ seller.business?.representative_name || seller.user?.name || '—' }}</p>
                 </div>
                 <div>
                   <p class="text-gray-500">SĐT người đại diện</p>
-                  <p class="font-medium">{{ seller.business.representative_phone }}</p>
+                  <p class="font-medium">{{ seller.business?.representative_phone || seller.phone_number || '—' }}</p>
                 </div>
               </div>
             </template>
@@ -143,6 +153,7 @@
               <span v-else class="text-sm italic">Chưa có ảnh</span>
             </div>
           </div>
+
         </div>
       </div>
 
@@ -163,10 +174,11 @@ import { ref, onMounted } from 'vue';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import { navigateTo } from '#app';
+import { secureAxios } from '@/utils/secureAxios'
 
 const config = useRuntimeConfig();
 const API = config.public.apiBaseUrl;
-const mediaBase = (config.public.mediaBaseUrl || 'http://localhost:8000').replace(/\/?$/, '/');
+const mediaBaseUrl = (config.public.mediaBaseUrl || 'http://localhost:8000').replace(/\/?$/, '/');
 
 const seller = ref(null);
 const sellerProfile = ref(null);
@@ -188,9 +200,8 @@ onMounted(async () => {
       return;
     }
 
-    const { data } = await axios.get(`${API}/sellers/seller/me`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+  const { data } = await secureAxios(`${API}/sellers/seller/me`, {}, ['seller'])
+
 
     seller.value = data.seller;
   } catch (error) {
@@ -208,19 +219,19 @@ const closeImagePreview = () => {
 
 // Lấy ảnh CCCD
 const getCccdImage = (seller, side) => {
-  if (side === 'front' && seller?.cccd_front) return mediaBase + seller.cccd_front;
-  if (side === 'back' && seller?.cccd_back) return mediaBase + seller.cccd_back;
-  return null;
-};
+  const path =
+    side === 'front' ? seller.id_card_front_url : seller.id_card_back_url
+  if (!path) return null
+  return path.startsWith('http') ? path : `${mediaBaseUrl}${path}`
+}
 
 // Ảnh giấy tờ
-const getDocumentImage = (seller, type) => {
-  if (type === 'business' && seller?.business?.business_license)
-    return mediaBase + seller.business.business_license;
-  if (type === 'personal' && seller?.document)
-    return mediaBase + seller.document;
-  return null;
-};
+const getDocumentImage = (seller) => {
+  const path = seller?.identity_card_file
+  if (!path) return null
+  return path.startsWith('http') ? path : `${mediaBaseUrl}${path}`
+}
+
 
 
 const statusColor = (status) => {

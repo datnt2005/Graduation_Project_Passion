@@ -1,6 +1,6 @@
 <template>
   <div class="min-h-screen bg-[#f5f7fa] text-[#1a1a1a] font-sans">
-    <div class="max-w-[1280px] mx-auto p-4 md:p-6 flex flex-col md:flex-row gap-6">
+    <div class="max-w-[1535px] mx-auto p-4 md:p-6 flex flex-col md:flex-row gap-6">
       
       <!-- Sidebar trái -->
       <SidebarProfile class="w-full md:w-[260px] bg-white rounded-xl shadow-sm border border-[#e0e6ed] p-4" />
@@ -210,16 +210,17 @@ const fetchUser = async () => {
     const UrlAvatar = config.public.mediaBaseUrl
     if (data && data.data) {
       userId.value = data.data.id
-      Object.assign(formData, {
-        name: data.data.name || '',
-        email: data.data.email || '',
-        phone: data.data.phone || '',
-        avatar_url: data.data.avatar
-          ? `${UrlAvatar}${data.data.avatar}`
-          : DEFAULT_AVATAR,
-        role: data.data.role || '',
-        avatar: null
-      })
+ Object.assign(formData, {
+  name: data.data.name || '',
+  email: data.data.email || '',
+  phone: data.data.phone || '',
+  avatar_url: data.data.avatar?.startsWith('http')
+    ? data.data.avatar
+    : `${UrlAvatar}${data.data.avatar}`,
+  role: data.data.role || '',
+  avatar: null
+})
+
       imagePreview.value = formData.avatar_url
     }
   } catch (e) {

@@ -1,7 +1,6 @@
 <template>
   <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-gray-100">
     <div class="relative bg-white rounded-2xl shadow-2xl p-8 max-w-lg w-full text-center transform transition-all duration-300 hover:scale-105">
-      
       <!-- Background decorative element -->
       <div class="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-green-500/10 rounded-2xl -z-10"></div>
 
@@ -28,7 +27,6 @@
           <p class="text-gray-600 mb-6 text-lg">
             Cảm ơn bạn đã mua hàng. Bạn sẽ được chuyển về trang chủ sau {{ countdown }} giây.
           </p>
-
           <div class="bg-gray-50 rounded-lg p-6 w-full text-left border border-gray-200 shadow-sm">
             <div class="grid grid-cols-2 gap-4">
               <p><span class="font-semibold text-gray-800">Mã vận đơn:</span> {{ tracking_code || 'Đang cập nhật' }}</p>
@@ -37,7 +35,6 @@
               <p><span class="font-semibold text-gray-800">Mã giao dịch:</span> {{ transactionId }}</p>
             </div>
           </div>
-
           <NuxtLink to="/" class="mt-6 inline-block bg-gradient-to-r from-blue-600 to-blue-700 text-white px-8 py-3 rounded-full font-semibold text-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-300 shadow-md hover:shadow-lg">
             Về Trang Chủ
           </NuxtLink>
@@ -67,7 +64,6 @@
               <p><span class="font-semibold text-gray-800">Mã giao dịch:</span> {{ transactionId }}</p>
             </div>
           </div>
-
           <NuxtLink to="/checkout" class="mt-6 inline-block bg-gradient-to-r from-gray-500 to-gray-600 text-white px-8 py-3 rounded-full font-semibold text-lg hover:from-gray-600 hover:to-gray-700 transition-all duration-300 shadow-md hover:shadow-lg">
             Thử Lại
           </NuxtLink>
@@ -185,8 +181,15 @@ onUnmounted(() => {
 <style scoped>
 /* Custom animation keyframes */
 @keyframes fade-in {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .animate-fade-in {

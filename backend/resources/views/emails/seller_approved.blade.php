@@ -66,11 +66,14 @@
         <h1>Cửa hàng của bạn đã được duyệt</h1>
     </div>
 
-    <div class="content">
-        <h2>Xin chào {{ $seller->user->name }},</h2>
-        <p>🎉 Chúc mừng! Cửa hàng <strong>{{ $seller->store_name }}</strong> của bạn đã được duyệt thành công.</p>
-        <p>Bạn có thể bắt đầu bán hàng ngay bây giờ. Chúc bạn kinh doanh thuận lợi và phát đạt!</p>
-    </div>
+        <div class="content">
+            <h2>Xin chào {{ $seller->user->name }},</h2>
+            <p>🎉 Chúc mừng bạn! Chúng tôi rất vui mừng thông báo rằng cửa hàng <strong>{{ $seller->store_name }}</strong> của bạn đã được duyệt thành công sau quá trình xem xét kỹ lưỡng.</p>
+            <p>Giờ đây, bạn đã chính thức trở thành một thành viên trong hệ thống nhà bán hàng của chúng tôi. Từ bây giờ, bạn có thể bắt đầu đăng bán sản phẩm, quản lý đơn hàng, tiếp cận khách hàng tiềm năng và phát triển hoạt động kinh doanh một cách thuận lợi.</p>
+            <p>Chúng tôi luôn sẵn sàng đồng hành và hỗ trợ bạn trên hành trình kinh doanh. Đừng ngần ngại liên hệ với chúng tôi nếu cần bất kỳ sự trợ giúp nào.</p>
+            <p>Một lần nữa, xin chúc mừng và chúc bạn thật nhiều thành công cùng <strong>{{ $seller->store_name }}</strong>!</p>
+        </div>
+
 
     <div class="footer">
         <p>Trân trọng,<br>Đội ngũ <strong>Passion</strong></p>
