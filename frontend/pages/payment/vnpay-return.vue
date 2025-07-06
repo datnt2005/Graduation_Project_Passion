@@ -12,17 +12,15 @@
 
       <div v-else>
         <div v-if="success" class="flex flex-col items-center py-6">
-          <div class="relative inline-block">
-            <!-- Nền mờ phía sau -->
-            <div class="absolute inset-0 bg-green-100 rounded-full blur-md opacity-50 z-0"></div>
+        <div class="relative mb-6">
+          <!-- Nền mờ -->
+          <div class="absolute inset-0 bg-green-100 rounded-full blur-md opacity-50 z-0"></div>
 
-            <!-- Icon SVG -->
-            <svg class="h-20 w-20 text-green-500 animate-bounce relative z-10" fill="none" viewBox="0 0 24 24"
-              stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
+          <!-- Icon SVG -->
+          <svg class="relative h-20 w-20 text-green-500 animate-bounce z-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
 
           <h2 class="text-3xl font-extrabold text-green-600 mb-3 animate-fade-in">Thanh Toán Thành Công!</h2>
           <p class="text-gray-600 mb-6 text-lg">Cảm ơn bạn đã mua hàng. Bạn sẽ được chuyển về trang chủ sau {{ countdown
@@ -46,7 +44,6 @@
           <div class="relative mb-6">
             <svg class="h-20 w-20 text-red-500 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              <div class="absolute inset-0 bg-red-100 rounded-full blur-md opacity-50"></div>
             </svg>
           </div>
           <h2 class="text-3xl font-extrabold text-red-600 mb-3 animate-fade-in">Thanh Toán Thất Bại!</h2>
