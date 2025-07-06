@@ -44,6 +44,30 @@ class SearchService
         $this->trendRepository->incrementKeyword($keyword);
     }
 
+    public function trackProductClick($productId)
+    {
+        DB::table('trends')->updateOrInsert(
+            ['entity_type' => 'product', 'entity_id' => $productId],
+            [
+                'click_count' => DB::raw('click_count + 1'),
+                'last_updated' => now(),
+            ]
+        );
+    }
+
+    public function trackProductSearchViews(array $productIds)
+    {
+        foreach ($productIds as $id) {
+            DB::table('trends')->updateOrInsert(
+                ['entity_type' => 'product', 'entity_id' => $id],
+                [
+                    'search_count' => DB::raw('search_count + 1'),
+                    'last_updated' => now(),
+                ]
+            );
+        }
+    }
+
     public function getProducts(Request $request, $slug = null)
     {
         try {
@@ -183,6 +207,12 @@ class SearchService
                 return $query->paginate($perPage);
             });
 
+            // Track search trends
+            if ($isSearchMode && !empty($search)) {
+                $productIds = collect($products->items())->pluck('id')->toArray();
+                $this->trackProductSearchViews($productIds);
+            }
+
             $formatted = collect($products->items())->map(function ($product) {
                 $variant = $product->productVariants->first();
                 $price = $variant?->price ?? 0;
@@ -297,7 +327,6 @@ class SearchService
         }
     }
 
-
     private function getAllCategoryChildrenIds(Category $category)
     {
         $ids = [];
@@ -309,5 +338,72 @@ class SearchService
         return $ids;
     }
 
-    
+    public function getTrendingProducts($limit = 10)
+    {
+        // Lấy top N sản phẩm theo tổng search_count + click_count
+        $topProducts = DB::table('trends')
+            ->where('entity_type', 'product')
+            ->orderByDesc(DB::raw('search_count + click_count'))
+            ->limit($limit)
+            ->pluck('entity_id') // lấy danh sách id sản phẩm
+            ->toArray();
+
+        // Nếu không có sản phẩm thì trả mảng rỗng
+        if (empty($topProducts)) return [];
+
+        // Ép kiểu entity_id về int nếu cần
+        $productIds = array_map('intval', $topProducts);
+
+        // Lấy dữ liệu sản phẩm tương ứng
+        return Product::whereIn('id', $productIds)
+            ->select('id', 'name', 'slug')
+            ->with(['productPic' => function ($query) {
+                $query->select('product_id', 'imagePath')->latest();
+            }])
+            ->get()
+            ->map(function ($product) {
+                return [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'image' => $product->productPic->first()->imagePath ?? '/default-image.jpg',
+                    'slug' => $product->slug,
+                ];
+            })
+            ->values();
+    }
+
+    public function trackCategoryClick($categoryId)
+    {
+        DB::table('trends')->updateOrInsert(
+            ['entity_type' => 'category', 'entity_id' => $categoryId],
+            [
+                'click_count' => DB::raw('click_count + 1'),
+                'last_updated' => now(),
+            ]
+        );
+    }
+    public function getTrendingCategories($limit = 10)
+    {
+        $topCategories = DB::table('trends')
+            ->where('entity_type', 'category')
+            ->orderByDesc(DB::raw('search_count + click_count'))
+            ->limit($limit)
+            ->pluck('entity_id')
+            ->toArray();
+
+        if (empty($topCategories)) return [];
+
+        return Category::whereIn('id', $topCategories)
+            ->select('id', 'name', 'slug', 'image') // giả sử có trường `image`
+            ->get()
+            ->map(function ($category) {
+                return [
+                    'id' => $category->id,
+                    'name' => $category->name,
+                    'slug' => $category->slug,
+                    'image' => $category->image ?? '/default-category.jpg',
+                ];
+            })
+            ->values();
+    }
 }

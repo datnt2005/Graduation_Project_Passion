@@ -33,7 +33,7 @@
           <div v-if="categories.length" class="space-y-2">
             <div v-for="cat in categories" :key="cat.id">
               <div class="flex items-center justify-between">
-                <nuxt-link :to="`/shop/${cat.slug}`"
+                <nuxt-link :to="`/shop/${cat.slug}`"  @click="() => trackCategoryClick(cat.id)"
                   class="font-medium text-gray-800 hover:text-blue-600 text-sm leading-snug"
                   :class="{ 'text-blue-600 font-bold': isSearchMode && searchQuery && cat.name.toLowerCase().includes(searchQuery.toLowerCase()) }">
                   {{ cat.name }}
@@ -44,7 +44,7 @@
               </div>
               <ul v-if="expandedCategories[cat.id]" class="ml-4 mt-1 space-y-0.5">
                 <li v-for="child in cat.children" :key="child.id">
-                  <nuxt-link :to="`/shop/${child.slug}`" class="text-gray-600 hover:text-blue-600 text-sm mx-3"
+                  <nuxt-link :to="`/shop/${child.slug}`" @click="() => trackCategoryClick(child.id)" class="text-gray-600 hover:text-blue-600 text-sm mx-3"
                     :class="{ 'text-blue-600 font-medium': isSearchMode && searchQuery && child.name.toLowerCase().includes(searchQuery.toLowerCase()) }">
                     {{ child.name }}
                   </nuxt-link>
@@ -494,7 +494,24 @@ function handleClickOutside(event) {
     show.value = false;
   }
 }
-
+const trackCategoryClick = async (categoryId) => {
+  try {
+    const token = localStorage.getItem('access_token');
+    await $fetch(`${apiBase}/search/track-category-click`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: {
+        category_id: categoryId,
+      },
+    });
+    console.log(`Đã track click cho danh mục ID: ${categoryId}`);
+  } catch (error) {
+    console.error('Lỗi khi tracking danh mục:', error);
+  }
+};
 onMounted(() => {
   document.addEventListener('click', handleClickOutside);
   if (route.query.search) searchStore.updateSearch(decodeURIComponent(route.query.search));

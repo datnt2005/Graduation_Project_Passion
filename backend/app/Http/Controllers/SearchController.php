@@ -84,4 +84,56 @@ class SearchController extends Controller
             'message' => 'Đồng bộ lịch sử tìm kiếm thành công.',
         ]);
     }
+
+    public function trackClick(Request $request)
+    {
+        $productId = (int) $request->input('product_id');
+        if (!$productId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Thiếu product_id.',
+            ], 400);
+        }
+
+        $this->searchService->trackProductClick($productId);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Ghi nhận click sản phẩm thành công.',
+        ]);
+    }
+    public function getTrendingProducts()
+    {
+        return response()->json([
+            'success' => true,
+            'message' => 'Lấy sản phẩm thịnh hành thành công',
+            'data' => $this->searchService->getTrendingProducts(10), // lấy 10 sản phẩm top
+        ]);
+    }
+
+    public function trackCategoryClick(Request $request)
+    {
+        $categoryId = (int) $request->input('category_id');
+        if (!$categoryId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Thiếu category_id.',
+            ], 400);
+        }
+
+        $this->searchService->trackCategoryClick($categoryId);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Ghi nhận click danh mục thành công.',
+        ]);
+    }
+    public function getTrendingCategories()
+    {
+        return response()->json([
+            'success' => true,
+            'message' => 'Lấy danh mục thịnh hành thành công.',
+            'data' => $this->searchService->getTrendingCategories(10),
+        ]);
+    }
 }

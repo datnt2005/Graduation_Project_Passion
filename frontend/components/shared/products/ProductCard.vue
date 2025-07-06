@@ -63,7 +63,7 @@ const apiBase = config.public.apiBaseUrl;
 async function trackClick() {
   try {
     const token = localStorage.getItem('access_token');
-    await $fetch(`${apiBase}/products/track-product-click`, {
+    await $fetch(`${apiBase}/search/track-click`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
