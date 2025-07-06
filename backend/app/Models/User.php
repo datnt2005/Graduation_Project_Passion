@@ -13,12 +13,23 @@ class User extends Authenticatable
     use HasApiTokens, HasFactory, Notifiable;
 
     protected $fillable = [
-        'name', 'email', 'password', 'phone', 'google_id', 'avatar',
-        'role', 'status', 'otp', 'otp_expired_at', 'is_verified',
+        'name',
+        'email',
+        'password',
+        'phone',
+        'google_id',
+        'avatar',
+        'role',
+        'status',
+        'otp',
+        'otp_expired_at',
+        'is_verified',
     ];
 
     protected $hidden = [
-        'password', 'remember_token', 'otp',
+        'password',
+        'remember_token',
+        'otp',
     ];
 
     protected $casts = [
@@ -32,7 +43,7 @@ class User extends Authenticatable
 
     public function seller()
     {
-         return $this->hasOne(Seller::class);
+        return $this->hasOne(Seller::class);
     }
     public function discounts()
     {
@@ -40,13 +51,13 @@ class User extends Authenticatable
     }
 
     public function getAvatarUrlAttribute()
-        {
-            return $this->avatar ? Storage::disk('r2')->url($this->avatar) : null;
-        }
+    {
+        return $this->avatar ? Storage::disk('r2')->url($this->avatar) : null;
+    }
 
-        public function followedSellers()
-        {
-            return $this->belongsToMany(Seller::class, 'seller_followers')
+    public function followedSellers()
+    {
+        return $this->belongsToMany(Seller::class, 'seller_followers')
             ->withTimestamps();
         }
         public function isFollowingSeller($sellerId)
@@ -58,4 +69,10 @@ class User extends Authenticatable
         {
             return $this->hasMany(SearchHistory::class);
         }
+    
+    public function getAllUsers()
+    {
+        $users = User::select('id', 'name', 'email', 'role')->get();
+        return response()->json($users);
+    }
 }

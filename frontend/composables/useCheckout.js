@@ -212,26 +212,84 @@ export function useCheckout(
         throw new Error(errorData.message || "Lỗi khi tạo đơn hàng");
       }
 
-      const { data: orderResult } = await orderResponse.json();
+      const { orders } = await orderResponse.json();
 
-      // CHỖ QUAN TRỌNG NHẤT: xuất hóa
-      if (selectedPaymentMethod.value === 'COD') {
-        localStorage.setItem("lastOrderId", orderResult.id);
-        await navigateTo(`/order-success?id=${orderResult.id}`);
-        return;
-      } else {
-        const { url } = await processPayment(
-          orderResult.id,
-          selectedPaymentMethod.value
-        );
-        if (url) {
-          window.location.href = url;
-        } else {
-          throw new Error("Không nhận được URL thanh toán");
+      if (!orders || !orders.length) throw new Error("Không nhận được đơn hàng từ server");
+
+      // Nếu chỉ 1 đơn
+      if (orders.length === 1) {
+        localStorage.setItem("lastOrderId", orders[0].id);
+        if (selectedPaymentMethod.value === 'COD') {
+          await navigateTo(`/order-success?id=${orders[0].id}`);
+          await fetchCart();
+          return;
+        } else if (selectedPaymentMethod.value === 'VNPAY' || selectedPaymentMethod.value === 'MOMO') {
+          let paymentUrl = '';
+          if (selectedPaymentMethod.value === 'VNPAY') {
+            const res = await fetch(`${config.public.apiBaseUrl}/payments/vnpay/create`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({ order_id: orders[0].id }),
+            });
+            const { data } = await res.json();
+            paymentUrl = data.payment_url;
+          } else if (selectedPaymentMethod.value === 'MOMO') {
+            const res = await fetch(`${config.public.apiBaseUrl}/payments/momo/create`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({ order_id: orders[0].id }),
+            });
+            const { data } = await res.json();
+            paymentUrl = data.payment_url;
+          }
+          if (paymentUrl) {
+            window.location.href = paymentUrl;
+            return;
+          }
         }
+        await fetchCart();
+        return;
       }
 
-      await fetchCart(); // Clear lại cart
+      // Nếu nhiều đơn, lưu vào localStorage và xử lý thanh toán online 1 lần cho tất cả
+      const orderIds = orders.map(o => o.id);
+      localStorage.setItem("lastOrderIds", orderIds.join(','));
+      if (selectedPaymentMethod.value === 'COD') {
+        await navigateTo(`/order-success?ids=${orderIds.join(',')}`);
+        await fetchCart();
+        return;
+      } else if (selectedPaymentMethod.value === 'VNPAY' || selectedPaymentMethod.value === 'MOMO') {
+        // Gửi mảng order_ids lên API tạo payment chung
+        let paymentUrl = '';
+        const apiUrl = selectedPaymentMethod.value === 'VNPAY'
+          ? `${config.public.apiBaseUrl}/payments/vnpay/create`
+          : `${config.public.apiBaseUrl}/payments/momo/create`;
+        const res = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ order_ids: orderIds }), // gửi mảng order_ids
+        });
+        const { data } = await res.json();
+        paymentUrl = data.payment_url;
+        if (paymentUrl) {
+          window.location.href = paymentUrl;
+          return;
+        }
+      }
+      await fetchCart();
+      return;
     } catch (err) {
       error.value = err.message || "Có lỗi xảy ra khi đặt hàng";
       toast("error", error.value);

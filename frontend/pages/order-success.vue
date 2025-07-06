@@ -19,73 +19,91 @@
           Cảm ơn bạn đã mua hàng tại <span class="font-semibold text-primary">Passion</span>.
         </p>
 
-  
-      <!-- THÔNG TIN ĐƠN HÀNG -->
-    <div class="bg-gray-50 rounded-xl p-6 w-full border border-gray-200 shadow-sm space-y-5">
-      <!-- Dòng 1: Mã đơn + vận đơn -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-6 text-gray-700 text-sm">
-        <div><span class="font-medium text-gray-500">Mã đơn hàng:</span> <span class="font-semibold">#{{ orderDetail?.id || 'N/A' }}</span></div>
-        <div><span class="font-medium text-gray-500">Mã vận đơn:</span> <span class="font-semibold">{{ tracking_code || 'Đang cập nhật' }}</span></div>
-
-        <div><span class="font-medium text-gray-500">Người nhận:</span> <span class="font-semibold">{{ orderDetail?.user?.name || 'N/A' }}</span></div>
-        <div><span class="font-medium text-gray-500">SĐT:</span> <span class="font-semibold">{{ orderDetail?.address?.phone || 'N/A' }}</span></div>
-
-        <div class="sm:col-span-2">
-          <span class="font-medium text-gray-500">Địa chỉ giao hàng:</span>
-          <div class="mt-1 font-semibold text-gray-800">
-            {{
-              orderDetail.address
-                ? `${orderDetail.address.detail}, ${orderDetail.address.ward_name}, ${orderDetail.address.district_name}, ${orderDetail.address.province_name}`
-                : 'Không có'
-            }}
+        <!-- Nếu nhiều đơn -->
+        <template v-if="Array.isArray(orderDetails) && orderDetails.length > 1">
+          <div v-for="(orderDetail, idx) in orderDetails" :key="orderDetail.id || idx" class="bg-gray-50 rounded-xl p-6 w-full border border-gray-200 shadow-sm space-y-5 mb-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-6 text-gray-700 text-sm">
+              <div><span class="font-medium text-gray-500">Mã vận đơn:</span> <span class="font-semibold">{{ orderDetail?.shipping?.tracking_code || 'Đang cập nhật' }}</span></div>
+              <div><span class="font-medium text-gray-500">Người nhận:</span> <span class="font-semibold">{{ orderDetail?.user?.name || 'N/A' }}</span></div>
+              <div><span class="font-medium text-gray-500">Email:</span> <span class="font-semibold">{{ orderDetail?.user?.email || 'N/A' }}</span></div>
+              <div><span class="font-medium text-gray-500">SĐT:</span> <span class="font-semibold">{{ orderDetail?.address?.phone || 'N/A' }}</span></div>
+              <div class="sm:col-span-2">
+                <span class="font-medium text-gray-500">Địa chỉ giao hàng:</span>
+                <div class="mt-1 font-semibold text-gray-800">
+                  {{
+                    orderDetail?.address
+                      ? `${orderDetail.address.detail || ''}, ${orderDetail.address.ward_name || ''}, ${orderDetail.address.district_name || ''}, ${orderDetail.address.province_name || ''}`
+                      : 'Không có'
+                  }}
+                </div>
+              </div>
+              <div class="sm:col-span-2 text-center mt-2">
+                <span class="font-medium text-gray-500">Phương thức:</span>
+                <span class="font-semibold">
+                  {{ orderDetail?.payments?.[0]?.method === 'COD' ? 'Thanh toán khi nhận hàng (COD)' : orderDetail?.payments?.[0]?.method === 'VNPAY' ? 'VNPay' : orderDetail?.payments?.[0]?.method === 'MOMO' ? 'MoMo' : 'N/A' }}
+                </span>
+              </div>
+            </div>
+            <div class="text-right text-lg font-bold text-blue-700 border-t pt-4 mt-4">
+              Tổng thanh toán: {{ formatPrice((parseInt(orderDetail?.final_price) || 0) + (parseInt(orderDetail?.shipping?.shipping_fee) || 0)) }} đ
+            </div>
+            <div v-if="orderDetail?.order_items?.length" class="mt-4">
+              <div class="font-medium text-gray-700 mb-2">Sản phẩm đã đặt:</div>
+              <div v-for="item in orderDetail.order_items" :key="item.product?.id + '-' + (item.variant?.id || '')" class="flex items-center gap-4 border-b py-2 last:border-0">
+                <img :src="item.product?.thumbnail || '/images/no-image.png'" :alt="item.product?.name || 'Ảnh sản phẩm'" class="w-12 h-12 object-cover rounded-md border" />
+                <div class="flex-1">
+                  <div class="font-semibold text-gray-900">{{ item.product?.name || '-' }}</div>
+                  <div v-if="item.variant && item.variant.name" class="text-xs text-gray-500">Phân loại: {{ item.variant.name }}</div>
+                  <div class="text-xs text-gray-500">Số lượng: {{ item.quantity }} × {{ formatPrice(item.price) }}</div>
+                </div>
+                <div class="font-bold text-blue-700">{{ formatPrice(item.total) }}</div>
+              </div>
+            </div>
           </div>
-        </div>
+        </template>
 
-        <div>
-          <span class="font-medium text-gray-500">Phương thức:</span>
-          <span class="font-semibold">
-            {{
-              orderDetail?.payments?.[0]?.method === 'COD'
-                ? 'Thanh toán khi nhận hàng (COD)'
-                : orderDetail?.payments?.[0]?.method === 'VNPAY'
-                ? 'VNPay'
-                : 'N/A'
-            }}
-          </span>
-        </div>
-
-        <div v-if="bankCode">
-          <span class="font-medium text-gray-500">Ngân hàng:</span>
-          <span class="font-semibold">{{ bankCode }}</span>
-        </div>
-
-        <div v-if="transactionId">
-          <span class="font-medium text-gray-500">Mã giao dịch:</span>
-          <span class="font-semibold">{{ transactionId }}</span>
-        </div>
-      </div>
-
-      <!-- Tổng tiền -->
-      <div class="text-right text-lg font-bold text-blue-700 border-t pt-4 mt-4">
-        Tổng thanh toán: {{ formatPrice(amount || parsePrice(orderDetail?.final_price) || 0) }} đ
-      </div>
-
-      <!-- DANH SÁCH SẢN PHẨM -->
-      <div>
-        <h3 class="text-base font-semibold text-gray-700 mb-2">Sản phẩm đã đặt:</h3>
-        <ul class="divide-y divide-gray-100 text-sm">
-          <li
-            v-for="item in orderDetail?.order_items || []"
-            :key="item.id"
-            class="py-2 flex justify-between items-center"
-          >
-            <span class="text-gray-800">{{ item?.product?.name || 'Sản phẩm' }} (x{{ item?.quantity || 0 }})</span>
-            <span class="text-gray-600 font-semibold">{{ formatPrice(parsePrice(item?.price) || 0) }} đ</span>
-          </li>
-        </ul>
-      </div>
-    </div>
-
+        <!-- Nếu chỉ 1 đơn -->
+        <template v-else>
+          <div class="bg-gray-50 rounded-xl p-6 w-full border border-gray-200 shadow-sm space-y-5">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-6 text-gray-700 text-sm">
+              <div><span class="font-medium text-gray-500">Mã vận đơn:</span> <span class="font-semibold">{{ orderDetails?.shipping?.tracking_code || 'Đang cập nhật' }}</span></div>
+              <div><span class="font-medium text-gray-500">Người nhận:</span> <span class="font-semibold">{{ orderDetails?.user?.name || 'N/A' }}</span></div>
+              <div><span class="font-medium text-gray-500">Email:</span> <span class="font-semibold">{{ orderDetails?.user?.email || 'N/A' }}</span></div>
+              <div><span class="font-medium text-gray-500">SĐT:</span> <span class="font-semibold">{{ orderDetails?.address?.phone || 'N/A' }}</span></div>
+              <div class="sm:col-span-2">
+                <span class="font-medium text-gray-500">Địa chỉ giao hàng:</span>
+                <div class="mt-1 font-semibold text-gray-800">
+                  {{
+                    orderDetails?.address
+                      ? `${orderDetails.address.detail || ''}, ${orderDetails.address.ward_name || ''}, ${orderDetails.address.district_name || ''}, ${orderDetails.address.province_name || ''}`
+                      : 'Không có'
+                  }}
+                </div>
+              </div>
+              <div class="sm:col-span-2 text-center mt-2">
+                <span class="font-medium text-gray-500">Phương thức:</span>
+                <span class="font-semibold">
+                  {{ orderDetails?.payments?.[0]?.method === 'COD' ? 'Thanh toán khi nhận hàng (COD)' : orderDetails?.payments?.[0]?.method === 'VNPAY' ? 'VNPay' : orderDetails?.payments?.[0]?.method === 'MOMO' ? 'MoMo' : 'N/A' }}
+                </span>
+              </div>
+            </div>
+            <div class="text-right text-lg font-bold text-blue-700 border-t pt-4 mt-4">
+              Tổng thanh toán: {{ formatPrice((parseInt(orderDetails?.final_price) || 0) + (parseInt(orderDetails?.shipping?.shipping_fee) || 0)) }} đ
+            </div>
+            <div v-if="orderDetails?.order_items?.length" class="mt-4">
+              <div class="font-medium text-gray-700 mb-2">Sản phẩm đã đặt:</div>
+              <div v-for="item in orderDetails.order_items" :key="item.product?.id + '-' + (item.variant?.id || '')" class="flex items-center gap-4 border-b py-2 last:border-0">
+                <img :src="item.product?.thumbnail || '/images/no-image.png'" :alt="item.product?.name || 'Ảnh sản phẩm'" class="w-12 h-12 object-cover rounded-md border" />
+                <div class="flex-1">
+                  <div class="font-semibold text-gray-900">{{ item.product?.name || '-' }}</div>
+                  <div v-if="item.variant && item.variant.name" class="text-xs text-gray-500">Phân loại: {{ item.variant.name }}</div>
+                  <div class="text-xs text-gray-500">Số lượng: {{ item.quantity }} × {{ formatPrice(item.price) }}</div>
+                </div>
+                <div class="font-bold text-blue-700">{{ formatPrice(item.total) }}</div>
+              </div>
+            </div>
+          </div>
+        </template>
 
         <!-- Về trang chủ -->
         <NuxtLink to="/" class="mt-6 inline-block bg-gradient-to-r from-blue-600 to-blue-700 text-white px-8 py-3 rounded-full font-semibold text-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-300 shadow-md hover:shadow-lg">
@@ -126,7 +144,8 @@ const amount = ref(0)
 const bankCode = ref('')
 const transactionId = ref('')
 const tracking_code = ref('')
-const orderDetail = ref({ order_items: [], address: {} })
+const orderDetails = ref([])
+const paymentMethod = ref('')
 
 // Thêm cho địa chỉ
 const provinces = ref([])
@@ -169,100 +188,123 @@ const loadWards = async (district_id) => {
   wards.value = data.data || []
 }
 
-onMounted(async () => {
-  const orderId = route.query.id || route.query.vnp_TxnRef?.split('_')[0]
+const orderIds = route.query.ids ? route.query.ids.split(',') : (route.query.id ? [route.query.id] : []);
 
-  if (!orderId) {
-    success.value = false
-    loading.value = false
-    message.value = 'Không tìm thấy thông tin đơn hàng.'
-    return
+onMounted(async () => {
+  if (!orderIds.length) {
+    success.value = false;
+    loading.value = false;
+    message.value = 'Không tìm thấy thông tin đơn hàng.';
+    return;
   }
 
   try {
-    const token = localStorage.getItem('access_token')
+    const token = localStorage.getItem('access_token');
     if (!token) {
-      message.value = 'Vui lòng đăng nhập để xem thông tin đơn hàng.'
-      success.value = false
+      message.value = 'Vui lòng đăng nhập để xem thông tin đơn hàng.';
+      success.value = false;
+      loading.value = false;
+      window.dispatchEvent(new CustomEvent('openLoginModal'));
+      return;
+    }
+
+    // Nếu chỉ 1 đơn, giữ nguyên logic cũ
+    if (orderIds.length === 1) {
+      const orderId = orderIds[0]
+      const orderRes = await fetch(`${config.public.apiBaseUrl}/user/orders/${orderId}`, {
+        headers: {
+          Accept: 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (orderRes.status === 403) {
+        throw new Error('Bạn không có quyền xem đơn này')
+      }
+      if (orderRes.status === 404) {
+        throw new Error('Không tìm thấy đơn hàng')
+      }
+
+      const orderData = await orderRes.json()
+      if (!orderRes.ok || !orderData) {
+        throw new Error(orderData.message || 'Không thể lấy thông tin đơn hàng')
+      }
+
+      // Map lại dữ liệu cho đúng với UI cũ
+      orderDetails.value = {
+        ...orderData,
+        order_items: orderData.items || [],
+        address: orderData.address || {},
+        user: orderData.user || {},
+        payments: orderData.payments || [],
+        final_price: orderData.final_price,
+      }
+      // Lấy tracking_code và paymentMethod từ API
+      tracking_code.value = orderData.shipping?.tracking_code || 'Đang cập nhật'
+      paymentMethod.value = orderData.payments?.[0]?.method || 'N/A'
+
+      // Load địa chỉ (nếu cần)
+      await loadProvinces()
+      await loadDistricts(orderDetails.value.address.province_id)
+      await loadWards(orderDetails.value.address.district_id)
+
+      const province = provinces.value.find(p => p.ProvinceID === orderDetails.value.address.province_id)
+      const district = districts.value.find(d => d.DistrictID === orderDetails.value.address.district_id)
+      const ward = wards.value.find(w => w.WardCode == orderDetails.value.address.ward_code)
+
+      orderDetails.value.address.province_name = province?.ProvinceName || ''
+      orderDetails.value.address.district_name = district?.DistrictName || ''
+      orderDetails.value.address.ward_name = ward?.WardName || ''
+
+      // Xác minh thanh toán
+      const isCOD = orderDetails.value.payments?.[0]?.method === 'COD' || (!orderDetails.value.payments?.[0]?.method && !Object.keys(route.query).some(key => key.startsWith('vnp_')))
+
+      if (isCOD) {
+        amount.value = parsePrice(orderDetails.value.final_price) || 0
+        bankCode.value = 'Thanh toán khi nhận'
+        transactionId.value = 'Không áp dụng'
+        success.value = true
+      } else {
+        throw new Error('Chỉ hỗ trợ xác nhận đơn hàng thanh toán COD trên trang này. Đối với thanh toán VNPAY, vui lòng kiểm tra trạng thái tại trang VNPAY Return.')
+      }
+
+      await clearCart()
       loading.value = false
-      window.dispatchEvent(new CustomEvent('openLoginModal'))
       return
     }
 
-    const orderRes = await fetch(`${config.public.apiBaseUrl}/orders/${orderId}`, {
-      headers: {
-        Accept: 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-    })
-
-    const orderData = await orderRes.json()
-    if (!orderRes.ok || !orderData.data) {
-      throw new Error(orderData.message || 'Không thể lấy thông tin đơn hàng')
-    }
-
-    orderDetail.value = orderData.data
-    tracking_code.value = orderDetail.value.shipping?.tracking_code || 'Đang cập nhật'
-
-    // Load địa chỉ
-    await loadProvinces()
-    await loadDistricts(orderDetail.value.address.province_id)
-    await loadWards(orderDetail.value.address.district_id)
-
-    const province = provinces.value.find(p => p.ProvinceID === orderDetail.value.address.province_id)
-    const district = districts.value.find(d => d.DistrictID === orderDetail.value.address.district_id)
-    const ward = wards.value.find(w => w.WardCode == orderDetail.value.address.ward_code)
-
-    orderDetail.value.address.province_name = province?.ProvinceName || ''
-    orderDetail.value.address.district_name = district?.DistrictName || ''
-    orderDetail.value.address.ward_name = ward?.WardName || ''
-
-    // Xác minh thanh toán
-    const isCOD = orderDetail.value.payments?.[0]?.method === 'COD' ||
-      (!orderDetail.value.payments?.[0]?.method && !Object.keys(route.query).some(key => key.startsWith('vnp_')))
-
-    if (isCOD) {
-      amount.value = parsePrice(orderDetail.value.final_price) || 0
-      bankCode.value = 'Thanh toán khi nhận'
-      transactionId.value = 'Không áp dụng'
-      success.value = true
-    } else {
-      const queryParams = { ...route.query }
-      if (!queryParams.vnp_TxnRef || !queryParams.vnp_ResponseCode || !queryParams.vnp_SecureHash) {
-        throw new Error('Thiếu tham số từ VNPAY.')
+    // Nếu nhiều đơn, fetch từng đơn và push vào orderDetails
+    orderDetails.value = [];
+    for (const id of orderIds) {
+      const orderRes = await fetch(`${config.public.apiBaseUrl}/user/orders/${id}`, {
+        headers: {
+          Accept: 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (orderRes.ok) {
+        const orderData = await orderRes.json();
+        orderDetails.value.push({
+          ...orderData,
+          order_items: orderData.items || [],
+          address: orderData.address || {},
+          user: orderData.user || {},
+          payments: orderData.payments || [],
+          final_price: orderData.final_price,
+        });
       }
-
-      const vnpRes = await fetch(
-        `${config.public.apiBaseUrl}/payments/vnpay/return?${new URLSearchParams(queryParams).toString()}`,
-        {
-          headers: {
-            Accept: 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      )
-
-      const vnpData = await vnpRes.json()
-
-      if (!vnpRes.ok || !vnpData.success) {
-        throw new Error(vnpData.message || 'Không nhận được dữ liệu từ VNPAY')
-      }
-
-      transactionId.value = vnpData.transaction_id || queryParams.vnp_TransactionNo || '-'
-      bankCode.value = vnpData.bank_code || queryParams.vnp_BankCode || '-'
-      amount.value = vnpData.amount || (Number(queryParams.vnp_Amount) / 100) || 0
-      success.value = true
     }
-
-    await clearCart()
-    loading.value = false
+    success.value = true;
+    loading.value = false;
+    await clearCart();
   } catch (err) {
-    console.error('Error fetching order:', err)
-    success.value = false
-    loading.value = false
-    message.value = err.message || 'Có lỗi xảy ra khi xác minh thanh toán'
+    console.error('Error fetching orders:', err);
+
+    success.value = false;
+    loading.value = false;
+    message.value = err.message || 'Có lỗi xảy ra khi xác minh thanh toán';
   }
-})
+});
 
 onUnmounted(() => {
   // Nếu bạn có dùng countdown thì clear tại đây

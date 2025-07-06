@@ -28,6 +28,15 @@
                     <h2 class="font-semibold text-lg">{{ seller.store_name }}</h2>
                     <!-- <p class="text-sm text-gray-500">{{ seller.address }}</p> -->
                     <div class="flex space-x-2 mt-2">
+                    <button
+                        :disabled="loading || !seller?.id"
+                        @click="emit('chat-with-shop')"
+                        class="bg-[#1BA0E2] text-white border px-3 py-1 rounded text-sm flex items-center disabled:opacity-50"
+                        aria-label="chat shop"
+                    >
+                        <i class="fas fa-comment-alt mr-1"></i> Chat Ngay
+                    </button>
+
                         <button @click="$emit('view-shop')" class="border px-3 py-1 rounded text-sm flex items-center"
                             aria-label="View shop">
                             <i class="fas fa-store mr-1"></i> Xem Shop
@@ -130,10 +139,10 @@
         </div>
     </div>
 </template>
-
 <script setup>
-import { computed } from 'vue';
+import { computed } from 'vue'
 
+// --- Props ---
 const props = defineProps({
     product: { type: Object, required: true },
     seller: { type: Object, required: true },
@@ -164,29 +173,27 @@ const emit = defineEmits([
 ]);
 
 const localQuantity = ref(props.quantity);
-
 function isOptionAvailable(attrName, value) {
-    const otherSelections = { ...props.selectedOptions };
-    delete otherSelections[attrName];
+  const otherSelections = { ...props.selectedOptions }
+  delete otherSelections[attrName]
 
-    return props.variants.some(variant =>
-        variant.attributes.some(attr => attr.attribute_name === attrName && attr.value === value) &&
-        variant.stock > 0 &&
-        Object.entries(otherSelections).every(([key, val]) =>
-            !val || variant.attributes.some(attr => attr.attribute_name === key && attr.value === val)
-        )
-    );
+  return props.variants.some(variant =>
+    variant.attributes.some(attr => attr.attribute_name === attrName && attr.value === value) &&
+    variant.stock > 0 &&
+    Object.entries(otherSelections).every(([key, val]) =>
+      !val || variant.attributes.some(attr => attr.attribute_name === key && attr.value === val)
+    )
+  )
 }
 
 function formatPrice(price) {
-    if (!price || price === 'null' || price === null || price === undefined) {
-        return '0';
-    }
-    const parsedPrice = parseFloat(price);
-    if (isNaN(parsedPrice)) {
-        return '0';
-    }
-    return parsedPrice.toLocaleString('vi-VN', { style: 'decimal' });
+  if (!price || price === 'null' || price === null || price === undefined) {
+    return '0'
+  }
+  const parsedPrice = parseFloat(price)
+  return isNaN(parsedPrice)
+    ? '0'
+    : parsedPrice.toLocaleString('vi-VN', { style: 'decimal' })
 }
 
 watch(
@@ -254,7 +261,6 @@ function handleBuyNow() {
     emit('buy-now');
 }
 
-
 function blockInvalidKeys(event) {
     const invalidKeys = ['-', '+', 'e', 'E', '.', ','];
     if (invalidKeys.includes(event.key)) {
@@ -269,7 +275,12 @@ function blockInvalidKeys(event) {
     }
 }
 
+// --- Debug log (optional) ---
+console.log('✅ validationMessage:', props.validationMessage)
+
+// --- Expose methods if needed ---
 </script>
+
 <style scoped>
 .input-no-spinner::-webkit-outer-spin-button,
 .input-no-spinner::-webkit-inner-spin-button {

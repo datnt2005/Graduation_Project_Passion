@@ -14,6 +14,14 @@
           <p class="text-sm text-gray-500">Theo dõi và quản lý đơn hàng bạn đã đặt</p>
         </div>
 
+        <!-- Filter & Search -->
+        <div class="mb-4 flex flex-wrap gap-2 items-center justify-center">
+          <button @click="sortType = 'newest'" :class="['px-4 py-2 rounded-full border text-sm', sortType === 'newest' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-blue-50']">Mới nhất</button>
+          <button @click="sortType = 'recent'" :class="['px-4 py-2 rounded-full border text-sm', sortType === 'recent' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-blue-50']">Gần đây</button>
+          <button @click="sortType = 'oldest'" :class="['px-4 py-2 rounded-full border text-sm', sortType === 'oldest' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-blue-50']">Cũ nhất</button>
+          <input v-model="searchTracking" type="text" placeholder="Tìm theo mã vận đơn" class="ml-4 px-3 py-2 border rounded-md text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500" style="min-width:180px;" />
+        </div>
+
         <!-- Tabs -->
         <div class="mb-6 flex flex-wrap justify-center gap-2">
           <button v-for="tab in tabs" :key="tab.value" @click="selectedTab = tab.value" :class="[
@@ -44,7 +52,7 @@
               <thead class="bg-gray-50 text-xs font-semibold text-gray-600 uppercase text-left">
                 <tr>
                   <th class="px-4 py-3">STT</th>
-                  <th class="px-4 py-3">Mã đơn</th>
+                  <th class="px-4 py-3">Mã vận đơn</th>
                   <th class="px-4 py-3">Khách hàng</th>
                   <th class="px-4 py-3">SĐT</th>
                   <th class="px-4 py-3">Trạng thái</th>
@@ -54,7 +62,7 @@
               <tbody>
                 <tr v-for="(order, index) in filteredOrders" :key="order.id" class="hover:bg-gray-50 border-t">
                   <td class="px-4 py-3">{{ index + 1 }}</td>
-                  <td class="px-4 py-3 font-semibold text-blue-600">#ORD{{ String(order.id).padStart(3, '0') }}</td>
+                  <td class="px-4 py-3 text-gray-700">{{ order.shipping?.tracking_code || '-' }}</td>
                   <td class="px-4 py-3 text-gray-800">
                     {{ order.user?.name || '---' }}
                   </td>
@@ -80,21 +88,16 @@
                         class="text-xs px-3 py-1 text-orange-600 hover:bg-orange-50 flex items-center gap-1">
                         <i class="fas fa-undo-alt"></i> Mua lại
                       </button>
-
-                     <div v-if="order.status === 'delivered'" class="flex gap-2">
-  <!-- Nút In hóa đơn -->
-  <button @click="printOrder(order.id)"
-    class="text-xs px-3 py-1 text-gray-600 hover:bg-gray-50 flex items-center gap-1">
-    <i class="fas fa-print"></i> In hóa đơn
-  </button>
-
-  <!-- Nút Tải PDF -->
-  <button @click="downloadPDF(order.id)"
-    class="text-xs px-3 py-1 text-blue-600 hover:bg-blue-50 flex items-center gap-1">
-    <i class="fas fa-file-pdf"></i> Tải PDF
-  </button>
-</div>
-
+                      <div v-if="order.status === 'delivered'" class="flex gap-2">
+                        <button @click="printOrder(order.id)"
+                          class="text-xs px-3 py-1 text-gray-600 hover:bg-gray-50 flex items-center gap-1">
+                          <i class="fas fa-print"></i> In hóa đơn
+                        </button>
+                        <button @click="downloadPDF(order.id)"
+                          class="text-xs px-3 py-1 text-blue-600 hover:bg-blue-50 flex items-center gap-1">
+                          <i class="fas fa-file-pdf"></i> Tải PDF
+                        </button>
+                      </div>
                     </div>
                   </td>
                 </tr>
@@ -107,7 +110,7 @@
             <div v-for="(order, index) in filteredOrders" :key="order.id"
               class="bg-white rounded-lg shadow border border-gray-200 p-4">
               <div class="flex justify-between items-center mb-2">
-                <span class="text-sm text-gray-500 font-medium">#ORD{{ String(order.id).padStart(3, '0') }}</span>
+                <span class="text-sm text-gray-500 font-medium">Mã vận đơn: {{ order.shipping?.tracking_code || '-' }}</span>
                 <span :class="statusClass(order.status)"
                   class="px-2 py-1 text-xs rounded-full font-medium whitespace-nowrap">
                   {{ statusText(order.status) }}
@@ -115,16 +118,13 @@
               </div>
               <div class="text-sm text-gray-800 space-y-1">
                 <div><strong>Khách:</strong> {{ order.user?.name || '-' }}</div>
-
                 <div><strong>Điện thoại:</strong> {{ order.address?.phone || '-' }}</div>
-
                 <div>
                   <strong>Tổng tiền: </strong>
                   <span class="text-green-600 font-medium">
                     {{ formatPrice(parseFloat(order.final_price) * 1000) }}
                   </span>
                 </div>
-
               </div>
               <div class="mt-3 flex flex-wrap gap-2">
                 <button class="text-xs px-3 py-1 text-blue-600 hover:bg-blue-50 flex items-center gap-1"
@@ -136,27 +136,20 @@
                   @click="confirmCancel(order.id)">
                   <i class="fas fa-times-circle"></i> Hủy
                 </button>
-
                 <button v-if="order.status === 'cancelled'" @click="reorderToCart(order)"
                   class="text-xs px-3 py-1 text-orange-600 hover:bg-orange-50 flex items-center gap-1">
                   <i class="fas fa-undo-alt"></i> Mua lại
                 </button>
-
-
-              <div v-if="order.status === 'delivered'" class="flex gap-2">
-  <!-- Nút In hóa đơn -->
-  <button @click="printOrder(order.id)"
-    class="text-xs px-3 py-1 text-gray-600 hover:bg-gray-50 flex items-center gap-1">
-    <i class="fas fa-print"></i> In hóa đơn
-  </button>
-
-  <!-- Nút Tải PDF -->
-  <button @click="downloadPDF(order.id)"
-    class="text-xs px-3 py-1 text-blue-600 hover:bg-blue-50 flex items-center gap-1">
-    <i class="fas fa-file-pdf"></i> Tải PDF
-  </button>
-</div>
-
+                <div v-if="order.status === 'delivered'" class="flex gap-2">
+                  <button @click="printOrder(order.id)"
+                    class="text-xs px-3 py-1 text-gray-600 hover:bg-gray-50 flex items-center gap-1">
+                    <i class="fas fa-print"></i> In hóa đơn
+                  </button>
+                  <button @click="downloadPDF(order.id)"
+                    class="text-xs px-3 py-1 text-blue-600 hover:bg-blue-50 flex items-center gap-1">
+                    <i class="fas fa-file-pdf"></i> Tải PDF
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -171,16 +164,32 @@
         <Teleport to="body">
           <div v-if="isDetailOpen" class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
             <div class="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-auto p-6 relative">
-
+              <!-- Thanh tiến trình trạng thái đơn hàng (đưa lên trên cùng) -->
+              <div class="flex items-center justify-center gap-4 mb-6">
+                <div class="flex flex-col items-center">
+                  <i class="fas fa-clipboard-list text-2xl" :class="selectedOrder?.status === 'pending' ? 'text-blue-600' : 'text-gray-400'"></i>
+                  <span class="text-xs mt-1" :class="selectedOrder?.status === 'pending' ? 'text-blue-600 font-semibold' : 'text-gray-400'">Chờ xử lý</span>
+                </div>
+                <div class="h-1 w-8 bg-gray-300 rounded"></div>
+                <div class="flex flex-col items-center">
+                  <i class="fas fa-cogs text-2xl" :class="['processing','shipped','delivered'].includes(selectedOrder?.status) ? 'text-blue-600' : 'text-gray-400'"></i>
+                  <span class="text-xs mt-1" :class="['processing','shipped','delivered'].includes(selectedOrder?.status) ? 'text-blue-600 font-semibold' : 'text-gray-400'">Đã xử lý</span>
+                </div>
+                <div class="h-1 w-8 bg-gray-300 rounded"></div>
+                <div class="flex flex-col items-center">
+                  <i class="fas fa-shipping-fast text-2xl" :class="['shipped','delivered'].includes(selectedOrder?.status) ? 'text-blue-600' : 'text-gray-400'"></i>
+                  <span class="text-xs mt-1" :class="['shipped','delivered'].includes(selectedOrder?.status) ? 'text-blue-600 font-semibold' : 'text-gray-400'">Đang giao</span>
+                </div>
+                <div class="h-1 w-8 bg-gray-300 rounded"></div>
+                <div class="flex flex-col items-center">
+                  <i class="fas fa-check-circle text-2xl" :class="selectedOrder?.status === 'delivered' ? 'text-green-600' : 'text-gray-400'"></i>
+                  <span class="text-xs mt-1" :class="selectedOrder?.status === 'delivered' ? 'text-green-600 font-semibold' : 'text-gray-400'">Đã giao</span>
+                </div>
+              </div>
               <!-- Nút đóng -->
-              <button @click="isDetailOpen = false"
-                class="absolute top-4 right-4 text-gray-400 hover:text-black text-lg">
-                ✕
-              </button>
-
+              <button @click="isDetailOpen = false" class="absolute top-4 right-4 text-gray-400 hover:text-black text-lg">✕</button>
               <!-- Tiêu đề -->
               <h2 class="text-xl font-semibold mb-6 text-gray-900">Chi tiết đơn hàng</h2>
-
               <!-- Thông tin -->
               <div class="flex flex-col md:flex-row gap-4 mb-6 items-stretch text-sm text-gray-700">
                 <!-- Box 1: Thông tin đơn hàng -->
@@ -189,76 +198,63 @@
                     <span class="font-medium text-gray-900">Thông tin đơn hàng</span>
                   </div>
                   <p class="flex gap-1 pb-2">
-                    <span class="min-w-[90px] text-gray-500">Mã đơn:</span>
-                    <span class="text-black">#ORD{{ String(selectedOrder?.id).padStart(3, '0') }}</span>
+                    <span class="min-w-[90px] text-gray-500">Mã vận đơn:</span>
+                    <span class="text-black">{{ selectedOrder?.shipping?.tracking_code || '-' }}</span>
                   </p>
                   <p class="flex gap-1 pb-2">
                     <span class="min-w-[90px] text-gray-500">Ngày đặt:</span>
                     <span class="text-black">{{ formatDate(selectedOrder?.created_at) }}</span>
                   </p>
-
                   <p class="flex gap-1 pb-2">
                     <span class="min-w-[90px] text-gray-500">Trạng thái:</span>
                     <span :class="statusClass(selectedOrder?.status)" class="text-xs px-2 py-1 rounded-full">
                       {{ statusText(selectedOrder?.status) }}
                     </span>
                   </p>
-
                   <p class="flex gap-1 pb-2">
                     <span class="min-w-[90px] text-gray-500">Tổng tiền:</span>
                     <span class="text-black">{{ formatPrice(selectedOrder?.final_price) }}</span>
                   </p>
-
                 </div>
-
                 <!-- Box 2: Thông tin khách hàng -->
                 <div class="flex-1 border border-gray-200 rounded-lg p-4 flex flex-col space-y-2 text-sm text-gray-700">
-                  <!-- Tiêu đề -->
                   <div class="flex items-center gap-2 text-gray-500">
                     <span class="font-medium text-gray-900">Thông tin khách hàng</span>
                   </div>
-
-                  <!-- Họ tên -->
                   <div class="flex items-center gap-2">
                     <i class="fas fa-user text-gray-400 w-4 h-4"></i>
                     <span class="text-black">{{ selectedOrder?.user?.name || '-' }}</span>
                   </div>
-
-                  <!-- Điện thoại -->
+                  <div class="flex items-center gap-2">
+                    <i class="fas fa-envelope text-gray-400 w-4 h-4"></i>
+                    <span class="text-black">{{ selectedOrder?.user?.email || '-' }}</span>
+                  </div>
                   <div class="flex items-center gap-2">
                     <i class="fas fa-phone-alt text-gray-400 w-4 h-4"></i>
                     <span class="text-black">{{ selectedOrder?.address?.phone || '-' }}</span>
                   </div>
-
-                  <!-- Địa chỉ -->
                   <div class="flex items-start gap-2">
                     <i class="fas fa-map-marker-alt text-gray-400 w-4 h-4"></i>
                     <span class="text-black">
                       {{ selectedOrder?.address?.detail || '-' }},
-                      {{ getWardName(selectedOrder?.address?.ward_code, selectedOrder?.address?.district_id) || '-' }},
-                      {{ getDistrictName(selectedOrder?.address?.district_id) || '-' }},
-                      {{ getProvinceName(selectedOrder?.address?.province_id) || '-' }}
+                      {{ selectedOrder?.address?.ward_name || '-' }},
+                      {{ selectedOrder?.address?.district_name || '-' }},
+                      {{ selectedOrder?.address?.province_name || '-' }}
                     </span>
                   </div>
                 </div>
-
               </div>
-
               <!-- Danh sách sản phẩm -->
               <div class="border border-gray-200 rounded-lg mb-6">
                 <div class="border-b px-4 py-2 font-medium text-sm bg-gray-50 text-gray-800">Sản phẩm đã đặt</div>
-                <div v-for="item in selectedOrder?.items || []" :key="item.product_name + item.variant"
-                  class="flex items-start justify-between p-4 border-b last:border-0">
+                <div v-for="item in selectedOrder?.order_items || []" :key="item.product?.id + '-' + (item.variant?.id || '')" class="flex items-start justify-between p-4 border-b last:border-0">
                   <div class="flex gap-3">
-
-                    <img
-                      :src="item.productVariant?.thumbnail ? `${mediaBaseUrl}${item.productVariant.thumbnail}` : `${mediaBaseUrl}products/images/product_default.jpg`"
-                      :alt="item.productVariant?.product?.name || 'Ảnh sản phẩm'"
-                      class="w-12 h-12 object-cover rounded-md border" width="60" />
-
+                    <img :src="getProductImage(item.product?.thumbnail)" :alt="item.product?.name || 'Ảnh sản phẩm'" class="w-12 h-12 object-cover rounded-md border" width="60" />
                     <div class="space-y-1">
-                      <p class="text-gray-800">{{ item.product_name || '-' }}</p>
-                      <p class="text-xs text-gray-500">Phân loại: {{ item.variant || '---' }}</p>
+                      <p class="text-gray-800">{{ item.product?.name || '-' }}</p>
+                      <p class="text-xs text-gray-500" v-if="item.variant">
+                        Phân loại: {{ item.variant.name }}
+                      </p>
                       <p class="text-xs text-gray-500">{{ formatPrice(item.price) }} × {{ item.quantity || 0 }}</p>
                     </div>
                   </div>
@@ -267,26 +263,23 @@
                   </div>
                 </div>
               </div>
-
               <!-- Thông tin thanh toán -->
               <div v-if="selectedOrder?.payments?.length" class="border border-gray-200 rounded-lg">
                 <div class="border-b px-4 py-2 font-medium text-sm bg-gray-50 text-gray-800">Thông tin thanh toán</div>
-                <div v-for="payment in selectedOrder.payments" :key="payment.created_at"
-                  class="px-4 py-3 text-sm text-gray-700 space-y-1">
+                <div v-if="selectedOrder.payments.length > 1 || (selectedOrder.payments.length === 1 && selectedOrder.payments[0].amount != selectedOrder.final_price)" class="px-4 pt-2 pb-0 text-xs text-gray-500">
+                  Lưu ý: Số tiền từng lần thanh toán có thể chưa bao gồm phí vận chuyển hoặc giảm giá. Số tiền thực tế cần đối soát là <b>Tổng tiền đơn hàng</b> phía trên.
+                </div>
+                <div v-for="payment in selectedOrder.payments" :key="payment.created_at" class="px-4 py-3 text-sm text-gray-700 space-y-1">
                   <p>Phương thức: <span class="text-black">{{ payment.method || '-' }}</span></p>
                   <p>Số tiền: <span class="text-black">{{ formatPrice(payment.amount) }}</span></p>
                   <p v-if="payment && payment.status">
                     Trạng thái: <span class="text-black">{{ statusText(payment.status) }}</span>
                   </p>
-
                 </div>
               </div>
-
             </div>
           </div>
         </Teleport>
-
-
       </main>
     </div>
   </div>
@@ -314,8 +307,10 @@ const wards = ref([])
 const cartStore = useCartStore()
 const router = useRouter()
 const config = useRuntimeConfig()
-const mediaBaseUrl = config.public.mediaBaseUrl
+const mediaBaseUrl = config.public.mediaBaseUrl.endsWith('/') ? config.public.mediaBaseUrl : config.public.mediaBaseUrl + '/'
 const apiBase = config.public.apiBaseUrl
+const sortType = ref('newest')
+const searchTracking = ref('')
 
 // Tabs configuration
 const tabs = ref([
@@ -333,8 +328,16 @@ const statusText = (status) => ({
   processing: 'Đang xử lý',
   shipped: 'Đã gửi hàng',
   delivered: 'Đã giao hàng',
-  cancelled: 'Đã huỷ'
-}[status] || 'Không xác định')
+  cancelled: 'Đã huỷ',
+  completed: 'Đã thanh toán',
+  failed: 'Thất bại',
+  refunded: 'Đã hoàn tiền',
+  success: 'Thành công',
+  paid: 'Đã thanh toán',
+  unpaid: 'Chưa thanh toán',
+  waiting: 'Đang chờ',
+  error: 'Lỗi',
+})[status] || (status ? status : 'Không xác định')
 
 const statusClass = (status) => ({
   pending: 'bg-yellow-100 text-yellow-700',
@@ -355,24 +358,24 @@ const formatPrice = (price) => {
     maximumFractionDigits: 0
   }).format(number)
 }
-  const toast = (icon, title) => {
-    Swal.fire({
-      toast: true,
-      position: 'top-end',
-      icon,
-      title,
-      width: '350px',
-      padding: '10px 20px',
-      customClass: { popup: 'text-sm rounded-md shadow-md' },
-      showConfirmButton: false,
-      timer: 1500,
-      timerProgressBar: true,
-      didOpen: (toastEl) => {
-        toastEl.addEventListener('mouseenter', () => Swal.stopTimer())
-        toastEl.addEventListener('mouseleave', () => Swal.resumeTimer())
-      }
-    })
-  }
+const toast = (icon, title) => {
+  Swal.fire({
+    toast: true,
+    position: 'top-end',
+    icon,
+    title,
+    width: '350px',
+    padding: '10px 20px',
+    customClass: { popup: 'text-sm rounded-md shadow-md' },
+    showConfirmButton: false,
+    timer: 1500,
+    timerProgressBar: true,
+    didOpen: (toastEl) => {
+      toastEl.addEventListener('mouseenter', () => Swal.stopTimer())
+      toastEl.addEventListener('mouseleave', () => Swal.resumeTimer())
+    }
+  })
+}
 
 const reorderToCart = async (order) => {
   const token = localStorage.getItem('access_token')
@@ -434,19 +437,19 @@ const formatDate = (date) => {
 // Address lookup functions
 const getProvinceName = (provinceId) => {
   if (!provinceId) return '-'
-  const province = provinces.value.find(p => p.ProvinceID === provinceId)
+  const province = provinces.value.find(p => p.ProvinceID == provinceId)
   return province?.ProvinceName || '-'
 }
 
 const getDistrictName = (districtId) => {
   if (!districtId) return '-'
-  const district = districts.value.find(d => d.DistrictID === districtId)
+  const district = districts.value.find(d => d.DistrictID == districtId)
   return district?.DistrictName || '-'
 }
 
 const getWardName = (wardCode, districtId) => {
   if (!wardCode || !districtId) return '-'
-  const ward = wards.value.find(w => w.WardCode === wardCode && w.DistrictID === districtId)
+  const ward = wards.value.find(w => w.WardCode == wardCode && w.DistrictID == districtId)
   return ward?.WardName || '-'
 }
 
@@ -487,7 +490,17 @@ const viewOrder = async (id) => {
     })
     selectedOrder.value = data
     isDetailOpen.value = true
- 
+    // Đảm bảo load đủ địa chỉ khi mở modal
+    if (!provinces.value.length) await loadProvinces()
+    if (!districts.value.length) await loadDistricts()
+    if (!wards.value.length) await loadWards()
+    // Gán tên địa phương vào address
+    const province = provinces.value.find(p => p.ProvinceID == selectedOrder.value.address.province_id)
+    const district = districts.value.find(d => d.DistrictID == selectedOrder.value.address.district_id)
+    const ward = wards.value.find(w => w.WardCode == selectedOrder.value.address.ward_code)
+    selectedOrder.value.address.province_name = province?.ProvinceName || ''
+    selectedOrder.value.address.district_name = district?.DistrictName || ''
+    selectedOrder.value.address.ward_name = ward?.WardName || ''
   } catch (err) {
     toast('error', 'Không thể tải thông tin đơn hàng!')
   }
@@ -544,20 +557,20 @@ const updateTabCounts = () => {
 
 const confirmCancel = (orderId) => {
   Swal.fire({
-    title: 'Hủy đơn hàng?',
-    text: 'Bạn chắc chắn muốn hủy đơn này chứ?',
-    icon: 'question',
+    icon: 'error',
+    title: 'Xác nhận hủy',
+    text: 'Bạn có chắc chắn muốn hủy đơn hàng này?',
     showCancelButton: true,
-    confirmButtonColor: '#1BA0E2',
-    cancelButtonColor: '#aaa',
-    confirmButtonText: 'Hủy',
-    cancelButtonText: 'Đóng',
+    confirmButtonText: 'Xác nhận',
+    cancelButtonText: 'Hủy',
+    confirmButtonColor: '#e53e3e', // đỏ
+    cancelButtonColor: '#fff',
     customClass: {
       popup: 'rounded-md shadow-sm',
       title: 'text-base font-semibold',
       htmlContainer: 'text-sm',
-      confirmButton: 'text-sm px-4 py-2',
-      cancelButton: 'text-sm px-4 py-2'
+      confirmButton: 'text-sm px-4 py-2 bg-red-600 text-white',
+      cancelButton: 'text-sm px-4 py-2 bg-white text-gray-700 border border-gray-300'
     }
   }).then((result) => {
     if (result.isConfirmed) {
@@ -572,15 +585,9 @@ const cancelOrder = async (id) => {
     await axios.post(`${apiBase}/user/orders/${id}/cancel`, {}, {
       headers: { Authorization: `Bearer ${token}` }
     })
-    Swal.fire({
-      icon: 'success',
-      title: 'Thành công',
-      text: 'Đơn hàng đã được hủy!',
-      confirmButtonColor: '#1BA0E2'
-    })
+    toast('success', 'Đơn hàng đã được hủy!')
     await fetchOrders()
   } catch (err) {
-   
     toast('error', 'Không thể hủy đơn hàng!')
   }
 }
@@ -646,13 +653,32 @@ const downloadPDF = async (orderId) => {
   }
 }
 
+function getProductImage(thumbnail) {
+  if (!thumbnail) return '/images/no-image.png'
+  if (thumbnail.startsWith('http://') || thumbnail.startsWith('https://')) return thumbnail
+  return mediaBaseUrl + thumbnail
+}
 
 // Computed
 const filteredOrders = computed(() => {
-  if (selectedTab.value === 'all') return orders.value
-
-  return orders.value.filter(o => o.status === selectedTab.value)
-
+  let result = orders.value;
+  // Lọc theo tab
+  if (selectedTab.value !== 'all') {
+    result = result.filter(o => o.status === selectedTab.value);
+  }
+  // Tìm kiếm theo tracking_code
+  if (searchTracking.value.trim()) {
+    result = result.filter(o => (o.shipping?.tracking_code || '').toLowerCase().includes(searchTracking.value.trim().toLowerCase()));
+  }
+  // Sắp xếp
+  if (sortType.value === 'newest') {
+    result = [...result].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  } else if (sortType.value === 'oldest') {
+    result = [...result].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+  } else if (sortType.value === 'recent') {
+    result = [...result].sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at));
+  }
+  return result;
 })
 
 // Lifecycle

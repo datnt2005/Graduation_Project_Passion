@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DiscountController;
 
+Route::get('/discounts/all', [\App\Http\Controllers\DiscountController::class, 'indexPublic']);    
 
 // Các route dành cho user đã đăng nhập
 Route::middleware(['auth:sanctum', 'checkRole:user,seller,admin'])->group(function () {
@@ -31,4 +32,5 @@ Route::prefix('discounts')->middleware(['auth:sanctum', 'checkRole:admin,seller'
     Route::put('/flash-sales/{id}', [DiscountController::class, 'updateFlashSale']);
     Route::delete('/flash-sales/{id}', [DiscountController::class, 'destroyFlashSale']);
 });
-    
+
+

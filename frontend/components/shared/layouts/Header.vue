@@ -25,21 +25,33 @@
                 Không có thông báo mới.
               </div>
               <ul v-else class="divide-y divide-gray-100">
-                <li v-for="item in notifications" :key="item.id" @click="handleNotificationClick(item)"
-                  class="relative p-3 hover:bg-gray-50 cursor-pointer flex gap-3 items-start transition"
-                  :class="{ 'opacity-60': item.is_read === 1 }">
+                <li v-for="item in notifications" :key="item.id"
+                  class="relative p-3 hover:bg-gray-50 flex gap-3 items-start transition group"
+                  :class="{ 'opacity-60': item.is_read === 1, 'cursor-pointer': true }"
+                  @click="item.link ? redirectToLink(item) : openNotificationModal(item)">
+
+                  <!-- Hình ảnh -->
                   <img v-if="item.image_url" :src="item.image_url" alt="Hình thông báo"
                     class="w-12 h-12 object-cover rounded" />
                   <div class="flex-1 min-w-0">
                     <div class="flex justify-between items-center">
-                      <span class="text-gray-800 font-semibold truncate" :class="{ 'font-bold': item.is_read === 0 }">{{
-                        item.title }}</span>
+                      <span class="text-gray-800 font-semibold truncate" :class="{ 'font-bold': item.is_read === 0 }">
+                        {{ item.title }}
+                      </span>
                       <span v-if="item.is_read === 0" class="w-2 h-2 bg-blue-500 rounded-full inline-block"></span>
                     </div>
+
                     <p class="text-gray-500 text-sm mt-1 break-words line-clamp-2">
                       {{ stripHTML(item.content) || 'Không có nội dung' }}
                     </p>
-                    <p class="text-gray-500 text-xs mt-1">{{ item.time_ago }}</p>
+                    <p class="text-gray-500 text-xs mt-1 flex justify-between items-center">
+                      <span>{{ item.time_ago || 'Vừa xong' }}</span>
+                      <!-- Nút xem chi tiết nếu có link -->
+                      <button v-if="item.link" @click.stop="openNotificationModal(item)"
+                        class="text-blue-600 hover:underline text-xs font-medium transition duration-150">
+                        Xem chi tiết
+                      </button>
+                    </p>
                   </div>
                 </li>
               </ul>
@@ -63,6 +75,38 @@
               Đăng ký
             </NuxtLink>
           </template>
+          <Teleport to="body">
+            <transition name="fade">
+              <div v-if="showNotificationModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+                <div class="bg-white rounded-lg shadow-lg max-w-md w-full p-6 relative">
+                  <button @click="showNotificationModal = false" class="absolute top-3 right-3 text-gray-400 hover:text-gray-600">
+                    ✕
+                  </button>
+
+                  <!-- Tiêu đề -->
+                  <h3 class="text-lg font-semibold text-gray-800 mb-2">
+                    {{ currentNotification?.title || 'Không có tiêu đề' }}
+                  </h3>
+
+                  <!-- Hình ảnh -->
+                  <div v-if="currentNotification?.image_url" class="mb-4">
+                    <img :src="currentNotification.image_url" alt="Ảnh thông báo"
+                      class="w-full h-auto rounded-md border object-cover max-h-64 mx-auto" />
+                  </div>
+
+                  <!-- Nội dung -->
+                  <div class="prose prose-sm text-gray-700 max-h-80 overflow-y-auto mb-4"
+                    v-html="currentNotification?.content || 'Không có nội dung'"></div>
+
+                  <!-- Thời gian -->
+                  <div class="text-xs text-gray-400">
+                    Gửi: {{ currentNotification?.time_ago || 'Không rõ thời gian' }}
+                  </div>
+                </div>
+              </div>
+            </transition>
+          </Teleport>
+
         </div>
       </div>
     </header>
@@ -167,10 +211,12 @@
               <li><a href="/users/profile" class="block px-4 py-2 hover:bg-gray-100">Thông tin tài khoản</a></li>
               <li><a href="/users/orders" class="block px-4 py-2 hover:bg-gray-100">Đơn hàng của tôi</a></li>
               <li><a href="/support" class="block px-4 py-2 hover:bg-gray-100">Trung tâm hỗ trợ</a></li>
-              <li id="admin-menu" class="hidden"><a href="/admin/dashboard" class="block px-4 py-2 hover:bg-gray-100">Trang
-                  quản lý (Admin)</a></li>
-              <li id="seller-menu" class="hidden"><a href="/seller/dashboard" class="block px-4 py-2 hover:bg-gray-100">Trang
-                  quản lý (Seller)</a></li>
+     <li v-if="userRole === 'admin'">
+  <a href="/admin/dashboard" class="block px-4 py-2 hover:bg-gray-100">Trang quản lý (Admin)</a>
+</li>
+<li v-if="userRole === 'seller'">
+  <a href="/seller/dashboard" class="block px-4 py-2 hover:bg-gray-100">Trang quản lý (Seller)</a>
+</li>
             </ul>
           </div>
 
@@ -268,10 +314,27 @@ const modalMode = ref('login')
 const isLoggedIn = ref(false)
 const userName = ref('')
 const isMobileMenuOpen = ref(false)
+const showVerifyEmailForm = ref(false)
+const userRole = ref('');
+
 const notifications = ref([])
 const unreadCount = ref(0)
 const notificationDropdownOpen = ref(false)
-const categories = ref([])
+const currentNotification = ref(null)
+const showNotificationModal = ref(false)
+
+
+const redirectToLink = async (item) => {
+  await markAsRead(item)
+  window.location.href = item.link
+}
+
+const openNotificationModal = async (item) => {
+  await markAsRead(item)
+  currentNotification.value = item
+  showNotificationModal.value = true
+  notificationDropdownOpen.value = false
+}
 
 const stripHTML = (html) => {
   const div = document.createElement('div')
@@ -281,45 +344,80 @@ const stripHTML = (html) => {
 
 const toggleNotificationDropdown = () => {
   notificationDropdownOpen.value = !notificationDropdownOpen.value
+
+  if (notificationDropdownOpen.value) {
+    fetchNotifications()
+  }
 }
+
 
 const fetchNotifications = async () => {
   try {
     const token = localStorage.getItem('access_token')
-    if (!token) return
+    if (!token) {
+      console.warn('Chưa có token, không gọi API')
+      return
+    }
+
     const res = await fetch(`${api}/my-notifications`, {
       headers: { Authorization: `Bearer ${token}` }
     })
     const data = await res.json()
-    if (data?.data) {
+    console.log('Kết quả trả về từ API:', data)
+
+    if (Array.isArray(data?.data)) {
       notifications.value = data.data
       unreadCount.value = data.data.filter(n => !n.is_read).length
+    } else {
+      console.warn('Dữ liệu không hợp lệ:', data.data)
+      notifications.value = []
+      unreadCount.value = 0
     }
   } catch (e) {
-    console.error('Lỗi khi lấy thông báo:', e)
+    // console.error('Lỗi khi lấy thông báo:', e)
   }
 }
+const markAsRead = async (item) => {
+  const token = localStorage.getItem('access_token')
+  if (!token || item.is_read === 1) return
 
-const handleNotificationClick = async (item) => {
   try {
-    const token = localStorage.getItem('access_token')
-    if (!token) return
-    if (item.is_read === 0) {
-      await fetch(`${api}/notifications/${item.id}/read`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      item.is_read = 1
-      unreadCount.value = notifications.value.filter(n => !n.is_read).length
-    }
-    if (item.link) {
-      window.location.href = item.link
-    }
+    await fetch(`${api}/notifications/${item.id}/read`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` }
+    })
+
+    item.is_read = 1
+    unreadCount.value = notifications.value.filter(n => !n.is_read).length
   } catch (err) {
-    console.error('Lỗi khi xử lý thông báo:', err)
+    console.error('Lỗi đánh dấu đã đọc:', err)
   }
 }
 
+// NEW từ dat_dev: dùng cho categories động
+const categories = ref([])
+
+let resendTimer = null
+
+const form = ref({
+  name: '',
+  email: '',
+  password: '',
+  confirmPassword: '',
+  phone: '',
+});
+
+const forgotEmail = ref('');
+const isSending = ref(false);
+
+const resetForm = ref({
+  email: '',
+  otp: '',
+  password: '',
+  password_confirmation: '',
+});
+
+// Fetch categories for mega menu
 const fetchCategories = async () => {
   try {
     const response = await fetch(`${api}/categories/parents`, {
@@ -343,7 +441,6 @@ const openRegister = () => {
   modalMode.value = 'register'
   showModal.value = true
 }
-
 const logout = async () => {
   try {
     const token = localStorage.getItem('access_token')
@@ -420,6 +517,7 @@ const handleLoginSuccess = (userData) => {
   showRoleBasedMenu()
 }
 
+
 onMounted(() => {
   updateLoginState()
   fetchCategories()
@@ -463,5 +561,19 @@ onUnmounted(() => {
 }
 .relative {
   position: relative;
+}
+
+.prose {
+  scrollbar-width: thin;
+  scrollbar-color: #ccc transparent;
+}
+
+.prose::-webkit-scrollbar {
+  width: 6px;
+}
+
+.prose::-webkit-scrollbar-thumb {
+  background-color: #ccc;
+  border-radius: 4px;
 }
 </style>

@@ -32,8 +32,8 @@
                             @toggle-favorite="toggleFavorite" @view-shop="viewShop" @select-option="selectOption"
                             @increase-quantity="increaseQuantity" @decrease-quantity="decreaseQuantity"
                             @validate-selection="onValidateSelection" @add-to-cart="addToCart" @buy-now="buyNow"
-                            @update:quantity="quantity = $event" @update:validationMessage="validationMessage = $event"
-                            :validation-message="validationMessage" @clear-validation="validationMessage = ''" />
+                            @update:quantity="quantity = $event" :validation-message="validationMessage"
+                            @clear-validation="validationMessage = ''" :loading="loading" @chat-with-shop="chatWithShop"  />
                     </div>
                     <div v-else class="text-center text-gray-500">
                         Không có biến thể sản phẩm hợp lệ.
@@ -70,6 +70,7 @@
 
 <script setup>
 import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue';
+import axios from 'axios';
 import { useRoute, useRouter } from 'vue-router';
 import RelatedProductItem from '../components/shared/products/RelatedProductItem.vue';
 import ProductImageGallery from '../components/shared/products/ProductImageGallery.vue';
@@ -78,15 +79,18 @@ import ProductDescription from '../components/shared/products/ProductDescription
 import ProductReviews from '../components/shared/reviews/ProductReviews.vue';
 import PhoneNumber from '../components/shared/products/PhoneNumber.vue';
 import { useToast } from '~/composables/useToast';
-import { useAuthStore } from '@/stores/auth';
+import { useChatStore } from '~/stores/chat';
+import { useRuntimeConfig } from '#app';
 
 import { useCart } from '~/composables/useCart';
 const { fetchCart } = useCart();
 
-const { toast } = useToast()
+const { toast } = useToast();
 const config = useRuntimeConfig();
-const route = useRoute();
 const router = useRouter();
+const route = useRoute();
+const chatStore = useChatStore()
+
 const apiBase = config.public.apiBaseUrl;
 const mediaBase = config.public.mediaBaseUrl;
 const auth = useAuthStore();
@@ -96,6 +100,8 @@ const auth = useAuthStore();
 const apiData = ref(null);
 const error = ref(null);
 const loading = ref(true);
+
+
 
 // Product Data
 const product = ref({
@@ -121,6 +127,7 @@ const seller = ref({
     rating: 0,
     last_active: ''
 });
+
 
 const category = ref({});
 const tag = ref({});
@@ -490,8 +497,14 @@ async function fetchProduct() {
         product.value.fullDescription = data.data?.product?.fullDescription || 'No description available.';
         product.value.sold = String(data.data?.product?.sold || '0');
         product.value.stock = Number(data.data?.product?.stock || 0);
+        product.value.sellerId = data.data?.product?.seller?.id || data.data?.product?.sellerId || null;
+        product.value.image = (data.data?.product?.images && data.data?.product?.images.length > 0)
+        ? data.data.product.images[0].src
+        : data.data?.product?.image || '/default-product.jpg';
+        product.value.images = data.data?.product?.images || []; 
 
         seller.value = {
+            id: data.data?.product?.seller?.id || data.data?.product?.sellerId || null,
             store_name: data.data?.product?.seller?.store_name || 'Unknown Seller',
             store_slug: data.data?.product?.seller?.store_slug || 'unknown-seller',
             avatar: data.data?.product?.seller?.avatar || null,
@@ -513,7 +526,7 @@ async function fetchProduct() {
             attributes: variant.attributes || [],
             stock: Number(variant.stock || 0)
         }));
-
+        
         const productImages = (data.data?.product?.images || []).map(img => ({
             src: img.src || '/default-product.jpg',
             alt: img.alt || 'Product image',
@@ -582,6 +595,69 @@ async function fetchProduct() {
         loading.value = false;
     }
 }
+
+const chatWithShop = async () => {
+  console.log('Toast:', toast);
+  console.log('Product:', product.value);
+  console.log('Seller:', seller.value);
+
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    toast('error', 'Vui lòng đăng nhập để chat');
+    router.push('/login');
+    return;
+  }
+
+  if (!product.value || !product.value.id) {
+    toast('error', 'Dữ liệu sản phẩm không hợp lệ');
+    console.error('Product data is missing');
+    return;
+  }
+
+  let userId;
+  try {
+    const { data } = await axios.get(`${apiBase}/me`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    userId = data?.data?.id;
+    if (!userId) {
+      toast('error', 'Không tìm thấy thông tin người dùng');
+      console.error('User ID is missing');
+      return;
+    }
+  } catch (error) {
+    toast('error', 'Lỗi khi lấy thông tin người dùng');
+    console.error('❌ Lỗi khi lấy user:', error);
+    return;
+  }
+
+  const sellerId = seller.value?.id || product.value.sellerId;
+  if (!sellerId) {
+    toast('error', 'Không tìm thấy thông tin cửa hàng. Vui lòng thử lại sau.');
+    console.error('Seller ID is missing');
+    return;
+  }
+
+  const productData = {
+    name: product.value.name || 'Sản phẩm không xác định',
+    price: selectedVariant.value?.price || product.value.originalPrice || '0.00',
+    image: product.value.image || '/default-product.jpg',
+    id: product.value.id,
+    variantId: selectedVariant.value?.id || null,
+    link: window.location.href,
+    store_name: seller.value.store_name,
+    avatar: seller.value.avatar
+  };
+
+  console.log('Sending product message:', productData);
+  try {
+    await chatStore.sendProductMessage(productData, userId, sellerId);
+    toast('success', 'Đã gửi tin nhắn sản phẩm đến cửa hàng');
+  } catch (error) {
+    toast('error', 'Lỗi khi gửi tin nhắn sản phẩm: ' + (error.message || 'Vui lòng thử lại'));
+    console.error('❌ Lỗi khi gửi tin nhắn:', error);
+  }
+};
 
 watch(selectedOptions, (newOptions) => {
     const variant = selectedVariant.value;

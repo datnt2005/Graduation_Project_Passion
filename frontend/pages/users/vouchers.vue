@@ -197,6 +197,7 @@ import SidebarProfile from '~/components/shared/layouts/Sidebar-profile.vue'
 import { useDiscount } from '~/composables/useDiscount'
 import { useRouter } from 'vue-router'
 import { useNotification } from '~/composables/useNotification'
+import { useToast } from '~/composables/useToast'
 
 // Chỉ giữ lại tab 'Tất cả'
 const tabs = [
@@ -218,6 +219,7 @@ const selectedSort = ref('newest')
 
 const { discounts, saveVoucherByCode, loading, error, fetchMyVouchers, deleteUserCoupon } = useDiscount()
 const { showNotification } = useNotification()
+const { toast } = useToast()
 
 const vouchers = computed(() => discounts.value)
 
@@ -296,11 +298,11 @@ const handleSaveVoucher = async () => {
     voucherCode.value = ''
     await fetchMyVouchers()
     currentPage.value = 1 // reset về trang đầu khi thêm mới
-    showNotification(res.message, 'success')
+    toast('success', res.message || 'Lưu voucher thành công')
   } else {
     alertMsg.value = res.message
     alertType.value = 'error'
-    showNotification(res.message, 'error')
+    toast('error', res.message || 'Lưu voucher thất bại')
   }
   setTimeout(() => { alertMsg.value = '' }, 3000)
 }
@@ -314,11 +316,12 @@ const handleDeleteVoucher = (id) => {
       if (res.success) {
         alertMsg.value = res.message
         alertType.value = 'success'
-        showNotification(res.message, 'success')
+        toast('success', res.message || 'Đã xoá voucher thành công')
+        await fetchMyVouchers()
       } else {
         alertMsg.value = res.message
         alertType.value = 'error'
-        showNotification(res.message, 'error')
+        toast('error', res.message || 'Xoá voucher thất bại')
       }
       setTimeout(() => { alertMsg.value = '' }, 3000)
     }
@@ -354,11 +357,9 @@ const availablePageSize = 5
 const fetchAvailableDiscounts = async () => {
   availableLoading.value = true
   try {
-    const token = localStorage.getItem('access_token')
-    const res = await fetch(`${useRuntimeConfig().public.apiBaseUrl}/discounts`, {
+    const res = await fetch(`${useRuntimeConfig().public.apiBaseUrl}/discounts/all`, {
       headers: {
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${token}`
+        'Accept': 'application/json'
       }
     })
     const data = await res.json()
@@ -409,12 +410,12 @@ const handleSaveAvailableVoucher = async (code) => {
     alertMsg.value = res.message
     alertType.value = 'success'
     await fetchMyVouchers()
-    showNotification(res.message, 'success')
+    toast('success', res.message || 'Lưu voucher thành công')
     await fetchAvailableDiscounts()
   } else {
     alertMsg.value = res.message
     alertType.value = 'error'
-    showNotification(res.message, 'error')
+    toast('error', res.message || 'Lưu voucher thất bại')
   }
   setTimeout(() => { alertMsg.value = '' }, 3000)
 }

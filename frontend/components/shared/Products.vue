@@ -69,6 +69,8 @@ import Filters from '~/components/shared/filters/Filters.vue';
 import ProductCard from '~/components/shared/products/ProductCard.vue';
 import { useSearchStore } from '~/stores/search';
 
+
+
 const config = useRuntimeConfig();
 const apiBase = config.public.apiBaseUrl;
 const mediaBase = config.public.mediaBaseUrl;

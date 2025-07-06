@@ -984,6 +984,7 @@ class ProductController extends Controller
                 'images' => $productImages,
                 'variants' => $variants,
                 'seller' => [
+                    'id' => $seller->id,
                     'store_name' => $seller->store_name ?? 'N/A',
                     'store_slug' => $seller->store_slug ?? 'N/A',
                     'avatar' => $seller->user->avatar ?? "avatars/default.jpg",
