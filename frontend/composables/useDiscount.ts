@@ -1,12 +1,11 @@
-import { ref } from 'vue';
-import Swal from 'sweetalert2'
+import { ref } from 'vue'
 
 interface Discount {
     id: number
     name: string
     code: string
     description: string
-    discount_type: 'percentage' | 'fixed' | 'shipping_fee'
+    discount_type: 'percentage' | 'fixed'
     discount_value: number
     usage_limit: number
     min_order_value: number
@@ -21,7 +20,6 @@ export const useDiscount = () => {
     const error = ref<string | null>(null)
     const selectedDiscounts = ref<Discount[]>([])
     const config = useRuntimeConfig()
-
 
     const fetchDiscounts = async () => {
         const token = localStorage.getItem('access_token')
@@ -47,8 +45,8 @@ export const useDiscount = () => {
             }
 
             const data = await res.json()
-            discounts.value = data.data.filter((discount: Discount) =>
-                discount.status === 'active' &&
+            discounts.value = data.data.filter((discount: Discount) => 
+                discount.status === 'active' && 
                 new Date(discount.end_date) > new Date()
             )
         } catch (err) {
@@ -155,86 +153,164 @@ export const useDiscount = () => {
     // }
 
     const applyDiscount = (discount: Discount) => {
-        const isProductDiscount = discount.discount_type === 'percentage' || discount.discount_type === 'fixed';
-        const isShippingDiscount = discount.discount_type === 'shipping_fee';
-
-        // Kiểm tra trùng mã
+        if (selectedDiscounts.value.length >= 2) {
+            alert('Chỉ được chọn tối đa 2 mã giảm giá')
+            return
+        }
+        
         if (selectedDiscounts.value.find(d => d.id === discount.id)) {
-            showErrorNotification('Mã giảm giá này đã được áp dụng');
-            return;
+            alert('Mã giảm giá này đã được áp dụng')
+            return
         }
 
-        // Không cho chọn 2 mã cùng loại
-        if (
-            isProductDiscount && selectedDiscounts.value.find(d => d.discount_type === 'percentage' || d.discount_type === 'fixed')
-        ) {
-            showErrorNotification('Chỉ được chọn 1 mã giảm giá cho sản phẩm');
-            return;
+        selectedDiscounts.value.push(discount)
+        const index = discounts.value.findIndex(d => d.id === discount.id)
+        if (index !== -1) {
+            discounts.value.splice(index, 1)
         }
 
-        if (
-            isShippingDiscount && selectedDiscounts.value.find(d => d.discount_type === 'shipping_fee')
-        ) {
-            showErrorNotification('Chỉ được chọn 1 mã giảm giá phí vận chuyển');
-            return;
-        }
-
-        // Hợp lệ → áp dụng
-        selectedDiscounts.value.push(discount);
-        showSuccessNotification('Mã giảm giá được áp dụng');
-    };
-
+        console.log('Applied discount:', discount)
+        console.log('Selected discounts:', selectedDiscounts.value)
+    }
 
     const removeDiscount = (discountId: number) => {
         const index = selectedDiscounts.value.findIndex(d => d.id === discountId)
         if (index !== -1) {
-            selectedDiscounts.value.splice(index, 1)[0]
-            // discounts.value.push(removedDiscount)
-            // bỏ mã giảm giá thành công 
-            showSuccessNotification('Mã giảm giá được bỏ')
+            const removedDiscount = selectedDiscounts.value.splice(index, 1)[0]
+            discounts.value.push(removedDiscount)
         }
     }
 
     const calculateDiscount = (total: number) => {
         let totalDiscount = 0
-
-        selectedDiscounts.value
-            .filter(d => d.discount_type === 'percentage' || d.discount_type === 'fixed')
-            .forEach(discount => {
-                if (total >= (discount.min_order_value || 0)) {
-                    const value = Number(discount.discount_value)
-
-                    if (discount.discount_type === 'percentage') {
-                        totalDiscount += total * value / 100
-                    } else {
-                        totalDiscount += value
-                    }
+        selectedDiscounts.value.forEach(discount => {
+            if (total >= (discount.min_order_value || 0)) {
+                if (discount.discount_type === 'percentage') {
+                    totalDiscount += (total * discount.discount_value / 100)
+                } else {
+                    totalDiscount += discount.discount_value
                 }
-            })
-
+            }
+        })
         return totalDiscount
     }
 
-    const getShippingDiscount = (total: number) => {
-        const shippingDiscount = selectedDiscounts.value.find(
-            d => d.discount_type === 'shipping_fee'
-        );
-
-        if (!shippingDiscount) return 0;
-
-        // Nếu có điều kiện min_order_value → áp dụng
-        if (total >= (shippingDiscount.min_order_value || 0)) {
-            return Number(shippingDiscount.discount_value || 0);
+    const saveVoucherByCode = async (code: string) => {
+        const token = localStorage.getItem('access_token')
+        if (!token) {
+            error.value = 'Vui lòng đăng nhập để tiếp tục'
+            return { success: false, message: 'Vui lòng đăng nhập để tiếp tục' }
         }
+        loading.value = true
+        try {
+            const res = await fetch(`${config.public.apiBaseUrl}/discounts/save-by-code`, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ code })
+            })
+            const data = await res.json()
+            if (res.ok && data.success) {
+                // Thêm voucher mới vào danh sách
+                discounts.value.unshift(data.data)
+                return { success: true, message: data.message }
+            } else {
+                return { success: false, message: data.message || 'Có lỗi xảy ra' }
+            }
+        } catch (err) {
+            return { success: false, message: 'Lỗi không xác định' }
+        } finally {
+            loading.value = false
+        }
+    }
 
-        return 0;
-    };
+    const fetchMyVouchers = async () => {
+        const token = localStorage.getItem('access_token')
+        if (!token) {
+            error.value = 'Vui lòng đăng nhập để tiếp tục'
+            return
+        }
+        loading.value = true
+        try {
+            const res = await fetch(`${config.public.apiBaseUrl}/discounts/my-vouchers`, {
+                headers: {
+                    'Accept': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+            const data = await res.json()
+            if (res.ok && data.success) {
+                discounts.value = data.data
+            } else {
+                error.value = data.message || 'Không lấy được danh sách voucher'
+            }
+        } catch (err) {
+            error.value = 'Lỗi không xác định'
+        } finally {
+            loading.value = false
+        }
+    }
 
+    // Lấy các coupon mà user đã lưu
+    const fetchUserCoupons = async () => {
+        const token = localStorage.getItem('access_token')
+        if (!token) {
+            error.value = 'Vui lòng đăng nhập để tiếp tục'
+            return
+        }
+        loading.value = true
+        try {
+            const res = await fetch(`${config.public.apiBaseUrl}/discounts/my-vouchers`, {
+                headers: {
+                    'Accept': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+            const data = await res.json()
+            if (res.ok && data.success) {
+                discounts.value = data.data
+            } else {
+                error.value = data.message || 'Không lấy được danh sách voucher đã lưu'
+            }
+        } catch (err) {
+            error.value = 'Lỗi không xác định'
+        } finally {
+            loading.value = false
+        }
+    }
 
-
-    const formatPrice = (price: number): string => {
-        if (!price || isNaN(price)) return '0'
-        return Math.floor(price).toLocaleString('vi-VN') // đảm bảo không có dấu sai
+    // Xoá mã giảm giá đã lưu của user
+    const deleteUserCoupon = async (discountId: number) => {
+        const token = localStorage.getItem('access_token')
+        if (!token) {
+            error.value = 'Vui lòng đăng nhập để tiếp tục'
+            return { success: false, message: 'Vui lòng đăng nhập để tiếp tục' }
+        }
+        loading.value = true
+        try {
+            const res = await fetch(`${config.public.apiBaseUrl}/discounts/my-voucher/${discountId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Accept': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+            const data = await res.json()
+            if (res.ok && data.success) {
+                // Xoá khỏi danh sách
+                discounts.value = discounts.value.filter(d => d.id !== discountId)
+                return { success: true, message: data.message }
+            } else {
+                return { success: false, message: data.message || 'Không xoá được mã giảm giá' }
+            }
+        } catch (err) {
+            return { success: false, message: 'Lỗi không xác định' }
+        } finally {
+            loading.value = false
+        }
     }
 
     const saveVoucherByCode = async (code: string) => {
@@ -284,7 +360,6 @@ export const useDiscount = () => {
         selectedDiscounts,
         loading,
         error,
-        formatPrice,
         fetchDiscounts,
         fetchMyVouchers,
         applyDiscount,
@@ -292,6 +367,7 @@ export const useDiscount = () => {
         calculateDiscount,
         getShippingDiscount,
         saveVoucherByCode,
+        fetchUserCoupons,
         deleteUserCoupon
     }
 } 

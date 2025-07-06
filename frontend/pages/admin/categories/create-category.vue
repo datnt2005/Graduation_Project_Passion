@@ -237,7 +237,7 @@ const fetchCategories = async () => {
   try {
     const response = await fetch(`${apiBase}/categories`);
     const data = await response.json();
-    categories.value = data.categories;
+    categories.value = data.data.data || [];
   } catch (error) {
     console.error('Error fetching categories:', error);
     showNotificationMessage('Có lỗi xảy ra khi lấy danh sách danh mục' , 'error');

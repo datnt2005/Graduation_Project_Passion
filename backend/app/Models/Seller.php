@@ -78,4 +78,8 @@ class Seller extends Model
         return $this->belongsToMany(User::class, 'seller_followed', 'seller_id', 'followed_user_id')
             ->withTimestamps();
     }
+    public function discounts()
+    {
+        return $this->hasMany(Discount::class, 'seller_id');
+    }
 }

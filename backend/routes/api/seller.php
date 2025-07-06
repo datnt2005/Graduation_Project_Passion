@@ -20,6 +20,8 @@ Route::middleware(['auth:sanctum'])->prefix('register')->group(function () {
 
     // 4. Route công khai – không cần đăng nhập
     Route::get('/store/{slug}', [SellerController::class, 'showStore']);
+    Route::get('/store/{slug}/deals', [SellerController::class, 'getDeals']);
+    Route::get('/store/{slug}/discounts', [SellerController::class, 'getDiscounts']);
     Route::get('/verified', [SellerController::class, 'getVerifiedSellers']);
 
 });

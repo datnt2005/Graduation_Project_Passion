@@ -93,6 +93,8 @@ const chatStore = useChatStore()
 
 const apiBase = config.public.apiBaseUrl;
 const mediaBase = config.public.mediaBaseUrl;
+const auth = useAuthStore();
+
 
 // API Data
 const apiData = ref(null);
@@ -150,7 +152,12 @@ const displayProducts = computed(() => {
 
 // Favorites state
 const isFavorite = ref(false);
+const isLoggedIn = computed(() => auth.isLoggedIn);
+const currentUser = computed(() => auth.currentUser);
 
+const openLoginModal = () => {
+    window.dispatchEvent(new CustomEvent('openLoginModal'));
+};
 // Validation state
 const validationMessage = ref('');
 
@@ -347,8 +354,10 @@ function validateSelection() {
     }
     const token = localStorage.getItem('access_token');
     if (!token) {
-        toast('error', 'Vui lòng đăng nhập để tiếp tục!')
-        return false;
+        if (!isLoggedIn.value) {
+            openLoginModal();
+            return;
+        }
     }
     validationMessage.value = '';
     return true;
@@ -380,43 +389,43 @@ function toggleFavorite() {
 
 const isAddingToCart = ref(false);
 async function addToCart() {
-  if (!validateSelection()) {
-    return;
-  }
-
-  const token = localStorage.getItem('access_token');
-  const payload = {
-    product_variant_id: selectedVariant.value?.id || null,
-    quantity: quantity.value,
-    price: selectedVariant.value?.sale_price || selectedVariant.value?.price || '0.00'
-  };
-
-  try {
-    isAddingToCart.value = true;
-    const res = await fetch(`${apiBase}/cart/add`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify(payload)
-    });
-    const data = await res.json();
-    console.log('API response:', data); // Debug
-    if (!res.ok) {
-      throw new Error(data.message || `Failed to add to cart: ${res.statusText}`);
+    if (!validateSelection()) {
+        return;
     }
-    toast('success', data.message || 'Thêm vào giỏ hàng thành công!');
-    quantity.value = 1;
-    validationMessage.value = '';
-    await fetchCart();
-  } catch (err) {
-    console.error('Add to cart error:', err);
-    toast('error', err.message || 'Thêm vào giỏ hàng thất bại.');
-    validationMessage.value = err.message || 'Có lỗi xảy ra.';
-  } finally {
-    isAddingToCart.value = false;
-  }
+
+    const token = localStorage.getItem('access_token');
+    const payload = {
+        product_variant_id: selectedVariant.value?.id || null,
+        quantity: quantity.value,
+        price: selectedVariant.value?.sale_price || selectedVariant.value?.price || '0.00'
+    };
+
+    try {
+        isAddingToCart.value = true;
+        const res = await fetch(`${apiBase}/cart/add`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        console.log('API response:', data); // Debug
+        if (!res.ok) {
+            throw new Error(data.message || `Failed to add to cart: ${res.statusText}`);
+        }
+        toast('success', data.message || 'Thêm vào giỏ hàng thành công!');
+        quantity.value = 1;
+        validationMessage.value = '';
+        await fetchCart();
+    } catch (err) {
+        console.error('Add to cart error:', err);
+        toast('error', err.message || 'Thêm vào giỏ hàng thất bại.');
+        validationMessage.value = err.message || 'Có lỗi xảy ra.';
+    } finally {
+        isAddingToCart.value = false;
+    }
 }
 
 async function buyNow() {
@@ -456,7 +465,7 @@ async function buyNow() {
 }
 
 function viewShop() {
-    router.push(`/seller/${seller.value.store_slug }`);
+    router.push(`/seller/${seller.value.store_slug}`);
 }
 
 async function fetchProduct() {
@@ -671,19 +680,18 @@ watch(selectedOptions, (newOptions) => {
 }, { deep: true });
 
 watch(() => route.params.slug, (newSlug, oldSlug) => {
-  if (newSlug !== oldSlug) {
-    console.log('Slug changed:', newSlug);
-    fetchProduct();
-  }
+    if (newSlug !== oldSlug) {
+        console.log('Slug changed:', newSlug);
+        fetchProduct();
+    }
 }, { immediate: true });
 
 onMounted(() => {
-  startAutoSlide();
-   console.log('🔍 Seller info on mount:', seller);
+    startAutoSlide();
 });
 
 onBeforeUnmount(() => {
-  pauseAutoSlide();
+    pauseAutoSlide();
 });
 </script>
 

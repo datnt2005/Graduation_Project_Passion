@@ -500,6 +500,7 @@
 import { ref, reactive, onMounted, computed, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useRuntimeConfig } from '#imports'
+import { secureFetch } from '@/utils/secureFetch'
 
 definePageMeta({
   layout: 'default-admin'
@@ -536,7 +537,7 @@ const users = ref([]);
 
 const fetchProducts = async () => {
   try {
-    const res = await fetch(`${apiBase}/products?per_page=1000`);
+    const res = await secureFetch(`${apiBase}/products?per_page=1000`, {}, ['admin']);
     const data = await res.json();
     products.value = data.data?.data || data.data || [];
   } catch (e) {
@@ -660,7 +661,7 @@ const formData = reactive({
 const fetchCouponData = async () => {
   try {
     loading.value = true;
-    const response = await fetch(`${apiBase}/discounts/${route.params.id}`);
+    const response = await secureFetch(`${apiBase}/discounts/${route.params.id}`,{}, ['admin']);
     const data = await response.json();
 
     if (data.success) {
@@ -713,7 +714,7 @@ const updateCoupon = async () => {
     loading.value = true;
 
     // Step 1: Update basic discount information
-    const response = await fetch(`${apiBase}/discounts/${route.params.id}`, {
+    const response = await secureFetch(`${apiBase}/discounts/${route.params.id},{},['admin']`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',

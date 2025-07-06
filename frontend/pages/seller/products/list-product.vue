@@ -163,7 +163,7 @@
               {{ truncateText(product.name, 30) }}
             </td>
             <td class="border border-gray-300 px-3 py-2 text-left text-gray-500">
-              {{ product.slug }}
+              {{ truncateText(product.slug, 20) }}
             </td>
             <td class="border border-gray-300 px-3 py-2 text-left">
               <span :class="getStockStatus(product) === 'instock' ? 'text-green-600' : 'text-red-600'">

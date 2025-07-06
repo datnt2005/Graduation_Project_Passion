@@ -1,9 +1,9 @@
 <template>
   <div class="bg-[#f5f7fa] font-sans text-[#1a1a1a] min-h-screen">
-    <div class="min-h-screen flex flex-col md:flex-row max-w-[1200px] mx-auto p-4 sm:p-6">
+    <div class="min-h-screen flex flex-col md:flex-row max-w-screen-2xl mx-auto p-4 sm:p-6">
       <SidebarProfile class="flex-shrink-0 border-r border-gray-200 md:w-64 mb-4 md:mb-0" />
       <main class="flex-1 p-0 md:p-4">
-        <div class="max-w-[900px] mx-auto">
+        <div class=" mx-auto">
           <h2 class="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-2 text-left">Kho Voucher</h2>
           <div class="flex flex-col sm:flex-row sm:items-center gap-2 mb-4">
             <div class="flex-1 flex items-center bg-white rounded border border-gray-200 px-3 py-2">
@@ -39,7 +39,7 @@
           <div v-if="loading" class="flex flex-col items-center justify-center bg-white border border-gray-200 p-8 rounded-lg shadow-md mt-6">
             <span class="text-gray-500 text-sm">Đang tải voucher...</span>
           </div>
-          <div v-else-if="paginatedVouchers.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div v-else-if="paginatedVouchers.length > 0" class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div
               v-for="voucher in paginatedVouchers"
               :key="voucher.id"

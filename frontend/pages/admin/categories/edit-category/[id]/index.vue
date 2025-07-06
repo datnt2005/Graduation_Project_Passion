@@ -239,7 +239,7 @@ const fetchCategories = async () => {
   try {
     const response = await fetch(`${apiBase}/categories`);
     const data = await response.json();
-    categories.value = data.categories || [];
+    categories.value = data.data.data || [];
     console.log('Categories fetched:', data);
   } catch (error) {
     console.error('Error fetching categories:', error);
