@@ -1,6 +1,7 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-gray-100">
-    <div class="relative bg-white rounded-2xl shadow-2xl p-8 max-w-lg w-full text-center transform transition-all duration-300 hover:scale-105">
+  <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-gray-100 mt-20 mb-20 pb-10">
+    <div
+      class="relative bg-white rounded-2xl shadow-2xl p-8 max-w-lg w-full text-center transform transition-all duration-300 hover:scale-105">
       <!-- Background decorative element -->
       <div class="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-green-500/10 rounded-2xl -z-10"></div>
 
@@ -10,29 +11,97 @@
       </div>
 
       <div v-else>
-        <!-- Thành công -->
-        <div v-if="success" class="flex flex-col items-center py-6">
-          <div class="relative mb-6">
-            <!-- Nền mờ -->
-            <div class="absolute inset-0 bg-green-100 rounded-full blur-md opacity-50 z-0"></div>
-
-            <!-- Icon SVG -->
-            <svg class="relative h-20 w-20 text-green-500 animate-bounce z-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-
-          <h2 class="text-3xl font-extrabold text-green-600 mb-3 animate-fade-in">Thanh Toán Thành Công!</h2>
-          <p class="text-gray-600 mb-6 text-lg">
-            Cảm ơn bạn đã mua hàng. Bạn sẽ được chuyển về trang chủ sau {{ countdown }} giây.
+        <div v-if="success" class="flex flex-col items-center py-6 animate-fade-in">
+          <svg width="100" height="100" viewBox="0 0 24 24" fill="green" xmlns="http://www.w3.org/2000/svg">
+            <path d="M9 12l2 2 4-4M12 2a10 10 0 100 20 10 10 0 000-20z" stroke="white" stroke-width="2" fill="green"/>
+          </svg>
+          <h2 class="text-3xl font-extrabold text-green-600 mb-2">Thanh Toán Thành Công!</h2>
+          <p class="text-gray-700 mb-6 text-lg">
+            Cảm ơn bạn đã mua hàng tại <span class="font-semibold text-primary">Passion</span>.
           </p>
-          <div class="bg-gray-50 rounded-lg p-6 w-full text-left border border-gray-200 shadow-sm">
-            <div class="grid grid-cols-2 gap-4">
-              <p><span class="font-semibold text-gray-800">Mã vận đơn:</span> {{ tracking_code || 'Đang cập nhật' }}</p>
-              <p><span class="font-semibold text-gray-800">Số tiền:</span> {{ formatPrice(amount) }} đ</p>
-              <p><span class="font-semibold text-gray-800">Phương thức:</span> MOMO</p>
-              <p><span class="font-semibold text-gray-800">Mã giao dịch:</span> {{ transactionId }}</p>
+
+          <!-- THÔNG TIN ĐƠN HÀNG -->
+          <div v-if="Array.isArray(orderDetail) && orderDetail.length" class="space-y-8">
+            <div v-for="order in orderDetail" :key="order.id" class="bg-gray-50 rounded-xl p-6 w-full border border-gray-200 shadow-sm space-y-5">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-6 text-gray-700 text-sm">
+                <div><span class="font-medium text-gray-500">Mã vận đơn:</span> <span class="font-semibold">{{ order.shipping?.tracking_code || 'Đang cập nhật' }}</span></div>
+                <div><span class="font-medium text-gray-500">Người nhận:</span> <span class="font-semibold">{{ order.user?.name || 'N/A' }}</span></div>
+                <div><span class="font-medium text-gray-500">Email:</span> <span class="font-semibold">{{ order.user?.email || 'N/A' }}</span></div>
+                <div><span class="font-medium text-gray-500">SĐT:</span> <span class="font-semibold">{{ order.address?.phone || 'N/A' }}</span></div>
+                <div class="sm:col-span-2">
+                  <span class="font-medium text-gray-500">Địa chỉ giao hàng:</span>
+                  <div class="mt-1 font-semibold text-gray-800">
+                    {{
+                      order.address
+                        ? `${order.address.detail || ''}, ${order.address.ward_name || ''}, ${order.address.district_name || ''}, ${order.address.province_name || ''}`.replace(/(, )+/g, ', ').replace(/^, |, $/g, '')
+                        : 'Không có'
+                    }}
+                  </div>
+                </div>
+                <div class="sm:col-span-2 text-center mt-2">
+                  <span class="font-medium text-gray-500">Phương thức:</span>
+                  <span class="font-semibold">MoMo</span>
+                </div>
+              </div>
+              <div class="text-right text-lg font-bold text-blue-700 border-t pt-4 mt-4">
+                Tổng thanh toán: {{ formatPrice(order.final_price) }} đ
+              </div>
+              <!-- Danh sách sản phẩm đã đặt (nếu có) -->
+              <div v-if="order.order_items?.length" class="mt-4">
+                <div class="font-medium text-gray-700 mb-2">Sản phẩm đã đặt:</div>
+                <div class="max-h-64 overflow-y-auto pr-2">
+                  <div v-for="item in order.order_items" :key="item.product?.id + '-' + (item.variant?.id || '')" class="flex items-center gap-4 border-b py-2 last:border-0">
+                    <img :src="item.product?.thumbnail ? mediaBaseUrl + item.product.thumbnail : '/images/no-image.png'" :alt="item.product?.name || 'Ảnh sản phẩm'" class="w-12 h-12 object-cover rounded-md border" />
+                    <div class="flex-1">
+                      <div class="font-semibold text-gray-900">{{ item.product?.name || '-' }}</div>
+                      <div v-if="item.variant && item.variant.name" class="text-xs text-gray-500">Phân loại: {{ item.variant.name }}</div>
+                      <div class="text-xs text-gray-500">Số lượng: {{ item.quantity }} × {{ formatPrice(item.price) }}</div>
+                    </div>
+                    <div class="font-bold text-blue-700">{{ formatPrice(item.total) }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- Nếu chỉ có 1 đơn, vẫn hỗ trợ hiển thị cũ cho backward compatibility -->
+          <div v-else-if="orderDetail && orderDetail.user" class="bg-gray-50 rounded-xl p-6 w-full border border-gray-200 shadow-sm space-y-5">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-6 text-gray-700 text-sm">
+              <div><span class="font-medium text-gray-500">Mã vận đơn:</span> <span class="font-semibold">{{ tracking_code || 'Đang cập nhật' }}</span></div>
+              <div><span class="font-medium text-gray-500">Người nhận:</span> <span class="font-semibold">{{ orderDetail?.user?.name || 'N/A' }}</span></div>
+              <div><span class="font-medium text-gray-500">Email:</span> <span class="font-semibold">{{ orderDetail?.user?.email || 'N/A' }}</span></div>
+              <div><span class="font-medium text-gray-500">SĐT:</span> <span class="font-semibold">{{ orderDetail?.address?.phone || 'N/A' }}</span></div>
+              <div class="sm:col-span-2">
+                <span class="font-medium text-gray-500">Địa chỉ giao hàng:</span>
+                <div class="mt-1 font-semibold text-gray-800">
+                  {{
+                    orderDetail.address
+                      ? `${orderDetail.address.detail}, ${orderDetail.address.ward_name}, ${orderDetail.address.district_name}, ${orderDetail.address.province_name}`
+                      : 'Không có'
+                  }}
+                </div>
+              </div>
+              <div class="sm:col-span-2 text-center mt-2">
+                <span class="font-medium text-gray-500">Phương thức:</span>
+                <span class="font-semibold">MoMo</span>
+              </div>
+            </div>
+            <div class="text-right text-lg font-bold text-blue-700 border-t pt-4 mt-4">
+              Tổng thanh toán: {{ formatPrice(amount) }} đ
+            </div>
+            <!-- Danh sách sản phẩm đã đặt (nếu có) -->
+            <div v-if="orderDetail?.order_items?.length" class="mt-4">
+              <div class="font-medium text-gray-700 mb-2">Sản phẩm đã đặt:</div>
+              <div class="max-h-64 overflow-y-auto pr-2">
+                <div v-for="item in orderDetail.order_items" :key="item.product?.id + '-' + (item.variant?.id || '')" class="flex items-center gap-4 border-b py-2 last:border-0">
+                  <img :src="item.product?.thumbnail ? mediaBaseUrl + item.product.thumbnail : '/images/no-image.png'" :alt="item.product?.name || 'Ảnh sản phẩm'" class="w-12 h-12 object-cover rounded-md border" />
+                  <div class="flex-1">
+                    <div class="font-semibold text-gray-900">{{ item.product?.name || '-' }}</div>
+                    <div v-if="item.variant && item.variant.name" class="text-xs text-gray-500">Phân loại: {{ item.variant.name }}</div>
+                    <div class="text-xs text-gray-500">Số lượng: {{ item.quantity }} × {{ formatPrice(item.price) }}</div>
+                  </div>
+                  <div class="font-bold text-blue-700">{{ formatPrice(item.total) }}</div>
+                </div>
+              </div>
             </div>
           </div>
           <NuxtLink to="/" class="mt-6 inline-block bg-gradient-to-r from-blue-600 to-blue-700 text-white px-8 py-3 rounded-full font-semibold text-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-300 shadow-md hover:shadow-lg">
@@ -91,13 +160,43 @@ const message = ref('')
 const orderId = ref('')
 const amount = ref(0)
 const transactionId = ref('')
-const countdown = ref(3)
 const tracking_code = ref('')
+const orderDetail = ref({})
+const provinces = ref([])
+const districts = ref([])
+const wards = ref([])
+const mediaBaseUrl = config.public.mediaBaseUrl.endsWith('/') ? config.public.mediaBaseUrl : config.public.mediaBaseUrl + '/'
 let countdownInterval = null
 
 const formatPrice = (price) => {
   if (!price) return '0'
   return price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+}
+
+const loadProvinces = async () => {
+  const res = await fetch(`${config.public.apiBaseUrl}/ghn/provinces`)
+  const data = await res.json()
+  provinces.value = data.data || []
+}
+
+const loadDistricts = async (province_id) => {
+  const res = await fetch(`${config.public.apiBaseUrl}/ghn/districts`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ province_id }),
+  })
+  const data = await res.json()
+  districts.value = data.data || []
+}
+
+const loadWards = async (district_id) => {
+  const res = await fetch(`${config.public.apiBaseUrl}/ghn/wards`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ district_id }),
+  })
+  const data = await res.json()
+  wards.value = data.data || []
 }
 
 onMounted(async () => {
@@ -141,8 +240,23 @@ onMounted(async () => {
       amount.value = data.amount || Number(momoParams.amount) || 0
       transactionId.value = data.transId || momoParams.transId || '-'
 
-      if (data.order_id) {
-        localStorage.setItem('lastOrderId', data.order_id)
+      if (data.order_ids && Array.isArray(data.order_ids)) {
+        orderDetail.value = [];
+        for (const id of data.order_ids) {
+          const token = localStorage.getItem('access_token');
+          if (token) {
+            const orderRes = await fetch(`${config.public.apiBaseUrl}/user/orders/${id}`, {
+              headers: {
+                Accept: 'application/json',
+                Authorization: `Bearer ${token}`,
+              },
+            });
+            if (orderRes.ok) {
+              const orderData = await orderRes.json();
+              orderDetail.value.push(orderData);
+            }
+          }
+        }
       }
       await clearCart()
 
