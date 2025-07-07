@@ -27,7 +27,7 @@
 
       <!-- Nội dung -->
       <div class="flex-1 flex overflow-hidden" @click="closeContext">
-        <!-- Sidebar -->
+        <!-- Sidebar danh sách cửa hàng -->
         <aside class="w-1/3 border-r p-2 bg-gray-50 hidden sm:block">
           <input
             v-model="search"
@@ -40,10 +40,8 @@
               v-for="session in filteredSessions"
               :key="session.id"
               @click="selectSession(session)"
-              :class="[
-                'flex items-center gap-2 p-2 rounded cursor-pointer transition',
-                selectedSession?.id === session.id ? 'bg-blue-100' : 'hover:bg-gray-100'
-              ]"
+              class="flex items-center gap-2 p-2 rounded cursor-pointer transition"
+              :class="{ 'bg-blue-100': selectedSession?.id === session.id, 'hover:bg-gray-100': selectedSession?.id !== session.id }"
             >
               <img
                 :src="getAvatarUrl(session.seller?.avatar)"
@@ -55,98 +53,111 @@
           </ul>
         </aside>
 
-        <!-- Chat chính -->
+        <!-- Khu vực chat chính -->
         <section class="flex-1 flex flex-col bg-gray-100 overflow-hidden">
-        <!-- Danh sách tin nhắn -->
-      <div class="flex-1 p-3 space-y-3 overflow-y-auto" ref="chatBox">
-        <div
-          v-for="msg in messages"
-          :key="msg.id"
-          class="flex gap-2 items-start"
-          :class="msg.sender_type === 'user' ? 'justify-end' : 'justify-start'"
-          @contextmenu.prevent="openContext(msg.id, $event)"
-        >
-          <!-- Nội dung tin nhắn -->
-          <div
-            class="relative p-2 rounded-lg shadow max-w-[85%] sm:max-w-[70%]"
-            :class="[
-              msg.sender_type === 'user' ? 'bg-blue-500 text-white' : 'bg-white text-gray-800',
-              msg.pending ? 'opacity-60' : '',
-              msg.error ? 'border border-red-500' : ''
-            ]"
-          >
-            <!-- Nội dung chính -->
-            <p
-              class="whitespace-pre-line break-words break-all"
-              :class="msg.message_type === 'revoked' ? 'italic text-gray-300' : ''"
+          <!-- Danh sách tin nhắn -->
+          <div class="flex-1 p-3 space-y-3 overflow-y-auto" ref="chatBox">
+            <div
+              v-for="msg in messages"
+              :key="msg.id"
+              class="flex gap-2 items-start"
+              :class="msg.sender_type === 'user' ? 'justify-end' : 'justify-start'"
+              @contextmenu.prevent="openContext(msg.id, $event)"
             >
-              {{ msg.message }}
-              <span
-                v-if="msg.message_type === 'edited'"
-                class="text-xs italic text-gray-300 ml-1"
+              <!-- Nội dung tin nhắn -->
+              <div
+                class="relative p-2 rounded-lg shadow max-w-[85%] sm:max-w-[70%]"
+                :class="[
+                  msg.sender_type === 'user' ? 'bg-blue-500 text-white' : 'bg-white text-gray-800',
+                  msg.pending ? 'opacity-60' : '',
+                  msg.error ? 'border border-red-500' : ''
+                ]"
               >
-                (Đã chỉnh sửa)
-              </span>
-            </p>
-
-            <!-- File đính kèm -->
-            <div v-if="msg.message_type !== 'revoked' && msg.attachments?.length" class="flex flex-wrap gap-2 mt-2">
-              <template v-for="file in msg.attachments" :key="file.id">
-                <img
-                  v-if="file.file_type === 'image'"
-                  :src="file.file_url"
-                  class="w-[80px] h-[80px] object-cover rounded border border-gray-200 shadow"
-                  :class="msg.pending ? 'opacity-60' : ''"
-                  alt="Attachment"
-                />
-                <a
-                  v-else
-                  :href="file.file_url"
-                  target="_blank"
-                  class="text-blue-200 underline text-sm truncate max-w-[200px]"
+                <!-- Nội dung văn bản -->
+                <p
+                  class="whitespace-pre-line break-words"
+                  :class="{ 'italic text-gray-300': msg.message_type === 'revoked' }"
                 >
-                  📎 {{ file.file_name }}
-                </a>
-              </template>
-            </div>
+                  {{ msg.message }}
+                  <span v-if="msg.message_type === 'edited'" class="text-xs italic text-gray-300 ml-1">
+                    (Đã chỉnh sửa)
+                  </span>
+                </p>
 
-            <!-- Trạng thái gửi -->
-            <div v-if="msg.pending" class="text-xs text-gray-200 italic mt-1">
-              <i class="fas fa-spinner animate-spin mr-1"></i> Đang gửi...
+                <!-- Tin nhắn sản phẩm -->
+               <div
+                  v-if="msg.message_type === 'product' && msg.attachments?.length"
+                  class="flex gap-3 bg-white rounded-lg border p-2 text-left mt-2"
+                >
+                  <img
+                    :src="getProductImageUrl(msg.attachments)"
+                    class="w-16 h-16 object-cover rounded border"
+                    alt="product"
+                  />
+                  <div class="flex-1">
+                    <div class="text-sm font-semibold line-clamp-2">{{ parseProductName(msg.message) }}</div>
+                    <div class="text-xs text-gray-400 line-through" v-if="parseOriginalPrice(msg.message)">
+                      {{ formatCurrencyVND(parseOriginalPrice(msg.message)) }}
+                    </div>
+                    <div class="text-sm text-red-500 font-bold">
+                      {{ formatCurrencyVND(parsePrice(msg.message)) }}
+                    </div>
+                  </div>
+                </div>
+
+                <!-- File đính kèm -->
+                <div v-if="msg.message_type !== 'revoked' && msg.attachments?.length" class="flex flex-wrap gap-2 mt-2">
+                  <template v-for="file in msg.attachments" :key="file.id">
+                    <img
+                      v-if="file.file_type === 'image'"
+                      :src="file.file_url"
+                      class="w-[80px] h-[80px] object-cover rounded border border-gray-200 shadow"
+                      :class="{ 'opacity-60': msg.pending }"
+                      alt="attachment"
+                    />
+                    <a
+                      v-else
+                      :href="file.file_url"
+                      target="_blank"
+                      class="text-blue-200 underline text-sm truncate max-w-[200px]"
+                    >
+                      📎 {{ file.file_name }}
+                    </a>
+                  </template>
+                </div>
+
+                <!-- Trạng thái gửi -->
+                <div v-if="msg.pending" class="text-xs text-gray-200 italic mt-1">
+                  <i class="fas fa-spinner animate-spin mr-1"></i> Đang gửi...
+                </div>
+              </div>
+
+              <!-- Nút menu ngữ cảnh -->
+              <button
+                v-if="msg.sender_type === 'user' && msg.message_type !== 'revoked'"
+                @click.stop="openContext(msg.id, $event)"
+                class="text-gray-400 hover:text-gray-600 text-lg px-1"
+              >
+                ⋮
+              </button>
+
+              <!-- Menu chỉnh sửa/thu hồi -->
+              <div
+                v-if="contextMenu.open && contextMenu.messageId === msg.id && msg.sender_type === 'user'"
+                class="z-50 bg-white border rounded shadow-md text-sm mt-1 absolute"
+                :style="{ top: `${contextMenu.y}px`, left: `${contextMenu.x}px` }"
+              >
+                <button @click="editMessage(msg)" class="block w-full text-left px-3 py-2 hover:bg-gray-100">✏️ Sửa</button>
+                <button @click="revokeMessage(msg)" class="block w-full text-left px-3 py-2 hover:bg-gray-100">🗑️ Thu hồi</button>
+              </div>
             </div>
           </div>
 
-          <!-- Nút 3 chấm -->
-          <button
-            v-if="msg.sender_type === 'user' && msg.message_type !== 'revoked'"
-            @click.stop="openContext(msg.id, $event)"
-            class="text-gray-400 hover:text-gray-600 text-lg px-1"
-          >
-            ⋮
-          </button>
-
-          <!-- Menu chỉnh sửa / thu hồi -->
-        <div
-            v-if="contextMenu.open && contextMenu.messageId === msg.id && msg.sender_type === 'user'"
-            class="z-50 bg-white border rounded shadow-md text-sm mt-1"
-          >
-            <button @click="editMessage(msg)" class="block w-full text-left px-3 py-2 hover:bg-gray-100">✏️ Sửa</button>
-            <button @click="revokeMessage(msg)" class="block w-full text-left px-3 py-2 hover:bg-gray-100">🗑️ Thu hồi</button>
-          </div>
-        </div>
-      </div>
-
-
-
-          <!-- Gửi tin nhắn -->
+          <!-- Form gửi tin nhắn -->
           <form @submit.prevent="sendMessage" class="p-3 border-t bg-white flex flex-col gap-3">
             <!-- Preview ảnh -->
             <div v-if="imagePreview.length" class="flex flex-wrap gap-3 px-2">
-              <div
-                v-for="(img, i) in imagePreview"
-                :key="i"
-                class="relative w-[70px] h-[70px] group"
-              >
+              <div v-for="(img, i) in imagePreview" :key="i" class="relative w-[70px] h-[70px] group">
                 <img
                   :src="img"
                   class="w-full h-full object-cover rounded border border-gray-300 shadow-sm"
@@ -181,11 +192,11 @@
   </transition>
 </template>
 
-
 <script setup>
 import { ref, onMounted, onUnmounted, nextTick, computed, watch } from 'vue'
 import axios from 'axios'
 
+// Khởi tạo các biến phản ứng
 const open = ref(false)
 const form = ref({ message: '', file: [] })
 const fileInput = ref(null)
@@ -204,10 +215,12 @@ const contextMenu = ref({ open: false, messageId: null, x: 0, y: 0 })
 const config = useRuntimeConfig()
 const API = config.public.apiBaseUrl
 const DEFAULT_AVATAR = 'https://pub-3fc809b4396849cba1c342a5b9f50be9.r2.dev/avatars/default.jpg'
+const DEFAULT_IMAGE = 'https://pub-3fc809b4396849cba1c342a5b9f50be9.r2.dev/products/images/default.jpg'
 
 let polling = null
-let lastMessageTimestamp = ref(null) // Lưu timestamp của tin nhắn mới nhất
+let lastMessageTimestamp = ref(null)
 
+// Lấy URL avatar
 const getAvatarUrl = (avatar) => {
   if (!avatar) return DEFAULT_AVATAR
   const cleaned = avatar.trim()
@@ -215,6 +228,56 @@ const getAvatarUrl = (avatar) => {
   return `https://pub-3fc809b4396849cba1c342a5b9f50be9.r2.dev/${cleaned}`
 }
 
+// Lấy URL hình ảnh sản phẩm từ attachments
+const getProductImageUrl = (attachments) => {
+  console.log('Attachments debug:', attachments); // Log để debug
+  const productAttachment = attachments.find(attachment => 
+    attachment.file_type === 'image' || 
+    (attachment.message_data && typeof attachment.message_data === 'string')
+  );
+  if (productAttachment) {
+    try {
+      let metadata = {};
+      if (typeof productAttachment.message_data === 'string') {
+        // Xử lý ký tự thoát và parse JSON
+        const cleanedMessageData = productAttachment.message_data.replace(/\\(?![\/\\])/g, '');
+        metadata = JSON.parse(cleanedMessageData);
+      } else if (typeof productAttachment.message_data === 'object') {
+        metadata = productAttachment.message_data;
+      }
+      console.log('Parsed metadata:', metadata); // Log để kiểm tra
+      return metadata.file_url || DEFAULT_IMAGE;
+    } catch (e) {
+      console.warn('⚠️ Lỗi parse message_data:', productAttachment.message_data, e);
+      return DEFAULT_IMAGE;
+    }
+  }
+  return DEFAULT_IMAGE;
+};
+
+// Phân tích tên sản phẩm từ message
+const parseProductName = (message) => {
+  const match = message.match(/^Mình quan tâm sản phẩm: (.*?)(?=\s*-)/) || [message];
+  return match[1].trim() || 'Sản phẩm';
+};
+// Phân tích giá gốc từ message
+const parseOriginalPrice = (message) => {
+  const match = message.match(/\d+(?:\.\d{2})?(?=\s*-)/); // Tìm số trước dấu '-'
+  return match ? parseFloat(match[0]) : null;
+};
+
+// Phân tích giá hiện tại từ message
+const parsePrice = (message) => {
+  const match = message.match(/\d+(?:\.\d{2})?(?=\s*đ$)/); // Tìm số sau dấu '-'
+  return match ? parseFloat(match[0]) : 0;
+};
+
+// Định dạng tiền tệ
+const formatCurrencyVND = (value) => {
+  if (value === null || value === undefined) return '$0.00';
+  return `${value.toLocaleString('vi-VN')}đ`;
+};
+// Lọc danh sách session theo tìm kiếm
 const filteredSessions = computed(() => {
   if (!search.value.trim()) return sessions.value
   return sessions.value.filter(session =>
@@ -222,6 +285,8 @@ const filteredSessions = computed(() => {
   )
 })
 
+
+// Tải thông tin người dùng
 const loadUserInfo = async () => {
   const storedToken = localStorage.getItem('access_token')
   try {
@@ -236,6 +301,7 @@ const loadUserInfo = async () => {
   }
 }
 
+// Tải danh sách session
 const loadSessions = async () => {
   try {
     const { data } = await axios.get(`${API}/chat/sessions`, {
@@ -252,53 +318,100 @@ const loadSessions = async () => {
   }
 }
 
+// Tải tin nhắn
 let lastLoadedSessionId = null
+// const loadMessages = async (sessionId) => {
+//   try {
+//     const params = lastMessageTimestamp.value ? { last_timestamp: lastMessageTimestamp.value } : {}
+//     const { data } = await axios.get(`${API}/chat/messages/${sessionId}`, {
+//       headers: { Authorization: `Bearer ${token.value}` },
+//       params
+//     })
+
+//     if (data.length) {
+//       const newMessages = data.filter(msg => !messages.value.some(m => m.id === msg.id))
+//       if (newMessages.length > 0) {
+//         messages.value.push(...newMessages)
+//         lastMessageTimestamp.value = data[data.length - 1].created_at
+//         hasNewMessage.value = true
+//         await nextTick()
+//         if (chatBox.value) {
+//           chatBox.value.scrollTop = chatBox.value.scrollHeight
+//         }
+//       }
+//     }
+//   } catch (error) {
+//     console.error('❌ Lỗi load messages:', error)
+//   }
+// }
+
+// Chọn session
 
 const loadMessages = async (sessionId) => {
   try {
-    const params = lastMessageTimestamp.value
-      ? { last_timestamp: lastMessageTimestamp.value }
-      : {}
+    const params = lastMessageTimestamp.value ? { last_timestamp: lastMessageTimestamp.value } : {};
     const { data } = await axios.get(`${API}/chat/messages/${sessionId}`, {
       headers: { Authorization: `Bearer ${token.value}` },
       params
-    })
-
+    });
+    console.log('Loaded messages:', data); // Log toàn bộ dữ liệu
     if (data.length) {
-      const newMessages = data.filter(msg => !messages.value.some(m => m.id === msg.id))
+      const newMessages = data.filter(msg => !messages.value.some(m => m.id === msg.id));
       if (newMessages.length > 0) {
-        messages.value.push(...newMessages)
-        lastMessageTimestamp.value = data[data.length - 1].created_at
-        hasNewMessage.value = true
-        await nextTick()
+        messages.value.push(...newMessages.map(msg => {
+          let attachments = [];
+          try {
+            attachments = Array.isArray(msg.attachments)
+              ? msg.attachments
+              : (typeof msg.attachments === 'string' ? JSON.parse(msg.attachments) : []);
+            if (msg.message_type === 'product' && msg.meta_data) {
+              const meta = typeof msg.meta_data === 'string' ? JSON.parse(msg.meta_data) : msg.meta_data;
+              if (meta.file_url) {
+                attachments.push({ 
+                  file_type: 'image', 
+                  message_data: msg.meta_data 
+                });
+              }
+            }
+          } catch (e) {
+            console.warn('⚠️ Không parse được attachments:', msg.attachments, e);
+          }
+          return { ...msg, attachments };
+        }));
+        lastMessageTimestamp.value = data[data.length - 1].created_at;
+        hasNewMessage.value = true;
+        await nextTick();
         if (chatBox.value) {
-          chatBox.value.scrollTop = chatBox.value.scrollHeight
+          chatBox.value.scrollTop = chatBox.value.scrollHeight;
         }
       }
     }
   } catch (error) {
-    console.error('❌ Lỗi load messages:', error)
+    console.error('❌ Lỗi load messages:', error);
   }
-}
-
+};
 
 const selectSession = async (session) => {
   selectedSession.value = session
-  lastMessageTimestamp.value = null // Reset timestamp khi đổi session
+  lastMessageTimestamp.value = null
+  messages.value = []
   await loadMessages(session.id)
 }
 
+// Xử lý file đính kèm
 const handleFile = (e) => {
   const files = Array.from(e.target.files)
   form.value.file = files
   imagePreview.value = files.map(file => URL.createObjectURL(file))
 }
 
+// Xóa ảnh preview
 const removeImage = (index) => {
   form.value.file.splice(index, 1)
   imagePreview.value.splice(index, 1)
 }
 
+// Gửi tin nhắn
 const sendMessage = async () => {
   if (!selectedSession.value) return
   const hasText = form.value.message.trim() !== ''
@@ -351,10 +464,7 @@ const sendMessage = async () => {
     if (chatBox.value) chatBox.value.scrollTop = chatBox.value.scrollHeight
   } catch (err) {
     console.error('❌ Lỗi gửi:', err)
-    messages.value = messages.value.map(m => {
-      if (m.id === tempId) return { ...m, error: true }
-      return m
-    })
+    messages.value = messages.value.map(m => m.id === tempId ? { ...m, error: true } : m)
   }
 
   form.value.message = ''
@@ -363,6 +473,7 @@ const sendMessage = async () => {
   fileInput.value.value = ''
 }
 
+// Tự động cuộn khi có tin nhắn mới
 watch(messages, async () => {
   await nextTick()
   if (chatBox.value) {
@@ -370,6 +481,7 @@ watch(messages, async () => {
   }
 }, { deep: true })
 
+// Xử lý tin nhắn mới
 function onNewIncomingMessage(msg) {
   if (!messages.value.some(m => m.id === msg.id)) {
     messages.value.push(msg)
@@ -383,14 +495,17 @@ function onNewIncomingMessage(msg) {
   }
 }
 
+// Mở menu ngữ cảnh
 const openContext = (id, e) => {
   contextMenu.value = { open: true, messageId: id, x: e.clientX, y: e.clientY }
 }
 
+// Đóng menu ngữ cảnh
 const closeContext = () => {
   contextMenu.value = { open: false, messageId: null, x: 0, y: 0 }
 }
 
+// Sửa tin nhắn
 const editMessage = async (msg) => {
   const newContent = prompt('✏️ Nhập nội dung mới:', msg.message)
   if (newContent && newContent.trim()) {
@@ -411,6 +526,7 @@ const editMessage = async (msg) => {
   closeContext()
 }
 
+// Thu hồi tin nhắn
 const revokeMessage = async (msg) => {
   if (!confirm('🗑️ Bạn có chắc muốn thu hồi không?')) return
   try {
@@ -428,22 +544,20 @@ const revokeMessage = async (msg) => {
   closeContext()
 }
 
-onMounted(() => {
-  // Giảm thời gian polling xuống 1,5 giây
+// Khởi tạo polling và tải dữ liệu ban đầu
+onMounted(async () => {
+  await loadUserInfo()
+  if (userId.value) await loadSessions()
   polling = setInterval(async () => {
     if (selectedSession.value) {
       await loadMessages(selectedSession.value.id)
     }
-  }, 1500) // 1500ms = 1,5 giây
+  }, 1500)
 })
 
+// Dọn dẹp khi component bị hủy
 onUnmounted(() => {
   clearInterval(polling)
-})
-
-onMounted(async () => {
-  await loadUserInfo()
-  if (userId.value) await loadSessions()
 })
 </script>
 
