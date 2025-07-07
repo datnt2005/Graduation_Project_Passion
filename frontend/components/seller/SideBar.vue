@@ -48,16 +48,18 @@
                   Cá nhân
                 </NuxtLink>
               </li>
-              <li>
-                <NuxtLink to="/seller/business_seller_profile" class="flex items-center px-4 py-2 hover:bg-gray-800 rounded"
-                  :class="route.path.startsWith('/seller/sellers') ? 'bg-gray-800 text-green-400 font-bold' : 'text-gray-300'"
-                  @click="$emit('close')">
-                  <font-awesome-icon class="w-4 h-4 mr-2" :icon="['fas', 'store']" />
-                  Doanh nghiệp
-                </NuxtLink>
-              </li>
             </ul>
           </transition>
+        </li>
+
+        <!-- người dùng đã mua hàng... -->
+        <li class="pt-2 border-t border-gray-800">
+          <NuxtLink to="/seller/CustomerList" class="flex items-center px-4 py-2 hover:bg-gray-800 gap-3 rounded"
+            :class="route.path.startsWith('/seller/CustomerList') ? 'bg-gray-800 text-green-400 font-bold' : 'text-white'"
+            @click="$emit('close')">
+            <font-awesome-icon class="w-4 h-4" :icon="['fas', 'user']" />
+            Người dùng
+          </NuxtLink>
         </li>
 
         <!-- Sản phẩm (Dropdown) -->
@@ -220,7 +222,7 @@ const reviewActive = computed(() =>
   route.path.startsWith('/seller/reviews') || route.path.startsWith('/seller/reports/reviews')
 )
 
-const notificationOpen = ref(false)
+// const notificationOpen = ref(false)
 const toggleNotification = () => notificationOpen.value = !notificationOpen.value
 const notificationActive = computed(() =>
   route.path.startsWith('/seller/notifications')
@@ -235,10 +237,10 @@ const productActive = computed(() =>
   || route.path.startsWith('/seller/tags')
 )
 
-const toggleNotification = () => notificationOpen.value = !notificationOpen.value
-const notificationActive = computed(() =>
-  route.path.startsWith('/seller/notifications')
-)
+// const toggleNotification = () => notificationOpen.value = !notificationOpen.value
+// const notificationActive = computed(() =>
+//   route.path.startsWith('/seller/notifications')
+// )
 </script>
 
 <style>

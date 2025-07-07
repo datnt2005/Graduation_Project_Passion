@@ -12,8 +12,12 @@ return new class extends Migration
 public function up()
 {
     Schema::table('chat_sessions', function (Blueprint $table) {
-        // Nếu chắc chắn chưa có thì KHÔNG cần drop
-        $table->foreign('seller_id')->references('id')->on('sellers')->onDelete('cascade');
+        // Chỉ thêm nếu chưa có foreign key
+        if (!DB::select("SELECT * FROM information_schema.TABLE_CONSTRAINTS
+                         WHERE CONSTRAINT_NAME = 'chat_sessions_seller_id_foreign'
+                         AND TABLE_NAME = 'chat_sessions'")) {
+            $table->foreign('seller_id')->references('id')->on('sellers')->onDelete('cascade');
+        }
     });
 }
 
