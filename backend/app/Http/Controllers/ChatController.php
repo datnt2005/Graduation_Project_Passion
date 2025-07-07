@@ -112,7 +112,6 @@ class ChatController extends Controller
         ]);
     }
 
-
     public function getMessages(Request $request, $sessionId)
     {
         try {
@@ -223,39 +222,3 @@ public function updateMessage(Request $request, $id)
 
 
 }
-
-    // public function updateMessage(Request $request, $id)
-    // {
-    //     $message = ChatMessage::findOrFail($id);
-
-    //     // if ($message->sender_id !== auth()->id()) {
-    //     //     return response()->json(['error' => 'Không có quyền'], 403);
-    //     // }
-
-    //     $action = $request->input('action');
-
-    //     if ($action === 'revoke') {
-    //         $message->update([
-    //             'message' => '[Tin nhắn đã bị thu hồi]',
-    //             'message_type' => 'revoked'
-    //         ]);
-    //         broadcast(new MessageChanged($message->id, $message->session_id, 'revoked'))->toOthers();
-    //         return response()->json(['success' => true]);
-    //     }
-
-    //     if ($action === 'edit') {
-    //         $newContent = $request->input('message');
-    //         if (!$newContent) {
-    //             return response()->json(['error' => 'Không được để trống'], 422);
-    //         }
-
-    //         $message->update([
-    //             'message' => $newContent,
-    //             'message_type' => 'edited'
-    //         ]);
-    //         broadcast(new MessageChanged($message->id, $message->session_id, 'edited', $newContent))->toOthers();
-    //         return response()->json(['success' => true]);
-    //     }
-
-    //     return response()->json(['error' => 'Hành động không hợp lệ'], 400);
-    // }
