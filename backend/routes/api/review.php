@@ -35,4 +35,3 @@ Route::prefix('seller/reviews')
         Route::put('/{id}', [ReviewController::class, 'sellerUpdate']);
         Route::delete('/{id}', [ReviewController::class, 'sellerDestroy']);
     });
-

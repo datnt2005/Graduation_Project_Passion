@@ -63,6 +63,7 @@
             <span>{{ item.label }}</span>
           </router-link>
         </li>
+
       </ul>
     </nav>
   </aside>
@@ -129,7 +130,7 @@ const sidebarItems = [
   { to: '/users/mynotifications', icon: 'bell', label: 'Thông báo của tôi' },
   { to: '/users/orders', icon: 'file-alt', label: 'Quản lý đơn hàng' },
   { to: '/users/myaddress', icon: 'map-marker-alt', label: 'Sổ địa chỉ' },
-  { to: '/account/favorite', icon: 'heart', label: 'Sản phẩm yêu thích' },
+  { to: '/users/favorites', icon: 'heart', label: 'Sản phẩm yêu thích' },
   { to: '/account/comments', icon: 'star', label: 'Nhận xét của tôi' },
   {
     to: '/users/vouchers',

@@ -358,4 +358,3 @@ const channelText = (channel) => ({
   email: 'Email'
 })[channel] || channel
 </script>
-

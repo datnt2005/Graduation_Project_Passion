@@ -33,8 +33,6 @@
     </div>
   </Teleport>
 </template>
-
-
 <script setup>
 import { ref } from 'vue'
 import { useRuntimeConfig } from '#app'

@@ -162,15 +162,53 @@
             </li>
           </ul>
         </li>
-        <!-- Bài viết -->
+
+        <!-- Banner -->
         <li class="pt-2 border-t border-gray-800">
-          <NuxtLink to="#" class="flex items-center px-4 py-2 hover:bg-gray-800 gap-3 rounded" @click="$emit('close')">
+          <NuxtLink to="/admin/banners/list-banner" class="flex items-center px-4 py-2 hover:bg-gray-800 gap-3 rounded"
+            :class="route.path.startsWith('/admin/banners') ? 'bg-gray-800 text-green-400 font-bold' : 'text-white'"
+            @click="$emit('close')">
             <svg class="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round"
-                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                d="M3 3h18v6H3V3zm0 8h18v10H3V11z" />
+            </svg>
+            Banner
+          </NuxtLink>
+          </li>          
+
+        <!-- Bài viết (Dropdown) -->
+        <li class="pt-2 border-t border-gray-800">
+          <button @click="togglePost"
+            class="flex items-center w-full px-4 py-2 hover:bg-gray-800 focus:outline-none rounded"
+            :class="postActive ? 'bg-gray-800 text-green-400 font-bold' : ''">
+            <svg class="w-4 h-4 mr-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+              stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M9 5H5a2 2 0 00-2 2v12a2 2 0 002 2h14a2 2 0 002-2V7a2 2 0 00-2-2h-4m0 0V3m0 4h4m0 0V3m0 4H9m6 0H9m6 0v12m0-12H9m6 12H9" />
             </svg>
             Bài viết
-          </NuxtLink>
+            <svg class="w-4 h-4 ml-auto transform transition-transform" :class="{ 'rotate-180': postOpen }" fill="none"
+              stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          <ul v-show="postOpen" class="pl-11 mt-1 space-y-0.5 text-gray-300 text-[13px]">
+            <li>
+              <NuxtLink to="/admin/posts/list-post" class="block py-1 hover:text-white rounded"
+                :class="route.path.startsWith('/admin/posts/list-post') ? 'text-green-400 font-bold' : ''"
+                @click="$emit('close')">Tất cả bài viết</NuxtLink>
+            </li>
+            <li>
+              <NuxtLink to="/admin/post-categories/list-post-category" class="block py-1 hover:text-white rounded"
+                :class="route.path.startsWith('/admin/posts/list-category') ? 'text-green-400 font-bold' : ''"
+                @click="$emit('close')">Danh mục bài viết</NuxtLink>
+            </li>
+            <li>
+              <NuxtLink to="/admin/post-comments/list-post-comment" class="block py-1 hover:text-white rounded"
+                :class="route.path.startsWith('/admin/posts/list-comment') ? 'text-green-400 font-bold' : ''"
+                @click="$emit('close')">Bình luận bài viết</NuxtLink>
+            </li>
+          </ul>
         </li>
 
         <!-- Thông báo (Dropdown) -->
@@ -207,6 +245,18 @@
             </li>
           </ul>
         </li>
+        <!-- Hỗ trợ -->
+        <li class="pt-2 border-t border-gray-800">
+          <NuxtLink to="/admin/supports/list-support" class="flex items-center px-4 py-2 hover:bg-gray-800 gap-3 rounded"
+            :class="route.path.startsWith('/admin/supports') ? 'bg-gray-800 text-green-400 font-bold' : 'text-white'"
+            @click="$emit('close')">
+            <svg class="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M12 8v4m0 0v4m0-4h4m-4 0H8m6.364 6.364a9 9 0 11-12.728-12.728l1.414 1.414a7 7 0 009.9 9.9l1.414 1.414z" />
+            </svg>
+            Hỗ trợ
+          </NuxtLink>
+        </li>
 
 
         <!-- Cài đặt -->
@@ -236,6 +286,13 @@ const toggleUser = () => userOpen.value = !userOpen.value
 const userActive = computed(() =>
   route.path.startsWith('/admin/users') || route.path.startsWith('/admin/sellers')
 )
+
+const postOpen = ref(false)
+const togglePost = () => postOpen.value = !postOpen.value
+const postActive = computed(() =>
+  route.path.startsWith('/admin/posts')
+)
+
 
 const notificationOpen = ref(false)
 const toggleNotification = () => notificationOpen.value = !notificationOpen.value

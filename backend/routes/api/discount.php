@@ -33,4 +33,3 @@ Route::prefix('discounts')->middleware(['auth:sanctum', 'checkRole:admin,seller'
     Route::delete('/flash-sales/{id}', [DiscountController::class, 'destroyFlashSale']);
 });
 
-

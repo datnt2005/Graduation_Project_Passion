@@ -1,82 +1,96 @@
 <template>
-  <div
-    class="overflow-hidden rounded shadow-sm relative w-full group"
-  >
+  <div class="flex justify-center w-full my-4">
     <div
-      class="flex transition-transform duration-500 ease-in-out"
-      ref="slider"
-      :style="{ width: slides.length * 100 + '%', transform: `translateX(-${index * 100}%)` }"
+      class="relative rounded-lg shadow overflow-hidden"
+      style="width: 1200px; height: 400px; max-width: 100vw;"
     >
-      <div
-        v-for="(slide, i) in slides"
-        :key="i"
-        class="flex w-full flex-shrink-0"
-      >
-        <img
-          v-for="(img, j) in slide"
-          :key="j"
-          :src="img"
-          class="w-1/2 h-[200px] sm:h-[300px] md:h-[400px] object-cover"
-          :alt="'banner-' + j"
-        />
+      <div class="w-full h-full relative">
+        <div
+          v-for="(img, i) in banners"
+          :key="i"
+          v-show="i === index"
+          class="absolute inset-0 w-full h-full flex justify-center items-center bg-black transition-opacity duration-500"
+        >
+          <img
+            :src="img"
+            :alt="'banner-' + i"
+            draggable="false"
+            class="block w-full h-full"
+            style="
+              object-fit: contain;
+              object-position: center;
+              background: #000;
+            "
+          />
+        </div>
+      </div>
+      <!-- Controls -->
+      <button
+        v-if="banners.length > 1"
+        @click="prevSlide"
+        class="absolute left-4 top-1/2 -translate-y-1/2 w-9 h-9 bg-white flex items-center justify-center text-2xl rounded-full shadow hover:bg-gray-100 z-10 opacity-0 group-hover:opacity-80 transition-opacity duration-300"
+        aria-label="Previous"
+      >❮</button>
+      <button
+        v-if="banners.length > 1"
+        @click="nextSlide"
+        class="absolute right-4 top-1/2 -translate-y-1/2 w-9 h-9 bg-white flex items-center justify-center text-2xl rounded-full shadow hover:bg-gray-100 z-10 opacity-0 group-hover:opacity-80 transition-opacity duration-300"
+        aria-label="Next"
+      >❯</button>
+      <!-- Dots -->
+      <div v-if="banners.length > 1" class="absolute bottom-3 left-0 right-0 flex justify-center gap-2 z-10">
+        <span
+          v-for="(img, i) in banners"
+          :key="'dot-'+i"
+          @click="goToSlide(i)"
+          :class="[
+            'block w-2.5 h-2.5 rounded-full bg-white border transition-all duration-200 cursor-pointer',
+            i === index ? 'bg-blue-500 border-blue-600 scale-110' : 'bg-gray-300 border-gray-400 opacity-60'
+          ]"
+        ></span>
       </div>
     </div>
-
-    <!-- Controls -->
-    <button
-      @click="prevSlide"
-      class="absolute left-1 top-1/2 transform -translate-y-1/2 w-5 h-5 sm:w-7 sm:h-7 bg-white flex items-center justify-center text-base rounded-full shadow hover:bg-gray-100 z-10 opacity-0 group-hover:opacity-80 transition-opacity duration-300"
-    >
-      ❮
-    </button>
-    <button
-      @click="nextSlide"
-      class="absolute right-1 top-1/2 transform -translate-y-1/2 w-5 h-5 sm:w-7 sm:h-7 bg-white flex items-center justify-center text-base rounded-full shadow hover:bg-gray-100 z-10 opacity-0 group-hover:opacity-80 transition-opacity duration-300"
-    >
-      ❯
-    </button>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { useRuntimeConfig } from '#app'
 
-const images = [
-  'https://salt.tikicdn.com/cache/w1240/ts/brickv2og/0c/3f/6e/ef498ab7b78dc82d7f18677408a1b6c1.jpg.webp',
-  'https://salt.tikicdn.com/cache/w1240/ts/brickv2og/e2/15/7b/e2ec901dc5bfe758679d49540808970c.png.webp',
-  'https://salt.tikicdn.com/cache/w1240/ts/brickv2og/4c/68/c1/8a126222900eea23911a7bee2a03b0c9.png.webp',
-  'https://salt.tikicdn.com/cache/w1240/ts/brickv2og/72/8c/40/50f734028648cfd61a7f216c2e3b2138.png.webp',
-]
-
-const slider = ref(null)
+const config = useRuntimeConfig()
+const apiBase = config.public.apiBaseUrl
+const banners = ref([])
 const index = ref(0)
+let timer = null
 
-// Gom ảnh thành từng nhóm 2 ảnh
-const slides = computed(() => {
-  const chunked = []
-  for (let i = 0; i < images.length; i += 2) {
-    chunked.push(images.slice(i, i + 2))
-  }
-  return chunked
-})
-
-function updateSlider() {
-  if (slider.value) {
-    slider.value.style.transform = `translateX(-${index.value * 100}%)`
+async function fetchBanners() {
+  try {
+    const res = await $fetch(`${apiBase}/banners?status=active`)
+    banners.value = (res.data || []).map(b => b.image_url).filter(Boolean)
+    if (index.value >= banners.value.length) index.value = 0
+  } catch (e) {
+    banners.value = []
   }
 }
 
 function nextSlide() {
-  index.value = (index.value + 1) % slides.value.length
-  updateSlider()
+  if (!banners.value.length) return
+  index.value = (index.value + 1) % banners.value.length
 }
-
 function prevSlide() {
-  index.value = (index.value - 1 + slides.value.length) % slides.value.length
-  updateSlider()
+  if (!banners.value.length) return
+  index.value = (index.value - 1 + banners.value.length) % banners.value.length
+}
+function goToSlide(i) {
+  index.value = i
 }
 
 onMounted(() => {
-  setInterval(nextSlide, 4000)
+  fetchBanners()
+  timer = setInterval(nextSlide, 4000)
+})
+
+onBeforeUnmount(() => {
+  if (timer) clearInterval(timer)
 })
 </script>
