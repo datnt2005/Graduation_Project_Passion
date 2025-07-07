@@ -10,8 +10,11 @@ export async function secureAxios<T = any>(
   allowedRoles: string[] = []
 ): Promise<AxiosResponse<T>> {
   const token = localStorage.getItem('access_token')
-  if (!token) throw new Error('Chưa đăng nhập')
+  if (!token) {
+    navigateTo('/unauthorized') //  
 
+    throw new Error('Chưa đăng nhập')
+  }
   // Gọi /me để lấy role
   const meRes = await axios.get(`${apiBaseUrl}/me`, {
     headers: {

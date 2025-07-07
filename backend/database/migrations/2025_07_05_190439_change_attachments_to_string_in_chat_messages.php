@@ -9,12 +9,15 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-    public function up()
-    {
+public function up()
+{
+    if (Schema::hasColumn('chat_messages', 'attachments')) {
         Schema::table('chat_messages', function (Blueprint $table) {
             $table->longText('attachments')->nullable()->change();
         });
     }
+}
+
 
     public function down()
     {
