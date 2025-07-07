@@ -33,6 +33,8 @@ class SellerCustomerController extends Controller
 
             $customers = $orders->map(function ($item) {
                 $user = User::find($item->user_id);
+                if (!$user)
+                    return null;
                 return [
                     'id' => $user->id,
                     'name' => $user->name,
@@ -46,7 +48,7 @@ class SellerCustomerController extends Controller
                     'messaged' => false,
                     'type' => 'ordered'
                 ];
-            });
+            })->filter();
 
             return response()->json($customers);
         }
@@ -107,8 +109,13 @@ class SellerCustomerController extends Controller
 
         // === MESSAGED ===
         if ($type === 'messaged') {
-            $userIds = DB::table('chat_sessions')
-                ->where('seller_id', $sellerId)
+            $userIds = DB::table('messages')
+                ->where('receiver_id', $sellerId)
+                ->orWhere('sender_id', $sellerId)
+                ->select(DB::raw('CASE
+            WHEN sender_id = ' . $sellerId . ' THEN receiver_id
+            ELSE sender_id END as user_id'))
+                ->distinct()
                 ->pluck('user_id');
 
             $messaged = User::whereIn('id', $userIds)
@@ -132,6 +139,7 @@ class SellerCustomerController extends Controller
 
             return response()->json($messaged);
         }
+
 
         return response()->json(['message' => 'Loại khách hàng không hợp lệ.'], 400);
     }
