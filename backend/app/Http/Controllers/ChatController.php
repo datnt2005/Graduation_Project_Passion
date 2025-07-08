@@ -27,7 +27,8 @@ class ChatController extends Controller
             'message'       => 'nullable|string',
             'file'          => 'nullable|array',
             'file.*'        => 'file|mimes:jpg,jpeg,png,webp|max:2048',
-            'meta_data'     => 'nullable|array'
+            'meta_data' => 'nullable|json',
+
         ]);
 
         // Nếu chưa có session, tạo mới
@@ -170,6 +171,28 @@ class ChatController extends Controller
 
         return response()->json($sessions);
     }
+
+
+    public function createSession(Request $request)
+{
+    $request->validate([
+        'user_id'   => 'required|exists:users,id',
+        'seller_id' => 'required|exists:sellers,id',
+    ]);
+
+    $session = ChatSession::firstOrCreate(
+        [
+            'user_id'   => $request->user_id,
+            'seller_id' => $request->seller_id,
+        ],
+        [
+            'status'          => 'open',
+            'last_message_at' => now(),
+        ]
+    );
+
+    return response()->json(['session' => $session]);
+}
 
 
 

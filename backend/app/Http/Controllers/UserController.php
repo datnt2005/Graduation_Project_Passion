@@ -27,7 +27,11 @@ class UserController extends Controller
         $users = User::where('role', $role)->select('id', 'name')->get();
         return response()->json(['data' => $users]);
     }
-
+    public function getAllUsers()
+    {
+        $users = User::select('id', 'name', 'email', 'role')->get();
+        return response()->json($users);
+    }
    public function batchDelete(Request $request)
 {
     $ids = $request->input('ids', []);

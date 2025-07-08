@@ -7,14 +7,14 @@ foreach (glob(__DIR__.'/api/*.php') as $routeFile) {
     require $routeFile;
 }
 
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Http\Request;
-use App\Http\Controllers\CartController;
-use App\Http\Controllers\SellerController;
-use App\Http\Controllers\AdminSellerController;
-use App\Http\Controllers\SellerFollowerController;
+// use Illuminate\Support\Facades\Storage;
+// use Illuminate\Http\Request;
+// use App\Http\Controllers\CartController;
+// use App\Http\Controllers\SellerController;
+// use App\Http\Controllers\AdminSellerController;
+// use App\Http\Controllers\SellerFollowerController;
 
-// api chat user width seller
+// // api chat user width seller
 use App\Http\Controllers\ChatController;
 
 
@@ -24,6 +24,8 @@ Route::prefix('chat')->group(function () {
     Route::get('/messages/{sessionId}', [ChatController::class, 'getMessages']);
     Route::get('/sessions', [ChatController::class, 'getSessions']);
     Route::put('/messages/{id}/action', [ChatController::class, 'updateMessage']);
+     // ✅ Thêm dòng này để fix lỗi 405
+    Route::post('/sessions', [ChatController::class, 'createSession']);
 });
 
 // // Category
@@ -336,9 +338,9 @@ Route::prefix('chat')->group(function () {
 
 
 // });
-Route::middleware(['auth:sanctum', 'checkRole:admin,seller'])
-->get('/payout/list-approved', [PayoutController::class, 'listApproved']);
+// Route::middleware(['auth:sanctum', 'checkRole:admin,seller'])
+// ->get('/payout/list-approved', [PayoutController::class, 'listApproved']);
 
-Route::get('inventory/list', [App\Http\Controllers\InventoryController::class, 'list']);
-Route::get('inventory/low-stock', [App\Http\Controllers\InventoryController::class, 'lowStock']);
-Route::get('inventory/best-sellers', [App\Http\Controllers\InventoryController::class, 'bestSellers']);
+// Route::get('inventory/list', [App\Http\Controllers\InventoryController::class, 'list']);
+// Route::get('inventory/low-stock', [App\Http\Controllers\InventoryController::class, 'lowStock']);
+// Route::get('inventory/best-sellers', [App\Http\Controllers\InventoryController::class, 'bestSellers']);
