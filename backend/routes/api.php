@@ -1,7 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\PayoutController;
+// use App\Http\Controllers\PayoutController;
 
 foreach (glob(__DIR__.'/api/*.php') as $routeFile) {
     require $routeFile;
@@ -15,18 +15,18 @@ foreach (glob(__DIR__.'/api/*.php') as $routeFile) {
 // use App\Http\Controllers\SellerFollowerController;
 
 // // api chat user width seller
-use App\Http\Controllers\ChatController;
+// use App\Http\Controllers\ChatController;
 
 
-// api chat user width seller
-Route::prefix('chat')->group(function () {
-    Route::post('/send-message', [ChatController::class, 'sendMessage']);
-    Route::get('/messages/{sessionId}', [ChatController::class, 'getMessages']);
-    Route::get('/sessions', [ChatController::class, 'getSessions']);
-    Route::put('/messages/{id}/action', [ChatController::class, 'updateMessage']);
-     // ✅ Thêm dòng này để fix lỗi 405
-    Route::post('/sessions', [ChatController::class, 'createSession']);
-});
+// // api chat user width seller
+// Route::prefix('chat')->group(function () {
+//     Route::post('/send-message', [ChatController::class, 'sendMessage']);
+//     Route::get('/messages/{sessionId}', [ChatController::class, 'getMessages']);
+//     Route::get('/sessions', [ChatController::class, 'getSessions']);
+//     Route::put('/messages/{id}/action', [ChatController::class, 'updateMessage']);
+//      // ✅ Thêm dòng này để fix lỗi 405
+//     Route::post('/sessions', [ChatController::class, 'createSession']);
+// });
 
 // // Category
 // Route::prefix('categories')->group(function () {
