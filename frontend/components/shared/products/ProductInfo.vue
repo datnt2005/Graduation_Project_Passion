@@ -141,6 +141,12 @@
 </template>
 <script setup>
 import { computed } from 'vue'
+import { useChatStore } from '~/stores/chat'
+const chatStore = useChatStore()
+
+const handleChat = () => {
+  chatStore.openChat() // Mở modal
+}
 
 // --- Props ---
 const props = defineProps({
@@ -154,7 +160,7 @@ const props = defineProps({
     isFavorite: { type: Boolean, required: true },
     isVariantFullySelected: { type: Boolean, required: true },
     variants: { type: Array, required: true },
-    validationMessage: { type: String, default: '' }
+    validationMessage: { type: String, default: '' }    
 });
 
 const emit = defineEmits([
@@ -169,7 +175,8 @@ const emit = defineEmits([
     'update:quantity',
     'update:validationMessage',
     'update:selectedOptions',
-    'clear-validation'
+    'clear-validation',
+    'chat-with-shop'
 ]);
 
 const localQuantity = ref(props.quantity);
@@ -275,10 +282,6 @@ function blockInvalidKeys(event) {
     }
 }
 
-// --- Debug log (optional) ---
-console.log('✅ validationMessage:', props.validationMessage)
-
-// --- Expose methods if needed ---
 </script>
 
 <style scoped>
