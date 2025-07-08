@@ -354,48 +354,6 @@ export function useCart() {
     }
   };
 
-// const clearCart = async (orderItems = []) => {
-//   const token = localStorage.getItem('access_token');
-
-//   if (!token) {
-//     toast('error', 'Vui lòng đăng nhập để xóa giỏ hàng');
-//     window.dispatchEvent(new CustomEvent('openLoginModal'));
-//     return;
-//   }
-
-//   if (!Array.isArray(orderItems) || orderItems.length === 0) {
-//     toast('error', 'Không có sản phẩm nào để xóa');
-//     return;
-//   }
-
-//   // ✅ Xoá bằng id 
-//   const itemIds = orderItems.map(i => i.id).filter(id => !!id);
-
-//   if (itemIds.length === 0) {
-//     toast('error', 'Không tìm thấy ID để xóa sản phẩm khỏi giỏ hàng');
-//     return;
-//   }
-
-//   try {
-//     for (const id of itemIds) {
-//       const res = await fetch(`${apiBaseUrl}/cart/items/${id}`, {
-//         method: 'DELETE',
-//         headers: { Authorization: `Bearer ${token}` },
-//       });
-
-//       if (!res.ok) {
-//         throw new Error(`Lỗi khi xóa sản phẩm có ID: ${id}`);
-//       }
-//     }
-
-//     await fetchCart(); // Sync lại cart
-//     updateSelections();
-//   } catch (err) {
-//     toast('error', 'Không thể xóa giỏ hàng: ' + err.message);
-//     console.error('❌ Clear cart error:', err);
-//     await fetchCart();
-//   }
-// };
 
 const clearCart = async (orderItems = []) => {
   const token = localStorage.getItem('access_token');
@@ -439,54 +397,6 @@ const clearCart = async (orderItems = []) => {
   }
 };
 
-
-  // const addItem = async (productVariantId, quantity) => {
-  //   const token = localStorage.getItem('access_token');
-  //   if (!token) {
-  //     toast('error', 'Vui lòng đăng nhập để thêm vào giỏ hàng');
-  //     window.dispatchEvent(new CustomEvent('openLoginModal'));
-  //     return;
-  //   }
-
-  //   try {
-  //     loading.value = true;
-  //     const res = await fetch(`${apiBaseUrl}/cart/add`, {
-  //       method: 'POST',
-  //       headers: {
-  //         'Content-Type': 'application/json',
-  //         Authorization: `Bearer ${token}`,
-  //       },
-  //       body: JSON.stringify({ product_variant_id: productVariantId, quantity }),
-  //     });
-
-  //     if (!res.ok) {
-  //       if (res.status === 401) {
-  //         localStorage.removeItem('access_token');
-  //         window.dispatchEvent(new CustomEvent('openLoginModal'));
-  //         return;
-  //       }
-  //       throw new Error('Lỗi khi thêm vào giỏ hàng');
-  //     }
-
-  //     const data = await res.json();
-  //     if (data.success) {
-  //       cartStore.setCart(data.data);
-  //       const newItem = data.data.stores.flatMap(store => store.items || []).find(item => item.product_variant_id === productVariantId);
-  //       if (newItem?.id) {
-  //         selectedItems.value.add(newItem.id);
-  //         await syncSelectedItemsToBackend();
-  //       }
-  //       toast('success', 'Đã thêm sản phẩm vào giỏ hàng');
-  //     } else {
-  //       throw new Error(data.message || 'Lỗi khi thêm vào giỏ hàng');
-  //     }
-  //   } catch (err) {
-  //     toast('error', 'Không thể thêm vào giỏ hàng: ' + err.message);
-  //     console.error('Add item error:', err);
-  //   } finally {
-  //     loading.value = false;
-  //   }
-  // };
 
 const addItem = async (productVariantId, quantity) => {
   const token = localStorage.getItem('access_token');
@@ -569,7 +479,6 @@ const addItem = async (productVariantId, quantity) => {
     loading.value = false;
   }
 };
-
 
 
   const fetchCart = async () => {
