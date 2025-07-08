@@ -354,7 +354,7 @@ const loadMessages = async (sessionId) => {
       headers: { Authorization: `Bearer ${token.value}` },
       params
     });
-    console.log('Loaded messages:', data); // Log toàn bộ dữ liệu
+    // console.log('Loaded messages:', data); // Log toàn bộ dữ liệu
     if (data.length) {
       const newMessages = data.filter(msg => !messages.value.some(m => m.id === msg.id));
       if (newMessages.length > 0) {
