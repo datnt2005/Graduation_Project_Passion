@@ -37,10 +37,11 @@ use App\Http\Controllers\ChatController;
 
 // api chat user width seller
 Route::prefix('chat')->group(function () {
-    Route::post('/send-message', [ChatController::class, 'sendMessage']);
-    Route::get('/messages/{sessionId}', [ChatController::class, 'getMessages']);
+    Route::post('/session', [ChatController::class, 'createSession']);
     Route::get('/sessions', [ChatController::class, 'getSessions']);
-    Route::put('/messages/{id}/action', [ChatController::class, 'updateMessage']);
+    Route::post('/message', [ChatController::class, 'sendMessage']);
+    Route::get('/messages/{sessionId}', [ChatController::class, 'getMessages']);
+    Route::post('/messages/{sessionId}/read', [ChatController::class, 'markAsRead']);
 });
 
 // Category
@@ -275,15 +276,7 @@ Route::apiResource('users', UserController::class);
 
 // api seller
 
-// Route::middleware([HandleCors::class, 'api'])
-//     ->prefix('sellers')
-//     ->group(function () {
-//         Route::get('/', [SellerController::class, 'index']);
-//         Route::get('/store/{slug}', [SellerController::class, 'showStore']);
-//          Route::post('/register', [SellerController::class, 'register'])
-//               ->middleware('auth:sanctum');
-//         Route::post('/login', [SellerController::class, 'login']);
-//     });
+
 
 Route::prefix('sellers')->group(function ()
 {

@@ -5,220 +5,217 @@ namespace App\Http\Controllers;
 use App\Models\ChatSession;
 use App\Models\ChatMessage;
 use App\Models\ChatAttachment;
-use App\Events\MessageChanged;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
 
 class ChatController extends Controller
 {
-    // 📩 Gửi tin nhắn
-    public function sendMessage(Request $request)
+    // 1️⃣ Tạo phiên chat giữa user và seller
+    public function createSession(Request $request)
     {
-        Log::info('💬 Gửi tin nhắn với dữ liệu:', $request->all());
-
         $request->validate([
-            'session_id'    => 'nullable|exists:chat_sessions,id',
-            'receiver_id'   => 'nullable|integer',
-            'sender_type'   => 'required|in:user,seller',
-            'sender_id'     => 'required|integer',
-            'message_type'  => 'required|in:text,image,product',
-            'message'       => 'nullable|string',
-            'file'          => 'nullable|array',
-            'file.*'        => 'file|mimes:jpg,jpeg,png,webp|max:2048',
-            'meta_data'     => 'nullable|array'
+            'user_id'   => 'required|exists:users,id',
+            'seller_id' => 'required|exists:sellers,id',
         ]);
 
-        // Nếu chưa có session, tạo mới
-        if ($request->filled('session_id')) {
-            $session = ChatSession::findOrFail($request->session_id);
-        } else {
-            if (!$request->filled('receiver_id')) {
-                return response()->json(['error' => 'receiver_id is required if session_id is not provided.'], 422);
-            }
+        $session = ChatSession::firstOrCreate([
+            'user_id'   => $request->user_id,
+            'seller_id' => $request->seller_id,
+        ]);
 
-            $session = ChatSession::create([
-                'user_id'         => $request->sender_type === 'user' ? $request->sender_id : $request->receiver_id,
-                'seller_id'       => $request->sender_type === 'seller' ? $request->sender_id : $request->receiver_id,
-                'status'          => 'open',
-                'last_message_at' => now()
-            ]);
+        return response()->json($session);
+    }
+
+    // 2️⃣ Lấy danh sách các phiên chat của user hoặc seller
+    public function getSessions(Request $request)
+    {
+        $request->validate([
+            'user_id' => 'required|integer',
+            'type'    => 'required|in:user,seller',
+        ]);
+
+        $relations = [
+            'messages' => function ($q) {
+                $q->latest('created_at')->limit(10);
+            },
+        ];
+
+        if ($request->type === 'seller') {
+            $relations['user'] = fn($q) => $q->select('id', 'name', 'avatar');
+        } else {
+            $relations['seller'] = fn($q) => $q->select('id', 'store_name', 'user_id');
+            $relations['seller.user'] = fn($q) => $q->select('id', 'avatar');
         }
 
-        // 📝 Tạo tin nhắn
-        $message = ChatMessage::create([
-            'session_id'    => $session->id,
-            'sender_type'   => $request->sender_type,
-            'sender_id'     => $request->sender_id,
-            'message'       => $request->message,
-            'message_type'  => $request->message_type,
-            'is_read'       => false
+        // ✅ Truy vấn trực tiếp, bỏ qua cache để dễ debug
+        $sessions = ChatSession::with($relations)
+            ->where($request->type . '_id', $request->user_id)
+            ->orderByDesc('last_message_at')
+            ->get(['id', 'user_id', 'seller_id', 'last_message', 'last_message_at', 'created_at', 'updated_at']);
+
+        return response()->json([
+            'data' => $sessions
+        ]);
+    }
+
+
+    // 3️⃣ Gửi tin nhắn mới (text, ảnh hoặc sản phẩm)
+    public function sendMessage(Request $request)
+    {
+        Log::info('📩 Bắt đầu xử lý sendMessage', ['session_id' => $request->session_id]);
+
+        $request->validate([
+            'session_id'   => 'required|exists:chat_sessions,id',
+            'sender_id'    => 'required|integer',
+            'sender_type'  => 'required|in:user,seller',
+            'message'      => 'nullable|string',
+            'message_type' => 'required|in:text,image,product',
+            'file.*'       => 'nullable|file|mimes:jpeg,png,jpg,gif,webp|max:5120',
+            'meta_data'    => 'nullable|array',
         ]);
 
-        // 📎 Nếu có file gửi kèm
-        if ($request->hasFile('file') && is_array($request->file('file'))) {
-            foreach ($request->file('file') as $file) {
-                if ($file->isValid()) {
-                    $filename = 'chat_uploads/' . time() . '_' . \Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) . '.' . $file->getClientOriginalExtension();
+        $session = ChatSession::findOrFail($request->session_id);
+        $attachments = [];
 
-                    logger()->info('📤 Upload file chat lên R2', [
-                        'filename' => $filename,
-                        'size' => $file->getSize(),
-                        'type' => $file->getMimeType(),
-                    ]);
+        // === Xử lý ảnh đính kèm ===
+        if ($request->message_type === 'image' && $request->hasFile('file')) {
+            foreach ($request->file('file') as $index => $file) {
+                if (!$file->isValid()) {
+                    return response()->json(['error' => 'File ảnh không hợp lệ: ' . $file->getClientOriginalName()], 400);
+                }
 
-                    try {
-                        $uploadResult = Storage::disk('r2')->put($filename, file_get_contents($file));
+                $filename = 'chat_uploads/' . time() . '_' . Str::random(10) . '.' . $file->getClientOriginalExtension();
+                try {
+                    $content = file_get_contents($file->getRealPath());
+                    if (strlen($content) === 0) continue;
 
-                        if ($uploadResult) {
-                            $fileUrl = Storage::disk('r2')->url($filename);
-
-                            ChatAttachment::create([
-                                'message_id' => $message->id,
-                                'file_type'  => 'image',
-                                'file_url'   => $fileUrl
-                            ]);
-                        } else {
-                            logger()->error('❌ Upload ảnh thất bại', ['filename' => $filename]);
-                        }
-                    } catch (\Exception $e) {
-                        logger()->error('❌ Lỗi upload ảnh lên R2', ['error' => $e->getMessage()]);
+                    $put = Storage::disk('r2')->put($filename, $content);
+                    if ($put) {
+                        $attachments[] = [
+                            'file_type' => 'image',
+                            'file_url'  => Storage::disk('r2')->url($filename),
+                            'meta_data' => [
+                                'original_name' => $file->getClientOriginalName(),
+                                'mime_type'     => $file->getMimeType(),
+                                'size'          => $file->getSize(),
+                            ]
+                        ];
                     }
+                } catch (\Exception $e) {
+                    Log::error('❌ Lỗi upload ảnh:', ['error' => $e->getMessage()]);
+                    return response()->json(['error' => 'Lỗi server khi upload ảnh: ' . $e->getMessage()], 500);
                 }
             }
         }
 
-        // 📦 Nếu là sản phẩm
+        // === Xử lý gửi sản phẩm ===
         if ($request->message_type === 'product' && $request->meta_data) {
+            $attachments[] = [
+                'file_type' => 'product',
+                'file_url'  => '#',
+                'meta_data' => $request->meta_data,
+            ];
+        }
+
+        // === Tạo tin nhắn chính ===
+        $messageContent = $request->message ?? '';
+        $message = ChatMessage::create([
+            'session_id'   => $session->id,
+            'sender_id'    => $request->sender_id,
+            'sender_type'  => $request->sender_type,
+            'message'      => $messageContent,
+            'message_type' => $request->message_type,
+            'status'       => 'normal',
+        ]);
+
+        // === Lưu đính kèm nếu có ===
+        if (!empty($attachments)) {
             ChatAttachment::create([
-                'message_id' => $message->id,
-                'file_type'  => 'product',
-                'file_url'   => '#',
-                'meta_data'  => $request->meta_data
+                'message_id'  => $message->id,
+                'attachments' => $attachments,
             ]);
         }
 
-        // ⏰ Cập nhật thời gian cuối cùng
-        $session->update(['last_message_at' => now()]);
+        // === Cập nhật last_message rõ ràng theo loại ===
+        $previewText = match ($request->message_type) {
+            'text'    => $messageContent,
+            'image'   => '[Ảnh]',
+            'product' => '[Sản phẩm]',
+            default   => '[Đính kèm]',
+        };
 
-        // 🧹 Xoá cache liên quan
+        $session->update([
+            'last_message'    => $previewText,
+            'last_message_at' => now(),
+        ]);
+
+        // === Xóa cache liên quan ===
         Cache::store('redis')->forget("chat_messages_session_{$session->id}");
         Cache::store('redis')->forget("chat_sessions_seller_{$session->seller_id}");
         Cache::store('redis')->forget("chat_sessions_user_{$session->user_id}");
 
         return response()->json([
-            'chat_message' => $message->load('attachments')
-        ]);
+            'message'     => $message,
+            'attachments' => $attachments,
+        ], 200, [], JSON_UNESCAPED_UNICODE);
     }
 
-    public function getMessages(Request $request, $sessionId)
+    // 4️⃣ Lấy tất cả tin nhắn của 1 phiên
+    public function getMessages($sessionId)
     {
         try {
-            $beforeId = $request->query('before_id');
-            $query = ChatMessage::with('attachments')
+            $messages = ChatMessage::with('attachments')
                 ->where('session_id', $sessionId)
-                ->orderByDesc('id')  // Quan trọng: sắp giảm dần để lấy tin mới trước
-                ->take(10);
-
-            if ($beforeId) {
-                $query->where('id', '<', $beforeId);
-            }
-
-            $messages = $query->get()->reverse()->values(); // để trả lại theo thứ tự tăng dần
-
-            return response()->json($messages);
-        } catch (\Exception $e) {
-            Log::error("❌ Lỗi getMessages: {$e->getMessage()}");
-            return response()->json([], 500);
-        }
-    }
-
-
-    // 📚 Lấy danh sách cuộc trò chuyện (có cache)
-   public function getSessions(Request $request)
-    {
-        $request->validate([
-            'user_id' => 'required|integer',
-            'type'    => 'required|in:user,seller'
-        ]);
-
-        $cacheKey = "chat_sessions_{$request->type}_{$request->user_id}";
-
-        Cache::store('redis')->forget($cacheKey);
-        $sessions = Cache::store('redis')->remember($cacheKey, 60, function () use ($request) {
-            $relations = [
-                'messages' => function ($q) {
-                    $q->latest('created_at')->limit(1);
-                }
-            ];
-
-            if ($request->type === 'seller') {
-                // Nếu là seller → load user (khách) gắn với session
-                $relations[] = 'user:id,name,avatar';
-            } else {
-                // Nếu là user → load seller + seller.user (để lấy avatar)
-                $relations[] = 'seller:id,store_name,user_id';
-                $relations[] = 'seller.user:id,avatar';
-            }
-
-            return ChatSession::with($relations)
-                ->where($request->type . '_id', $request->user_id)
-                ->orderByDesc('last_message_at')
+                ->whereIn('message_type', ['text', 'image', 'product'])
+                ->orderBy('created_at', 'asc')
                 ->get();
-        });
 
-        return response()->json($sessions);
+           $formattedMessages = $messages->map(function ($message) {
+                $attachments = $message->attachments->pluck('attachments')->flatten(1)->all() ?? [];
+
+                return [
+                    'id'            => $message->id,
+                    'session_id'    => $message->session_id,
+                    'sender_id'     => $message->sender_id,
+                    'sender_type'   => $message->sender_type,
+                    'message'       => $message->message ?? '',
+                    'message_type'  => $message->message_type,
+                    'status'        => $message->status,
+                    'created_at'    => $message->created_at,
+                    'updated_at'    => $message->updated_at,
+                    'attachments'   => $attachments,
+                    'avatar'        => $message->senderUser?->avatar
+                                        ? url($message->senderUser->avatar)
+                                        : null,
+                ];
+            });
+
+
+            return response()->json([
+                'data' => $formattedMessages
+            ]);
+        } catch (\Exception $e) {
+            Log::error('❌ Lỗi trong getMessages: ' . $e->getMessage(), ['session_id' => $sessionId]);
+            return response()->json([
+                'error' => 'Lỗi server khi lấy tin nhắn: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
+    // 5️⃣ Đánh dấu tin nhắn là đã đọc
+    public function markAsRead(Request $request, $sessionId)
+    {
+        $updated = ChatMessage::where('session_id', $sessionId)
+            ->where('sender_type', '!=', $request->input('sender_type'))
+            ->where('is_read', false)
+            ->update(['is_read' => true]);
 
-
-public function updateMessage(Request $request, $id)
-{
-    try {
-        $message = ChatMessage::with('attachments')->findOrFail($id);
-        $action = $request->input('action');
-
-        if ($action === 'revoke') {
-            // 🔥 Xoá file vật lý nếu có (R2 hoặc local)
-            $message->timestamps = false;
-           $message->update([
-                'message' => '[Tin nhắn đã bị thu hồi]',
-                'message_type' => 'revoked'
-            ]);
-
-
-
-            // 🧹 Xoá cache liên quan
-            Cache::store('redis')->forget("chat_messages_session_{$message->session_id}");
-
-            return response()->json(['success' => true, 'deleted' => true]);
-        }
-
-        if ($action === 'edit') {
-            $newContent = $request->input('message');
-            if (!$newContent || !trim($newContent)) {
-                return response()->json(['error' => 'Không được để trống'], 422);
-            }
-
-            $message->update([
-                'message' => $newContent,
-                'message_type' => 'edited'
-            ]);
-
-            // 🧹 Xoá cache để frontend thấy ngay
-            Cache::store('redis')->forget("chat_messages_session_{$message->session_id}");
-
-            return response()->json(['success' => true, 'edited' => true]);
-        }
-
-        return response()->json(['error' => 'Hành động không hợp lệ'], 400);
-
-    } catch (\Exception $e) {
-        \Log::error('❌ updateMessage ERROR: ' . $e->getMessage());
-        return response()->json(['error' => 'Lỗi hệ thống: ' . $e->getMessage()], 500);
+        return response()->json([
+            'updated' => $updated,
+            'message' => 'Tin nhắn đã được đánh dấu là đã đọc.'
+        ]);
     }
-}
-
-
 }
