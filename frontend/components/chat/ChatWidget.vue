@@ -1,4 +1,3 @@
-<!-- ChatWidget.vue -->
 <template>
   <div>
     <!-- Nút mở danh sách chat -->
@@ -20,7 +19,7 @@
       class="fixed bottom-20 right-4 bg-white rounded-lg shadow-xl w-[400px] h-[600px] z-40"
     >
       <div class="p-3 border-b font-bold text-gray-700">Tin nhắn trước đây</div>
-      <ul class="max-h-[calc(600px-48px)] overflow-y-auto">
+      <ul class="max-h-[552px] overflow-y-auto">
         <li
           v-for="session in chatSessions"
           :key="session.id"
@@ -32,7 +31,6 @@
             @error="handleImageError"
             class="w-10 h-10 rounded-full object-cover"
           />
-
           <div class="flex flex-col flex-1">
             <div class="font-medium text-gray-800">
               {{ session.seller?.store_name || "Cửa hàng" }}
@@ -48,7 +46,7 @@
       </ul>
     </div>
 
-    <!-- Bubble chat -->
+    <!-- Hộp chat -->
     <div
       v-show="showChat"
       class="fixed bottom-4 right-24 bg-white rounded-lg shadow-lg w-[400px] h-[600px] flex flex-col z-50"
@@ -70,116 +68,144 @@
           ×
         </button>
       </div>
-      <!-- Nội dung tin nhắn người dùng -->
+
+      <!-- Tin nhắn -->
       <div
         ref="chatMessages"
         class="grow min-h-0 p-3 space-y-4 overflow-y-auto text-sm"
       >
         <div
-          v-for="message in currentSession?.messages"
-          :key="message.id"
+          v-for="(message, index) in currentSession?.messages"
+          :key="message.id || index"
           :class="[
-            'flex items-end gap-4', // Tăng khoảng cách giữa avatar và nội dung
+            'flex gap-3',
             message.sender_type === 'user'
-              ? 'flex-row-reverse '
-              : 'justify-start',
+              ? 'justify-end text-right'
+              : 'justify-start text-left',
           ]"
         >
           <!-- Avatar -->
           <img
             :src="message.sender_user?.avatar || DEFAULT_AVATAR"
             class="w-8 h-8 rounded-full object-cover"
-            :alt="
-              message.sender_type === 'user' ? 'User avatar' : 'Seller avatar'
-            "
+            alt="Avatar"
+            v-if="message.sender_type !== 'user'"
           />
 
-          <!-- Nội dung -->
-          <div
-            :class="[
-              'flex flex-col',
-              message.sender_type === 'user' ? 'items-end' : 'items-start',
-            ]"
-          >
-            <!-- Tin nhắn chữ -->
+          <!-- Nội dung tin nhắn -->
+          <div>
+            <!-- Text -->
             <div
               v-if="message.message && message.message_type === 'text'"
               :class="[
-                'px-4 py-2 rounded-2xl max-w-xs break-words mb-1',
+                'inline-block px-4 py-2 rounded-2xl max-w-xs break-words mb-1',
                 message.sender_type === 'user'
-                  ? 'bg-blue-500 text-white rounded-br-none'
+                  ? 'bg-[#189EFF] text-white rounded-br-none'
                   : 'bg-gray-100 rounded-bl-none',
               ]"
             >
               {{ message.message }}
             </div>
 
-            <!-- Tin nhắn ảnh -->
+            <!-- Ảnh -->
             <div v-if="message.message_type === 'image'" class="space-y-2">
-              <!-- Nếu có text kèm ảnh -->
-              <div
-                v-if="message.message"
-                :class="[
-                  'px-4 py-2 rounded-2xl max-w-xs break-words',
-                  message.sender_type === 'user'
-                    ? 'bg-blue-500 text-white rounded-br-none'
-                    : 'bg-gray-100 rounded-bl-none',
-                ]"
-              >
+              <div v-if="message.message" class="text-sm text-gray-700 mb-1">
                 {{ message.message }}
               </div>
-
-              <!-- Ảnh -->
-              <div class="flex gap-2 mt-1 flex-wrap">
+              <div class="flex flex-wrap gap-2">
                 <div
-                  v-for="(attachment, index) in message.attachments"
-                  :key="index"
+                  v-for="(attachment, i) in message.attachments"
+                  :key="i"
                   class="w-24 h-24 rounded overflow-hidden cursor-pointer"
                 >
                   <img
-                    :src="attachment.file_url || attachment.url"
-                    class="w-full h-full object-cover rounded border border-gray-200"
-                    alt="Ảnh"
+                    :src="
+                      attachment.file_url ||
+                      attachment.url ||
+                      '/images/image.png'
+                    "
                     @error="handleImageError"
+                    class="w-full h-full object-cover rounded border border-gray-200"
+                    @click="
+                      openImageViewer(
+                        attachment.file_url ||
+                          attachment.url ||
+                          '/images/image.png'
+                      )
+                    "
                   />
                 </div>
               </div>
             </div>
 
-            <!-- Tin nhắn sản phẩm -->
-            <div
-              v-if="
-                message.message_type === 'product' &&
-                message.attachments?.length
-              "
-              :class="[
-                'px-4 py-2 rounded-2xl max-w-xs break-words',
-                message.sender_type === 'user'
-                  ? 'bg-blue-500 text-white rounded-br-none'
-                  : 'bg-gray-100 rounded-bl-none',
-              ]"
+            <!-- Sản phẩm -->
+            <a
+              v-if="message.message_type === 'product'"
+              :href="message.attachments?.[0]?.meta_data?.productLink || '#'"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="block bg-[#F7F7F7] rounded-lg p-3 text-sm no-underline"
             >
-              <div class="font-semibold">
-                Sản phẩm:
-                {{ message.attachments[0].meta_data?.name || "Không rõ" }}
+              <div class="mb-2 text-[#555] font-medium">
+                Bạn đang trao đổi với Người bán về sản phẩm này
               </div>
-              <div v-if="message.attachments[0].meta_data?.price">
-                Giá: {{ formatPrice(message.attachments[0].meta_data.price) }}
+              <div
+                class="flex border rounded overflow-hidden bg-white hover:shadow-md transition"
+              >
+                <img
+                  :src="
+                    message.attachments?.[0]?.meta_data?.file_url ||
+                    '/images/image.png'
+                  "
+                  alt="Ảnh sản phẩm"
+                  class="w-24 h-24 object-cover border-r cursor-pointer"
+                  @click.stop="
+                    openImageViewer(
+                      message.attachments?.[0]?.meta_data?.file_url ||
+                        '/images/image.png'
+                    )
+                  "
+                  @error="handleImageError"
+                />
+                <div class="flex-1 p-2 overflow-hidden">
+                  <div class="font-semibold text-[#212121] line-clamp-2">
+                    {{ parseMessage(message.message)?.name || "[Sản phẩm]" }}
+                  </div>
+                  <div class="mt-1 flex flex-wrap items-center gap-1">
+                    <span
+                      v-if="parseMessage(message.message)?.original_price"
+                      class="text-gray-400 line-through text-xs"
+                    >
+                      {{
+                        formatPrice(
+                          parseMessage(message.message).original_price
+                        )
+                      }}
+                    </span>
+                    <span
+                      v-if="parseMessage(message.message)?.price"
+                      class="text-[#FF0000] font-semibold"
+                    >
+                      {{ formatPrice(parseMessage(message.message).price) }}
+                    </span>
+                    <span
+                      v-if="
+                        !parseMessage(message.message)?.price &&
+                        !parseMessage(message.message)?.original_price
+                      "
+                      class="text-gray-400 text-xs"
+                    >
+                      Liên hệ để biết giá
+                    </span>
+                  </div>
+                </div>
               </div>
-              <div v-if="message.message">{{ message.message }}</div>
-            </div>
+            </a>
 
             <!-- Thời gian -->
-            <div
-              :class="[
-                'text-xs mt-1',
-                message.sender_type === 'user'
-                  ? 'text-gray-500 flex items-center gap-1 justify-end'
-                  : 'text-gray-400',
-              ]"
-            >
+            <div class="text-xs text-gray-400 mt-1">
               {{
-                new Date(message.created_at).toLocaleTimeString([], {
+                new Date(message.created_at).toLocaleTimeString("vi-VN", {
                   hour: "2-digit",
                   minute: "2-digit",
                 })
@@ -188,11 +214,13 @@
           </div>
         </div>
       </div>
-      <!-- Form gửi tin -->
+
+      <!-- Gửi tin -->
       <form
         @submit.prevent="sendMessage"
         class="p-3 border-t flex flex-col gap-2"
       >
+        <!-- Ảnh preview -->
         <div class="flex gap-2 flex-wrap">
           <div
             v-for="(file, index) in previewImages"
@@ -206,13 +234,14 @@
             <button
               type="button"
               @click="removeImage(index)"
-              class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full text-xs w-5 h-5 flex items-center justify-center hover:bg-red-600 transition"
+              class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full text-xs w-5 h-5 flex items-center justify-center hover:bg-red-600"
             >
               ×
             </button>
           </div>
         </div>
 
+        <!-- Ô nhập tin -->
         <div class="flex items-center gap-2 relative">
           <label class="cursor-pointer">
             📎
@@ -222,9 +251,11 @@
               class="hidden"
               accept="image/*"
               @change="handleImageSelect"
+              ref="fileInput"
             />
           </label>
 
+          <!-- Emoji -->
           <button type="button" @click="toggleEmojiPicker" class="text-xl">
             😊
           </button>
@@ -246,6 +277,29 @@
         </div>
       </form>
     </div>
+
+    <!-- Modal xem ảnh -->
+    <Transition name="fade">
+      <div
+        v-if="imageViewer.visible"
+        class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50"
+        @click.self="closeImageViewer"
+      >
+        <div class="relative max-w-[90vw] max-h-[90vh]">
+          <img
+            :src="imageViewer.url"
+            alt="Xem ảnh"
+            class="max-w-full max-h-[90vh] object-contain rounded shadow-xl"
+          />
+          <button
+            class="absolute top-2 right-2 bg-gray-800 bg-opacity-50 text-white text-xl font-bold w-8 h-8 rounded-full flex items-center justify-center hover:bg-opacity-75 transition"
+            @click="closeImageViewer"
+          >
+            ✕
+          </button>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -264,10 +318,29 @@ const chatInput = ref("");
 const previewImages = ref([]);
 const chatMessages = ref(null);
 const pollingInterval = ref(null);
+const fileInput = ref(null);
+const page = ref(1);
+const limit = 20;
+const isLoadingMore = ref(false);
+const hasMore = ref(true);
+const imageViewer = ref({
+  visible: false,
+  url: null,
+});
 
 const config = useRuntimeConfig();
 const API = config.public.apiBaseUrl;
 const DEFAULT_AVATAR = config.public.mediaBaseUrl + "avatars/default.jpg";
+
+// Phân tích message để lấy name, price, original_price
+const parseMessage = (message) => {
+  try {
+    return JSON.parse(message) || {};
+  } catch (error) {
+    console.error("Lỗi khi phân tích message:", error);
+    return {};
+  }
+};
 
 // Format thời gian
 const formatTime = (date) => {
@@ -297,7 +370,7 @@ const getLastMessagePreview = (session) => {
     return lastMessage.message || "Tin nhắn rỗng";
   if (lastMessage.message_type === "image") return "[Hình ảnh]";
   if (lastMessage.message_type === "product") {
-    return lastMessage.attachments?.[0]?.meta_data?.name || "[Sản phẩm]";
+    return parseMessage(lastMessage.message)?.name || "[Sản phẩm]";
   }
   return "Chưa có tin nhắn";
 };
@@ -414,6 +487,7 @@ function startPollingMessages() {
     }
   }, 3000);
 }
+
 // Đảm bảo dừng polling khi đóng chat hoặc rời trang
 function stopPollingMessages() {
   if (pollingInterval.value) {
@@ -436,16 +510,32 @@ const sendMessage = async () => {
   const text = chatInput.value.trim();
   const hasImages = previewImages.value.length > 0;
 
-  if (!text && !hasImages) {
-    alert("Vui lòng nhập tin nhắn hoặc chọn ảnh!");
-    return;
-  }
+  if (!text && !hasImages) return;
 
   const token = localStorage.getItem("access_token");
-  if (!token || !user.value?.id || !currentSession.value?.id) {
-    alert("Vui lòng đăng nhập hoặc chọn cuộc trò chuyện!");
-    return;
-  }
+  if (!token || !user.value?.id || !currentSession.value?.id) return;
+
+  const tempId = "tem-" + Date.now();
+
+  // Hiển thị tin nhắn tạm
+  const tempMessage = {
+    id: tempId,
+    sender_type: "user",
+    message: text || "",
+    message_type: hasImages ? "image" : "text",
+    created_at: new Date().toISOString(),
+    attachments: hasImages
+      ? previewImages.value.filter(Boolean).map((img) => ({
+          url: URL.createObjectURL(img.file),
+          temp: true,
+        }))
+      : [],
+    status: "uploading",
+  };
+
+  if (!currentSession.value.messages)
+    currentSession.value.messages = [tempMessage];
+  else currentSession.value.messages.push(tempMessage);
 
   const formData = new FormData();
   formData.append("session_id", currentSession.value.id);
@@ -481,17 +571,29 @@ const sendMessage = async () => {
       message_type: result.message.message_type,
       created_at: new Date().toISOString(),
       attachments: result.attachments || [],
+      status: "sent",
     };
 
-    if (!currentSession.value.messages) currentSession.value.messages = [];
-    currentSession.value.messages.push(newMessage);
+    // Cập nhật lại tin nhắn tạm
+    const index = currentSession.value.messages.findIndex(
+      (msg) => msg.id === tempId
+    );
+    if (index !== -1) {
+      currentSession.value.messages[index] = newMessage;
+    }
 
-    chatInput.value = "";
+    // Cleanup
+    previewImages.value.forEach((img) => URL.revokeObjectURL(img.file));
     previewImages.value = [];
+    chatInput.value = "";
+
+    // Reset input file
+    if (fileInput.value) {
+      fileInput.value.value = null;
+    }
     nextTick(scrollToBottom);
   } catch (err) {
     console.error("❌ Lỗi gửi:", err);
-    // alert('Lỗi gửi tin nhắn: ' + err.message)
   }
 };
 
@@ -539,9 +641,31 @@ const addEmoji = (event) => {
 };
 
 // Xử lý lỗi khi ảnh không tải được
-
 const handleImageError = (event) => {
   event.target.src = DEFAULT_AVATAR;
+};
+
+// Mở modal xem ảnh
+const openImageViewer = (url) => {
+  if (!url) {
+    console.error("URL ảnh không hợp lệ:", url);
+    return;
+  }
+  imageViewer.value.visible = true;
+  imageViewer.value.url = url;
+};
+
+// Đóng modal xem ảnh
+const closeImageViewer = () => {
+  imageViewer.value.visible = false;
+  imageViewer.value.url = null;
+};
+
+// Đóng modal bằng phím Esc
+const handleEscKey = (event) => {
+  if (event.key === "Escape" && imageViewer.value.visible) {
+    closeImageViewer();
+  }
 };
 
 // Ẩn emoji picker khi click ngoài
@@ -553,24 +677,100 @@ const handleClickOutside = (e) => {
   }
 };
 
-onMounted(() => {
-  document.addEventListener("click", handleClickOutside);
-});
-onUnmounted(() => {
-  document.removeEventListener("click", handleClickOutside);
-});
-
 // Cuộn xuống dưới cùng
 const scrollToBottom = () => {
   if (chatMessages.value) {
     chatMessages.value.scrollTop = chatMessages.value.scrollHeight;
   }
 };
+
+onMounted(() => {
+  document.addEventListener("click", handleClickOutside);
+  window.addEventListener("keydown", handleEscKey);
+});
+
+onUnmounted(() => {
+  document.removeEventListener("click", handleClickOutside);
+  window.removeEventListener("keydown", handleEscKey);
+  stopPollingMessages();
+});
+
+// Tải thêm tin nhắn khi cuộn lên đầu
+const loadMessages = async () => {
+  const token = localStorage.getItem("access_token");
+  if (!token || !currentSession.value?.id) return;
+
+  try {
+    isLoadingMore.value = true;
+    const res = await fetch(
+      `${API}/chat/messages/${currentSession.value.id}?page=${page.value}&limit=${limit}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+    const data = await res.json();
+    const newMessages = data?.data || [];
+
+    if (newMessages.length < limit) {
+      hasMore.value = false;
+    }
+
+    const reversed = newMessages.reverse();
+    if (!currentSession.value.messages) {
+      currentSession.value.messages = reversed;
+    } else {
+      currentSession.value.messages = [
+        ...reversed,
+        ...currentSession.value.messages,
+      ];
+    }
+
+    page.value++;
+    await nextTick();
+  } catch (err) {
+    console.error("Lỗi tải thêm tin nhắn:", err);
+  } finally {
+    isLoadingMore.value = false;
+  }
+};
+
+// Xử lý cuộn để tải thêm tin nhắn
+const handleScroll = () => {
+  const el = chatMessages.value;
+  if (!el || isLoadingMore.value || !hasMore.value) return;
+
+  if (el.scrollTop < 50) {
+    loadMessages();
+  }
+};
+
+// Theo dõi cuộn
+onMounted(() => {
+  if (chatMessages.value) {
+    chatMessages.value.addEventListener("scroll", handleScroll);
+  }
+});
+
+onUnmounted(() => {
+  if (chatMessages.value) {
+    chatMessages.value.removeEventListener("scroll", handleScroll);
+  }
+});
 </script>
 
 <style scoped>
 emoji-picker {
   max-height: 300px;
   z-index: 9999;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>

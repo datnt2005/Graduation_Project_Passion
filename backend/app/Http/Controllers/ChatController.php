@@ -164,13 +164,18 @@ class ChatController extends Controller
     }
 
     // 4️⃣ Lấy tất cả tin nhắn của 1 phiên
-    public function getMessages($sessionId)
+    public function getMessages(Request $request ,$sessionId)
     {
         try {
+            $limit = $request->input('limit', 20);
+            $page = $request->input('page', 1);
+
             $messages = ChatMessage::with('attachments')
                 ->where('session_id', $sessionId)
                 ->whereIn('message_type', ['text', 'image', 'product'])
                 ->orderBy('created_at', 'asc')
+                ->skip(($page - 1) * $limit)
+                ->take($limit)
                 ->get();
 
            $formattedMessages = $messages->map(function ($message) {
