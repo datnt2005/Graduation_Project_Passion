@@ -88,6 +88,11 @@
                 :class="route.path.startsWith('/seller/products/create-product') ? 'text-green-400 font-bold' : ''"
                 @click="$emit('close')">Thêm sản phẩm</NuxtLink>
             </li>
+            <li>
+              <NuxtLink to="/admin/inventory/inventory" class="block py-1 hover:text-white rounded"
+                :class="route.path.startsWith('/admin/inventory') ? 'text-green-400 font-bold' : ''" @click="$emit('close')">
+               Quản lý kho</NuxtLink>
+            </li>
           </ul>
         </li>
 

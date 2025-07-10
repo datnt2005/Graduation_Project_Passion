@@ -24,7 +24,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
 Route::middleware(['auth:sanctum', 'checkRole:admin,seller'])->group(function () {
     Route::get('/stock-movements', [InventoryController::class, 'stockHistory']);
-    Route::post('/inventories/{inventory}/damage', [InventoryController::class, 'markDamaged']);
+Route::post('/inventories/{inventory}/action', [InventoryController::class, 'markDamagedOrExport']);
 
     Route::post('/inventories/import', [InventoryController::class, 'import']);
     Route::put('/inventories/{inventory}', [InventoryController::class, 'update']);
