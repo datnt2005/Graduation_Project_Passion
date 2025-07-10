@@ -10,10 +10,65 @@
                         <span class="text-gray-500 font-semibold">{{ product.name }}</span>
                     </div>
                 </div>
-                <!-- Loading State -->
-                <div v-if="loading" class="text-center text-gray-500">
-                    <i class="fas fa-spinner fa-spin mr-2"></i> Đang tải...
+                <!-- Loading Skeleton (Responsive & giống UI thật) -->
+                <div v-if="loading"
+                    class="grid grid-cols-1 md:grid-cols-2 gap-6 animate-pulse bg-white border border-gray-200 rounded-md p-4 md:p-6 mx-auto w-full max-w-[1102px] min-h-[610px]">
+                    <!-- Left: Ảnh sản phẩm lớn + thumbnail -->
+                    <div class="flex flex-col gap-4">
+                        <!-- Ảnh chính -->
+                        <div class="w-full aspect-square bg-gray-200 rounded-md"></div>
+                        <!-- Thumbnail -->
+                        <div class="flex gap-2 overflow-x-auto">
+                            <div class="w-16 h-16 bg-gray-200 rounded-md"></div>
+                            <div class="w-16 h-16 bg-gray-200 rounded-md"></div>
+                            <div class="w-16 h-16 bg-gray-200 rounded-md"></div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Thông tin sản phẩm -->
+                    <div class="flex flex-col justify-between w-full">
+                        <div class="space-y-4">
+                            <!-- Tên sản phẩm -->
+                            <div class="h-6 bg-gray-200 rounded w-1/2"></div>
+                            <!-- Đánh giá -->
+                            <div class="h-4 bg-gray-200 rounded w-1/3"></div>
+                            <!-- Shop Info -->
+                            <div class="flex items-center gap-4">
+                                <div class="w-10 h-10 rounded-full bg-gray-200"></div>
+                                <div class="flex-1 space-y-2">
+                                    <div class="h-4 bg-gray-200 rounded w-1/2"></div>
+                                    <div class="h-4 bg-gray-200 rounded w-1/3"></div>
+                                </div>
+                            </div>
+                            <!-- Giá -->
+                            <div class="h-10 bg-gray-200 rounded w-1/3"></div>
+                            <!-- Thuộc tính (color, chất liệu) -->
+                            <div class="space-y-2">
+                                <div class="h-4 bg-gray-200 rounded w-1/4"></div>
+                                <div class="h-8 bg-gray-200 rounded w-1/2"></div>
+                                <div class="h-4 bg-gray-200 rounded w-1/4"></div>
+                                <div class="h-8 bg-gray-200 rounded w-1/2"></div>
+                            </div>
+                            <!-- Số lượng -->
+                            <div class="flex items-center gap-3">
+                                <div class="h-4 bg-gray-200 rounded w-20"></div>
+                                <div class="flex gap-2">
+                                    <div class="w-8 h-8 bg-gray-200 rounded"></div>
+                                    <div class="w-12 h-8 bg-gray-200 rounded"></div>
+                                    <div class="w-8 h-8 bg-gray-200 rounded"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Nút hành động -->
+                        <div class="flex gap-4 mt-6">
+                            <div class="h-12 bg-gray-200 rounded w-1/2"></div>
+                            <div class="h-12 bg-gray-200 rounded w-1/2"></div>
+                        </div>
+                    </div>
                 </div>
+
+
+
                 <!-- Error Message -->
                 <div v-if="error" class="text-red-500 text-center">{{ error }}</div>
                 <!-- Main Product Section -->
@@ -33,7 +88,8 @@
                             @increase-quantity="increaseQuantity" @decrease-quantity="decreaseQuantity"
                             @validate-selection="onValidateSelection" @add-to-cart="addToCart" @buy-now="buyNow"
                             @update:quantity="quantity = $event" :validation-message="validationMessage"
-                            @clear-validation="validationMessage = ''" :loading="loading" @chat-with-shop="chatWithShop"  />
+                            @clear-validation="validationMessage = ''" :loading="loading"
+                            @chat-with-shop="chatWithShop" />
                     </div>
                     <div v-else class="text-center text-gray-500">
                         Không có biến thể sản phẩm hợp lệ.
@@ -499,9 +555,9 @@ async function fetchProduct() {
         product.value.stock = Number(data.data?.product?.stock || 0);
         product.value.sellerId = data.data?.product?.seller?.id || data.data?.product?.sellerId || null;
         product.value.image = (data.data?.product?.images && data.data?.product?.images.length > 0)
-        ? data.data.product.images[0].src
-        : data.data?.product?.image || '/default-product.jpg';
-        product.value.images = data.data?.product?.images || []; 
+            ? data.data.product.images[0].src
+            : data.data?.product?.image || '/default-product.jpg';
+        product.value.images = data.data?.product?.images || [];
 
         seller.value = {
             id: data.data?.product?.seller?.id || data.data?.product?.sellerId || null,
@@ -526,7 +582,7 @@ async function fetchProduct() {
             attributes: variant.attributes || [],
             stock: Number(variant.stock || 0)
         }));
-        
+
         const productImages = (data.data?.product?.images || []).map(img => ({
             src: img.src || '/default-product.jpg',
             alt: img.alt || 'Product image',
@@ -597,66 +653,66 @@ async function fetchProduct() {
 }
 
 const chatWithShop = async () => {
-  console.log('Toast:', toast);
-  console.log('Product:', product.value);
-  console.log('Seller:', seller.value);
+    console.log('Toast:', toast);
+    console.log('Product:', product.value);
+    console.log('Seller:', seller.value);
 
-  const token = localStorage.getItem('access_token');
-  if (!token) {
-    toast('error', 'Vui lòng đăng nhập để chat');
-    router.push('/login');
-    return;
-  }
-
-  if (!product.value || !product.value.id) {
-    toast('error', 'Dữ liệu sản phẩm không hợp lệ');
-    console.error('Product data is missing');
-    return;
-  }
-
-  let userId;
-  try {
-    const { data } = await axios.get(`${apiBase}/me`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    userId = data?.data?.id;
-    if (!userId) {
-      toast('error', 'Không tìm thấy thông tin người dùng');
-      console.error('User ID is missing');
-      return;
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+        toast('error', 'Vui lòng đăng nhập để chat');
+        router.push('/login');
+        return;
     }
-  } catch (error) {
-    toast('error', 'Lỗi khi lấy thông tin người dùng');
-    console.error('❌ Lỗi khi lấy user:', error);
-    return;
-  }
 
-  const sellerId = seller.value?.id || product.value.sellerId;
-  if (!sellerId) {
-    toast('error', 'Không tìm thấy thông tin cửa hàng. Vui lòng thử lại sau.');
-    console.error('Seller ID is missing');
-    return;
-  }
+    if (!product.value || !product.value.id) {
+        toast('error', 'Dữ liệu sản phẩm không hợp lệ');
+        console.error('Product data is missing');
+        return;
+    }
 
-  const productData = {
-    name: product.value.name || 'Sản phẩm không xác định',
-    price: selectedVariant.value?.price || product.value.originalPrice || '0.00',
-    image: product.value.image || '/default-product.jpg',
-    id: product.value.id,
-    variantId: selectedVariant.value?.id || null,
-    link: window.location.href,
-    store_name: seller.value.store_name,
-    avatar: seller.value.avatar
-  };
+    let userId;
+    try {
+        const { data } = await axios.get(`${apiBase}/me`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        userId = data?.data?.id;
+        if (!userId) {
+            toast('error', 'Không tìm thấy thông tin người dùng');
+            console.error('User ID is missing');
+            return;
+        }
+    } catch (error) {
+        toast('error', 'Lỗi khi lấy thông tin người dùng');
+        console.error('❌ Lỗi khi lấy user:', error);
+        return;
+    }
 
-  console.log('Sending product message:', productData);
-  try {
-    await chatStore.sendProductMessage(productData, userId, sellerId);
-    toast('success', 'Đã gửi tin nhắn sản phẩm đến cửa hàng');
-  } catch (error) {
-    toast('error', 'Lỗi khi gửi tin nhắn sản phẩm: ' + (error.message || 'Vui lòng thử lại'));
-    console.error('❌ Lỗi khi gửi tin nhắn:', error);
-  }
+    const sellerId = seller.value?.id || product.value.sellerId;
+    if (!sellerId) {
+        toast('error', 'Không tìm thấy thông tin cửa hàng. Vui lòng thử lại sau.');
+        console.error('Seller ID is missing');
+        return;
+    }
+
+    const productData = {
+        name: product.value.name || 'Sản phẩm không xác định',
+        price: selectedVariant.value?.price || product.value.originalPrice || '0.00',
+        image: product.value.image || '/default-product.jpg',
+        id: product.value.id,
+        variantId: selectedVariant.value?.id || null,
+        link: window.location.href,
+        store_name: seller.value.store_name,
+        avatar: seller.value.avatar
+    };
+
+    console.log('Sending product message:', productData);
+    try {
+        await chatStore.sendProductMessage(productData, userId, sellerId);
+        toast('success', 'Đã gửi tin nhắn sản phẩm đến cửa hàng');
+    } catch (error) {
+        toast('error', 'Lỗi khi gửi tin nhắn sản phẩm: ' + (error.message || 'Vui lòng thử lại'));
+        console.error('❌ Lỗi khi gửi tin nhắn:', error);
+    }
 };
 
 watch(selectedOptions, (newOptions) => {

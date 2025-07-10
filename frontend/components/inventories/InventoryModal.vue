@@ -2,40 +2,40 @@
   <div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
       <!-- Header -->
-      <div
-        :class="{
-          'bg-green-50 border-b border-green-200': mode === 'create',
-          'bg-blue-50 border-b border-blue-200': mode === 'edit',
-          'bg-red-50 border-b border-red-200': mode === 'damage',
-        }"
-        class="p-6 flex items-start justify-between"
-      >
+      <div :class="{
+        'bg-green-50 border-b border-green-200': mode === 'create',
+        'bg-blue-50 border-b border-blue-200': mode === 'edit',
+        'bg-red-50 border-b border-red-200': mode === 'damage',
+      }" class="p-6 flex items-start justify-between">
         <div class="flex items-center gap-3">
-          <div
-            :class="{
-              'bg-green-50 text-green-600 border border-green-200': mode === 'create',
-              'bg-blue-50 text-blue-600 border border-blue-200': mode === 'edit',
-              'bg-red-50 text-red-600 border border-red-200': mode === 'damage',
-            }"
-            class="p-2 rounded-lg"
-          >
+          <div :class="{
+            'bg-green-50 text-green-600 border border-green-200': mode === 'create',
+            'bg-blue-50 text-blue-600 border border-blue-200': mode === 'edit',
+            'bg-red-50 text-red-600 border border-red-200': mode === 'damage',
+          }" class="p-2 rounded-lg">
             <!-- Icon tùy theo mode -->
             <svg v-if="mode === 'create'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
             </svg>
+
             <svg v-else-if="mode === 'edit'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5h6M5 5h2m4 0v14" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M15.232 5.232l3.536 3.536M9 11l6.232-6.232a2 2 0 112.828 2.828L11.828 13.828a4 4 0 01-1.414.828l-4.242 1.414 1.414-4.242a4 4 0 01.828-1.414z" />
             </svg>
+
             <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-1.414 1.414a1 1 0 010 1.414l1.414 1.414a1 1 0 001.414-1.414l-1.414-1.414a1 1 0 00-1.414 0z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 9v2m0 4h.01M10.29 3.86l-7.38 12.78A1 1 0 003.76 19h16.48a1 1 0 00.85-1.53L13.71 3.86a1 1 0 00-1.71 0z" />
             </svg>
+
           </div>
           <div>
             <h2 class="text-lg font-semibold text-gray-900">
               {{ mode === 'create' ? 'Nhập kho mới' : mode === 'edit' ? 'Cập nhật tồn kho' : 'Xác Nhận' }}
             </h2>
             <p class="text-sm text-gray-600 mt-1">
-              {{ mode === 'create' ? 'Thêm sản phẩm mới vào kho' : mode === 'edit' ? 'Cập nhật số lượng tồn kho' : 'Đánh dấu sản phẩm bị lỗi' }}
+              {{ mode === 'create' ? 'Thêm sản phẩm mới vào kho' : mode === 'edit' ? 'Cập nhật số lượng tồn kho' : 
+              'Đánh dấu sản phẩm bị lỗi' }}
             </p>
           </div>
         </div>
@@ -50,13 +50,14 @@
       <form @submit.prevent="handleSubmit" class="p-6 space-y-6">
         <!-- Biến thể sản phẩm -->
         <div v-if="mode === 'create'">
-          <label class="block text-sm font-medium text-gray-700 mb-1">Biến thể sản phẩm</label>
-          <select v-model="selectedVariantId" class="flex min-h-[40px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
+          <label class="block text-sm font-medium text-gray-700 mb-1">Biến thể sản phẩm *</label>
+          <select v-model="selectedVariantId"
+            class="flex min-h-[40px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
             <option disabled value="">-- Chọn sản phẩm --</option>
             <option v-for="variant in productVariants" :key="variant.id" :value="variant.id">
               {{ variant.sku }} - {{ variant.product_name }}
               <template v-if="variant.attributes && variant.attributes.length">
-                ({{ variant.attributes.map(attr => `${attr.name}: ${attr.value}`).join(', ') }})
+                ({{variant.attributes.map(attr => `${attr.name}: ${attr.value}`).join(', ')}})
               </template>
             </option>
           </select>
@@ -68,8 +69,11 @@
               <div>
                 <h4 class="font-semibold text-gray-900">{{ selectedVariantInfo.product_name }}</h4>
                 <div class="flex gap-2 text-xs mt-1">
-                  <span class="bg-gray-100 px-2 py-1 rounded font-mono text-gray-600">{{ selectedVariantInfo.sku }}</span>
-                  <span v-if="selectedVariantInfo.current_stock != null" class="bg-gray-100 px-2 py-1 rounded text-gray-600">Tồn kho: {{ selectedVariantInfo.current_stock }}</span>
+                  <span class="bg-gray-100 px-2 py-1 rounded font-mono text-gray-600">{{ selectedVariantInfo.sku
+                    }}</span>
+                  <span v-if="selectedVariantInfo.current_stock != null"
+                    class="bg-gray-100 px-2 py-1 rounded text-gray-600">Tồn
+                    kho: {{ selectedVariantInfo.current_stock }}</span>
                 </div>
               </div>
             </div>
@@ -78,20 +82,24 @@
 
         <!-- Số lượng -->
         <div>
-          <label class="block text-sm font-medium text-gray-700">Số lượng</label>
-          <input type="number" v-model.number="quantity" min="1" class="flex min-h-[40px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" />
+          <label class="block text-sm font-medium text-gray-700">Số lượng *</label>
+          <input type="number" v-model.number="quantity" min="1"
+            class="flex min-h-[40px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" />
         </div>
 
         <!-- Ghi chú -->
         <div v-if="mode !== 'edit'">
           <label class="block text-sm font-medium text-gray-700">Ghi chú</label>
-          <textarea v-model="note" rows="3" class="flex min-h-[40px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" placeholder="Ghi chú thêm..."></textarea>
+          <textarea v-model="note" rows="3"
+            class="flex min-h-[40px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            placeholder="Ghi chú thêm..."></textarea>
         </div>
 
         <!-- Action type -->
         <div v-if="mode === 'damage'">
           <label class="block text-sm font-medium text-gray-700">Hành động</label>
-          <select v-model="actionType" class="flex min-h-[40px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
+          <select v-model="actionType"
+            class="flex min-h-[40px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
             <option disabled value="">-- Chọn hành động --</option>
             <option value="export">Xuất kho</option>
             <option value="damage">Trả hàng lỗi</option>
@@ -102,32 +110,38 @@
         <div v-if="mode === 'create'" class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label class="block text-sm font-medium text-gray-700">Vị trí kho</label>
-            <input v-model="location" class="flex min-h-[40px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" placeholder="Ví dụ: Kho A1" />
+            <input v-model="location"
+              class="flex min-h-[40px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              placeholder="Ví dụ: Kho A1" />
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700">Số lô (Batch)</label>
-            <input v-model="batchNumber" class="flex min-h-[40px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" placeholder="Nhập số lô" />
+            <input v-model="batchNumber"
+              class="flex min-h-[40px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              placeholder="Nhập số lô" />
           </div>
         </div>
 
         <div v-if="mode === 'create'">
           <label class="block text-sm font-medium text-gray-700">Nguồn nhập</label>
-          <input v-model="importSource" class="flex min-h-[40px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" placeholder="Nhập từ nhà cung cấp, trả hàng, v.v." />
+          <input v-model="importSource"
+            class="flex min-h-[40px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            placeholder="Nhập từ nhà cung cấp, trả hàng, v.v." />
         </div>
 
         <!-- Nút hành động -->
         <div class="flex justify-end gap-3 pt-4 border-t">
-          <button type="button" @click="$emit('close')" class="px-4 py-2 rounded-md border border-gray-300 text-gray-700 bg-white hover:bg-gray-100 text-sm">
+          <button type="button" @click="$emit('close')"
+            class="px-4 py-2 rounded-md border border-gray-300 text-gray-700 bg-white hover:bg-gray-100 text-sm">
             Hủy
           </button>
-          <button type="submit" :disabled="isSubmitting" :class="[
-            isSubmitting ? 'opacity-70 cursor-not-allowed' : '',
+          <button type="submit" :disabled="mode === 'edit'" :class="[
+            'px-4 py-2 rounded-md font-medium flex items-center gap-2 text-sm',
             {
               'bg-green-600 hover:bg-green-700 text-white': mode === 'create',
-              'bg-blue-600 hover:bg-blue-700 text-white': mode === 'edit',
+              'bg-blue-600 text-white opacity-70 cursor-not-allowed': mode === 'edit',
               'bg-red-600 hover:bg-red-700 text-white': mode === 'damage',
-            },
-            'px-4 py-2 rounded-md font-medium flex items-center gap-2 text-sm'
+            }
           ]">
             <svg v-if="isSubmitting" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -141,6 +155,7 @@
               }}
             </span>
           </button>
+
         </div>
       </form>
     </div>

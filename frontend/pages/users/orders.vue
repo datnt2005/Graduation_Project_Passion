@@ -38,10 +38,43 @@
           </button>
         </div>
 
-        <!-- Loading -->
-        <div v-if="isLoading" class="flex justify-center py-10">
-          <div class="animate-spin w-8 h-8 border-t-2 border-blue-500 rounded-full"></div>
-        </div>
+     <!-- Loading Skeleton for Order Table -->
+<div v-if="isLoading" class="bg-white rounded-md shadow border border-gray-200 overflow-hidden animate-pulse">
+  <table class="min-w-full text-sm divide-y divide-gray-200">
+    <thead class="bg-gray-50 text-gray-600 text-xs font-semibold uppercase">
+      <tr>
+        <th class="px-4 py-3 text-left">STT</th>
+        <th class="px-4 py-3 text-left">Mã vận đơn</th>
+        <th class="px-4 py-3 text-left">Khách hàng</th>
+        <th class="px-4 py-3 text-left">SĐT</th>
+        <th class="px-4 py-3 text-left">Trạng thái</th>
+        <th class="px-4 py-3 text-left">Thao tác</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr v-for="i in 4" :key="i" class="border-t">
+        <td class="px-4 py-3">
+          <div class="w-5 h-4 bg-gray-200 rounded"></div>
+        </td>
+        <td class="px-4 py-3">
+          <div class="w-20 h-4 bg-gray-200 rounded"></div>
+        </td>
+        <td class="px-4 py-3">
+          <div class="w-40 h-4 bg-gray-200 rounded"></div>
+        </td>
+        <td class="px-4 py-3">
+          <div class="w-24 h-4 bg-gray-200 rounded"></div>
+        </td>
+        <td class="px-4 py-3">
+          <div class="w-24 h-6 bg-gray-200 rounded-full"></div>
+        </td>
+        <td class="px-4 py-3">
+          <div class="w-16 h-4 bg-gray-200 rounded"></div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
 
         <!-- Orders list -->
         <div v-else>
