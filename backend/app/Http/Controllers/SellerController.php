@@ -233,6 +233,8 @@ public function showStore($slug)
                 'id' => $seller->id,
                 'store_name' => $seller->store_name ?? 'N/A',
                 'store_slug' => $seller->store_slug,
+                'user_id' => $seller->user_id,
+                'is_owner' => $user && $user->id === $seller->user_id,
                 'bio' => $seller->bio ?? 'N/A',
                 'avatar' => $seller->user->avatar ?? 'avatars/default.jpg',
                 'phone' => $phone,
@@ -592,4 +594,3 @@ public function showStore($slug)
     ]);
 }
 }
-

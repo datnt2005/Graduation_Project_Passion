@@ -33,7 +33,8 @@
                             @increase-quantity="increaseQuantity" @decrease-quantity="decreaseQuantity"
                             @validate-selection="onValidateSelection" @add-to-cart="addToCart" @buy-now="buyNow"
                             @update:quantity="quantity = $event" :validation-message="validationMessage"
-                            @clear-validation="validationMessage = ''" :loading="loading" @chat-with-shop="chatWithShop"  />
+                            @clear-validation="validationMessage = ''" :loading="loading"
+                            @chat-with-shop="chatWithShop" />
                     </div>
                     <div v-else class="text-center text-gray-500">
                         Không có biến thể sản phẩm hợp lệ.
@@ -41,7 +42,7 @@
                 </section>
                 <!-- Product Description -->
                 <ProductDescription v-if="!loading && !error" :full-description="product.fullDescription"
-                    :is-collapsed="isCollapsed" @toggle-collapse="isCollapsed = !isCollapsed" />
+                    :description="product.description" />
                 <!-- Phone Number -->
                 <PhoneNumber v-if="!loading && !error && product.phone !== 'N/A'" :phone="product.phone" />
                 <!-- Related Products -->
@@ -84,7 +85,10 @@ import { useRuntimeConfig } from '#app';
 
 import { useCart } from '~/composables/useCart';
 const { fetchCart } = useCart();
+import { useAuthStore } from '@/stores/auth';
 
+const auth = useAuthStore();
+const isLoggedIn = computed(() => auth.isLoggedIn);
 const { toast } = useToast();
 const config = useRuntimeConfig();
 const router = useRouter();
@@ -93,8 +97,6 @@ const chatStore = useChatStore()
 
 const apiBase = config.public.apiBaseUrl;
 const mediaBase = config.public.mediaBaseUrl;
-const auth = useAuthStore();
-
 
 // API Data
 const apiData = ref(null);
@@ -152,12 +154,7 @@ const displayProducts = computed(() => {
 
 // Favorites state
 const isFavorite = ref(false);
-const isLoggedIn = computed(() => auth.isLoggedIn);
-const currentUser = computed(() => auth.currentUser);
 
-const openLoginModal = () => {
-    window.dispatchEvent(new CustomEvent('openLoginModal'));
-};
 // Validation state
 const validationMessage = ref('');
 
@@ -331,7 +328,9 @@ function decreaseQuantity() {
         quantity.value--;
     }
 }
-
+const openLoginModal = () => {
+    window.dispatchEvent(new CustomEvent('openLoginModal'));
+};
 function validateSelection() {
     const requiredAttrs = variantAttributes.value.map(attr => attr.name);
     const selectedAttrs = Object.keys(selectedOptions.value || {});
@@ -339,7 +338,6 @@ function validateSelection() {
     const isValid = requiredAttrs.every(attr => selectedOptions.value[attr]);
     if (!isValid) {
         validationMessage.value = 'Vui lòng chọn Phân loại hàng';
-        console.log('Validation failed:', validationMessage.value); // Debug log
         return false;
     }
 
@@ -354,10 +352,8 @@ function validateSelection() {
     }
     const token = localStorage.getItem('access_token');
     if (!token) {
-        if (!isLoggedIn.value) {
-            openLoginModal();
-            return;
-        }
+        openLoginModal();
+        return;
     }
     validationMessage.value = '';
     return true;
@@ -411,7 +407,6 @@ async function addToCart() {
             body: JSON.stringify(payload)
         });
         const data = await res.json();
-        console.log('API response:', data); // Debug
         if (!res.ok) {
             throw new Error(data.message || `Failed to add to cart: ${res.statusText}`);
         }
@@ -420,7 +415,6 @@ async function addToCart() {
         validationMessage.value = '';
         await fetchCart();
     } catch (err) {
-        console.error('Add to cart error:', err);
         toast('error', err.message || 'Thêm vào giỏ hàng thất bại.');
         validationMessage.value = err.message || 'Có lỗi xảy ra.';
     } finally {
@@ -430,40 +424,76 @@ async function addToCart() {
 
 async function buyNow() {
     if (!validateSelection()) {
-        return; // Halt if validation fails, message is set
+        return;
     }
 
     const token = localStorage.getItem('access_token');
-    const payload = {
+    if (!token) {
+        validationMessage.value = 'Vui lòng đăng nhập để tiếp tục.';
+        return;
+    }
+
+    const rawPrice =
+        selectedVariant.value?.sale_price &&
+            selectedVariant.value?.sale_price !== 'null'
+            ? selectedVariant.value.sale_price
+            : selectedVariant.value?.price;
+
+    const parsedPrice = parseFloat(String(rawPrice).replace(/[^\d.-]/g, ''));
+    const buyNowData = {
         product_id: product.value.id || 0,
-        variant_id: selectedVariant.value?.id || null,
-        quantity: Number(quantity.value) || 1,
-        price: selectedVariant.value?.sale_price || selectedVariant.value?.price || '0.00'
+        product_variant_id: selectedVariant.value?.id || null,
+        quantity: quantity.value,
+        price: isNaN(parsedPrice) ? 0 : parsedPrice,
+        timestamp: Date.now(),
+
+        seller_id: seller.value?.id || null,
+        store_name: seller.value?.store_name || '',
+        store_url: `/seller/${seller.value?.store_slug || ''}`,
+        product: {
+            id: product.value.id,
+            name: product.value.name || 'Unknown Product',
+            slug: product.value.slug || '',
+            images: product.value.images || [],
+        },
+        productVariant: selectedVariant.value?.id ? {
+            id: selectedVariant.value.id,
+            sku: selectedVariant.value.sku || '',
+            thumbnail: selectedVariant.value.thumbnail || '',
+            attributes: selectedVariant.value.attributes || [],
+        } : null,
     };
 
     try {
+        localStorage.setItem('buy_now', JSON.stringify(buyNowData));
+
         loading.value = true;
-        const res = await fetch(`${apiBase}/orders/create`, {
+        const res = await fetch(`${apiBase}/orders/validate-buy-now`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                Authorization: `Bearer ${token}`
+                'Authorization': `Bearer ${token}`,
             },
-            body: JSON.stringify(payload)
+            body: JSON.stringify({
+                product_id: buyNowData.product_id,
+                product_variant_id: buyNowData.product_variant_id,
+                quantity: buyNowData.quantity,
+                price: buyNowData.price,
+            }),
         });
         const data = await res.json();
         if (!res.ok) {
-            throw new Error(data.message || `Failed to create order: ${res.statusText}`);
+            throw new Error(data.message || `Failed to validate buy-now: ${res.statusText}`);
         }
-        router.push(`/checkout/${data.order_id}`);
+
+        router.push(`/checkout?buyNow=true`);
     } catch (err) {
-        console.error('Buy now error:', err);
-        validationMessage.value = `Error creating order: ${err.message}. Please try again.`;
+        console.error('BuyNow error:', err);
+        validationMessage.value = `Lỗi khi xử lý buyNow: ${err.message}. Vui lòng thử lại.`;
     } finally {
         loading.value = false;
     }
 }
-
 function viewShop() {
     router.push(`/seller/${seller.value.store_slug}`);
 }
@@ -499,9 +529,9 @@ async function fetchProduct() {
         product.value.stock = Number(data.data?.product?.stock || 0);
         product.value.sellerId = data.data?.product?.seller?.id || data.data?.product?.sellerId || null;
         product.value.image = (data.data?.product?.images && data.data?.product?.images.length > 0)
-        ? data.data.product.images[0].src
-        : data.data?.product?.image || '/default-product.jpg';
-        product.value.images = data.data?.product?.images || []; 
+            ? data.data.product.images[0].src
+            : data.data?.product?.image || '/default-product.jpg';
+        product.value.images = data.data?.product?.images || [];
 
         seller.value = {
             id: data.data?.product?.seller?.id || data.data?.product?.sellerId || null,
@@ -526,7 +556,7 @@ async function fetchProduct() {
             attributes: variant.attributes || [],
             stock: Number(variant.stock || 0)
         }));
-        
+
         const productImages = (data.data?.product?.images || []).map(img => ({
             src: img.src || '/default-product.jpg',
             alt: img.alt || 'Product image',
@@ -589,7 +619,6 @@ async function fetchProduct() {
 
         priceKey.value++;
     } catch (err) {
-        console.error('Error fetching product:', err);
         error.value = err.message || 'Unable to load product details. Please try again later.';
     } finally {
         loading.value = false;
@@ -597,66 +626,56 @@ async function fetchProduct() {
 }
 
 const chatWithShop = async () => {
-  console.log('Toast:', toast);
-  console.log('Product:', product.value);
-  console.log('Seller:', seller.value);
-
-  const token = localStorage.getItem('access_token');
-  if (!token) {
-    toast('error', 'Vui lòng đăng nhập để chat');
-    router.push('/login');
-    return;
-  }
-
-  if (!product.value || !product.value.id) {
-    toast('error', 'Dữ liệu sản phẩm không hợp lệ');
-    console.error('Product data is missing');
-    return;
-  }
-
-  let userId;
-  try {
-    const { data } = await axios.get(`${apiBase}/me`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    userId = data?.data?.id;
-    if (!userId) {
-      toast('error', 'Không tìm thấy thông tin người dùng');
-      console.error('User ID is missing');
-      return;
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+        toast('error', 'Vui lòng đăng nhập để chat');
+        router.push('/login');
+        return;
     }
-  } catch (error) {
-    toast('error', 'Lỗi khi lấy thông tin người dùng');
-    console.error('❌ Lỗi khi lấy user:', error);
-    return;
-  }
 
-  const sellerId = seller.value?.id || product.value.sellerId;
-  if (!sellerId) {
-    toast('error', 'Không tìm thấy thông tin cửa hàng. Vui lòng thử lại sau.');
-    console.error('Seller ID is missing');
-    return;
-  }
+    if (!product.value || !product.value.id) {
+        toast('error', 'Dữ liệu sản phẩm không hợp lệ');
+        return;
+    }
 
-  const productData = {
-    name: product.value.name || 'Sản phẩm không xác định',
-    price: selectedVariant.value?.price || product.value.originalPrice || '0.00',
-    image: product.value.image || '/default-product.jpg',
-    id: product.value.id,
-    variantId: selectedVariant.value?.id || null,
-    link: window.location.href,
-    store_name: seller.value.store_name,
-    avatar: seller.value.avatar
-  };
+    let userId;
+    try {
+        const { data } = await axios.get(`${apiBase}/me`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        userId = data?.data?.id;
+        if (!userId) {
+            toast('error', 'Không tìm thấy thông tin người dùng');
+            return;
+        }
+    } catch (error) {
+        toast('error', 'Lỗi khi lấy thông tin người dùng');
+        return;
+    }
 
-  console.log('Sending product message:', productData);
-  try {
-    await chatStore.sendProductMessage(productData, userId, sellerId);
-    toast('success', 'Đã gửi tin nhắn sản phẩm đến cửa hàng');
-  } catch (error) {
-    toast('error', 'Lỗi khi gửi tin nhắn sản phẩm: ' + (error.message || 'Vui lòng thử lại'));
-    console.error('❌ Lỗi khi gửi tin nhắn:', error);
-  }
+    const sellerId = seller.value?.id || product.value.sellerId;
+    if (!sellerId) {
+        toast('error', 'Không tìm thấy thông tin cửa hàng. Vui lòng thử lại sau.');
+        return;
+    }
+
+    const productData = {
+        name: product.value.name || 'Sản phẩm không xác định',
+        price: selectedVariant.value?.price || product.value.originalPrice || '0.00',
+        image: product.value.image || '/default-product.jpg',
+        id: product.value.id,
+        variantId: selectedVariant.value?.id || null,
+        link: window.location.href,
+        store_name: seller.value.store_name,
+        avatar: seller.value.avatar
+    };
+
+    try {
+        await chatStore.sendProductMessage(productData, userId, sellerId);
+        toast('success', 'Đã gửi tin nhắn sản phẩm đến cửa hàng');
+    } catch (error) {
+        toast('error', 'Lỗi khi gửi tin nhắn sản phẩm: ' + (error.message || 'Vui lòng thử lại'));
+    }
 };
 
 watch(selectedOptions, (newOptions) => {
@@ -681,7 +700,6 @@ watch(selectedOptions, (newOptions) => {
 
 watch(() => route.params.slug, (newSlug, oldSlug) => {
     if (newSlug !== oldSlug) {
-        console.log('Slug changed:', newSlug);
         fetchProduct();
     }
 }, { immediate: true });

@@ -183,7 +183,7 @@ class CartController extends Controller
             if (!Auth::check()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Unauthorized. Please login.',
+                    'message' => 'Cần đăng nhập để thực hiện thao tác này',
                     'code' => 'AUTH_REQUIRED'
                 ], 401);
             }

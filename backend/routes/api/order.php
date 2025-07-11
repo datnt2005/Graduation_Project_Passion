@@ -25,4 +25,6 @@ Route::prefix('orders')->middleware(['auth:sanctum'])->group(function () {
         Route::post('/{id}/apply-discount', [OrderController::class, 'applyDiscount']);
         Route::delete('/{id}/remove-discount', [OrderController::class, 'removeDiscount']);
     });
+
+    Route::middleware('auth:sanctum')->post('/validate-buy-now', [OrderController::class, 'validateBuyNow']);
 });

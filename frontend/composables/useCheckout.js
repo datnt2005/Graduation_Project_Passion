@@ -1,16 +1,14 @@
-import { ref, computed } from "vue";
-import { useRuntimeConfig, navigateTo } from "#app";
-import { useCart } from "~/composables/useCart";
-import { usePayment } from "~/composables/usePayment";
-import { useDiscount } from "~/composables/useDiscount";
-import { useToast } from "~/composables/useToast";
+import { ref, computed } from 'vue';
+import { useRuntimeConfig, navigateTo } from '#app';
+import { useCart } from '~/composables/useCart';
+import { usePayment } from '~/composables/usePayment';
+import { useDiscount } from '~/composables/useDiscount';
+import { useToast } from '~/composables/useToast';
+import { useRoute } from 'vue-router';
 
-export function useCheckout(
-  shippingRef,
-  selectedShippingMethod,
-  selectedAddress
-) {
+export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress) {
   const config = useRuntimeConfig();
+  const route = useRoute();
   const { toast } = useToast();
   const {
     cart,
@@ -40,29 +38,113 @@ export function useCheckout(
     getShippingDiscount,
   } = useDiscount();
 
-  const selectedPaymentMethod = ref("");
+  const selectedPaymentMethod = ref('');
 
-  // Derive cartItems from cart.stores
-  const cartItems = computed(() =>
-    cart.value.stores
-      .flatMap((store) =>
-        (store.items || []).filter((item) => selectedItems.value.has(item.id))
-      )
-      .filter((item) => item && item.id && item.quantity)
-  );
+  // Kiểm tra xem có phải luồng buyNow không
+  const isBuyNow = computed(() => route.query.buyNow === 'true');
 
-  // Total based on selected items
+  // Dữ liệu buyNow từ localStorage
+  const buyNowData = ref(null);
+
+  // Load dữ liệu buyNow từ localStorage
+  const loadBuyNowData = () => {
+    const storedData = localStorage.getItem('buy_now');
+    if (storedData) {
+      buyNowData.value = JSON.parse(storedData);
+      // Kiểm tra timestamp (30 phút)
+      const maxAge = 30 * 60 * 1000;
+      if (Date.now() - buyNowData.value.timestamp > maxAge) {
+        localStorage.removeItem('buy_now');
+        buyNowData.value = null;
+        toast('error', 'Dữ liệu buyNow đã hết hạn. Vui lòng chọn lại sản phẩm.');
+      } else {
+      }
+    }
+  };
+
+  // Derive cartItems từ cart hoặc buyNow
+const cartItems = computed(() => {
+  if (isBuyNow.value && buyNowData.value) {
+    const price = parsePrice(buyNowData.value.price);
+    return [{
+      seller_id: buyNowData.value.seller_id || null,
+      store_name: buyNowData.value.store_name || '',
+      store_url: buyNowData.value.store_url || '',
+      items: [{
+        id: buyNowData.value.product_id,
+        product: {
+          id: buyNowData.value.product.id,
+          name: buyNowData.value.product.name || 'Unknown Product',
+          slug: buyNowData.value.product.slug || '',
+          images: buyNowData.value.product.images || [],
+        },
+        productVariant: buyNowData.value.productVariant?.id ? {
+          id: buyNowData.value.productVariant.id,
+          sku: buyNowData.value.productVariant.sku || '',
+          thumbnail: buyNowData.value.productVariant.thumbnail || '',
+          attributes: buyNowData.value.productVariant.attributes || [],
+        } : null,
+        quantity: buyNowData.value.quantity,
+        price: price,
+        sale_price: price,
+      }],
+      store_total: price * buyNowData.value.quantity,
+      discount: 0
+    }];
+  }
+
+  if (!cart.value || !cart.value.stores) return [];
+
+  return cart.value.stores.map((store) => {
+    const items = (store.items || [])
+      .filter((item) => item.is_selected)
+      .map((item) => ({
+        id: item.id,
+        quantity: item.quantity,
+        price: parsePrice(item.price),
+        sale_price: parsePrice(item.sale_price || item.price),
+        productVariant: item.productVariant?.id ? {
+          id: item.productVariant.id,
+          sku: item.productVariant.sku || '',
+          thumbnail: item.productVariant.thumbnail || '',
+          attributes: item.productVariant.attributes || [],
+        } : null,
+        product: item.product?.id ? {
+          id: item.product.id,
+          name: item.product.name || '',
+          slug: item.product.slug || '',
+          images: item.product.images || [],
+        } : null
+      }));
+
+    const storeTotal = items.reduce((sum, item) => sum + item.sale_price * item.quantity, 0);
+
+    return {
+      seller_id: store.seller_id,
+      store_name: store.store_name || '',
+      store_url: store.store_url || '',
+      items,
+      store_total: storeTotal,
+      discount: 0 // Nếu có mã giảm giá theo shop thì tính ở đây
+    };
+  });
+});
+
+
+  // Total dựa trên cartItems hoặc buyNow
   const total = computed(() => {
+    if (isBuyNow.value && buyNowData.value) {
+      const price = parsePrice(buyNowData.value.price);
+      const total = price * buyNowData.value.quantity;
+      return total;
+    }
     return cart.value.stores.reduce((total, store) => {
       return (
         total +
         (store.items || []).reduce((storeTotal, item) => {
           if (item && selectedItems.value.has(item.id)) {
-            return (
-              storeTotal +
-              (parsePrice(item.sale_price) || parsePrice(item.price)) *
-                (item.quantity || 1)
-            );
+            const price = parsePrice(item.sale_price || item.price);
+            return storeTotal + price * (item.quantity || 1);
           }
           return storeTotal;
         }, 0)
@@ -91,7 +173,7 @@ export function useCheckout(
   // Formatted price utilities
   const formatPrice = (price) => {
     const parsed = parsePrice(price);
-    return parsed.toLocaleString("vi-VN");
+    return parsed.toLocaleString('vi-VN', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   };
 
   const formattedTotal = computed(() => `${formatPrice(total.value)} đ`);
@@ -101,12 +183,12 @@ export function useCheckout(
   // Payment method label
   const getPaymentMethodLabel = (methodName) => {
     switch (methodName) {
-      case "COD":
-        return "Thanh toán khi nhận hàng";
-      case "VNPAY":
-        return "Thanh toán qua VNPAY";
-      case "MOMO":
-        return "Thanh toán qua Ví MoMo";
+      case 'COD':
+        return 'Thanh toán khi nhận hàng';
+      case 'VNPAY':
+        return 'Thanh toán qua VNPAY';
+      case 'MOMO':
+        return 'Thanh toán qua Ví MoMo';
       default:
         return methodName;
     }
@@ -114,19 +196,19 @@ export function useCheckout(
 
   const placeOrder = async () => {
     if (!cartItems.value.length) {
-      toast("error", "Giỏ hàng trống hoặc chưa chọn sản phẩm");
+      toast('error', 'Giỏ hàng trống hoặc chưa chọn sản phẩm');
       return;
     }
     if (!selectedPaymentMethod.value) {
-      toast("error", "Vui lòng chọn phương thức thanh toán");
+      toast('error', 'Vui lòng chọn phương thức thanh toán');
       return;
     }
     if (!selectedShippingMethod.value) {
-      toast("error", "Vui lòng chọn hình thức giao hàng");
+      toast('error', 'Vui lòng chọn hình thức giao hàng');
       return;
     }
     if (!selectedAddress.value?.id) {
-      toast("error", "Vui lòng chọn địa chỉ giao hàng");
+      toast('error', 'Vui lòng chọn địa chỉ giao hàng');
       return;
     }
 
@@ -134,47 +216,42 @@ export function useCheckout(
     error.value = null;
 
     try {
-      const token = localStorage.getItem("access_token");
+      const token = localStorage.getItem('access_token');
       if (!token) {
-        toast("error", "Vui lòng đăng nhập để tiếp tục");
-        window.dispatchEvent(new CustomEvent("openLoginModal"));
+        toast('error', 'Vui lòng đăng nhập để tiếp tục');
+        window.dispatchEvent(new CustomEvent('openLoginModal'));
         return;
       }
 
       const userResponse = await fetch(`${config.public.apiBaseUrl}/me`, {
         headers: {
           Authorization: `Bearer ${token}`,
-          Accept: "application/json",
+          Accept: 'application/json',
         },
       });
 
       if (!userResponse.ok) {
         if (userResponse.status === 401) {
-          localStorage.removeItem("access_token");
-          window.dispatchEvent(new CustomEvent("openLoginModal"));
-          throw new Error("Phiên đăng nhập hết hạn");
+          localStorage.removeItem('access_token');
+          window.dispatchEvent(new CustomEvent('openLoginModal'));
+          throw new Error('Phiên đăng nhập hết hạn');
         }
-        throw new Error("Không thể lấy thông tin người dùng");
+        throw new Error('Không thể lấy thông tin người dùng');
       }
 
       const { data: userData } = await userResponse.json();
-      if (!userData?.id) throw new Error("Không tìm thấy thông tin người dùng");
+      if (!userData?.id) throw new Error('Không tìm thấy thông tin người dùng');
 
-      // Debug dữ liệu địa chỉ trước khi xử lý
-      console.log('Selected Address before processing:', selectedAddress.value);
-
-      // CHỖ QUAN TRỌNG NHẤT: lấy danh sách sản phẩm
-      const items = cartItems.value
-        .filter((item) => item.productVariant && item.product)
-        .map((item) => ({
-          product_id: item.product.id,
-          product_variant_id: item.productVariant.id,
-          quantity: item.quantity,
-          price: parsePrice(item.sale_price || item.price),
-        }));
+      // Chuẩn bị dữ liệu đơn hàng
+      const items = cartItems.value.map((item) => ({
+        product_id: item.product.id,
+        product_variant_id: item.productVariant?.id || null,
+        quantity: item.quantity,
+        price: parsePrice(item.sale_price || item.price),
+      }));
 
       if (!items.length) {
-        toast("error", "Không có sản phẩm hợp lệ để đặt hàng");
+        toast('error', 'Không có sản phẩm hợp lệ để đặt hàng');
         return;
       }
 
@@ -188,20 +265,17 @@ export function useCheckout(
         service_id: selectedShippingMethod.value,
         discount_id: selectedDiscounts.value?.[0]?.id || null,
         items,
-
-
-         ward_id: selectedAddress.value.ward_id,
-         district_id: selectedAddress.value.district_id,
-         province_id: selectedAddress.value.province_id,
+        ward_id: selectedAddress.value.ward_id,
+        district_id: selectedAddress.value.district_id,
+        province_id: selectedAddress.value.province_id,
+        is_buy_now: isBuyNow.value,
       };
 
-      console.log('Order Data:', orderData); // Debug dữ liệu gửi đi
-
       const orderResponse = await fetch(`${config.public.apiBaseUrl}/orders`, {
-        method: "POST",
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(orderData),
@@ -209,49 +283,39 @@ export function useCheckout(
 
       if (!orderResponse.ok) {
         const errorData = await orderResponse.json();
-        throw new Error(errorData.message || "Lỗi khi tạo đơn hàng");
+        throw new Error(errorData.message || 'Lỗi khi tạo đơn hàng');
       }
 
       const { orders } = await orderResponse.json();
 
-      if (!orders || !orders.length) throw new Error("Không nhận được đơn hàng từ server");
+      if (!orders || !orders.length) throw new Error('Không nhận được đơn hàng từ server');
 
-      // Nếu chỉ 1 đơn
+      if (isBuyNow.value) {
+        localStorage.removeItem('buy_now');
+      }
+
       if (orders.length === 1) {
-        localStorage.setItem("lastOrderId", orders[0].id);
+        localStorage.setItem('lastOrderId', orders[0].id);
         if (selectedPaymentMethod.value === 'COD') {
           await navigateTo(`/order-success?id=${orders[0].id}`);
           await fetchCart();
           return;
-        } else if (selectedPaymentMethod.value === 'VNPAY' || selectedPaymentMethod.value === 'MOMO') {
-          let paymentUrl = '';
-          if (selectedPaymentMethod.value === 'VNPAY') {
-            const res = await fetch(`${config.public.apiBaseUrl}/payments/vnpay/create`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                Accept: 'application/json',
-                Authorization: `Bearer ${token}`,
-              },
-              body: JSON.stringify({ order_id: orders[0].id }),
-            });
-            const { data } = await res.json();
-            paymentUrl = data.payment_url;
-          } else if (selectedPaymentMethod.value === 'MOMO') {
-            const res = await fetch(`${config.public.apiBaseUrl}/payments/momo/create`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                Accept: 'application/json',
-                Authorization: `Bearer ${token}`,
-              },
-              body: JSON.stringify({ order_id: orders[0].id }),
-            });
-            const { data } = await res.json();
-            paymentUrl = data.payment_url;
-          }
-          if (paymentUrl) {
-            window.location.href = paymentUrl;
+        } else if (['VNPAY', 'MOMO'].includes(selectedPaymentMethod.value)) {
+          const apiUrl = selectedPaymentMethod.value === 'VNPAY'
+            ? `${config.public.apiBaseUrl}/payments/vnpay/create`
+            : `${config.public.apiBaseUrl}/payments/momo/create`;
+          const res = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Accept: 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ order_id: orders[0].id }),
+          });
+          const { data } = await res.json();
+          if (data.payment_url) {
+            window.location.href = data.payment_url;
             return;
           }
         }
@@ -259,16 +323,13 @@ export function useCheckout(
         return;
       }
 
-      // Nếu nhiều đơn, lưu vào localStorage và xử lý thanh toán online 1 lần cho tất cả
-      const orderIds = orders.map(o => o.id);
-      localStorage.setItem("lastOrderIds", orderIds.join(','));
+      const orderIds = orders.map((o) => o.id);
+      localStorage.setItem('lastOrderIds', orderIds.join(','));
       if (selectedPaymentMethod.value === 'COD') {
         await navigateTo(`/order-success?ids=${orderIds.join(',')}`);
         await fetchCart();
         return;
-      } else if (selectedPaymentMethod.value === 'VNPAY' || selectedPaymentMethod.value === 'MOMO') {
-        // Gửi mảng order_ids lên API tạo payment chung
-        let paymentUrl = '';
+      } else if (['VNPAY', 'MOMO'].includes(selectedPaymentMethod.value)) {
         const apiUrl = selectedPaymentMethod.value === 'VNPAY'
           ? `${config.public.apiBaseUrl}/payments/vnpay/create`
           : `${config.public.apiBaseUrl}/payments/momo/create`;
@@ -279,25 +340,26 @@ export function useCheckout(
             Accept: 'application/json',
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ order_ids: orderIds }), // gửi mảng order_ids
+          body: JSON.stringify({ order_ids: orderIds }),
         });
         const { data } = await res.json();
-        paymentUrl = data.payment_url;
-        if (paymentUrl) {
-          window.location.href = paymentUrl;
+        if (data.payment_url) {
+          window.location.href = data.payment_url;
           return;
         }
       }
       await fetchCart();
-      return;
     } catch (err) {
-      error.value = err.message || "Có lỗi xảy ra khi đặt hàng";
-      toast("error", error.value);
-      console.error("Place order error:", err);
+      error.value = err.message || 'Có lỗi xảy ra khi đặt hàng';
+      toast('error', error.value);
+      console.error('Place order error:', err);
     } finally {
       loading.value = false;
     }
   };
+
+  // Gọi loadBuyNowData khi khởi tạo
+  loadBuyNowData();
 
   return {
     cartItems,
@@ -326,8 +388,10 @@ export function useCheckout(
     getShippingDiscount,
     formatPrice,
     parsePrice,
-    getPaymentMethodLabel,
+    getPaymentMethodLabel,  
     placeOrder,
     selectStoreItems,
+    isBuyNow,
+    buyNowData,
   };
 }
