@@ -78,13 +78,18 @@
           <ul v-show="productOpen" class="pl-11 mt-1 space-y-0.5 text-gray-300 text-[13px]">
             <li>
               <NuxtLink to="/admin/products/list-product" class="block py-1 hover:text-white rounded"
-                :class="route.path.startsWith('/admin/products') ? 'text-green-400 font-bold' : ''"
+                :class="route.path.startsWith('/admin/products/list-product') ? 'text-green-400 font-bold' : ''"
                 @click="$emit('close')">Tất cả sản phẩm</NuxtLink>
             </li>
             <li>
-              <NuxtLink to="/admin/products/create-product" class="block py-1 font-semibold hover:text-white rounded"
+              <NuxtLink to="/admin/products/create-product" class="block py-1 hover:text-white rounded"
                 :class="route.path.startsWith('/admin/products/create-product') ? 'text-green-400 font-bold' : ''"
                 @click="$emit('close')">Thêm sản phẩm</NuxtLink>
+            </li>
+            <li>
+              <NuxtLink to="/admin/products/product-pending" class="block py-1 hover:text-white rounded"
+                :class="route.path.startsWith('/admin/products/product-pending') ? 'text-green-400 font-bold' : ''"
+                @click="$emit('close')">Chờ xét duyệt</NuxtLink>
             </li>
             <li>
               <NuxtLink to="/admin/attributes/list-attribute" class="block py-1 hover:text-white rounded"
@@ -310,6 +315,9 @@ const productOpen = ref(false)
 const toggleProduct = () => productOpen.value = !productOpen.value
 const productActive = computed(() =>
   route.path.startsWith('/admin/products')
+  || route.path.startsWith('/admin/list-product')
+  || route.path.startsWith('/admin/create-product')
+  || route.path.startsWith('/admin/list-product-pending')
   || route.path.startsWith('/admin/attributes')
   || route.path.startsWith('/admin/categories')
   || route.path.startsWith('/admin/tags')

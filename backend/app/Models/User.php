@@ -59,20 +59,24 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(Seller::class, 'seller_followers')
             ->withTimestamps();
-        }
-        public function isFollowingSeller($sellerId)
-        {
-           return $this->followedSellers()->where('seller_id', $sellerId)->exists();
-        }
-    
-        public function searchHistory()
-        {
-            return $this->hasMany(SearchHistory::class);
-        }
-    
+    }
+    public function isFollowingSeller($sellerId)
+    {
+        return $this->followedSellers()->where('seller_id', $sellerId)->exists();
+    }
+
+    public function searchHistory()
+    {
+        return $this->hasMany(SearchHistory::class);
+    }
+
     public function getAllUsers()
     {
         $users = User::select('id', 'name', 'email', 'role')->get();
         return response()->json($users);
+    }
+    public function approvals()
+    {
+        return $this->hasMany(ProductApproval::class, 'admin_id');
     }
 }
