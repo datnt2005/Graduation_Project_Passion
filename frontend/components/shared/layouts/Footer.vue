@@ -4,7 +4,7 @@
     <div class="max-w-6xl mx-auto px-4">
       <div class="text-center mb-10">
         <h2 class="text-3xl font-bold text-gray-800 tracking-widest">
-          PASSION
+          {{ contactName }}
         </h2>
         <p class="text-sm text-gray-600 mt-2">
           Nền tảng thương mại điện tử kết nối đam mê và chất lượng đến từng
@@ -114,8 +114,8 @@
             </li>
             <li>
               <span class="flex items-center">
-                <i class="fas fa-phone mr-2 text-green-600"></i> Hotline: 1900
-                1234
+                <i class="fas fa-phone mr-2 text-green-600"></i> Hotline:
+                {{ contactHotline }}
               </span>
             </li>
           </ul>
@@ -137,6 +137,27 @@ const { settings } = useSettings();
 const contactEmail = computed(() => {
   return (
     settings.value?.contact?.find((s) => s.key === "contact_email")?.value ||
+    "Chưa cấu hình"
+  );
+});
+
+const contactPhone = computed(() => {
+  return (
+    settings.value?.contact?.find((s) => s.key === "phone_number")?.value ||
+    "Chưa cấu hình"
+  );
+});
+
+const contactName = computed(() => {
+  return (
+    settings.value?.general?.find((s) => s.key === "site_name")?.value ||
+    "Chưa cấu hình"
+  );
+});
+
+const contactHotline = computed(() => {
+  return (
+    settings.value?.contact?.find((s) => s.key === "hotline_number")?.value ||
     "Chưa cấu hình"
   );
 });
