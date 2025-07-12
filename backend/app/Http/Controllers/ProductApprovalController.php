@@ -27,6 +27,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\ProductApprovedMail;
+use App\Mail\ProductRejectedMail;
 
 class ProductApprovalController extends Controller
 {
@@ -122,94 +125,126 @@ class ProductApprovalController extends Controller
         } catch (\Exception $e) {
         }
     }
-    public function approveProduct($id, Request $request)
-    {
-        try {
-            if (!Auth::check()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Chưa đăng nhập. Vui lòng đăng nhập để tiếp tục.',
-                ], 401);
-            }
-
-            $user = Auth::user();
-            $isAdmin = $user->role === 'admin';
-
-            $validator = Validator::make($request->all(), [
-                'admin_status' => 'required|in:approved,rejected',
-                'reason' => 'nullable|string|max:1000',
-            ], [
-                'admin_status.required' => 'Trạng thái là bắt buộc.',
-                'admin_status.in' => 'Trạng thái không hợp lệ.',
-            ]);
-
-            if ($validator->fails()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Dữ liệu không hợp lệ.',
-                    'errors' => $validator->errors(),
-                ], 422);
-            }
-
-            $product = Product::find($id);
-            if (!$product) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Không tìm thấy sản phẩm.',
-                ], 404);
-            }
-
-            if (!$isAdmin) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Bạn không có quyền duyệt sản phẩm.',
-                ], 403);
-            }
-
-            if ($product->admin_status !== 'pending') {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Chỉ có thể duyệt sản phẩm ở trạng thái chờ duyệt.',
-                ], 422);
-            }
-
-            // Cập nhật trạng thái
-            $product->admin_status = $request->admin_status;
-            $product->save();
-
-            // Lưu vào bảng product_approvals
-            ProductApproval::create([
-                'product_id' => $product->id,
-                'admin_id' => $user->id,
-                'status' => $request->admin_status,
-                'reason' => $request->reason,
-            ]);
-
-            // Load lại dữ liệu đầy đủ
-            $product->load([
-                'seller:id,store_name,store_slug,phone_number',
-                'categories',
-                'productVariants',
-                'productPic',
-                'tags'
-            ]);
-
-            // Xóa cache
-            $this->clearProductCache();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Đã duyệt sản phẩm thành công!',
-                'data' => $product,
-            ], 200);
-        } catch (\Exception $e) {
+public function approveProduct($id, Request $request)
+{
+    try {
+        if (!Auth::check()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Thay đổi trạng thái sản phẩm thất bại.',
-                'error' => env('APP_DEBUG') ? $e->getMessage() : null
-            ], 500);
+                'message' => 'Chưa đăng nhập. Vui lòng đăng nhập để tiếp tục.',
+            ], 401);
         }
+
+        $user = Auth::user();
+        $isAdmin = $user->role === 'admin';
+
+        $validator = Validator::make($request->all(), [
+            'admin_status' => 'required|in:approved,rejected',
+            'reason' => 'nullable|string|max:1000',
+        ], [
+            'admin_status.required' => 'Trạng thái là bắt buộc.',
+            'admin_status.in' => 'Trạng thái không hợp lệ.',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Dữ liệu không hợp lệ.',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $product = Product::find($id);
+        if (!$product) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không tìm thấy sản phẩm.',
+            ], 404);
+        }
+
+        if (!$isAdmin) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bạn không có quyền duyệt sản phẩm.',
+            ], 403);
+        }
+
+        if ($product->admin_status !== 'pending') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Chỉ có thể duyệt sản phẩm ở trạng thái chờ duyệt.',
+            ], 422);
+        }
+
+        // Cập nhật trạng thái
+        $product->admin_status = $request->admin_status;
+        $product->save();
+
+        // Lưu vào bảng product_approvals
+        ProductApproval::create([
+            'product_id' => $product->id,
+            'admin_id' => $user->id,
+            'status' => $request->admin_status,
+            'reason' => $request->reason,
+        ]);
+
+        // Load lại dữ liệu đầy đủ
+        $product->load([
+            'seller:id,store_name,store_slug,phone_number,user_id',
+            'seller.user:id,name,email',
+            'categories',
+            'productVariants',
+            'productPic',
+            'tags'
+        ]);
+
+        // Kiểm tra seller và email
+        $seller = $product->seller;
+        $sellerUser = $seller ? $seller->user : null;
+        $sellerEmail = $sellerUser ? $sellerUser->email : null;
+
+        if (!$seller || !$sellerUser || !$sellerEmail) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không thể xử lý: seller hoặc email của user không tồn tại'
+
+            ], 422);
+            
+        }
+
+        // Gửi email thông báo
+        try {
+            if ($request->admin_status === 'approved') {
+                Mail::to($sellerEmail)
+                    ->send(new ProductApprovedMail($product, $seller));
+            } else {
+                Mail::to($sellerEmail)
+                    ->send(new ProductRejectedMail($product, $seller, $request->reason));
+            }
+        } catch (\Exception $mailException) {
+                return response()->json([
+                'success' => true,
+                'message' => 'Duyệt sản phẩm thành công nhưng gửi email thất bại: ' . $mailException->getMessage(),
+                'data' => $product,
+            ], 200);
+        }
+
+        // Xóa cache
+        $this->clearProductCache();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Đã duyệt sản phẩm thành công!',
+            'data' => $product,
+        ], 200);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Thay đổi trạng thái sản phẩm thất bại.',
+            'error' => env('APP_DEBUG') ? $e->getMessage() : null
+        ], 500);
     }
+}
 
     public function getRejectedProducts(Request $request)
     {

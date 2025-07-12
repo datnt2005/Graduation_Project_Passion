@@ -17,21 +17,21 @@
       <!-- Filter Bar -->
       <div class="bg-gray-200 px-4 py-3 flex flex-wrap items-center gap-3 text-sm text-gray-700">
         <div class="flex items-center gap-2">
-          <button @click="filterStatus = ''; filterTrash = ''; fetchProducts()" :class="[
+          <button @click="filterStatus = ''; filterTrash = ''; filterAdminStatus = ''; fetchProducts()" :class="[
             'text-blue-600 hover:underline',
-            filterStatus === '' && filterTrash === '' ? 'font-semibold' : ''
+            filterStatus === '' && filterTrash === '' && filterAdminStatus === '' ? 'font-semibold' : ''
           ]">
             Tất cả
           </button>
           <span>({{ totalProducts }})</span>
-          <button @click="filterStatus = 'instock'; filterTrash = ''; fetchProducts()" :class="[
+          <button @click="filterStatus = 'instock'; filterTrash = ''; filterAdminStatus = ''; fetchProducts()" :class="[
             'text-blue-600 hover:underline',
             filterStatus === 'instock' && filterTrash === '' ? 'font-semibold' : ''
           ]">
             Còn hàng
           </button>
           <span>({{ inStockProducts }})</span>
-          <button @click="filterTrash = 'trash'; filterStatus = ''; fetchProducts()" :class="[
+          <button @click="filterTrash = 'trash'; filterStatus = ''; filterAdminStatus = ''; fetchProducts()" :class="[
             'text-blue-600 hover:underline',
             filterTrash === 'trash' ? 'font-semibold' : ''
           ]">
@@ -61,6 +61,14 @@
             <option v-for="tag in tags" :key="tag.id" :value="tag.id">
               {{ tag.name }}
             </option>
+          </select>
+          <!-- Admin Status Filter -->
+          <select v-model="filterAdminStatus"
+            class="rounded-md border border-gray-300 py-1.5 pl-3 pr-8 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+            <option value="">Tất cả trạng thái duyệt</option>
+            <option value="approved">Đã duyệt</option>
+            <option value="pending">Chờ duyệt</option>
+            <option value="rejected">Từ chối</option>
           </select>
         </div>
         <div class="ml-auto flex flex-wrap gap-2 items-center">
@@ -376,7 +384,6 @@ import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import Pagination from '~/components/Pagination.vue';
 
-
 definePageMeta({
   layout: 'default-seller'
 });
@@ -393,6 +400,7 @@ const sortBy = ref('newest');
 const filterCategory = ref('');
 const filterBrand = ref('');
 const filterTag = ref('');
+const filterAdminStatus = ref('');
 const categories = ref([]);
 const tags = ref([]);
 const totalProducts = ref(0);
@@ -429,6 +437,7 @@ const getStatusLabel = (status) => {
       return 'Không xác định';
   }
 };
+
 // Fetch product counts (total, instock, trash)
 const fetchProductCounts = async () => {
   try {
@@ -475,9 +484,10 @@ const fetchProducts = async (page = 1) => {
       : `${apiBase}/products/sellers?page=${page}&per_page=${perPage}`;
     const response = await fetch(endpoint, {
       method: 'GET',
-      headers: { 'Content-Type': 'application/json',
+      headers: { 
+        'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
-       }
+      }
     });
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     const data = await response.json();
@@ -507,7 +517,7 @@ const fetchCategories = async () => {
       }
     });
     const data = await response.json();
-    categories.value = data.data.data || data.categories || [];
+    categories.value = data.data?.data || data.categories || [];
   } catch (error) {
     console.error('Error fetching categories:', error);
     showNotificationMessage('Có lỗi xảy ra khi tải danh mục', 'error');
@@ -524,9 +534,7 @@ const fetchTags = async () => {
       }
     });
     const data = await response.json();
-    tags.value = data.data.tags || [];
-    console.log('tags', tags.value);
-
+    tags.value = data.data?.tags || [];
   } catch (error) {
     console.error('Error fetching tags:', error);
     showNotificationMessage('Có lỗi xảy ra khi tải thẻ', 'error');
@@ -560,6 +568,7 @@ const toggleSelectAll = () => {
     selectedProducts.value = [];
   }
 };
+
 function truncateText(text, maxLength) {
   if (!text) return '';
   return text.length > maxLength ? text.slice(0, maxLength) + '…' : text;
@@ -579,12 +588,13 @@ const applyBulkAction = async () => {
       async () => {
         try {
           loading.value = true;
+          const token = localStorage.getItem('access_token');
           const deletePromises = selectedProducts.value.map(id =>
             fetch(`${apiBase}/products/${id}`, {
               method: 'DELETE',
               headers: {
-                'Content-Type': 'application/json'
-
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
               }
             })
           );
@@ -611,9 +621,7 @@ const applyBulkAction = async () => {
   } else if (['active', 'inactive', 'trash', 'restore'].includes(selectedAction.value)) {
     try {
       loading.value = true;
-      const status = selectedAction.value === 'active' ? 'active' :
-        selectedAction.value === 'inactive' ? 'inactive' :
-          selectedAction.value === 'trash' ? 'trash' : 'active';
+      const status = selectedAction.value ===住院
       const token = localStorage.getItem('access_token');
       const updatePromises = selectedProducts.value.map(id =>
         fetch(`${apiBase}/products/change-status/${id}`, {
@@ -661,7 +669,6 @@ const moveToTrash = async (product) => {
   showConfirmationDialog(
     'Xác nhận chuyển vào thùng rác',
     `Bạn có chắc chắn muốn chuyển sản phẩm "${product.name}" vào thùng rác?`,
-
     async () => {
       try {
         const response = await fetch(`${apiBase}/products/change-status/${product.id}`, {
@@ -802,6 +809,11 @@ const filteredProducts = computed(() => {
   // Filter by stock status (only when not in trash view)
   if (filterStatus.value && filterTrash.value !== 'trash') {
     result = result.filter(product => getStockStatus(product) === filterStatus.value);
+  }
+
+  // Filter by admin status
+  if (filterAdminStatus.value) {
+    result = result.filter(product => product.admin_status === filterAdminStatus.value);
   }
 
   // Filter by category
