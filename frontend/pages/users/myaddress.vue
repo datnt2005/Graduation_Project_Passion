@@ -70,11 +70,7 @@
                 </div>
               </div>
               <p class="text-gray-700 text-sm mb-1">
-                Địa chỉ:
-                {{ address.detail }},
-                {{ getWardName(address.ward_code, address.district_id) }},
-                {{ getDistrictName(address.district_id) }},
-                {{ getProvinceName(address.province_id) }}
+                Địa chỉ: {{ resolved[address.id] || 'Đang tải...' }}
               </p>
               <p class="text-gray-700 text-sm">Số điện thoại: {{ address.phone }}</p>
             </div>
@@ -89,13 +85,11 @@
   </div>
 </template>
 
-
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, reactive, watchEffect } from 'vue'
 import { useRuntimeConfig, useHead } from '#app'
 import SidebarProfile from '~/components/shared/layouts/Sidebar-profile.vue'
 import { useAuthHeaders } from '~/composables/useAuthHeaders'
-import { useAddressForm } from '~/composables/useAddressForm'
 import { useToast } from '~/composables/useToast'
 import Swal from 'sweetalert2'
 import axios from 'axios'
@@ -104,25 +98,70 @@ useHead({
   title: 'Sổ địa chỉ | Tài khoản của bạn',
   meta: [
     { name: 'description', content: 'Trang quản lý địa chỉ giao hàng của bạn trên hệ thống.' },
-    { name: 'robots', content: 'noindex, follow' }
+    { name: 'robots', content: 'index, follow' }, 
+    { property: 'og:title', content: 'Sổ địa chỉ giao hàng' },
+    { property: 'og:description', content: 'Xem và chỉnh sửa địa chỉ giao hàng của bạn.' }
   ]
 })
+
 
 const { showSuccess, showError } = useToast()
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBaseUrl
 
-const {
-  provinces,
-  districts,
-  wards,
-  loadProvinces,
-  loadDistrictsAppend,
-  loadWardsAppend
-} = useAddressForm(apiBase)
-
 const addresses = ref([])
 const loading = ref(true)
+
+const provinces = ref([])
+const districts = ref([])
+const wards = ref([])
+
+const resolved = reactive({})
+
+const loadProvinces = async () => {
+  const cache = localStorage.getItem('ghn_provinces')
+  if (cache) {
+    provinces.value = JSON.parse(cache)
+  } else {
+    const res = await axios.get(`${apiBase}/ghn/provinces`)
+    provinces.value = res.data.data || []
+    localStorage.setItem('ghn_provinces', JSON.stringify(provinces.value))
+  }
+}
+
+const loadDistrictsAppend = async (provinceId) => {
+  const key = `ghn_districts_${provinceId}`
+  const cache = localStorage.getItem(key)
+  if (cache) {
+    const parsed = JSON.parse(cache)
+    const ids = parsed.map(d => d.DistrictID)
+    if (!districts.value.some(d => ids.includes(d.DistrictID))) {
+      districts.value.push(...parsed)
+    }
+  } else {
+    const res = await axios.post(`${apiBase}/ghn/districts`, { province_id: provinceId })
+    const data = res.data.data || []
+    localStorage.setItem(key, JSON.stringify(data))
+    districts.value.push(...data)
+  }
+}
+
+const loadWardsAppend = async (districtId) => {
+  const key = `ghn_wards_${districtId}`
+  const cache = localStorage.getItem(key)
+  if (cache) {
+    const parsed = JSON.parse(cache)
+    const codes = parsed.map(w => w.WardCode)
+    if (!wards.value.some(w => codes.includes(w.WardCode))) {
+      wards.value.push(...parsed)
+    }
+  } else {
+    const res = await axios.post(`${apiBase}/ghn/wards`, { district_id: districtId })
+    const data = res.data.data || []
+    localStorage.setItem(key, JSON.stringify(data))
+    wards.value.push(...data)
+  }
+}
 
 const provinceMap = computed(() => new Map(provinces.value.map(p => [p.ProvinceID, p.ProvinceName])))
 const districtMap = computed(() => new Map(districts.value.map(d => [d.DistrictID, d.DistrictName])))
@@ -132,10 +171,14 @@ const getProvinceName = (id) => id ? provinceMap.value.get(id) || '' : ''
 const getDistrictName = (id) => id ? districtMap.value.get(id) || '' : ''
 const getWardName = (code, did) => (code && did) ? wardMap.value.get(`${code}-${did}`) || '' : ''
 
-const isAddressReady = (address) => {
-  return getProvinceName(address.province_id) &&
-         getDistrictName(address.district_id) &&
-         getWardName(address.ward_code, address.district_id)
+const resolveAddressText = async (address) => {
+  await loadDistrictsAppend(address.province_id)
+  await loadWardsAppend(address.district_id)
+
+  const ward = getWardName(address.ward_code, address.district_id)
+  const district = getDistrictName(address.district_id)
+  const province = getProvinceName(address.province_id)
+  return `${address.detail}, ${ward}, ${district}, ${province}`
 }
 
 const loadAddresses = async () => {
@@ -144,20 +187,17 @@ const loadAddresses = async () => {
     const res = await axios.get(`${apiBase}/address`, useAuthHeaders())
     addresses.value = res.data.data || []
 
-    const provinceIds = [...new Set(addresses.value.map(a => a.province_id))]
-    const districtIds = [...new Set(addresses.value.map(a => a.district_id))]
-
-    await Promise.all([
-      ...provinceIds.map(pid => loadDistrictsAppend(pid)),
-      ...districtIds.map(did => loadWardsAppend(did))
-    ])
+    for (const addr of addresses.value) {
+      resolveAddressText(addr).then(text => {
+        resolved[addr.id] = text
+      })
+    }
   } catch (e) {
     showError('Không thể tải địa chỉ')
   } finally {
     loading.value = false
   }
 }
-
 
 const deleteAddress = async (id) => {
   const confirm = await Swal.fire({
@@ -185,8 +225,6 @@ onMounted(async () => {
   await loadAddresses()
 })
 </script>
-
-
 
 <style scoped>
 @media (max-width: 640px) {

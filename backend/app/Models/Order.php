@@ -60,7 +60,15 @@ class Order extends Model
         return $this->hasMany(Payment::class);
     }
 
+    public function refund()
+    {
+        return $this->hasOne(Refund::class);
+    }
 
+    public function payout()
+    {
+        return $this->hasOne(Payout::class, 'order_id', 'id');
+    }
 
     // Phương thức kiểm tra và áp dụng mã giảm giá
     public function applyDiscount($discountCode)

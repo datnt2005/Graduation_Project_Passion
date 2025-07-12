@@ -11,10 +11,13 @@ class PaymentMethodController extends Controller
      * Display a listing of the resource.
      */
     public function index()
-    {
-        $paymentMethods = PaymentMethod::all();
-        return response()->json(['data' => $paymentMethods]);
-    }
+{
+    $paymentMethods = PaymentMethod::all();
+    return response()->json([
+        'success' => true,
+        'data' => $paymentMethods
+    ], 200);
+}
 
     /**
      * Show the form for creating a new resource.

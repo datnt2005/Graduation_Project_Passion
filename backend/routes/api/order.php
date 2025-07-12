@@ -18,6 +18,8 @@ Route::prefix('orders')->middleware(['auth:sanctum'])->group(function () {
     Route::middleware('checkRole:admin,seller')->group(function () {
         Route::put('/{id}', [OrderController::class, 'update']);
         Route::delete('/{id}', [OrderController::class, 'destroy']);
+        Route::post('/{id}/refund', [OrderController::class, 'refund']);
+        Route::get('/orders/{id}/refund', [OrderController::class, 'getRefund']);
     });
 
     // Áp dụng / gỡ mã giảm giá – chỉ cho admin và seller
@@ -25,4 +27,7 @@ Route::prefix('orders')->middleware(['auth:sanctum'])->group(function () {
         Route::post('/{id}/apply-discount', [OrderController::class, 'applyDiscount']);
         Route::delete('/{id}/remove-discount', [OrderController::class, 'removeDiscount']);
     });
+
+    // Đồng bộ trạng thái GHN (Seller hoặc Admin)
+    Route::middleware('checkRole:admin,seller')->post('/seller/{orderId}/sync-ghn', [OrderController::class, 'syncGhnStatus']);
 });
