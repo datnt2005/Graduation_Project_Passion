@@ -73,7 +73,24 @@
       <div
         ref="chatMessages"
         class="grow min-h-0 p-3 space-y-4 overflow-y-auto text-sm"
+        @scroll="handleScroll"
       >
+        <!--  Đang tải thêm -->
+        <div
+          v-if="isLoadingMore"
+          class="text-center text-gray-400 text-xs my-2"
+        >
+          Đang tải thêm tin nhắn...
+        </div>
+
+        <!-- Hết tin nhắn -->
+        <div
+          v-else-if="!hasMore && currentSession?.messages?.length"
+          class="text-center text-gray-400 text-xs my-2"
+        >
+          Bạn đã xem toàn bộ tin nhắn
+        </div>
+
         <div
           v-for="(message, index) in currentSession?.messages"
           :key="message.id || index"
@@ -332,13 +349,15 @@ const config = useRuntimeConfig();
 const API = config.public.apiBaseUrl;
 const DEFAULT_AVATAR = config.public.mediaBaseUrl + "avatars/default.jpg";
 
-// Phân tích message để lấy name, price, original_price
 const parseMessage = (message) => {
   try {
-    return JSON.parse(message) || {};
+    const parsed = JSON.parse(message);
+    if (typeof parsed === "object" && parsed !== null) {
+      return parsed;
+    }
+    return message;
   } catch (error) {
-    console.error("Lỗi khi phân tích message:", error);
-    return {};
+    return message;
   }
 };
 
@@ -438,13 +457,13 @@ async function openChat(session) {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
 
-    // Gán tin nhắn vào session
-    currentSession.value.messages = (data?.data || []).map((msg) => ({
-      ...msg,
-      attachments: msg.attachments || [],
-    }));
+    currentSession.value.messages = (data?.data || [])
+      .map((msg) => ({
+        ...msg,
+        attachments: msg.attachments || [],
+      }))
+      .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 
-    // Gọi polling để tự cập nhật mỗi 3s
     stopPollingMessages();
     startPollingMessages();
 
@@ -452,6 +471,70 @@ async function openChat(session) {
   } catch (err) {
     console.error("Lỗi load tin nhắn:", err);
     alert("Không tải được tin nhắn: " + err.message);
+  }
+}
+
+// tạo tin nhắn
+async function createSessionWithSeller(sellerId) {
+  const token = localStorage.getItem("access_token");
+  if (!token) {
+    console.error("❌ Chưa có access_token");
+    return null;
+  }
+
+  // Lấy user_id từ API /me
+  const resUser = await fetch(`${API}/me`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const userData = await resUser.json();
+  const userId = userData?.data?.id;
+
+  if (!userId) {
+    console.error("❌ Không tìm thấy user_id từ API /me");
+    return null;
+  }
+
+  // Gửi request tạo session mới
+  const res = await fetch(`${API}/chat/session`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      user_id: userId,
+      seller_id: sellerId,
+    }),
+  });
+
+  if (!res.ok) {
+    console.error("❌ Tạo session thất bại:", res.statusText);
+    return null;
+  }
+
+  const session = await res.json();
+  return session;
+}
+
+function openChatWithUser(sellerId) {
+  const existing = chatSessions.value.find(
+    (s) => s.seller?.user?.id === sellerId
+  );
+
+  if (existing) {
+    openChat(existing); // ✅ Nếu đã có session với seller → mở chat luôn
+  } else {
+    createSessionWithSeller(sellerId) // ❗ Nếu chưa có → gọi API tạo session mới
+      .then((session) => {
+        chatSessions.value.push(session);
+        openChat(session); // Rồi mới mở chat
+      })
+      .catch((err) => {
+        console.error("❌ Không thể tạo session chat:", err);
+      });
   }
 }
 
@@ -471,23 +554,59 @@ function startPollingMessages() {
         }
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
 
-      // So sánh số lượng tin nhắn mới để cập nhật nếu cần
-      const newMessages = data?.data || [];
-      if (newMessages.length !== (currentSession.value.messages?.length || 0)) {
-        currentSession.value.messages = newMessages.map((msg) => ({
+      const data = await res.json();
+      const fetchedMessages = data?.data || [];
+
+      if (!Array.isArray(currentSession.value.messages)) {
+        currentSession.value.messages = fetchedMessages
+          .map((msg) => ({
+            ...msg,
+            attachments: msg.attachments || [],
+          }))
+          .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+        await nextTick(scrollToBottom);
+        return;
+      }
+
+      const currentIds = new Set(
+        currentSession.value.messages.map((m) => m.id)
+      );
+      let newMessages = fetchedMessages
+        .filter((msg) => !currentIds.has(msg.id))
+        .map((msg) => ({
           ...msg,
           attachments: msg.attachments || [],
         }));
-        await nextTick(scrollToBottom);
+
+      if (newMessages.length > 0) {
+        newMessages.sort(
+          (a, b) => new Date(a.created_at) - new Date(b.created_at)
+        );
+        // Chỉ thêm tin nhắn mới vào cuối
+        const originalLength = currentSession.value.messages.length;
+        newMessages.forEach((msg) => {
+          currentSession.value.messages.push(msg);
+        });
+
+        await nextTick(() => {
+          const el = chatMessages.value;
+          if (el) {
+            const isAtBottom =
+              el.scrollHeight - el.scrollTop - el.clientHeight < 100;
+            if (isAtBottom) {
+              scrollToBottom();
+            } else {
+              console.log("Có tin nhắn mới nhưng không cuộn vì không ở cuối");
+            }
+          }
+        });
       }
     } catch (err) {
       console.error("Lỗi polling tin nhắn:", err);
     }
   }, 3000);
 }
-
 // Đảm bảo dừng polling khi đóng chat hoặc rời trang
 function stopPollingMessages() {
   if (pollingInterval.value) {
@@ -695,13 +814,76 @@ onUnmounted(() => {
   stopPollingMessages();
 });
 
-// Tải thêm tin nhắn khi cuộn lên đầu
+// const loadMessages = async () => {
+//   const token = localStorage.getItem("access_token");
+//   if (!token || !currentSession.value?.id) return;
+
+//   const container = chatMessages.value;
+//   const oldScrollHeight = container.scrollHeight;
+
+//   try {
+//     isLoadingMore.value = true;
+
+//     // Ghi lại độ cao cũ trước khi tải thêm
+//     const el = chatMessages.value;
+//     const oldHeight = el?.scrollHeight || 0;
+
+//     const res = await fetch(
+//       `${API}/chat/messages/${currentSession.value.id}?page=${page.value}&limit=${limit}`,
+//       {
+//         headers: { Authorization: `Bearer ${token}` },
+//       }
+//     );
+//     const data = await res.json();
+//     const newMessages = data?.data || [];
+
+//     if (newMessages.length < limit) {
+//       hasMore.value = false;
+//     }
+
+//     const reversed = newMessages.reverse();
+
+//     if (!currentSession.value.messages) {
+//       currentSession.value.messages = reversed;
+//     } else {
+//       currentSession.value.messages = [
+//         ...reversed,
+//         ...currentSession.value.messages,
+//       ];
+//     }
+
+//     page.value++;
+
+//     // Sau khi thêm tin nhắn → giữ vị trí scroll cũ
+//     // await nextTick(() => {
+//     //   const newHeight = el?.scrollHeight || 0;
+//     //   if (el) {
+//     //     el.scrollTop = newHeight - oldHeight;
+//     //   }
+//     // });
+//     await nextTick(() => {
+//       const newScrollHeight = container.scrollHeight;
+//       container.scrollTop = newScrollHeight - oldScrollHeight;
+//     });
+//   } catch (err) {
+//     console.error("Lỗi tải thêm tin nhắn:", err);
+//   } finally {
+//     isLoadingMore.value = false;
+//   }
+// };
+
+// Xử lý cuộn để tải thêm tin nhắn
 const loadMessages = async () => {
   const token = localStorage.getItem("access_token");
   if (!token || !currentSession.value?.id) return;
 
+  const container = chatMessages.value;
+  const oldScrollHeight = container.scrollHeight;
+  const oldScrollTop = container.scrollTop;
+
   try {
     isLoadingMore.value = true;
+
     const res = await fetch(
       `${API}/chat/messages/${currentSession.value.id}?page=${page.value}&limit=${limit}`,
       {
@@ -715,26 +897,31 @@ const loadMessages = async () => {
       hasMore.value = false;
     }
 
-    const reversed = newMessages.reverse();
+    const reversed = newMessages.reverse().map((msg) => ({
+      ...msg,
+      attachments: msg.attachments || [],
+    }));
+
     if (!currentSession.value.messages) {
       currentSession.value.messages = reversed;
     } else {
-      currentSession.value.messages = [
-        ...reversed,
-        ...currentSession.value.messages,
-      ];
+      reversed.forEach((msg) => {
+        currentSession.value.messages.unshift(msg);
+      });
     }
 
     page.value++;
-    await nextTick();
+
+    await nextTick(() => {
+      const newScrollHeight = container.scrollHeight;
+      container.scrollTop = oldScrollTop + (newScrollHeight - oldScrollHeight);
+    });
   } catch (err) {
     console.error("Lỗi tải thêm tin nhắn:", err);
   } finally {
     isLoadingMore.value = false;
   }
 };
-
-// Xử lý cuộn để tải thêm tin nhắn
 const handleScroll = () => {
   const el = chatMessages.value;
   if (!el || isLoadingMore.value || !hasMore.value) return;
@@ -755,6 +942,10 @@ onUnmounted(() => {
   if (chatMessages.value) {
     chatMessages.value.removeEventListener("scroll", handleScroll);
   }
+});
+
+defineExpose({
+  openChatWithUser,
 });
 </script>
 
