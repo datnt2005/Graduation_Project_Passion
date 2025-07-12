@@ -76,21 +76,24 @@
         </ul>
       </nav>
     </aside>
-    <div class="max-w-4xl mx-auto p-6">
-      <h2 class="text-2xl font-bold mb-4">Cài đặt hệ thống</h2>
+    <!-- Main Content -->
+    <main class="flex-1 p-8">
+      <h2 class="text-3xl font-bold mb-6 text-blue-700">
+        <i class="fa-solid fa-wrench"></i> Cài đặt hệ thống
+      </h2>
 
-      <div class="mb-4 flex gap-4">
+      <div class="mb-6 flex flex-wrap gap-4">
         <button
           @click="downloadBackup"
-          class="bg-green-600 text-white px-4 py-2 rounded"
+          class="bg-blue-600 hover:bg-blue-700 transition text-white px-5 py-2 rounded shadow"
         >
-          📦 Tải về sao lưu
+          <i class="fa-solid fa-file"></i> Tải về sao lưu
         </button>
         <input
           type="file"
           @change="uploadRestore"
           accept=".json"
-          class="border p-2"
+          class="border p-2 rounded bg-white"
         />
       </div>
 
@@ -98,51 +101,69 @@
         <div
           v-for="(group, groupName) in settings"
           :key="groupName"
-          class="mb-8"
+          class="mb-10"
         >
-          <h3 class="text-lg font-semibold mb-2 text-blue-600 uppercase">
+          <h3
+            class="text-xl font-semibold mb-4 text-blue-500 uppercase border-b pb-1"
+          >
             {{ groupName || "Khác" }}
           </h3>
 
-          <div v-for="setting in group" :key="setting.key" class="mb-4">
-            <label class="block font-semibold mb-1">
-              {{ setting.description || setting.key }}
-            </label>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div v-for="setting in group" :key="setting.key">
+              <label class="block font-medium text-sm mb-1 text-gray-800">
+                {{ setting.description || setting.key }}
+              </label>
 
-            <input
-              v-if="setting.type === 'text'"
-              v-model="setting.value"
-              type="text"
-              class="border p-2 w-full rounded"
-            />
+              <!-- Text input -->
+              <input
+                v-if="setting.type === 'text'"
+                v-model="setting.value"
+                type="text"
+                class="border border-gray-300 p-2 w-full rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+              />
 
-            <textarea
-              v-else-if="setting.type === 'textarea'"
-              v-model="setting.value"
-              class="border p-2 w-full rounded"
-            ></textarea>
+              <!-- Textarea -->
+              <textarea
+                v-else-if="setting.type === 'textarea'"
+                v-model="setting.value"
+                class="border border-gray-300 p-2 w-full rounded h-32 resize-none focus:outline-none focus:ring-2 focus:ring-blue-400"
+              ></textarea>
 
-            <template v-else-if="setting.type === 'file'">
-              <input type="file" @change="uploadFile($event, setting)" />
-              <div v-if="setting.value">
-                <img :src="getFileUrl(setting.value)" class="h-16" />
-              </div>
-            </template>
+              <!-- File upload -->
+              <template v-else-if="setting.type === 'file'">
+                <input
+                  type="file"
+                  @change="uploadFile($event, setting)"
+                  class="mb-2"
+                />
+                <div v-if="setting.value">
+                  <img
+                    :src="getFileUrl(setting.value)"
+                    class="h-16 rounded shadow border"
+                  />
+                </div>
+              </template>
 
-            <input
-              v-else
-              v-model="setting.value"
-              type="text"
-              class="border p-2 w-full rounded"
-            />
+              <!-- Fallback input -->
+              <input
+                v-else
+                v-model="setting.value"
+                type="text"
+                class="border p-2 w-full rounded"
+              />
+            </div>
           </div>
         </div>
 
-        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">
+        <button
+          type="submit"
+          class="mt-4 bg-blue-600 hover:bg-blue-700 transition text-white px-6 py-3 rounded shadow-md"
+        >
           Lưu cài đặt
         </button>
       </form>
-    </div>
+    </main>
   </div>
 </template>
 
@@ -155,23 +176,68 @@ const API = config.public.apiBaseUrl;
 
 const settings = ref({});
 
+// onMounted(async () => {
+//   const { data, error } = await useFetch(`${API}/settings`);
+
+//   if (error.value) {
+//     toast("error", "Không thể tải dữ liệu cài đặt.");
+//     return;
+//   }
+
+//   if (
+//     data.value &&
+//     typeof data.value === "object" &&
+//     !Array.isArray(data.value)
+//   ) {
+//     settings.value = data.value;
+//   } else {
+//     toast("error", "⚠️ API không trả về object như mong đợi:", data.value);
+//   }
+// });
+
 onMounted(async () => {
-  const { data, error } = await useFetch(`${API}/settings`);
+  const fetchSettings = async (retries = 3) => {
+    for (let i = 0; i < retries; i++) {
+      console.log(`Attempt ${i + 1} to fetch settings...`);
+      const { data, error } = await useFetch(`${API}/settings`, {
+        query: { t: Date.now() },
+        headers: { "Cache-Control": "no-cache" },
+      });
 
-  if (error.value) {
-    toast("error", "Không thể tải dữ liệu cài đặt.");
-    return;
-  }
+      console.log("API Response:", data.value, "Error:", error.value);
 
-  if (
-    data.value &&
-    typeof data.value === "object" &&
-    !Array.isArray(data.value)
-  ) {
-    settings.value = data.value;
-  } else {
-    toast("error", "⚠️ API không trả về object như mong đợi:", data.value);
-  }
+      if (error.value) {
+        if (i === retries - 1) {
+          toast(
+            "error",
+            "Không thể tải dữ liệu cài đặt: " + error.value.message
+          );
+          return;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 1000)); // Đợi 1 giây
+        continue;
+      }
+
+      if (
+        data.value &&
+        typeof data.value === "object" &&
+        !Array.isArray(data.value)
+      ) {
+        settings.value = data.value;
+        return;
+      } else {
+        if (i === retries - 1) {
+          toast(
+            "error",
+            "⚠️ API không trả về object như mong đợi:",
+            data.value
+          );
+        }
+      }
+    }
+  };
+
+  await fetchSettings();
 });
 
 const updateSettings = async () => {

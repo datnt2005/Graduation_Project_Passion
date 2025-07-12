@@ -25,6 +25,34 @@ class SettingSeeder extends Seeder
                 'description' => 'Email liên hệ hỗ trợ',
                 'is_editable' => true,
             ],
+            // cài đặt tên website
+            [
+                'key' => 'site_name',
+                'value' => 'My Website',
+                'type' => 'text',
+                'group' => 'general',
+                'description' => 'Tên website',
+                'is_editable' => true,
+            ],
+            // Số điện thoại
+            [
+                'key' => 'phone_number',
+                'value' => '0123456789',
+                'type' => 'text',
+                'group' => 'contact',
+                'description' => 'Số điện thoại',
+                'is_editable' => true,
+            ],
+            // số điện thoại nóng Hotline
+            [
+                'key' => 'hotline_number',
+                'value' => '0123456789',
+                'type' => 'text',
+                'group' => 'contact',
+                'description' => 'Số Hotline',
+                'is_editable' => true,
+            ]
+
         ];
 
         foreach ($settings as $setting) {

@@ -25,6 +25,11 @@ export default defineNuxtConfig({
       isCustomElement: (tag) => tag === 'emoji-picker',
     },
   },
+  vite: {
+    server: {
+      hmr: false, // Tắt HMR
+    },
+  },
 });
 
  
