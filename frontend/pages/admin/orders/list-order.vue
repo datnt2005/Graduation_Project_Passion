@@ -1046,7 +1046,7 @@ const fetchRefunds = async () => {
     if (response.ok && data.success) {
       refunds.value = Array.isArray(data.data) ? data.data.map(refund => ({
         ...refund,
-        amount: Number(refund.amount) || 0,
+        amount: Number(refund.amount) * 1000 || 0,
         created_at: refund.created_at || null
       })) : [];
       if (!refunds.value.length) {

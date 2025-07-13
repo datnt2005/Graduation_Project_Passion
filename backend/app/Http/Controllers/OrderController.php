@@ -577,15 +577,83 @@ class OrderController extends Controller
                 'user',
                 'address',
                 'payments.paymentMethod',
-                'shipping'
+                'shipping',
+                'refund' // Thêm quan hệ refund
             ])->where('id', $id)
-                ->where('user_id', $user->id)
-                ->firstOrFail();
+              ->where('user_id', $user->id)
+              ->firstOrFail();
 
-            // Trả về đúng formatOrderResponse, không custom lại data
-            return response()->json($this->formatOrderResponse($order));
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'id' => $order->id,
+                    'shipping' => $order->shipping ? [
+                        'tracking_code' => $order->shipping->tracking_code,
+                        'status' => $order->shipping->status,
+                        'shipping_fee' => (float)$order->shipping->shipping_fee,
+                        'estimated_delivery' => $order->shipping->estimated_delivery ? $order->shipping->estimated_delivery->toISOString() : null,
+                    ] : null,
+                    'user' => $order->user ? [
+                        'id' => $order->user->id,
+                        'name' => $order->user->name,
+                        'email' => $order->user->email,
+                    ] : null,
+                    'address' => $order->address ? [
+                        'id' => $order->address->id,
+                        'address' => $order->address->address,
+                        'phone' => $order->address->phone,
+                        'province_id' => $order->address->province_id,
+                        'district_id' => $order->address->district_id,
+                        'ward_code' => $order->address->ward_code,
+                    ] : null,
+                    'note' => $order->note ?? '',
+                    'status' => $order->status,
+                    'can_delete' => in_array($order->status, ['pending', 'cancelled']),
+                    'total_price' => (float)$order->total_price,
+                    'discount_price' => (float)$order->discount_price,
+                    'final_price' => (float)$order->final_price,
+                    'shipping_method' => $order->shipping_method,
+                    'created_at' => $order->created_at ? $order->created_at->toISOString() : null,
+                    'order_items' => $order->orderItems->map(function ($item) {
+                        return [
+                            'id' => $item->id,
+                            'product' => $item->product ? [
+                                'id' => $item->product->id,
+                                'name' => $item->product->name,
+                                'thumbnail' => $item->product->thumbnail,
+                            ] : null,
+                            'variant' => $item->productVariant ? [
+                                'id' => $item->productVariant->id,
+                                'name' => $item->productVariant->name,
+                            ] : null,
+                            'quantity' => $item->quantity,
+                            'price' => (float)$item->price,
+                            'total' => (float)($item->price * $item->quantity),
+                        ];
+                    }),
+                    'payments' => $order->payments->map(function ($payment) {
+                        return [
+                            'id' => $payment->id,
+                            'method' => $payment->paymentMethod ? $payment->paymentMethod->name : null,
+                            'amount' => (float)$payment->amount,
+                            'status' => $payment->status,
+                            'created_at' => $payment->created_at ? $payment->created_at->toISOString() : null,
+                        ];
+                    }),
+                    'refund' => $order->refund ? [
+                        'id' => $order->refund->id,
+                        'order_id' => $order->refund->order_id,
+                        'user_id' => $order->refund->user_id,
+                        'amount' => (float)$order->refund->amount,
+                        'status' => $order->refund->status,
+                        'reason' => $order->refund->reason,
+                        'created_at' => $order->refund->created_at ? $order->refund->created_at->toISOString() : null,
+                    ] : null,
+                ]
+            ]);
         } catch (\Exception $e) {
             return response()->json([
+                'success' => false,
                 'message' => 'Không thể lấy thông tin đơn hàng: ' . $e->getMessage()
             ], 404);
         }

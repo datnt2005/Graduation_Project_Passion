@@ -39,10 +39,10 @@ class Order extends Model
         return $this->belongsTo(User::class);
     }
 
-        public function address()
-        {
-            return $this->belongsTo(Address::class);
-        }
+    public function address()
+    {
+        return $this->belongsTo(Address::class);
+    }
 
     public function discount()
     {
@@ -62,7 +62,7 @@ class Order extends Model
 
     public function refund()
     {
-        return $this->hasOne(Refund::class);
+        return $this->hasOne(Refund::class, 'order_id', 'id');
     }
 
     public function payout()
@@ -153,8 +153,7 @@ class Order extends Model
     }
 
     public function shipping()
-{
-    return $this->hasOne(Shipping::class);
-}
-
+    {
+        return $this->hasOne(Shipping::class);
+    }
 }

@@ -101,7 +101,7 @@
               </thead>
               <tbody>
                 <tr v-for="(order, index) in paginatedOrders" :key="order.id" class="hover:bg-gray-50 border-t">
-                  <td class="px-4 py-3">{{ index + 1 + (page.value - 1) * perPage }}</td>
+                  <td class="px-4 py-3">{{ index + 1 }}</td>
                   <td class="px-4 py-3 text-gray-700">{{ order.shipping?.tracking_code || '-' }}</td>
                   <td class="px-4 py-3 text-gray-800">{{ order.user?.name || '---' }}</td>
                   <td class="px-4 py-3">{{ order.address?.phone || '-' }}</td>
