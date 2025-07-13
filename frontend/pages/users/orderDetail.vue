@@ -11,7 +11,8 @@
               aria-label="Quay lại danh sách đơn hàng">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"
                 xmlns="http://www.w3.org/2000/svg">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18">
+                </path>
               </svg>
             </NuxtLink>
             <h2 class="text-2xl sm:text-3xl font-bold text-gray-900">Chi tiết Đơn hàng #{{ order?.id || orderId }}</h2>
@@ -39,7 +40,8 @@
                   :class="['processing', 'shipped', 'delivered', 'failed'].includes(order.status) ? 'text-blue-600' : 'text-gray-400'"
                   aria-hidden="true"></i>
                 <span class="text-xs mt-1"
-                  :class="['processing', 'shipped', 'delivered', 'failed'].includes(order.status) ? 'text-blue-600 font-semibold' : 'text-gray-400'">Đã xử lý</span>
+                  :class="['processing', 'shipped', 'delivered', 'failed'].includes(order.status) ? 'text-blue-600 font-semibold' : 'text-gray-400'">Đã
+                  xử lý</span>
               </div>
               <div class="h-1 w-8 bg-gray-300 rounded"></div>
               <div class="flex flex-col items-center">
@@ -47,11 +49,13 @@
                   :class="['shipped', 'delivered', 'failed'].includes(order.status) ? 'text-blue-600' : 'text-gray-400'"
                   aria-hidden="true"></i>
                 <span class="text-xs mt-1"
-                  :class="['shipped', 'delivered', 'failed'].includes(order.status) ? 'text-blue-600 font-semibold' : 'text-gray-400'">Đang giao</span>
+                  :class="['shipped', 'delivered', 'failed'].includes(order.status) ? 'text-blue-600 font-semibold' : 'text-gray-400'">Đang
+                  giao</span>
               </div>
               <div class="h-1 w-8 bg-gray-300 rounded"></div>
               <div class="flex flex-col items-center">
-                <i v-if="order.status === 'failed'" class="fas fa-times-circle text-2xl text-red-600" aria-hidden="true"></i>
+                <i v-if="order.status === 'failed'" class="fas fa-times-circle text-2xl text-red-600"
+                  aria-hidden="true"></i>
                 <i v-else class="fas fa-check-circle text-2xl"
                   :class="order.status === 'delivered' ? 'text-green-600' : 'text-gray-400'" aria-hidden="true"></i>
                 <span class="text-xs mt-1"
@@ -93,7 +97,7 @@
                   <p><strong>Người nhận:</strong> {{ order.user?.name || '-' }}</p>
                   <p><strong>Số điện thoại:</strong> {{ order.address?.phone || '-' }}</p>
                   <p><strong>Địa chỉ:</strong> {{ order.address?.detail || '-' }}, {{ order.address?.ward_name || '-'
-                    }}, {{ order.address?.district_name || '-' }}, {{ order.address?.province_name || '-' }}</p>
+                  }}, {{ order.address?.district_name || '-' }}, {{ order.address?.province_name || '-' }}</p>
                 </div>
               </div>
 
@@ -167,26 +171,25 @@
             </div>
 
             <!-- Refund Information -->
-<div v-if="['failed', 'cancelled', 'refunded', 'returned'].includes(order.status)"
-  class="bg-white rounded-lg shadow-sm border border-gray-200 mb-8">
+<div v-if="['failed', 'cancelled', 'returned'].includes(order.status) && !order.refund"
+     class="bg-white rounded-lg shadow-sm border border-gray-200 mb-8">
   <h3 class="text-xl font-bold text-gray-800 p-6 border-b border-gray-200 bg-gray-50">Xử lý hoàn tiền</h3>
   <div class="p-6 text-sm text-gray-700">
     <p class="mb-4"><strong>Lý do hiện tại:</strong> {{ order.note || 'Chưa có ghi chú' }}</p>
     <!-- Thông báo lỗi nếu không có dữ liệu hoàn tiền -->
     <div v-if="order.status === 'refunded' && !order.refund"
-      class="mt-4 bg-yellow-50 p-4 rounded-md border border-yellow-200 text-yellow-700">
+         class="mt-4 bg-yellow-50 p-4 rounded-md border border-yellow-200 text-yellow-700">
       <p><strong>Cảnh báo:</strong> Đơn hàng ở trạng thái đã hoàn tiền, nhưng không tìm thấy thông tin yêu cầu hoàn tiền. Vui lòng liên hệ hỗ trợ!</p>
     </div>
     <!-- Hiển thị thông tin hoàn tiền nếu có -->
-    <div v-if="hasRefund || order.refund"
-      class="mt-4 bg-gray-50 p-4 rounded-md border border-gray-200">
+    <div v-if="order.refund" class="mt-4 bg-gray-50 p-4 rounded-md border border-gray-200">
       <h4 class="text-lg font-semibold text-gray-800 mb-3">Thông tin yêu cầu hoàn tiền</h4>
       <div class="space-y-3">
         <p><strong>Mã hoàn tiền:</strong> {{ order.refund?.id || '-' }}</p>
         <p><strong>Số tiền hoàn:</strong> {{ formatPrice((order.refund?.amount || order.final_price) * 1000) }}</p>
         <p><strong>Trạng thái:</strong>
           <span :class="refundStatusClass(order.refund?.status || 'approved')"
-            class="px-3 py-1 text-xs rounded-full font-medium whitespace-nowrap">
+                class="px-3 py-1 text-xs rounded-full font-medium whitespace-nowrap">
             {{ refundStatusText(order.refund?.status || 'approved') }}
           </span>
         </p>
@@ -195,15 +198,15 @@
       </div>
     </div>
     <!-- Hiển thị form nếu chưa có yêu cầu và trạng thái cho phép -->
-    <div v-if="!hasRefund && !order.refund && ['failed', 'cancelled', 'returned'].includes(order.status)"
-      class="mt-4 bg-white p-4 rounded-md border border-gray-200">
+    <div v-if="!order.refund" class="mt-4 bg-white p-4 rounded-md border border-gray-200">
       <h4 class="text-lg font-semibold text-gray-800 mb-3">Gửi yêu cầu hoàn tiền</h4>
       <div class="space-y-4">
         <div>
           <label class="block mb-1 font-medium text-gray-700" for="refund-amount">Số tiền hoàn (VND):</label>
-          <input v-model.number="refundAmount" id="refund-amount" type="number" min="0" :max="maxRefundAmount"
-            class="w-full border rounded px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Nhập số tiền hoàn" aria-label="Nhập số tiền hoàn" aria-required="true">
+          <input v-model.number="refundAmount" id="refund-amount" type="number" min="0"
+                 :max="maxRefundAmount"
+                 class="w-full border rounded px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                 placeholder="Nhập số tiền hoàn" aria-label="Nhập số tiền hoàn" aria-required="true">
           <p v-if="refundAmount > maxRefundAmount" class="text-red-500 text-xs mt-1">
             Số tiền hoàn không được vượt quá {{ formatPrice(maxRefundAmount) }}!
           </p>
@@ -214,15 +217,17 @@
         <div>
           <label class="block mb-1 font-medium text-gray-700" for="refund-reason">Lý do hoàn tiền:</label>
           <textarea v-model="refundReason" id="refund-reason"
-            class="w-full border rounded px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Nhập lý do hoàn tiền" rows="4" aria-label="Nhập lý do hoàn tiền" aria-required="true"></textarea>
+                    class="w-full border rounded px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Nhập lý do hoàn tiền" rows="4" aria-label="Nhập lý do hoàn tiền"
+                    aria-required="true"></textarea>
         </div>
         <button @click="resetRefundAmount"
-          class="px-4 py-2 bg-gray-性を6px; border: 1px solid #ccc; border-radius: 4px; cursor: pointer;">Đặt lại số tiền</button>
+                class="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                aria-label="Đặt lại số tiền">Đặt lại số tiền</button>
         <button @click="requestRefund(order)"
-          class="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
-          :disabled="!refundAmount || !refundReason || refundAmount <= 0 || refundAmount > maxRefundAmount"
-          aria-label="Gửi yêu cầu hoàn tiền">
+                class="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                :disabled="!refundAmount || !refundReason || refundAmount <= 0 || refundAmount > maxRefundAmount"
+                aria-label="Gửi yêu cầu hoàn tiền">
           Gửi yêu cầu hoàn tiền
         </button>
       </div>
@@ -420,29 +425,30 @@ const fetchOrder = async () => {
       console.error('Invalid final_price or shipping_fee:', { finalPrice, shippingFee });
       toast('error', 'Dữ liệu đơn hàng không hợp lệ, không thể tính số tiền hoàn!');
       refundAmount.value = 0;
-    } else {
-      // Gán maxRefundAmount và kiểm tra trạng thái hợp lệ
-      if (!order.value.refund && ['failed', 'cancelled', 'returned'].includes(order.value.status)) {
-        refundAmount.value = Math.max(finalPrice - shippingFee, 0);
-        if (refundAmount.value > 0) {
-          toast('info', `Số tiền hoàn đã được tự động điền: ${formatPrice(refundAmount.value)}`);
-        } else {
-          toast('error', 'Số tiền hoàn không hợp lệ!');
-        }
+    } else if (!order.value.refund && ['failed', 'cancelled', 'returned'].includes(order.value.status)) {
+      refundAmount.value = Math.max(finalPrice - shippingFee, 0);
+      if (refundAmount.value > 0) {
+        toast('info', `Số tiền hoàn đã được tự động điền: ${formatPrice(refundAmount.value)}`);
+      } else {
+        toast('error', 'Số tiền hoàn không hợp lệ!');
       }
     }
 
-    // Fetch refund data if status is refunded and no refund data
-    if (data.data.status === 'refunded' && !order.value.refund) {
-      const refundRes = await axios.get(`${apiBase}/refunds?order_id=${orderId.value}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (refundRes.data.success && Array.isArray(refundRes.data.data) && refundRes.data.data.length > 0) {
-        order.value.refund = refundRes.data.data[0];
-      }
-    }
-
+    // Kiểm tra yêu cầu hoàn tiền
     hasRefund.value = !!order.value.refund || data.data.status === 'refunded';
+    if (data.data.status === 'refunded' && !order.value.refund) {
+      try {
+        const refundRes = await axios.get(`${apiBase}/refunds?order_id=${orderId.value}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (refundRes.data.success && Array.isArray(refundRes.data.data) && refundRes.data.data.length > 0) {
+          order.value.refund = refundRes.data.data[0];
+          hasRefund.value = true;
+        }
+      } catch (err) {
+        console.error('Error fetching refund:', err);
+      }
+    }
 
     // Fetch address names
     if (data.data.address) {
@@ -474,14 +480,14 @@ const fetchOrder = async () => {
     }
     order.value = null;
     hasRefund.value = false;
-    refundAmount.value = 0; // Đặt lại refundAmount nếu có lỗi
+    refundAmount.value = 0;
   } finally {
     isLoading.value = false;
   }
 };
 
 const requestRefund = async (order) => {
-  if (hasRefund.value || order.refund) {
+  if (order.refund || hasRefund.value) {
     toast('error', 'Đơn hàng này đã có yêu cầu hoàn tiền!');
     return;
   }
@@ -525,10 +531,12 @@ const requestRefund = async (order) => {
     });
 
     if (response.data.success) {
-      toast('success', response.data.message || ' czasu yêu cầu hoàn tiền đã được gửi!');
+      toast('success', response.data.message || 'Yêu cầu hoàn tiền đã được gửi!');
       refundAmount.value = 0;
       refundReason.value = '';
-      await fetchOrder();
+      order.value.refund = response.data.data; // Cập nhật thông tin refund
+      hasRefund.value = true; // Cập nhật hasRefund
+      await fetchOrder(); // Tải lại đơn hàng để cập nhật trạng thái
     } else {
       throw new Error(response.data.message || 'Lỗi khi gửi yêu cầu hoàn tiền');
     }

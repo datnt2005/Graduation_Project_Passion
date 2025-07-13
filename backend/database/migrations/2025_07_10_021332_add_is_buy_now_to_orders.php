@@ -11,8 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('chat_messages', function (Blueprint $table) {
-            $table->enum('status', ['normal', 'edited', 'revoked'])->default('normal')->after('message');
+        Schema::table('orders', function (Blueprint $table) {
+            $table->boolean('is_buy_now')->default(false)->after('status');
         });
     }
 
@@ -21,7 +21,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('chat_messages', function (Blueprint $table) {
+        Schema::table('orders', function (Blueprint $table) {
             //
         });
     }

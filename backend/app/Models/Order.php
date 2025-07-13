@@ -16,6 +16,7 @@ class Order extends Model
         'discount_id',
         'note',
         'status',
+        'is_buy_now',
         'total_price',
         'discount_price',
         'shipping_fee',

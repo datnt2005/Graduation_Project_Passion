@@ -4,13 +4,15 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Seller;
 use App\Models\User;
+use App\Models\Discount;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Storage;
 use Google\Cloud\Vision\V1\ImageAnnotatorClient;
-
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class SellerController extends Controller
 {
@@ -109,27 +111,298 @@ public function update(Request $request)
     ]);
 }
 
-    public function showStore($slug)
+public function showStore($slug)
     {
-        $seller = Seller::with([
-            'user',
-            'products' => function ($query) {
-                $query->with(['productVariants', 'productPic', 'categories', 'tags']);
+        try {
+            // Validate slug
+            if (empty($slug) || !is_string($slug)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Slug không hợp lệ.',
+                ], 400);
             }
-        ])->where('store_slug', $slug)->firstOrFail();
 
-        $isFollowing = false;
-        $user = auth('sanctum')->user(); // dùng sanctum thay vì auth()->check()
+            // Get query parameters
+            $page = request()->query('page', 1);
+            $perPage = max(1, min(100, (int) request()->query('per_page', 24)));
+            $search = request()->query('search');
+            $category = request()->query('category');
 
-        if ($user && $user->id !== $seller->user_id) {
-            $isFollowing = $seller->followers()->where('user_id', $user->id)->exists();
+            // Fetch seller with relationships and paginate products
+            $seller = Seller::with([
+                'user',
+                'business',
+                'products' => function ($query) use ($page, $perPage, $search, $category) {
+                    $query->where('status', 'active')
+                        ->with(['productVariants', 'productPic', 'categories', 'tags', 'reviews']);
+                    if ($search) {
+                        $query->where('name', 'like', '%' . $search . '%');
+                    }
+                    if ($category) {
+                        $query->whereHas('categories', function ($q) use ($category) {
+                            $q->where('name', $category);
+                        });
+                    }
+                    $query->orderByDesc('id');
+                },
+                'followers'
+            ])->where('store_slug', $slug)->firstOrFail();
+
+            // Get paginated products
+            $productsQuery = $seller->products();
+            $productsQuery->where('status', 'active')
+                ->where('admin_status', 'approved');
+            if ($search) {
+                $productsQuery->where('name', 'like', '%' . $search . '%');
+            }
+            if ($category) {
+                $productsQuery->whereHas('categories', function ($q) use ($category) {
+                    $q->where('name', $category);
+                });
+            }
+            $productsPaginated = $productsQuery->with(['productVariants', 'productPic', 'categories', 'tags', 'reviews'])
+                ->orderByDesc('id')
+                ->paginate($perPage, ['*'], 'page', $page);
+
+            // Calculate seller rating
+            $sellerRating = round(
+                DB::table('reviews')
+                    ->join('products', 'reviews.product_id', '=', 'products.id')
+                    ->where('products.seller_id', $seller->id)
+                    ->avg('reviews.rating') ?: 0,
+                2
+            );
+
+            // Total active products
+            $productsCount = $seller->products()->where('status', 'active')->count();
+
+            // Total sold items
+            $totalSold = $seller->products->flatMap(function ($product) {
+                return $product->productVariants->flatMap(function ($variant) {
+                    return $variant->orderItems ?? collect();
+                });
+            })->sum('quantity') ?? 0;
+
+            // Mask phone number
+            $phone = $seller->phone_number
+                ? substr($seller->phone_number, 0, 4) . str_repeat('*', max(0, strlen($seller->phone_number) - 7)) . substr($seller->phone_number, -5)
+                : 'N/A';
+            // Format last active time (Vietnamese localization)
+            $lastActive = $seller->last_active_at
+                ? $seller->last_active_at->locale('vi')->diffForHumans()
+                : 'Chưa hoạt động';
+
+            // Check if user is following
+            $isFollowing = false;
+            $user = auth('sanctum')->user();
+            if ($user && $user->id !== $seller->user_id) {
+                $isFollowing = $seller->followers()->where('user_id', $user->id)->exists();
+            }
+
+
+            // Calculate cancellation rate
+            $totalOrders = DB::table('orders')
+                ->join('users', 'orders.user_id', '=', 'users.id')
+                ->join('sellers', 'users.id', '=', 'sellers.user_id')
+                ->where('sellers.id', $seller->id)
+                ->count();
+            $canceledOrders = DB::table('orders')
+                ->join('users', 'orders.user_id', '=', 'users.id')
+                ->join('sellers', 'users.id', '=', 'sellers.user_id')
+                ->where('sellers.id', $seller->id)
+                ->where('orders.status', 'canceled')
+                ->count();
+            $cancellationRate = $totalOrders > 0 ? round(($canceledOrders / $totalOrders) * 100, 2) . '%' : '0%';
+
+            // Calculate return rate
+            $deliveredOrders = DB::table('orders')
+                ->join('users', 'orders.user_id', '=', 'users.id')
+                ->join('sellers', 'users.id', '=', 'sellers.user_id')
+                ->where('sellers.id', $seller->id)
+                ->where('orders.status', 'delivered')
+                ->count();
+            $returnedOrders = DB::table('orders')
+                ->join('users', 'orders.user_id', '=', 'users.id')
+                ->join('sellers', 'users.id', '=', 'sellers.user_id')
+                ->where('sellers.id', $seller->id)
+                ->where('orders.status', 'returned')
+                ->count();
+            $returnRate = $deliveredOrders > 0 ? round(($returnedOrders / $deliveredOrders) * 100, 2) . '%' : '0%';
+
+            // Format seller data
+            $formattedSeller = [
+                'id' => $seller->id,
+                'store_name' => $seller->store_name ?? 'N/A',
+                'store_slug' => $seller->store_slug,
+                'user_id' => $seller->user_id,
+                'is_owner' => $user && $user->id === $seller->user_id,
+                'bio' => $seller->bio ?? 'N/A',
+                'avatar' => $seller->user->avatar ?? 'avatars/default.jpg',
+                'phone' => $phone,
+                'rating' => $sellerRating,
+                'stars' => (int) round($sellerRating),
+                'products_count' => $productsCount,
+                'total_sold' => (string) $totalSold,
+                'last_active' => $lastActive,
+                'created_at' => $seller->created_at ? $seller->created_at->locale('vi')->isoFormat('LL') : 'N/A',
+                'description' => $seller->bio ? $seller->bio ?? 'Chưa có mô tả.' : 'Chưa có mô tả.',
+                'address' => $seller->personal_address ? $seller->personal_address ?? 'Chưa cung cấp địa chỉ.' : 'Chưa cung cấp địa chỉ.',
+                'member_since' => $seller->created_at ? $seller->created_at->format('Y') : 'N/A',
+                'cancellation_rate' => $cancellationRate,
+                'return_rate' => $returnRate,
+                'business' => $seller->business ? [
+                    'name' => $seller->business->name ?? 'N/A',
+                    'address' => $seller->business->company_address  ?? 'N/A',
+                    'description' => $seller->business->description ?? 'N/A',
+                    'tax_code' => $seller->business->tax_code ?? 'N/A',
+                ] : null,
+                'followers_count' => $seller->followers()->count(),
+                'is_following' => $isFollowing,
+                'total_products' => $productsCount,
+            ];
+
+            // Format products to match ProductCard props
+            $products = collect($productsPaginated->items())->map(function ($product) {
+                $defaultVariant = $product->productVariants->first();
+                $defaultPrice = $defaultVariant?->price ?? 0.0;
+                $defaultSalePrice = $defaultVariant?->sale_price ?? null;
+                $defaultPercent = ($defaultSalePrice && $defaultPrice > 0)
+                    ? round((($defaultPrice - $defaultSalePrice) / $defaultPrice) * 100)
+                    : 0;
+                $rating = round($product->reviews->avg('rating') ?: 0, 2);
+
+                return [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'slug' => $product->slug,
+                    'price' => $defaultPrice,
+                    'discount' => $defaultSalePrice,
+                    'percent' => $defaultPercent,
+                    'rating' => str_repeat('★', (int) round($rating)) . str_repeat('☆', 5 - (int) round($rating)),
+                    'sold' => (int) ($product->productVariants->flatMap(function ($variant) {
+                        return $variant->orderItems ?? collect();
+                    })->sum('quantity') ?? 0),
+                    'image' => $product->productPic->first()->imagePath ?? 'images/default-product.jpg',
+                    'categories' => $product->categories->pluck('name')->toArray(),
+                    'tags' => $product->tags->pluck('name')->toArray(),
+                ];
+            })->values()->toArray();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Lấy thông tin cửa hàng thành công.',
+                'data' => [
+                    'seller' => $formattedSeller,
+                    'products' => $products,
+                    'pagination' => [
+                        'current_page' => $productsPaginated->currentPage(),
+                        'last_page' => $productsPaginated->lastPage(),
+                        'per_page' => $productsPaginated->perPage(),
+                        'total' => $productsPaginated->total(),
+                    ],
+                ],
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Đã xảy ra lỗi khi lấy thông tin cửa hàng. Vui lòng thử lại sau.',
+                'error' => app()->environment('local') ? $e->getMessage() : null,
+            ], 500);
         }
+    }
+    public function getDeals($slug)
+    {
+        try {
+            // Validate slug
+            if (empty($slug) || !is_string($slug)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Slug không hợp lệ.',
+                ], 400);
+            }
 
-        return response()->json([
-            'seller' => $seller,
-            'followers_count' => $seller->followers()->count(),
-            'is_following' => $isFollowing,
-        ]);
+            // Validate query parameters
+            $perPage = max(1, min(100, (int) request()->query('per_page', 24)));
+
+            // Fetch seller
+            $seller = Seller::where('store_slug', $slug)->firstOrFail();
+
+            // Fetch deals (products with active discounts)
+            $dealsQuery = $seller->products()->where('status', 'active')
+                ->whereHas('productVariants', function ($query) {
+                    $query->whereNotNull('sale_price')
+                        ->whereColumn('sale_price', '<', 'price');
+                })
+                ->with([
+                    'productVariants' => function ($q) {
+                        $q->select('id', 'product_id', 'price', 'sale_price')
+                            ->whereNotNull('sale_price')
+                            ->whereColumn('sale_price', '<', 'price');
+                    },
+                    'productPic' => function ($q) {
+                        $q->select('id', 'product_id', 'imagePath');
+                    },
+                    'categories' => function ($q) {
+                        $q->select('id', 'name');
+                    },
+                    'tags' => function ($q) {
+                        $q->select('id', 'name');
+                    },
+                    'reviews' => function ($q) {
+                        $q->select('id', 'product_id', 'rating');
+                    }
+                ])
+                ->orderByDesc('id');
+
+            $dealsPaginated = $dealsQuery->paginate($perPage);
+
+            // Format deals to match ProductCard props
+            $deals = collect($dealsPaginated->items())->map(function ($product) {
+                $defaultVariant = $product->productVariants->first();
+                $defaultPrice = $defaultVariant?->price ?? 0.0;
+                $defaultSalePrice = $defaultVariant?->sale_price ?? null;
+                $defaultPercent = ($defaultSalePrice && $defaultPrice > 0)
+                    ? round((($defaultPrice - $defaultSalePrice) / $defaultPrice) * 100)
+                    : 0;
+                $rating = round($product->reviews->avg('rating') ?: 0, 2);
+
+                return [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'slug' => $product->slug,
+                    'price' => $defaultPrice,
+                    'discount' => $defaultSalePrice,
+                    'percent' => $defaultPercent,
+                    'rating' => str_repeat('★', (int) round($rating)) . str_repeat('☆', 5 - (int) round($rating)),
+                    'sold' => (int) ($product->productVariants->flatMap(function ($variant) {
+                        return $variant->orderItems ?? collect();
+                    })->sum('quantity') ?? 0),
+                    'image' => $product->productPic->first() ? $product->productPic->first()->imagePath : 'images/default-product.jpg',
+                    'categories' => $product->categories->pluck('name')->toArray(),
+                    'tags' => $product->tags->pluck('name')->toArray(),
+                ];
+            })->values()->toArray();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Lấy danh sách ưu đãi thành công.',
+                'data' => [
+                    'deals' => $deals,
+                    'pagination' => [
+                        'current_page' => $dealsPaginated->currentPage(),
+                        'last_page' => $dealsPaginated->lastPage(),
+                        'per_page' => $dealsPaginated->perPage(),
+                        'total' => $dealsPaginated->total(),
+                    ],
+                ],
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Đã xảy ra lỗi khi lấy danh sách ưu đãi. Vui lòng thử lại sau.',
+                'error' => app()->environment('local') ? $e->getMessage() : null,
+            ], 500);
+        }
     }
 
 
@@ -275,5 +548,50 @@ public function update(Request $request)
             'message' => 'Đã hoàn tất đăng ký người bán.'
         ]);
     }
-}
+    public function getDiscounts(Request $request, $slug)
+{
+    $seller = Seller::where('store_slug', $slug)->first();
 
+    if (!$seller) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Không tìm thấy cửa hàng.'
+        ], 404);
+    }
+
+    // Lấy các voucher/discounts của shop
+    $discounts = Discount::with(['products:id,name', 'categories:id,name', 'users:id,name'])
+        ->where('seller_id', $seller->id)
+        ->orderByDesc('created_at')
+        ->get();
+
+    // Nếu có user đăng nhập, lấy danh sách voucher đã lưu
+    $savedCodes = [];
+    if ($request->user()) {
+        $savedCodes = $request->user()->savedVouchers()->pluck('code')->toArray();
+    }
+
+    $data = $discounts->map(function ($voucher) use ($savedCodes) {
+        return [
+            'id' => $voucher->id,
+            'code' => $voucher->code,
+            'discount_type' => $voucher->discount_type,
+            'discount_value' => $voucher->discount_value,
+            'max_discount' => $voucher->max_discount,
+            'min_order_value' => $voucher->min_order_value,
+            'end_date' => $voucher->end_date,
+            'is_saved' => in_array($voucher->code, $savedCodes),
+            'products' => $voucher->products->map(fn($p) => ['id' => $p->id, 'name' => $p->name]),
+            'categories' => $voucher->categories->map(fn($c) => ['id' => $c->id, 'name' => $c->name]),
+            'users' => $voucher->users->map(fn($u) => ['id' => $u->id, 'name' => $u->name]),
+            'usage_limit' => $voucher->usage_limit,
+            'used_count' => $voucher->used_count,
+        ];
+    });
+
+    return response()->json([
+        'success' => true,
+        'data' => $data
+    ]);
+}
+}

@@ -1,4 +1,5 @@
 export default defineNuxtConfig({
+  ssr: false,
   compatibilityDate: '2025-05-15',
 
   css: [
@@ -28,5 +29,15 @@ export default defineNuxtConfig({
       apiBaseUrl: process.env.API_BASE_URL,
       mediaBaseUrl: process.env.MEDIA_BASE_URL,
     }
-  }
+  },
+  vue: {
+    compilerOptions: {
+      isCustomElement: (tag) => tag === 'emoji-picker',
+    },
+  },
+  vite: {
+    server: {
+      hmr: false, // Tắt HMR
+    },
+  },
 });

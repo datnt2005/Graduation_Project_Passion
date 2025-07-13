@@ -45,7 +45,7 @@ class Seller extends Model
 
     public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class );
     }
 
     public function business()
@@ -82,4 +82,9 @@ class Seller extends Model
     {
         return $this->hasMany(Discount::class, 'seller_id');
     }
+
+public function orders()
+{
+    return $this->hasMany(Order::class, 'user_id', 'user_id');
+}
 }

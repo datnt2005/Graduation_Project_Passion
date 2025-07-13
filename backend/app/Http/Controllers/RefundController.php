@@ -31,31 +31,35 @@ class RefundController extends Controller
                 'email' => $user->email
             ]);
 
-            $query = Refund::with([
-                'order' => function ($query) {
-                    $query->with('shipping');
-                },
-                'user'
-            ])->latest();
+            $query = Refund::query()
+                ->with([
+                    'order' => fn($query) => $query->select('id', 'user_id')->with([
+                        'shipping' => fn($query) => $query->select('id', 'order_id', 'tracking_code', 'shipping_fee')
+                    ]),
+                    'user' => fn($query) => $query->select('id', 'name', 'email')
+                ])
+                ->select('id', 'order_id', 'user_id', 'reason', 'status', 'amount', 'created_at', 'updated_at')
+                ->latest();
 
             // Lọc theo order_id nếu có
             if ($request->has('order_id') && !empty($request->order_id)) {
                 $query->where('order_id', $request->order_id);
             }
 
-            // Kiểm tra role thay vì is_admin
+            // Chỉ lấy yêu cầu hoàn tiền của user hiện tại nếu không phải admin
             if ($user->role !== 'admin') {
                 $query->where('user_id', $user->id);
             }
 
             $perPage = $request->query('per_page', 10);
             $refunds = $query->paginate($perPage);
+
             Log::info('Refunds retrieved:', [
                 'count' => $refunds->total(),
                 'data' => $refunds->items()
             ]);
 
-            $formattedRefunds = $refunds->map(function ($refund) {
+            $formattedRefunds = $refunds->getCollection()->map(function ($refund) {
                 return [
                     'id' => $refund->id,
                     'order_id' => $refund->order_id,
@@ -106,7 +110,39 @@ class RefundController extends Controller
     public function show($id)
     {
         try {
-            $refund = Refund::with(['order', 'user'])->findOrFail($id);
+            $user = Auth::user();
+            if (!$user) {
+                Log::warning('Unauthorized access attempt to refund details', [
+                    'ip' => $request->ip(),
+                    'user_agent' => $request->userAgent(),
+                    'refund_id' => $id
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Chưa đăng nhập. Vui lòng đăng nhập lại.'
+                ], 401);
+            }
+
+            $query = Refund::with([
+                'order' => fn($query) => $query->select('id', 'user_id')->with([
+                    'shipping' => fn($query) => $query->select('id', 'order_id', 'tracking_code', 'shipping_fee')
+                ]),
+                'user' => fn($query) => $query->select('id', 'name', 'email')
+            ])->select('id', 'order_id', 'user_id', 'reason', 'status', 'amount', 'created_at', 'updated_at');
+
+            // Nếu không phải admin, chỉ cho phép xem yêu cầu hoàn tiền của chính user
+            if ($user->role !== 'admin') {
+                $query->where('user_id', $user->id);
+            }
+
+            $refund = $query->findOrFail($id);
+
+            Log::info('Refund details retrieved:', [
+                'refund_id' => $refund->id,
+                'user_id' => $user->id,
+                'role' => $user->role
+            ]);
+
             return response()->json([
                 'success' => true,
                 'data' => [
@@ -131,8 +167,14 @@ class RefundController extends Controller
                         'email' => $refund->user->email,
                     ] : null,
                 ]
-            ]);
+            ], 200);
         } catch (\Exception $e) {
+            Log::error('Error fetching refund details', [
+                'refund_id' => $id,
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'Không thể lấy thông tin hoàn tiền: ' . $e->getMessage()

@@ -1,499 +1,680 @@
 <template>
-  <div class="flex flex-col sm:flex-row h-[100dvh] bg-white">
-    <!-- Sidebar Danh sách người dùng -->
-    <aside
-      :class="[
-        'bg-gray-100 border-r sm:w-[300px] w-full sm:static fixed inset-0 z-40 transition-transform duration-300',
-        selectedSession && isMobile ? '-translate-x-full' : 'translate-x-0'
-      ]"
-    >
-      <div class="flex items-center justify-between p-4 border-b sticky top-0 bg-white z-10">
-        <h2 class="font-bold text-base">📋 Danh sách khách</h2>
-      </div>
-      <ul class="divide-y">
-        <li
-          v-for="session in sessions"
-          :key="session.id"
-          @click="selectSession(session)"
-          class="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-blue-50 transition"
-          :class="{ 'bg-blue-100': selectedSession?.id === session.id }"
+  <div class="h-screen bg-white text-[#212121] overflow-hidden">
+    <div class="flex h-screen">
+      <!-- Sidebar -->
+      <aside class="w-full sm:w-1/3 md:w-1/4 border-r border-gray-200 bg-white">
+        <div
+          class="p-4 font-bold text-lg border-b border-gray-200 text-[#189EFF]"
         >
-          <img
-            :src="getAvatarUrl(session.user?.avatar)"
-            class="w-10 h-10 rounded-full object-cover"
-            alt="avatar"
-          />
-          <div class="flex-1 truncate">
-            <p class="font-medium text-sm truncate">{{ session.user?.name || 'Người dùng' }}</p>
-            <p class="text-xs text-gray-500 truncate">{{ session.messages?.[0]?.message || 'Tin nhắn gần đây...' }}</p>
-          </div>
-        </li>
-      </ul>
-    </aside>
+          💬 Tin nhắn
+        </div>
+        <ul class="overflow-y-auto h-full">
+          <li
+            v-for="(session, i) in chatSessions"
+            :key="session.id || i"
+            @click="selectSession(session)"
+            class="p-4 hover:bg-[#F2F9FF] cursor-pointer border-b border-gray-100"
+          >
+            <div class="flex justify-between items-center">
+              <span class="font-medium text-sm">{{
+                session.user?.name || "Người dùng"
+              }}</span>
+              <span class="text-xs text-gray-400">
+                {{ formatTime(session.last_message_at) }}
+              </span>
+            </div>
+            <div class="text-xs text-gray-500 truncate">
+              {{ session.last_message || "..." }}
+            </div>
+          </li>
+        </ul>
+      </aside>
 
-    <!-- Khu vực Chat -->
-    <section v-if="selectedSession || !isMobile" class="flex-1 flex flex-col items-center bg-white overflow-hidden">
-      <div class="w-full max-w-screen-md flex flex-col flex-1 relative">
+      <!-- Chat -->
+      <main id="chat" class="flex-1 flex flex-col">
         <!-- Header -->
-        <div class="flex items-center justify-between px-4 py-3 border-b bg-white sticky top-0 z-10">
+        <div
+          class="flex items-center justify-between p-4 border-b border-gray-200 bg-white"
+        >
           <div class="flex items-center gap-2">
-            <img
-              :src="getAvatarUrl(selectedSession?.user?.avatar)"
-              class="w-8 h-8 rounded-full object-cover"
-              alt="avatar"
-            />
-            <span class="font-semibold text-sm">{{ selectedSession?.user?.name || 'Người dùng' }}</span>
+            <button
+              class="sm:hidden text-[#189EFF] hover:text-[#0f89e0]"
+              @click="toggleSidebar"
+            >
+              🔙
+            </button>
+            <div class="font-semibold text-[#212121]">{{ seller?.name }}</div>
           </div>
-          <button v-if="isMobile" @click="selectedSession = null" class="text-gray-500 hover:text-black">←</button>
         </div>
 
-        <!-- Tin nhắn -->
-        <div class="flex-1 p-4 space-y-3 overflow-y-auto" ref="chatBox">
-          <!-- Chỉ báo loading -->
-          <div v-if="isLoadingMore" class="text-center py-2">
-            <span class="loading-spinner text-gray-500 text-sm">Đang tải tin nhắn...</span>
-          </div>
-          <!-- Danh sách tin nhắn -->
+        <!-- Messages -->
+        <div
+          ref="chatContainer"
+          class="flex-1 overflow-y-auto p-4 space-y-4 bg-[#F9FAFB] text-[#212121]"
+        >
           <div
-            v-for="msg in messages"
+            v-for="msg in currentMessages"
             :key="msg.id"
-            class="flex w-full"
-            :class="msg.sender_type === 'seller' ? 'justify-end' : 'justify-start'"
+            :class="[
+              'flex items-end gap-2',
+              msg.sender_type === 'seller' ? 'justify-end' : '',
+            ]"
           >
+            <!-- Avatar người dùng -->
+            <img
+              v-if="msg.sender_type === 'user'"
+              src="https://i.pravatar.cc/32"
+              class="w-8 h-8 rounded-full"
+              alt="User avatar"
+            />
+
             <div
-              class="relative p-3 rounded-xl shadow max-w-[80%] break-words"
-              :class="[
-                msg.sender_type === 'seller' ? 'bg-[#0084ff] text-white' : 'bg-gray-100 text-black',
-                msg.pending ? 'opacity-60' : '',
-                msg.error ? 'border border-red-500' : ''
-              ]"
-              @contextmenu.prevent="openContext(msg.id, $event)"
+              :class="
+                msg.sender_type === 'seller' ? 'flex flex-col items-end' : ''
+              "
             >
-              <!-- Nội dung -->
-              <p
-                class="whitespace-pre-wrap text-sm leading-relaxed"
-                :class="msg.message_type === 'revoked' ? 'italic text-gray-300' : ''"
+              <!-- Text -->
+              <div
+                v-if="msg.message"
+                :class="[
+                  'px-4 py-2 rounded-2xl max-w-xs break-words mb-1',
+                  msg.sender_type === 'seller'
+                    ? 'bg-[#189EFF] text-white rounded-br-none'
+                    : 'bg-gray-100 rounded-bl-none',
+                ]"
               >
                 {{ msg.message }}
-                <span v-if="msg.message_type === 'edited'" class="text-xs italic ml-1 opacity-70">(đã sửa)</span>
-              </p>
-
-              <!-- File/ảnh -->
-              <div v-if="msg.message_type !== 'revoked' && msg.attachments?.length" class="flex flex-wrap gap-2 mt-2">
-                <template v-for="file in msg.attachments" :key="file.id">
-                  <img
-                    v-if="file.file_type === 'image'"
-                    :src="file.file_url"
-                    class="w-[80px] h-[80px] object-cover rounded border shadow"
-                    alt="Attachment"
-                  />
-                  <a
-                    v-else
-                    :href="file.file_url"
-                    target="_blank"
-                    class="text-blue-200 underline text-sm truncate max-w-[200px]"
-                  >
-                    📎 {{ file.file_name }}
-                  </a>
-                </template>
               </div>
 
-              <div v-if="msg.pending" class="text-xs mt-1 italic text-white/70">Đang gửi...</div>
-            </div>
+              <!-- Image -->
+              <div
+                v-if="msg.message_type === 'image' && msg.attachments?.length"
+                class="flex gap-2 flex-wrap mb-1"
+              >
+                <div
+                  v-for="(attachment, index) in msg.attachments"
+                  :key="index"
+                  class="w-24 h-24 rounded overflow-hidden cursor-pointer relative"
+                  @click="
+                    openImageViewer(attachment.file_url || attachment.url)
+                  "
+                >
+                  <img
+                    :src="attachment.file_url || attachment.url"
+                    class="w-full h-full object-cover border border-gray-200 rounded"
+                    alt="Ảnh đính kèm"
+                    :class="{
+                      'opacity-50 grayscale animate-pulse': attachment.temp,
+                    }"
+                  />
+                  <div
+                    v-if="attachment.temp"
+                    class="absolute inset-0 flex items-center justify-center"
+                  >
+                    <svg
+                      class="w-6 h-6 text-white animate-spin"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <circle
+                        class="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        stroke-width="4"
+                      ></circle>
+                      <path
+                        class="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8v8z"
+                      ></path>
+                    </svg>
+                  </div>
+                </div>
+              </div>
 
-            <!-- Nút menu chỉnh sửa -->
-            <button
-              v-if="msg.sender_type === 'seller' && msg.message_type !== 'revoked'"
-              @click.stop="openContext(msg.id, $event)"
-              class="text-gray-400 hover:text-gray-600 text-lg px-1"
-            >
-              ⋮
-            </button>
+              <!-- Product -->
+              <a
+                v-if="msg.message_type === 'product'"
+                :href="msg.attachments?.[0]?.meta_data?.productLink"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="block bg-[#F7F7F7] rounded-lg p-3 text-sm no-underline mb-1 max-w-xs"
+              >
+                <div class="mb-2 text-[#555] font-medium">
+                  Bạn đang trao đổi với Người bán về sản phẩm này
+                </div>
+                <div
+                  class="flex border rounded overflow-hidden bg-white hover:shadow-md transition"
+                >
+                  <img
+                    :src="msg.attachments?.[0]?.meta_data?.file_url"
+                    alt="Ảnh sản phẩm"
+                    class="w-24 h-24 object-cover border-r"
+                  />
+                  <div class="flex-1 p-2 overflow-hidden">
+                    <div class="font-semibold text-[#212121] line-clamp-2">
+                      {{
+                        msg.attachments?.[0]?.meta_data?.name || "[Sản phẩm]"
+                      }}
+                    </div>
+                    <div class="mt-1 flex flex-wrap items-center gap-1">
+                      <span
+                        v-if="msg.attachments?.[0]?.meta_data?.original_price"
+                        class="text-gray-400 line-through text-xs"
+                      >
+                        {{
+                          formatPrice(
+                            msg.attachments[0].meta_data.original_price
+                          )
+                        }}
+                      </span>
+                      <span
+                        v-if="msg.attachments?.[0]?.meta_data?.price"
+                        class="text-[#FF0000] font-semibold"
+                      >
+                        {{ formatPrice(msg.attachments[0].meta_data.price) }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </a>
 
-            <div
-              v-if="contextMenu.open && contextMenu.messageId === msg.id"
-              :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }"
-              class="fixed z-50 bg-white border rounded shadow-md w-36 text-sm"
-            >
-              <button @click="editMessage(msg)" class="block w-full text-left px-3 py-2 hover:bg-gray-100">
-                ✏️ Sửa
-              </button>
-              <button @click="revokeMessage(msg)" class="block w-full text-left px-3 py-2 hover:bg-gray-100">
-                🗑️ Thu hồi
-              </button>
+              <!-- Không có nội dung -->
+              <div
+                v-if="
+                  !msg.message && (!msg.attachments || !msg.attachments.length)
+                "
+                class="text-xs text-gray-400 italic"
+              >
+                [Tin nhắn không xác định]
+              </div>
+
+              <!-- Thời gian gửi -->
+              <div
+                :class="[
+                  'text-xs mt-1',
+                  msg.sender_type === 'seller'
+                    ? 'text-gray-500 flex items-center gap-1'
+                    : 'text-gray-400',
+                ]"
+              >
+                {{
+                  new Date(msg.created_at).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                }}
+                <template v-if="msg.sender_type === 'seller'">
+                  <span class="text-xs">Đã Gửi</span>
+                </template>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- Form gửi -->
-        <form @submit.prevent="sendMessageDebounced" class="border-t p-3 flex flex-col gap-3 bg-white">
-          <!-- Preview ảnh -->
-          <div v-if="imagePreview.length" class="flex flex-wrap gap-2">
-            <div v-for="(img, i) in imagePreview" :key="i" class="relative w-[70px] h-[70px] group">
-              <img :src="img" class="w-full h-full object-cover rounded border shadow" />
+        <!-- Form gửi tin -->
+        <form
+          class="p-3 border-t border-gray-200 bg-white flex flex-col gap-2"
+          @submit.prevent="sendMessage"
+        >
+          <div class="flex gap-2 flex-wrap">
+            <div
+              v-for="(img, i) in selectedImages"
+              :key="i"
+              class="relative group"
+            >
+              <img
+                :src="img.url"
+                class="w-20 h-20 object-cover rounded-lg border border-gray-300"
+              />
               <button
                 type="button"
+                class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full text-xs w-5 h-5 flex items-center justify-center hover:bg-red-600"
                 @click="removeImage(i)"
-                class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center"
               >
                 ×
               </button>
             </div>
           </div>
 
-          <!-- Input -->
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-2 relative">
+            <label class="cursor-pointer hover:opacity-80 transition">
+              <i class="fa fa-paperclip text-[20px]"></i>
+              <input
+                type="file"
+                multiple
+                accept="image/*"
+                class="hidden"
+                @change="handleFileChange"
+                ref="fileInput"
+              />
+            </label>
             <input
-              v-model="form.message"
+              v-model="message"
               type="text"
-              placeholder="Aa..."
-              class="flex-1 border rounded-full px-4 py-2 text-sm"
+              placeholder="Nhập tin nhắn..."
+              class="flex-1 bg-gray-100 text-[#212121] px-4 py-2 rounded-full text-sm focus:outline-none"
             />
-            <input ref="fileInput" type="file" multiple accept="image/*" @change="handleFile" class="hidden" />
-            <button type="button" @click="fileInput.click()" class="text-xl">📎</button>
+            <button type="button" @click="toggleEmojiPicker" class="text-xl">
+              😊
+            </button>
+            <emoji-picker
+              id="emojiPicker"
+              class="absolute bottom-16 right-4 hidden z-50"
+            ></emoji-picker>
             <button
               type="submit"
-              class="bg-blue-600 text-white px-4 py-2 rounded-full text-sm disabled:bg-gray-400"
-              :disabled="(!form.message.trim() && !form.file.length) || isSending"
+              class="bg-[#189EFF] hover:bg-[#0f89e0] px-4 py-2 rounded-full text-white font-medium"
             >
               Gửi
             </button>
           </div>
         </form>
+      </main>
+    </div>
+
+    <!-- Modal xem ảnh -->
+    <Transition name="fade">
+      <div
+        v-if="imageViewer.visible"
+        class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50"
+        @click.self="closeImageViewer"
+      >
+        <div class="relative max-w-[90vw] max-h-[90vh]">
+          <img
+            :src="imageViewer.url"
+            alt="Xem ảnh"
+            class="max-w-full max-h-[90vh] object-contain rounded shadow-xl"
+          />
+          <button
+            class="absolute top-2 right-2 bg-gray-800 bg-opacity-50 text-white text-xl font-bold w-8 h-8 rounded-full flex items-center justify-center hover:bg-opacity-75 transition"
+            @click="closeImageViewer"
+          >
+            ✕
+          </button>
+        </div>
       </div>
-    </section>
+    </Transition>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
-import axios from 'axios'
-import { debounce } from 'lodash'
+import { ref, onMounted, nextTick, watch, onUnmounted } from "vue";
 
-definePageMeta({ layout: 'default-seller' })
+definePageMeta({
+  layout: "default-seller",
+});
 
-// --- Biến trạng thái
-const isMobile = ref(false)
-const token = ref('')
-const sellerId = ref(null)
-const seller = ref({})
-const sessions = ref([])
-const selectedSession = ref(null)
-const form = ref({ message: '', file: [] })
-const imagePreview = ref([])
-const fileInput = ref(null)
-let polling = null
-const contextMenu = ref({ open: false, messageId: null, x: 0, y: 0 })
-const isSending = ref(false)
-const chatBox = ref(null)
-const messages = ref([])
-const lastMessageId = ref(null)
-const isLoadingMore = ref(false)
-const noMoreMessages = ref(false)
+const selectedImages = ref([]);
+const message = ref("");
+const seller = ref({});
+const chatSessions = ref([]);
 
-// --- Config
-const config = useRuntimeConfig()
-const API = config.public.apiBaseUrl
-const mediaBase = (config.public.mediaBaseUrl || 'http://localhost:8000').replace(/\/?$/, '/')
-const DEFAULT_AVATAR = 'https://Obama-3fc809b4396849cba1c342a5b9f50be9.r2.dev/avatars/default.jpg'
+const selectedSession = ref(null);
+const chatContainer = ref(null);
+const pollingInterval = ref(null);
+const currentMessages = ref([]);
+const fileInput = ref(null);
+const isSending = ref(false);
+let lastPollingSessionId = null;
+const page = ref(1);
+const limit = 20;
+const hasMore = ref(true);
+const isLoadingMore = ref(false);
+const imageViewer = ref({
+  visible: false,
+  url: null,
+});
 
-const getAvatarUrl = (avatar) => {
-  if (!avatar) return DEFAULT_AVATAR
-  const cleaned = avatar.trim()
-  return cleaned.startsWith('http') ? cleaned : mediaBase + cleaned
-}
+const config = useRuntimeConfig();
+const API = config.public.apiBaseUrl;
+const DEFAULT_AVATAR = config.public.mediaBaseUrl + "avatars/default.jpg";
 
-// --- API CALLS ---
-const loadSellerInfo = async () => {
-  try {
-    const storedToken = localStorage.getItem('access_token')
-    if (!storedToken) return alert('Vui lòng đăng nhập')
-    token.value = storedToken
-    const res = await axios.get(`${API}/sellers/seller/me`, { headers: { Authorization: `Bearer ${token.value}` } })
-    seller.value = res.data.seller
-    sellerId.value = seller.value.id
-  } catch (err) {
-    console.error('❌ Lỗi lấy thông tin người bán:', err)
+const handleFileChange = (e) => {
+  const files = Array.from(e.target.files);
+  selectedImages.value.push(
+    ...files.map((file) => ({
+      file,
+      url: URL.createObjectURL(file),
+    }))
+  );
+  e.target.value = "";
+};
+
+const removeImage = (index) => {
+  selectedImages.value.splice(index, 1);
+};
+
+const toggleSidebar = () => {
+  const sidebar = document.querySelector("aside");
+  sidebar.classList.toggle("hidden");
+};
+
+const toggleEmojiPicker = () => {
+  const picker = document.getElementById("emojiPicker");
+  picker?.classList.toggle("hidden");
+};
+
+const openImageViewer = (url) => {
+  if (!url) {
+    console.error("URL ảnh không hợp lệ:", url);
+    return;
   }
-}
+  imageViewer.value.visible = true;
+  imageViewer.value.url = url;
+};
 
-const loadSessions = async () => {
-  try {
-    const res = await axios.get(`${API}/chat/sessions`, {
-      params: { user_id: sellerId.value, type: 'seller' },
-      headers: { Authorization: `Bearer ${token.value}` }
-    })
-    sessions.value = res.data
-  } catch (err) {
-    console.error('❌ Lỗi load sessions:', err)
+const closeImageViewer = () => {
+  imageViewer.value.visible = false;
+  imageViewer.value.url = null;
+};
+
+const handleEscKey = (event) => {
+  if (event.key === "Escape" && imageViewer.value.visible) {
+    closeImageViewer();
   }
-}
+};
 
-const loadMessages = async (sessionId, isScrollUp = false) => {
-  if (isScrollUp && (isLoadingMore.value || noMoreMessages.value)) return
-
-  try {
-    if (isScrollUp) isLoadingMore.value = true
-
-    const res = await axios.get(`${API}/chat/messages/${sessionId}`, {
-      params: isScrollUp && lastMessageId.value ? { before_id: lastMessageId.value } : {},
-      headers: { Authorization: `Bearer ${token.value}` }
-    })
-
-    const sortedMessages = res.data.sort(
-      (a, b) => new Date(a.created_at) - new Date(b.created_at)
-    )
-
-    if (!sortedMessages.length && isScrollUp) {
-      noMoreMessages.value = true
-    }
-
-    if (isScrollUp) {
-      const prevScrollHeight = chatBox.value.scrollHeight
-      messages.value.unshift(...sortedMessages)
-      await nextTick()
-      const newScrollHeight = chatBox.value.scrollHeight
-      chatBox.value.scrollTop += newScrollHeight - prevScrollHeight
-    } else {
-      messages.value = sortedMessages
-      nextTick(scrollToBottom)
-    }
-
-    if (messages.value.length) {
-      lastMessageId.value = messages.value[0].id
-    }
-  } catch (err) {
-    console.error('❌ Lỗi load messages:', err)
-  } finally {
-    isLoadingMore.value = false
-  }
-}
-
-// --- UI HANDLERS ---
-const scrollToBottom = () => {
-  nextTick(() => {
-    if (chatBox.value) chatBox.value.scrollTop = chatBox.value.scrollHeight
-  })
-}
-
-const handleFile = (e) => {
-  const files = Array.from(e.target.files).filter(f => f.type.startsWith('image/'))
-  form.value.file = files
-  imagePreview.value = files.map(file => URL.createObjectURL(file))
-}
-
-const removeImage = (i) => {
-  form.value.file.splice(i, 1)
-  imagePreview.value.splice(i, 1)
-}
-
-const selectSession = async (session) => {
-  selectedSession.value = session
-  messages.value = []
-  lastMessageId.value = null
-  noMoreMessages.value = false
-  await loadMessages(session.id)
-}
-
-const pendingId = () => 'pending_' + Date.now()
-
-const moveSessionToTop = (sessionId) => {
-  const index = sessions.value.findIndex(s => s.id === sessionId)
-  if (index !== -1) {
-    const [item] = sessions.value.splice(index, 1)
-    sessions.value.unshift(item)
-  }
-}
-
-const sendMessage = async () => {
-  if (!selectedSession.value) return
-
-  const hasText = form.value.message.trim() !== ''
-  const hasFiles = form.value.file.length > 0
-  if (!hasText && !hasFiles) return
-  if (isSending.value) return
-
-  isSending.value = true
-  const tempId = pendingId()
-  const newMsg = {
-    id: tempId,
-    sender_type: 'seller',
-    message: form.value.message,
-    attachments: imagePreview.value.map((img, i) => ({
-      id: `temp_${i}`,
-      file_type: 'image',
-      file_url: img
-    })),
-    pending: true
-  }
-
-  messages.value.push(newMsg)
-  moveSessionToTop(selectedSession.value.id)
-  scrollToBottom()
-
-  const payload = new FormData()
-  payload.append('session_id', selectedSession.value.id)
-  payload.append('sender_id', sellerId.value)
-  payload.append('receiver_id', selectedSession.value.user.id)
-  payload.append('sender_type', 'seller')
-  payload.append('message_type', hasFiles ? 'image' : 'text')
-  if (hasText) payload.append('message', form.value.message)
-  form.value.file.forEach(file => payload.append('file[]', file))
-
-  try {
-    const { data } = await axios.post(`${API}/chat/send-message`, payload, {
-      headers: {
-        Authorization: `Bearer ${token.value}`,
-        'Content-Type': 'multipart/form-data'
-      }
-    })
-
-    messages.value = messages.value.filter(m => m.id !== tempId)
-
-    if (data && typeof data.chat_message === 'object') {
-      messages.value.push({
-        ...data.chat_message,
-        attachments: data.chat_message.attachments ?? []
-      })
-    } else {
-      console.warn('⚠️ Phản hồi không hợp lệ:', data)
-    }
-  } catch (err) {
-    messages.value = messages.value.map(m =>
-      m.id === tempId ? { ...m, error: true } : m
-    )
-    console.error('❌ Lỗi gửi tin nhắn:', err)
-  } finally {
-    isSending.value = false
-    form.value.message = ''
-    form.value.file = []
-    imagePreview.value = []
-    if (fileInput.value) fileInput.value.value = ''
-  }
-}
-
-// ✅ Debounce gửi
-const sendMessageDebounced = debounce(sendMessage, 800)
-
-const openContext = (id, e) => {
-  contextMenu.value = { open: true, messageId: id, x: e.clientX, y: e.clientY }
-}
-const closeContext = () => {
-  contextMenu.value = { open: false, messageId: null, x: 0, y: 0 }
-}
-
-// --- EDIT / REVOKE ---
-const editMessage = async (msg) => {
-  const newContent = prompt('✏️ Nhập nội dung mới:', msg.message)
-  if (newContent && newContent.trim()) {
-    try {
-      const res = await axios.put(`${API}/chat/messages/${msg.id}/action`, {
-        action: 'edit',
-        message: newContent
-      }, { headers: { Authorization: `Bearer ${token.value}` } })
-      if (res.data.success) await loadMessages(selectedSession.value.id)
-    } catch (err) {
-      alert('❌ Không thể sửa tin nhắn.')
-      console.error(err)
-    }
-  }
-  closeContext()
-}
-
-const revokeMessage = async (msg) => {
-  if (!confirm('🗑️ Bạn có chắc muốn thu hồi không?')) return
-  try {
-    const res = await axios.put(`${API}/chat/messages/${msg.id}/action`, {
-      action: 'revoke'
-    }, { headers: { Authorization: `Bearer ${token.value}` } })
-    if (res.data.success) await loadMessages(selectedSession.value.id)
-  } catch (err) {
-    alert('❌ Không thể thu hồi.')
-    console.error(err)
-  }
-  closeContext()
-}
-
-const handleScroll = () => {
-  if (!chatBox.value || !selectedSession.value) return
-  if (chatBox.value.scrollTop < 80) {
-    loadMessages(selectedSession.value.id, true) // load cũ hơn
-  }
-}
-
-// --- Lifecycle ---
 onMounted(async () => {
-  window.addEventListener('resize', () => isMobile.value = window.innerWidth < 640)
-  window.addEventListener('click', closeContext)
-  isMobile.value = window.innerWidth < 640
-  nextTick(() => {
-    if (chatBox.value) {
-      chatBox.value.addEventListener('scroll', handleScroll)
-    }
-  })
-
-  await loadSellerInfo()
-  if (sellerId.value) {
-    await loadSessions()
-    if (sessions.value.length && !selectedSession.value) {
-      await selectSession(sessions.value[0])
-    }
-
-    polling = setInterval(async () => {
-      if (selectedSession.value) await loadMessages(selectedSession.value.id)
-    }, 3000)
+  if (!customElements.get("emoji-picker")) {
+    await import("emoji-picker-element");
   }
-})
+
+  const emojiPicker = document.getElementById("emojiPicker");
+  emojiPicker?.addEventListener("emoji-click", (e) => {
+    message.value += e.detail.unicode;
+  });
+
+  document.addEventListener("click", (e) => {
+    if (
+      !emojiPicker.contains(e.target) &&
+      !e.target.closest("button")?.innerText.includes("😊")
+    ) {
+      emojiPicker?.classList.add("hidden");
+    }
+  });
+
+  window.addEventListener("keydown", handleEscKey);
+
+  const token = localStorage.getItem("access_token");
+  if (!token) return;
+
+  try {
+    const sellerRes = await fetch(`${API}/sellers/seller/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!sellerRes.ok) throw new Error("Không thể lấy dữ liệu seller");
+    const dataSeller = await sellerRes.json();
+    seller.value = dataSeller?.seller || {};
+
+    if (!seller.value?.id) return;
+
+    const sessionsRes = await fetch(
+      `${API}/chat/sessions?user_id=${seller.value.id}&type=seller`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+    if (!sessionsRes.ok) throw new Error("Không thể lấy danh sách session");
+    const sessionsData = await sessionsRes.json();
+    chatSessions.value = Array.isArray(sessionsData)
+      ? sessionsData
+      : sessionsData?.data || [];
+  } catch (error) {
+    console.error("Lỗi khi lấy dữ liệu:", error.message);
+  }
+});
 
 onUnmounted(() => {
-  clearInterval(polling)
-  window.removeEventListener('click', closeContext)
-  window.removeEventListener('resize', () => {})
-  if (chatBox.value) {
-    chatBox.value.removeEventListener('scroll', handleScroll)
-  }
-})
+  stopPollingMessages();
+  window.removeEventListener("keydown", handleEscKey);
+});
 
-// ✅ Watch messages để scroll xuống cuối
-watch(messages, async () => {
-  if (!isLoadingMore.value) {
-    await nextTick()
-    if (chatBox.value) {
-      chatBox.value.scrollTop = chatBox.value.scrollHeight
-    }
+async function selectSession(session) {
+  selectedSession.value = session;
+  const token = localStorage.getItem("access_token");
+  try {
+    const res = await fetch(`${API}/chat/messages/${session.id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error("Không thể lấy tin nhắn");
+    const data = await res.json();
+    currentMessages.value = data?.data || [];
+    nextTick(scrollToBottom);
+  } catch (error) {
+    console.error("Lỗi khi chọn session:", error.message);
   }
-}, { deep: true })
+}
+
+function formatTime(ts) {
+  if (!ts) return "";
+  const date = new Date(ts);
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function formatPrice(price) {
+  return new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+  }).format(price);
+}
+
+async function sendMessage() {
+  if (isSending.value) return;
+  isSending.value = true;
+  const text = message.value.trim();
+  const hasImages = selectedImages.value.length > 0;
+  if (!text && !hasImages) return;
+
+  const token = localStorage.getItem("access_token");
+  if (!token || !seller.value?.id || !selectedSession.value?.id) return;
+
+  const tempId = "tem-" + Date.now();
+
+  const tempMessage = {
+    id: tempId,
+    sender_type: "seller",
+    message: text || "",
+    message_type: hasImages ? "image" : "text",
+    created_at: new Date().toISOString(),
+    attachments: hasImages
+      ? selectedImages.value.map((img) => ({
+          url: URL.createObjectURL(img.file),
+          temp: true,
+        }))
+      : [],
+    status: "uploading",
+  };
+
+  if (!currentMessages.value) currentMessages.value = [];
+  currentMessages.value.push(tempMessage);
+  nextTick(scrollToBottom);
+
+  const formData = new FormData();
+  formData.append("session_id", selectedSession.value.id);
+  formData.append("sender_id", seller.value.id);
+  formData.append("sender_type", "seller");
+  formData.append("message_type", hasImages ? "image" : "text");
+  if (text) formData.append("message", text);
+
+  selectedImages.value.forEach((img) => {
+    formData.append("file[]", img.file);
+  });
+
+  try {
+    const res = await fetch(`${API}/chat/message`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.message);
+
+    const newMessage = {
+      id: result.message.id,
+      sender_type: "seller",
+      message: result.message.message,
+      message_type: result.message.message_type,
+      created_at: new Date().toISOString(),
+      attachments: result.attachments || [],
+      status: "sent",
+    };
+
+    const index = currentMessages.value.findIndex((msg) => msg.id === tempId);
+    if (index !== -1) {
+      currentMessages.value[index] = newMessage;
+    }
+    selectedImages.value.forEach((img) => URL.revokeObjectURL(img.file));
+    message.value = "";
+    selectedImages.value = [];
+    if (fileInput.value) {
+      fileInput.value.value = null;
+    }
+
+    nextTick(scrollToBottom);
+  } catch (error) {
+    console.error("Lỗi khi gửi tin nhắn:", error.message);
+  } finally {
+    isSending.value = false;
+  }
+}
+
+function startPollingMessages() {
+  const sessionId = selectedSession.value?.id;
+  if (!sessionId) return;
+
+  if (lastPollingSessionId === sessionId && pollingInterval.value) {
+    return;
+  }
+
+  stopPollingMessages();
+
+  lastPollingSessionId = sessionId;
+
+  pollingInterval.value = setInterval(async () => {
+    const token = localStorage.getItem("access_token");
+    if (!token) {
+      stopPollingMessages();
+      return;
+    }
+    try {
+      const res = await fetch(`${API}/chat/messages/${sessionId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        if (res.status === 401) {
+          stopPollingMessages();
+          return;
+        }
+        throw new Error("Lỗi khi lấy tin nhắn");
+      }
+      const data = await res.json();
+      if (
+        JSON.stringify(currentMessages.value) !== JSON.stringify(data?.data)
+      ) {
+        currentMessages.value = data?.data || [];
+        nextTick(scrollToBottom);
+      }
+    } catch (error) {
+      console.error("Lỗi khi polling tin nhắn:", error.message);
+    }
+  }, 5000);
+}
+
+function stopPollingMessages() {
+  if (pollingInterval.value) {
+    clearInterval(pollingInterval.value);
+    pollingInterval.value = null;
+    lastPollingSessionId = null;
+  }
+}
+
+const scrollToBottom = () => {
+  if (chatContainer.value) {
+    chatContainer.value.scrollTop = chatContainer.value.scrollHeight;
+  }
+};
+
+const loadMessages = async () => {
+  const token = localStorage.getItem("access_token");
+  if (!token || !selectedSession.value?.id) return;
+
+  try {
+    isLoadingMore.value = true;
+    const res = await fetch(
+      `${API}/chat/messages/${selectedSession.value.id}?page=${page.value}&limit=${limit}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+    const data = await res.json();
+    const newMessages = data?.data || [];
+
+    if (newMessages.length < limit) {
+      hasMore.value = false;
+    }
+
+    const reversed = newMessages.reverse();
+    if (!currentMessages.value) {
+      currentMessages.value = reversed;
+    } else {
+      currentMessages.value = [...reversed, ...currentMessages.value];
+    }
+
+    page.value++;
+    await nextTick();
+  } catch (err) {
+    console.error("Lỗi tải thêm tin nhắn:", err);
+  } finally {
+    isLoadingMore.value = false;
+  }
+};
+
+const handleScroll = () => {
+  const el = chatContainer.value;
+  if (!el || isLoadingMore.value || !hasMore.value) return;
+
+  if (el.scrollTop < 50) {
+    loadMessages();
+  }
+};
+
+watch(selectedSession, (newVal) => {
+  stopPollingMessages();
+  if (newVal?.id) {
+    startPollingMessages();
+  }
+});
 </script>
 
 <style scoped>
 @keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-5px); }
-  75% { transform: translateX(5px); }
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-5px);
+  }
+  75% {
+    transform: translateX(5px);
+  }
 }
+
 .animate-shake {
   animation: shake 0.5s;
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-.loading-spinner::before {
-  content: '';
-  display: inline-block;
-  width: 16px;
-  height: 16px;
-  border: 2px solid #ccc;
-  border-top-color: #0084ff;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-right: 8px;
-  vertical-align: middle;
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
 }
 
-@media (max-width: 640px) {
-  aside {
-    transform: translateX(0);
-  }
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>

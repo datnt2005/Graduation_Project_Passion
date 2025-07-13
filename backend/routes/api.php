@@ -1,7 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\PayoutController;
+// use App\Http\Controllers\PayoutController;
 
 foreach (glob(__DIR__.'/api/*.php') as $routeFile) {
     require $routeFile;
@@ -14,9 +14,15 @@ foreach (glob(__DIR__.'/api/*.php') as $routeFile) {
 // use App\Http\Controllers\AdminSellerController;
 // use App\Http\Controllers\SellerFollowerController;
 
-// // api chat user width seller
+// api chat user width seller
+use App\Http\Controllers\SettingController;
 use App\Http\Controllers\ChatController;
 
+Route::get('/settings', [SettingController::class, 'index']);
+    Route::put('/settings', [SettingController::class, 'update']);
+    Route::post('/settings/upload', [SettingController::class, 'upload']);
+    Route::get('/settings/backup', [SettingController::class, 'backup']);
+    Route::post('/settings/restore', [SettingController::class, 'restore']);
 
 // api chat user width seller
 Route::prefix('chat')->group(function () {
@@ -24,8 +30,6 @@ Route::prefix('chat')->group(function () {
     Route::get('/messages/{sessionId}', [ChatController::class, 'getMessages']);
     Route::get('/sessions', [ChatController::class, 'getSessions']);
     Route::put('/messages/{id}/action', [ChatController::class, 'updateMessage']);
-     // ✅ Thêm dòng này để fix lỗi 405
-    Route::post('/sessions', [ChatController::class, 'createSession']);
 });
 
 // // Category
@@ -260,15 +264,15 @@ Route::prefix('chat')->group(function () {
 
 // // api seller
 
-// // Route::middleware([HandleCors::class, 'api'])
-// //     ->prefix('sellers')
-// //     ->group(function () {
-// //         Route::get('/', [SellerController::class, 'index']);
-// //         Route::get('/store/{slug}', [SellerController::class, 'showStore']);
-// //          Route::post('/register', [SellerController::class, 'register'])
-// //               ->middleware('auth:sanctum');
-// //         Route::post('/login', [SellerController::class, 'login']);
-// //     });
+// Route::middleware([HandleCors::class, 'api'])
+//     ->prefix('sellers')
+//     ->group(function () {
+//         Route::get('/', [SellerController::class, 'index']);
+//         Route::get('/store/{slug}', [SellerController::class, 'showStore']);
+//          Route::post('/register', [SellerController::class, 'register'])
+//               ->middleware('auth:sanctum');
+//         Route::post('/login', [SellerController::class, 'login']);
+//     });
 
 // Route::prefix('sellers')->group(function ()
 // {

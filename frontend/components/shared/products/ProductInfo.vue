@@ -22,21 +22,19 @@
             <div class="flex items-center space-x-4">
                 <img v-if="seller.avatar"
                     :src="seller.avatar.startsWith('http') ? seller.avatar : `${mediaBase}${seller.avatar}`"
-                    alt="Avatar" class="w-14 h-14  rounded-full object-cover" />
+                    alt="Avatar" class="w-14 h-14 rounded-full object-cover" />
                 <span v-else>📘</span>
                 <div>
                     <h2 class="font-semibold text-lg">{{ seller.store_name }}</h2>
-                    <!-- <p class="text-sm text-gray-500">{{ seller.address }}</p> -->
                     <div class="flex space-x-2 mt-2">
-                    <button
-                        :disabled="loading || !seller?.id"
-                        @click="emit('chat-with-shop')"
-                        class="bg-[#1BA0E2] text-white border px-3 py-1 rounded text-sm flex items-center disabled:opacity-50"
-                        aria-label="chat shop"
-                    >
-                        <i class="fas fa-comment-alt mr-1"></i> Chat Ngay
-                    </button>
-
+                        <button
+                            :disabled="loading || !seller?.id"
+                            @click="$emit('chat-with-shop')"
+                            class="bg-[#1BA0E2] text-white border px-3 py-1 rounded text-sm flex items-center disabled:opacity-50"
+                            aria-label="Chat shop"
+                        >
+                            <i class="fas fa-comment-alt mr-1"></i> Chat Ngay
+                        </button>
                         <button @click="$emit('view-shop')" class="border px-3 py-1 rounded text-sm flex items-center"
                             aria-label="View shop">
                             <i class="fas fa-store mr-1"></i> Xem Shop
@@ -56,9 +54,9 @@
             <div class="text-[#D82E44] font-bold flex items-center space-x-1">
                 <span class="text-3xl">{{
                     parseFloat(selectedVariant.sale_price) < parseFloat(selectedVariant.original_price) ?
-                        formatPrice(selectedVariant.sale_price) : formatPrice(selectedVariant.original_price ||
-                            selectedVariant.price) }}</span>
-                        <sup class="text-sm">₫</sup>
+                        formatPrice(selectedVariant.sale_price) : formatPrice(selectedVariant.original_price || selectedVariant.price)
+                }}</span>
+                <sup class="text-sm">₫</sup>
             </div>
             <div v-if="parseFloat(selectedVariant.sale_price) < parseFloat(selectedVariant.original_price)"
                 class="text-gray-500 line-through text-xl">
@@ -72,9 +70,7 @@
         <!-- Product Options -->
         <div>
             <!-- All Variant Attributes -->
-            <!-- Wrapper đổi màu nền khi có lỗi -->
             <div :class="['p-4 rounded-sm', validationMessage ? 'bg-[#FFF5F5]' : 'bg-white']">
-                <!-- Các thuộc tính: in ấn, size,... -->
                 <div v-for="attr in variantAttributes" :key="attr.name"
                     class="flex items-center space-x-2 text-xs font-medium mb-4 text-sm">
                     <span class="w-20 shrink-0">{{ attr.name }}</span>
@@ -83,7 +79,7 @@
                             'flex items-center space-x-1 border rounded-sm px-4 py-1.5 text-sm text-gray-900 cursor-pointer transition-colors duration-150',
                             selectedOptions[attr.name] === option.value ? 'border-blue-500 bg-blue-50 ring-1' : 'border-gray-300',
                             !isOptionAvailable(attr.name, option.value) ? 'opacity-50 cursor-pointer bg-gray-200' : 'hover:bg-gray-50'
-                        ]" @click="$emit('select-option', attr.name, option.value)"
+                        ]" @click="handleSelectOption(attr.name, option.value)"
                             :aria-label="`Select ${attr.name} ${option.value}`">
                             <img v-if="option.thumbnail" :src="`${mediaBase}${option.thumbnail}`"
                                 :alt="option.alt || `${attr.name} ${option.value}`"
@@ -92,7 +88,6 @@
                         </button>
                     </div>
                 </div>
-
                 <!-- Số Lượng -->
                 <div class="flex items-center space-x-2 text-sm font-medium text-gray-700 mb-1">
                     <span class="w-20 shrink-0">Số Lượng</span>
@@ -115,23 +110,21 @@
                         {{ selectedVariant.stock }} sản phẩm có sẵn
                     </span>
                 </div>
-
                 <!-- Thông báo lỗi -->
                 <div v-if="validationMessage" class="text-red-500 text-sm mt-2 ml-[80px]">
                     {{ validationMessage }}
                 </div>
             </div>
-
             <!-- Action Buttons -->
             <div class="flex space-x-4 mt-4">
-                <button @click="handleAddToCart" :disabled="!selectedVariant.stock"
-                    class="flex items-center justify-center border border-[#0d5cb6] text-[#0d5cb6] bg-white rounded-sm w-48 h-12 text-sm font-semibold hover:bg-[#e6f0fb] transition-colors duration-200"
+                <button @click="handleAction('add-to-cart')" :disabled="isAddingToCart || !props.isVariantFullySelected"
+                    class="flex items-center justify-center border border-[#0d5cb6] text-[#0d5cb6] bg-white rounded-sm w-48 h-12 text-sm font-semibold hover:bg-[#e6f0fb] transition-colors duration-200 disabled:opacity-50"
                     aria-label="Add to cart">
                     <i class="fas fa-shopping-cart mr-2"></i>
                     Thêm Vào Giỏ Hàng
                 </button>
-                <button @click="handleBuyNow" :disabled="!selectedVariant.stock"
-                    class="bg-[#0d5cb6] text-white rounded-sm w-48 h-12 text-sm font-semibold hover:bg-[#084d9d] transition-colors duration-200"
+                <button @click="handleAction('buy-now')" :disabled="isAddingToCart || !props.isVariantFullySelected"
+                    class="bg-[#0d5cb6] text-white rounded-sm w-48 h-12 text-sm font-semibold hover:bg-[#084d9d] transition-colors duration-200 disabled:opacity-50"
                     aria-label="Buy now">
                     Mua Ngay
                 </button>
@@ -140,15 +133,8 @@
     </div>
 </template>
 <script setup>
-import { computed } from 'vue'
-import { useChatStore } from '~/stores/chat'
-const chatStore = useChatStore()
+import { ref, watch } from 'vue';
 
-const handleChat = () => {
-  chatStore.openChat() // Mở modal
-}
-
-// --- Props ---
 const props = defineProps({
     product: { type: Object, required: true },
     seller: { type: Object, required: true },
@@ -160,7 +146,8 @@ const props = defineProps({
     isFavorite: { type: Boolean, required: true },
     isVariantFullySelected: { type: Boolean, required: true },
     variants: { type: Array, required: true },
-    validationMessage: { type: String, default: '' }    
+    validationMessage: { type: String, default: '' },
+    loading: { type: Boolean, default: false }
 });
 
 const emit = defineEmits([
@@ -180,36 +167,35 @@ const emit = defineEmits([
 ]);
 
 const localQuantity = ref(props.quantity);
-function isOptionAvailable(attrName, value) {
-  const otherSelections = { ...props.selectedOptions }
-  delete otherSelections[attrName]
+const isAddingToCart = ref(false);
 
-  return props.variants.some(variant =>
-    variant.attributes.some(attr => attr.attribute_name === attrName && attr.value === value) &&
-    variant.stock > 0 &&
-    Object.entries(otherSelections).every(([key, val]) =>
-      !val || variant.attributes.some(attr => attr.attribute_name === key && attr.value === val)
-    )
-  )
+function isOptionAvailable(attrName, value) {
+    const otherSelections = { ...props.selectedOptions };
+    delete otherSelections[attrName];
+
+    return props.variants.some(variant =>
+        variant.attributes.some(attr => attr.attribute_name === attrName && attr.value === value) &&
+        variant.stock > 0 &&
+        Object.entries(otherSelections).every(([key, val]) =>
+            !val || variant.attributes.some(attr => attr.attribute_name === key && attr.value === val)
+        )
+    );
 }
 
 function formatPrice(price) {
-  if (!price || price === 'null' || price === null || price === undefined) {
-    return '0'
-  }
-  const parsedPrice = parseFloat(price)
-  return isNaN(parsedPrice)
-    ? '0'
-    : parsedPrice.toLocaleString('vi-VN', { style: 'decimal' })
+    if (!price || price === 'null' || price === null || price === undefined) {
+        return '0';
+    }
+    const parsedPrice = parseFloat(price);
+    return isNaN(parsedPrice)
+        ? '0'
+        : parsedPrice.toLocaleString('vi-VN', { style: 'decimal' });
 }
 
-watch(
-    () => [props.selectedVariant, props.quantity],
-    () => {
-        localQuantity.value = props.quantity;
-    },
-    { immediate: true }
-);
+function handleSelectOption(attrName, value) {
+    emit('select-option', attrName, value);
+    emit('update:validationMessage', ''); // Clear validation message on option select
+}
 
 function handleQuantityInput(value) {
     const maxStock = props.selectedVariant?.stock || 0;
@@ -218,7 +204,7 @@ function handleQuantityInput(value) {
     if (isNaN(newQuantity) || newQuantity < 1) {
         newQuantity = 1;
         emit('update:validationMessage', 'Số lượng phải từ 1 trở lên.');
-    } else if (newQuantity > maxStock) {
+    } else if (maxStock > 0 && newQuantity > maxStock) {
         newQuantity = maxStock;
         emit('update:validationMessage', `Chỉ còn lại ${maxStock} sản phẩm.`);
     } else {
@@ -230,42 +216,28 @@ function handleQuantityInput(value) {
     emit('validate-selection');
 }
 
-function handleAddToCart() {
-    const maxStock = props.selectedVariant?.stock || 0;
-
-    if (!props.isVariantFullySelected){
-        emit('update:validationMessage', 'Vui lòng chọn Phân loại hàng');
-        return;
-    };
-    if (localQuantity.value < 1) {
-        emit('update:validationMessage', 'Số lượng phải từ 1 trở lên.');
-        return;
-    }
-    if (localQuantity.value > maxStock) {
-        emit('update:validationMessage', `Chỉ còn lại ${maxStock} sản phẩm.`);
-        return;
-    }
-
-    emit('add-to-cart');
-}
-
-function handleBuyNow() {
-    const maxStock = props.selectedVariant?.stock || 0;
-
+function handleAction(action) {
     if (!props.isVariantFullySelected) {
         emit('update:validationMessage', 'Vui lòng chọn Phân loại hàng');
         return;
     }
+
+    isAddingToCart.value = true;
+    const maxStock = props.selectedVariant?.stock || 0;
+
     if (localQuantity.value < 1) {
         emit('update:validationMessage', 'Số lượng phải từ 1 trở lên.');
+        isAddingToCart.value = false;
         return;
     }
-    if (localQuantity.value > maxStock) {
+    if (maxStock > 0 && localQuantity.value > maxStock) {
         emit('update:validationMessage', `Chỉ còn lại ${maxStock} sản phẩm.`);
+        isAddingToCart.value = false;
         return;
     }
 
-    emit('buy-now');
+    emit(action);
+    isAddingToCart.value = false;
 }
 
 function blockInvalidKeys(event) {
@@ -273,7 +245,6 @@ function blockInvalidKeys(event) {
     if (invalidKeys.includes(event.key)) {
         event.preventDefault();
     }
-    // Prevent pasting invalid values
     if (event.type === 'paste') {
         const pastedText = event.clipboardData.getData('text');
         if (!/^\d+$/.test(pastedText)) {
@@ -282,6 +253,13 @@ function blockInvalidKeys(event) {
     }
 }
 
+watch(
+    () => [props.selectedVariant, props.quantity],
+    () => {
+        localQuantity.value = props.quantity;
+    },
+    { immediate: true }
+);
 </script>
 
 <style scoped>
@@ -293,6 +271,5 @@ function blockInvalidKeys(event) {
 
 .input-no-spinner {
     -moz-appearance: textfield;
-    /* Firefox */
 }
 </style>
