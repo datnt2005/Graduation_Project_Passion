@@ -31,7 +31,7 @@
                 <div class="mt-1 font-semibold text-gray-800">
                   {{
                     order.address
-                      ? `${order.address.detail || ''}, ${order.address.ward_name || ''}, ${order.address.district_name || ''}, ${order.address.province_name || ''}`.replace(/(, )+/g, ', ').replace(/^, |, $/g, '')
+                      ? [order.address.detail, order.address.ward_name, order.address.district_name, order.address.province_name].filter(Boolean).join(', ')
                       : 'Không có'
                   }}
                 </div>
@@ -41,15 +41,42 @@
                 <span class="font-semibold">VNPay</span>
               </div>
             </div>
-            <div class="text-right text-lg font-bold text-blue-700 border-t pt-4 mt-4">
-              Tổng thanh toán: {{ formatPrice(order.final_price) }} đ
+            <div class="mt-4 text-left text-sm space-y-1">
+              <div class="flex justify-between">
+                <span>Tổng tiền hàng:</span>
+                <span>{{ formatPrice(order.total_price) }} đ</span>
+              </div>
+              <div class="flex justify-between" v-if="order.discount_price > 0">
+                <span>Giảm giá sản phẩm:</span>
+                <span class="text-green-600">- {{ formatPrice(order.discount_price) }} đ</span>
+              </div>
+              <div class="flex justify-between">
+                <span>Phí vận chuyển:</span>
+                <span>{{ formatPrice(order.shipping?.shipping_fee) }} đ</span>
+              </div>
+              <div class="flex justify-between" v-if="order.shipping && order.shipping.shipping_discount > 0">
+                <span>Giảm giá phí ship:</span>
+                <span class="text-green-600">- {{ formatPrice(order.shipping.shipping_discount) }} đ</span>
+              </div>
+              <div class="flex justify-between font-bold border-t pt-2 mt-2">
+                <span>Tổng thanh toán:</span>
+                <span class="text-blue-700">{{ formatPrice((parseInt(order.final_price) || 0) + (parseInt(order.shipping?.shipping_fee) || 0)) }} đ</span>
+              </div>
             </div>
             <!-- Danh sách sản phẩm đã đặt (nếu có) -->
             <div v-if="order.order_items?.length" class="mt-4">
               <div class="font-medium text-gray-700 mb-2">Sản phẩm đã đặt:</div>
               <div class="max-h-64 overflow-y-auto pr-2">
                 <div v-for="item in order.order_items" :key="item.product?.id + '-' + (item.variant?.id || '')" class="flex items-center gap-4 border-b py-2 last:border-0">
-                  <img :src="item.product?.thumbnail ? mediaBaseUrl + item.product.thumbnail : '/images/no-image.png'" :alt="item.product?.name || 'Ảnh sản phẩm'" class="w-12 h-12 object-cover rounded-md border" />
+                  <!-- Gallery ảnh sản phẩm -->
+                  <div class="flex gap-2 items-center">
+                    <img
+                      :src="getProductImage(item.variant?.thumbnail || item.product?.thumbnail)"
+                      :alt="item.product?.name || 'Ảnh sản phẩm'"
+                      class="w-12 h-12 object-cover rounded-md border"
+                      @error="e => e.target.src = '/images/no-image.png'"
+                    />
+                  </div>
                   <div class="flex-1">
                     <div class="font-semibold text-gray-900">{{ item.product?.name || '-' }}</div>
                     <div v-if="item.variant && item.variant.name" class="text-xs text-gray-500">Phân loại: {{ item.variant.name }}</div>
@@ -73,7 +100,7 @@
               <div class="mt-1 font-semibold text-gray-800">
                 {{
                   orderDetail.address
-                    ? `${orderDetail.address.detail}, ${orderDetail.address.ward_name}, ${orderDetail.address.district_name}, ${orderDetail.address.province_name}`
+                    ? [orderDetail.address.detail, orderDetail.address.ward_name, orderDetail.address.district_name, orderDetail.address.province_name].filter(Boolean).join(', ')
                     : 'Không có'
                 }}
               </div>
@@ -83,15 +110,20 @@
               <span class="font-semibold">VNPay</span>
             </div>
           </div>
-          <div class="text-right text-lg font-bold text-blue-700 border-t pt-4 mt-4">
-            Tổng thanh toán: {{ formatPrice(amount) }} đ
-          </div>
+                      <div class="text-right text-lg font-bold text-blue-700 border-t pt-4 mt-4">
+              Tổng thanh toán: {{ formatPrice((parseInt(orderDetail?.final_price) || 0) + (parseInt(orderDetail?.shipping?.shipping_fee) || 0)) }} đ
+            </div>
           <!-- Danh sách sản phẩm đã đặt (nếu có) -->
           <div v-if="orderDetail?.order_items?.length" class="mt-4">
             <div class="font-medium text-gray-700 mb-2">Sản phẩm đã đặt:</div>
             <div class="max-h-64 overflow-y-auto pr-2">
               <div v-for="item in orderDetail.order_items" :key="item.product?.id + '-' + (item.variant?.id || '')" class="flex items-center gap-4 border-b py-2 last:border-0">
-                <img :src="item.product?.thumbnail ? mediaBaseUrl + item.product.thumbnail : '/images/no-image.png'" :alt="item.product?.name || 'Ảnh sản phẩm'" class="w-12 h-12 object-cover rounded-md border" />
+                <img
+                  :src="item.variant?.thumbnail ? mediaBaseUrl + item.variant.thumbnail : '/images/default-product.jpg'"
+                  :alt="item.product?.name || 'Ảnh sản phẩm'"
+                  class="w-12 h-12 object-cover rounded-md border"
+                  @error="e => e.target.src = '/images/default-product.jpg'"
+                />
                 <div class="flex-1">
                   <div class="font-semibold text-gray-900">{{ item.product?.name || '-' }}</div>
                   <div v-if="item.variant && item.variant.name" class="text-xs text-gray-500">Phân loại: {{ item.variant.name }}</div>
@@ -104,9 +136,14 @@
         </div>
 
         <!-- Về trang chủ -->
-        <NuxtLink to="/" class="mt-6 inline-block bg-gradient-to-r from-blue-600 to-blue-700 text-white px-8 py-3 rounded-full font-semibold text-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-300 shadow-md hover:shadow-lg">
-          Về Trang Chủ
-        </NuxtLink>
+        <div class="mt-6 flex gap-4 justify-center">
+          <NuxtLink to="/" class="inline-block bg-gradient-to-r from-blue-600 to-blue-700 text-white px-8 py-3 rounded-full font-semibold text-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-300 shadow-md hover:shadow-lg">
+            Về Trang Chủ
+          </NuxtLink>
+          <NuxtLink v-if="orderDetail && orderDetail.length > 0" to="/users/orders" class="inline-block bg-gradient-to-r from-green-600 to-green-700 text-white px-8 py-3 rounded-full font-semibold text-lg hover:from-green-700 hover:to-green-800 transition-all duration-300 shadow-md hover:shadow-lg">
+            Xem Chi Tiết Đơn Hàng
+          </NuxtLink>
+        </div>
       </div>
 
       <!-- Thất bại -->
@@ -135,7 +172,7 @@ const route = useRoute()
 const router = useRouter()
 const config = useRuntimeConfig()
 const mediaBaseUrl = config.public.mediaBaseUrl.endsWith('/') ? config.public.mediaBaseUrl : config.public.mediaBaseUrl + '/'
-const { clearCart } = useCart()
+const { clearAllCart } = useCart()
 
 const loading = ref(true)
 const success = ref(false)
@@ -199,6 +236,12 @@ const loadWards = async (district_id) => {
   wards.value = data.data || []
 }
 
+function getProductImage(thumbnail) {
+  if (!thumbnail) return '/images/no-image.png';
+  if (thumbnail.startsWith('http://') || thumbnail.startsWith('https://')) return thumbnail;
+  return mediaBaseUrl + thumbnail;
+}
+
 onMounted(async () => {
   // Collect all query parameters, not just vnp_ ones, to ensure nothing is missed
   const queryParams = { ...route.query }
@@ -219,66 +262,84 @@ onMounted(async () => {
   try {
     const queryString = new URLSearchParams(queryParams).toString()
     console.log('Fetch URL:', `${config.public.apiBaseUrl}/payments/vnpay/return?${queryString}`)
-    const res = await fetch(`${config.public.apiBaseUrl}/payments/vnpay/return?${queryString}`, {
-      headers: {
-        'Accept': 'application/json'
-      }
-    })
-
-    if (!res.ok) {
-      const errorData = await res.json()
-      console.error('Backend Error Response:', errorData)
-      throw new Error(errorData.message || `HTTP error! Status: ${res.status}`)
-    }
-
+    const res = await fetch(`${config.public.apiBaseUrl}/payments/vnpay/return?${queryString}`)
     const data = await res.json()
-    console.log('VNPAY Return Data:', data)
-    loading.value = false
 
-    if (data.success || queryParams.vnp_ResponseCode === '00') {
+    if (data.success) {
+      loading.value = false
       success.value = true
       message.value = data.message || 'Thanh toán thành công'
-      tracking_code.value = data.tracking_code || 'Đang cập nhật'
-      amount.value = data.amount || (Number(queryParams.vnp_Amount) / 100) || 0
-      bankCode.value = data.bank_code || queryParams.vnp_BankCode || '-'
-      transactionId.value = data.transaction_id || queryParams.vnp_TransactionNo || '-'
-
-      if (data.order_ids && Array.isArray(data.order_ids)) {
-        orderDetail.value = [];
-        for (const id of data.order_ids) {
-          const token = localStorage.getItem('access_token');
-          if (token) {
-            const orderRes = await fetch(`${config.public.apiBaseUrl}/user/orders/${id}`, {
-              headers: {
-                Accept: 'application/json',
-                Authorization: `Bearer ${token}`,
-              },
-            });
-            if (orderRes.ok) {
-              const orderData = await orderRes.json();
-              orderDetail.value.push(orderData);
-            }
-          }
+      orderId.value = data.order_id || '-'
+      amount.value = Number(data.amount) / 100 || 0
+      bankCode.value = data.bank_code || '-'
+      transactionId.value = data.transaction_id || '-'
+      tracking_code.value = data.tracking_code || '-'
+      
+      // Xử lý order_detail từ backend
+      if (data.order_detail) {
+        // Nếu order_detail là array (nhiều đơn hàng)
+        if (Array.isArray(data.order_detail)) {
+          orderDetail.value = data.order_detail
+        } else {
+          // Nếu order_detail là object (1 đơn hàng)
+          orderDetail.value = [data.order_detail]
         }
+      } else {
+        orderDetail.value = []
       }
-      await clearCart()
+
+      if (orderDetail.value && orderDetail.value.length) {
+        // Assuming orderDetail.value is an array of orders, we'll process the first one
+        const order = orderDetail.value[0]
+        if (order) {
+          // Clear cart after successful payment
+          await clearAllCart()
+          // Không redirect tự động nữa, để user xem thông tin thanh toán
+          // router.push(`/orders/${order.id}`)
+        } else {
+          loading.value = false
+          success.value = false
+          message.value = 'Không tìm thấy thông tin đơn hàng'
+          orderId.value = '-'
+          amount.value = 0
+          bankCode.value = '-'
+          transactionId.value = '-'
+          tracking_code.value = '-'
+          orderDetail.value = []
+        }
+      } else {
+        loading.value = false
+        success.value = false
+        message.value = 'Không tìm thấy thông tin đơn hàng'
+        orderId.value = '-'
+        amount.value = 0
+        bankCode.value = '-'
+        transactionId.value = '-'
+        tracking_code.value = '-'
+        orderDetail.value = []
+      }
     } else {
+      loading.value = false
       success.value = false
       message.value = data.message || 'Thanh toán thất bại'
-      tracking_code.value = data.tracking_code || 'Đang cập nhật'
-      amount.value = data.amount || (Number(queryParams.vnp_Amount) / 100) || 0
-      bankCode.value = data.bank_code || queryParams.vnp_BankCode || '-'
-      transactionId.value = data.transaction_id || queryParams.vnp_TransactionNo || '-'
+      orderId.value = queryParams.vnp_TxnRef ? queryParams.vnp_TxnRef.split('_')[0] : '-'
+      amount.value = Number(queryParams.vnp_Amount) / 100 || 0
+      bankCode.value = queryParams.vnp_BankCode || '-'
+      transactionId.value = queryParams.vnp_TransactionNo || '-'
+      tracking_code.value = '-'
+      orderDetail.value = []
     }
-  } catch (err) {
-    console.error('Fetch error:', err)
+  } catch (error) {
     loading.value = false
     success.value = false
-    message.value = err.message || 'Có lỗi xảy ra khi xác minh thanh toán'
-    orderId.value = queryParams.vnp_TxnRef ? queryParams.vnp_TxnRef.split('_')[0] : '-'
-    amount.value = Number(queryParams.vnp_Amount) / 100 || 0
-    bankCode.value = queryParams.vnp_BankCode || '-'
-    transactionId.value = queryParams.vnp_TransactionNo || '-'
+    message.value = 'Lỗi kết nối API VNPAY'
+    console.error('VNPAY Return Error:', error)
+    orderId.value = '-'
+    amount.value = 0
+    bankCode.value = '-'
+    transactionId.value = '-'
+    tracking_code.value = '-'
+    orderDetail.value = []
   }
 })
 
@@ -288,19 +349,3 @@ onUnmounted(() => {
   }
 })
 </script>
-
-<style scoped>
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-.animate-fade-in {
-  animation: fadeIn 0.6s ease-out;
-}
-</style>

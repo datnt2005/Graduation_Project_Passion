@@ -61,6 +61,28 @@
                   </div>
                 </div>
               </div>
+              <div class="mt-4 text-left text-sm space-y-1">
+                <div class="flex justify-between">
+                  <span>Tổng tiền hàng:</span>
+                  <span>{{ formatPrice(order.total_price) }} đ</span>
+                </div>
+                <div class="flex justify-between" v-if="order.discount_price > 0">
+                  <span>Giảm giá sản phẩm:</span>
+                  <span class="text-green-600">- {{ formatPrice(order.discount_price) }} đ</span>
+                </div>
+                <div class="flex justify-between">
+                  <span>Phí vận chuyển:</span>
+                  <span>{{ formatPrice(order.shipping?.shipping_fee) }} đ</span>
+                </div>
+                <div class="flex justify-between" v-if="order.shipping && order.shipping.shipping_discount > 0">
+                  <span>Giảm giá phí ship:</span>
+                  <span class="text-green-600">- {{ formatPrice(order.shipping.shipping_discount) }} đ</span>
+                </div>
+                <div class="flex justify-between font-bold border-t pt-2 mt-2">
+                  <span>Tổng thanh toán:</span>
+                  <span class="text-blue-700">{{ formatPrice((parseInt(order.final_price) || 0) + (parseInt(order.shipping?.shipping_fee) || 0)) }} đ</span>
+                </div>
+              </div>
             </div>
           </div>
           <!-- Nếu chỉ có 1 đơn, vẫn hỗ trợ hiển thị cũ cho backward compatibility -->
@@ -86,7 +108,7 @@
               </div>
             </div>
             <div class="text-right text-lg font-bold text-blue-700 border-t pt-4 mt-4">
-              Tổng thanh toán: {{ formatPrice(amount) }} đ
+              Tổng thanh toán: {{ formatPrice((parseInt(orderDetail?.final_price) || 0) + (parseInt(orderDetail?.shipping?.shipping_fee) || 0)) }} đ
             </div>
             <!-- Danh sách sản phẩm đã đặt (nếu có) -->
             <div v-if="orderDetail?.order_items?.length" class="mt-4">
@@ -104,6 +126,9 @@
               </div>
             </div>
           </div>
+          <NuxtLink v-if="orderDetail && orderDetail.length > 0" to="/users/orders" class="inline-block bg-gradient-to-r from-green-600 to-green-700 text-white px-8 py-3 rounded-full font-semibold text-lg hover:from-green-700 hover:to-green-800 transition-all duration-300 shadow-md hover:shadow-lg">
+            Xem Chi Tiết Đơn Hàng
+          </NuxtLink>
           <NuxtLink to="/" class="mt-6 inline-block bg-gradient-to-r from-blue-600 to-blue-700 text-white px-8 py-3 rounded-full font-semibold text-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-300 shadow-md hover:shadow-lg">
             Về Trang Chủ
           </NuxtLink>
@@ -152,7 +177,7 @@ import { useCart } from '~/composables/useCart'
 const route = useRoute()
 const router = useRouter()
 const config = useRuntimeConfig()
-const { clearCart } = useCart()
+const { clearAllCart } = useCart()
 
 const loading = ref(true)
 const success = ref(false)
@@ -258,7 +283,38 @@ onMounted(async () => {
           }
         }
       }
-      await clearCart()
+      await loadProvinces();
+      let firstAddress = null;
+      if (Array.isArray(orderDetail.value) && orderDetail.value.length > 0) {
+        firstAddress = orderDetail.value[0]?.address;
+      } else if (orderDetail.value && orderDetail.value.address) {
+        firstAddress = orderDetail.value.address;
+      }
+      if (firstAddress) {
+        if (firstAddress.province_id) await loadDistricts(firstAddress.province_id);
+        if (firstAddress.district_id) await loadWards(firstAddress.district_id);
+      }
+      function enrichAddress(address) {
+        if (!address) return;
+        if (address.province_id && !address.province_name) {
+          const province = provinces.value.find(p => p.ProvinceID == address.province_id);
+          address.province_name = province?.ProvinceName || '';
+        }
+        if (address.district_id && !address.district_name) {
+          const district = districts.value.find(d => d.DistrictID == address.district_id);
+          address.district_name = district?.DistrictName || '';
+        }
+        if (address.ward_code && !address.ward_name) {
+          const ward = wards.value.find(w => w.WardCode == address.ward_code);
+          address.ward_name = ward?.WardName || '';
+        }
+      }
+      if (Array.isArray(orderDetail.value)) {
+        orderDetail.value.forEach(order => { if (order.address) enrichAddress(order.address); });
+      } else if (orderDetail.value && orderDetail.value.address) {
+        enrichAddress(orderDetail.value.address);
+      }
+      await clearAllCart()
 
       countdownInterval = setInterval(() => {
         countdown.value--

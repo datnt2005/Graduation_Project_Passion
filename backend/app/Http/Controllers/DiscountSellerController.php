@@ -13,13 +13,16 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
 
-class DiscountController extends Controller
+class DiscountSellerController extends Controller
 {
-    // List all discounts
+    // List all discounts for current seller
     public function index()
     {
         try {
-            $discounts = Discount::with(['products', 'categories', 'users', 'flashSales'])->get();
+            $seller = Auth::user()->seller;
+            $discounts = Discount::with(['products', 'categories', 'users', 'flashSales'])
+                ->where('seller_id', $seller->id)
+                ->get();
             return response()->json([
                 'success' => true,
                 'message' => 'Lấy danh sách mã giảm giá thành công',
@@ -33,39 +36,48 @@ class DiscountController extends Controller
         }
     }
 
-    // Create a new discount
+    // Create a new discount for seller
     public function store(Request $request)
     {
-            $validator = Validator::make($request->all(), [
-                'name' => 'required|string|max:255',
-                'code' => 'required|string|max:50|unique:discounts',
-                'description' => 'nullable|string',
-                'discount_type' => 'in:percentage,fixed,shipping_fee',
-                'discount_value' => 'numeric|min:0',
-                'usage_limit' => 'nullable|integer|min:1',
-                'min_order_value' => 'nullable|numeric|min:0',
-                'start_date' => 'required|date|after_or_equal:today',
-                'end_date' => 'required|date|after:start_date',
-                'status' => 'required|in:active,inactive,expired',
-            ], [
-                'name.required' => 'Tên mã giảm giá không được để trống',
-                'code.required' => 'Mã giảm giá không được để trống',
-                'code.unique' => 'Mã giảm giá đã tồn tại',
-                'discount_type.required' => 'Loại giảm giá không được để trống',
-                'discount_type.in' => 'Loại giảm giá không hợp lệ',
-                'discount_value.required' => 'Giá trị giảm giá không được để trống',
-                'discount_value.min' => 'Giá trị giảm giá phải lớn hơn 0',
-                'usage_limit.min' => 'Giới hạn sử dụng phải lớn hơn 0',
-                'min_order_value.min' => 'Giá trị đơn hàng tối thiểu phải lớn hơn 0',
-                'start_date.required' => 'Ngày bắt đầu không được để trống',
-                'start_date.date' => 'Ngày bắt đầu không đúng định dạng',
-                'start_date.after_or_equal' => 'Ngày bắt đầu phải từ ngày hôm nay trở đi',
-                'end_date.required' => 'Ngày kết thúc không được để trống',
-                'end_date.date' => 'Ngày kết thúc không đúng định dạng',
-                'end_date.after' => 'Ngày kết thúc phải sau ngày bắt đầu',
-                'status.required' => 'Trạng thái không được để trống',
-                'status.in' => 'Trạng thái không hợp lệ',
-            ]);
+        \Log::info('USER:', ['user' => Auth::user()]);
+        \Log::info('SELLER:', ['seller' => Auth::user()->seller]);
+        $seller = Auth::user()->seller;
+        if (!$seller) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Chỉ seller mới được phép tạo mã giảm giá'
+            ], 403);
+        }
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:255',
+            'code' => 'required|string|max:50|unique:discounts',
+            'description' => 'nullable|string',
+            'discount_type' => 'in:percentage,fixed,shipping_fee',
+            'discount_value' => 'numeric|min:0',
+            'usage_limit' => 'nullable|integer|min:1',
+            'min_order_value' => 'nullable|numeric|min:0',
+            'start_date' => 'required|date|after_or_equal:today',
+            'end_date' => 'required|date|after:start_date',
+            'status' => 'required|in:active,inactive,expired',
+        ], [
+            'name.required' => 'Tên mã giảm giá không được để trống',
+            'code.required' => 'Mã giảm giá không được để trống',
+            'code.unique' => 'Mã giảm giá đã tồn tại',
+            'discount_type.required' => 'Loại giảm giá không được để trống',
+            'discount_type.in' => 'Loại giảm giá không hợp lệ',
+            'discount_value.required' => 'Giá trị giảm giá không được để trống',
+            'discount_value.min' => 'Giá trị giảm giá phải lớn hơn 0',
+            'usage_limit.min' => 'Giới hạn sử dụng phải lớn hơn 0',
+            'min_order_value.min' => 'Giá trị đơn hàng tối thiểu phải lớn hơn 0',
+            'start_date.required' => 'Ngày bắt đầu không được để trống',
+            'start_date.date' => 'Ngày bắt đầu không đúng định dạng',
+            'start_date.after_or_equal' => 'Ngày bắt đầu phải từ ngày hôm nay trở đi',
+            'end_date.required' => 'Ngày kết thúc không được để trống',
+            'end_date.date' => 'Ngày kết thúc không đúng định dạng',
+            'end_date.after' => 'Ngày kết thúc phải sau ngày bắt đầu',
+            'status.required' => 'Trạng thái không được để trống',
+            'status.in' => 'Trạng thái không hợp lệ',
+        ]);
 
         if ($validator->fails()) {
             return response()->json([
@@ -76,7 +88,11 @@ class DiscountController extends Controller
         }
 
         try {
-            $discount = Discount::create($request->all());
+            $data = $request->all();
+            $data['seller_id'] = $seller ? $seller->id : null;
+            \Log::info('DATA:', $data);
+            $discount = Discount::create($data);
+            \Log::info('DISCOUNT CREATED:', $discount ? $discount->toArray() : []);
             return response()->json([
                 'success' => true,
                 'message' => 'Tạo mã giảm giá thành công',
@@ -90,11 +106,14 @@ class DiscountController extends Controller
         }
     }
 
-    // Show a specific discount
+    // Show a specific discount for seller
     public function show($id)
     {
         try {
-            $discount = Discount::with(['products', 'categories', 'users', 'flashSales'])->findOrFail($id);
+            $seller = Auth::user()->seller;
+            $discount = Discount::with(['products', 'categories', 'users', 'flashSales'])
+                ->where('seller_id', $seller->id)
+                ->findOrFail($id);
             return response()->json([
                 'success' => true,
                 'message' => 'Lấy thông tin mã giảm giá thành công',
@@ -108,11 +127,12 @@ class DiscountController extends Controller
         }
     }
 
-    // Update a discount
+    // Update a discount for seller
     public function update(Request $request, $id)
     {
         try {
-            $discount = Discount::findOrFail($id);
+            $seller = Auth::user()->seller;
+            $discount = Discount::where('seller_id', $seller->id)->findOrFail($id);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -169,11 +189,12 @@ class DiscountController extends Controller
         }
     }
 
-    // Delete a discount
+    // Delete a discount for seller
     public function destroy($id)
     {
         try {
-            $discount = Discount::findOrFail($id);
+            $seller = Auth::user()->seller;
+            $discount = Discount::where('seller_id', $seller->id)->findOrFail($id);
             $discount->delete();
             return response()->json([
                 'success' => true,
@@ -187,11 +208,11 @@ class DiscountController extends Controller
         }
     }
 
-    // Assign discount to products
+    // Assign discount to products for seller
     public function assignProducts(Request $request, $discountId)
     {
         $validator = Validator::make($request->all(), [
-            'product_ids' => 'required|array',
+            'product_ids' => 'nullable|array',
             'product_ids.*' => 'exists:products,id',
         ]);
         if ($validator->fails()) {
@@ -202,7 +223,8 @@ class DiscountController extends Controller
             ], 422);
         }
         try {
-            $discount = Discount::findOrFail($discountId);
+            $seller = Auth::user()->seller;
+            $discount = Discount::where('seller_id', $seller->id)->findOrFail($discountId);
             $discount->products()->sync($request->product_ids);
             return response()->json([
                 'success' => true,
@@ -216,11 +238,11 @@ class DiscountController extends Controller
         }
     }
 
-    // Assign discount to categories
+    // Assign discount to categories for seller
     public function assignCategories(Request $request, $discountId)
     {
         $validator = Validator::make($request->all(), [
-            'category_ids' => 'required|array',
+            'category_ids' => 'nullable|array',
             'category_ids.*' => 'exists:categories,id',
         ]);
         if ($validator->fails()) {
@@ -231,7 +253,8 @@ class DiscountController extends Controller
             ], 422);
         }
         try {
-            $discount = Discount::findOrFail($discountId);
+            $seller = Auth::user()->seller;
+            $discount = Discount::where('seller_id', $seller->id)->findOrFail($discountId);
             $discount->categories()->sync($request->category_ids);
             return response()->json([
                 'success' => true,
@@ -245,7 +268,7 @@ class DiscountController extends Controller
         }
     }
 
-    // Assign discount to users
+    // Assign discount to users for seller
     public function assignUsers(Request $request, $discountId)
     {
         $validator = Validator::make($request->all(), [
@@ -260,7 +283,8 @@ class DiscountController extends Controller
             ], 422);
         }
         try {
-            $discount = Discount::findOrFail($discountId);
+            $seller = Auth::user()->seller;
+            $discount = Discount::where('seller_id', $seller->id)->findOrFail($discountId);
             $discount->users()->sync($request->user_ids);
             return response()->json([
                 'success' => true,
@@ -274,7 +298,7 @@ class DiscountController extends Controller
         }
     }
 
-    // Create a flash sale
+    // Create a flash sale for seller
     public function storeFlashSale(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -317,6 +341,11 @@ class DiscountController extends Controller
         }
 
         try {
+            $seller = Auth::user()->seller;
+            // Kiểm tra discount_id có thuộc seller không
+            $discount = Discount::where('id', $request->discount_id)
+                ->where('seller_id', $seller->id)
+                ->firstOrFail();
             $flashSale = FlashSale::create($request->all());
             return response()->json([
                 'success' => true,
@@ -331,11 +360,16 @@ class DiscountController extends Controller
         }
     }
 
-    // List all flash sales
+    // List all flash sales for seller
     public function indexFlashSales()
     {
         try {
-            $flashSales = FlashSale::with(['product', 'discount'])->get();
+            $seller = Auth::user()->seller;
+            $flashSales = FlashSale::with(['product', 'discount'])
+                ->whereHas('discount', function($q) use ($seller) {
+                    $q->where('seller_id', $seller->id);
+                })
+                ->get();
             return response()->json([
                 'success' => true,
                 'message' => 'Lấy danh sách flash sale thành công',
@@ -349,11 +383,17 @@ class DiscountController extends Controller
         }
     }
 
-    // Show a specific flash sale
+    // Show a specific flash sale for seller
     public function showFlashSale($id)
     {
         try {
-            $flashSale = FlashSale::with(['product', 'discount'])->findOrFail($id);
+            $seller = Auth::user()->seller;
+            $flashSale = FlashSale::with(['product', 'discount'])
+                ->where('id', $id)
+                ->whereHas('discount', function($q) use ($seller) {
+                    $q->where('seller_id', $seller->id);
+                })
+                ->firstOrFail();
             return response()->json([
                 'success' => true,
                 'message' => 'Lấy thông tin flash sale thành công',
@@ -367,11 +407,16 @@ class DiscountController extends Controller
         }
     }
 
-    // Update a flash sale
+    // Update a flash sale for seller
     public function updateFlashSale(Request $request, $id)
     {
         try {
-            $flashSale = FlashSale::findOrFail($id);
+            $seller = Auth::user()->seller;
+            $flashSale = FlashSale::where('id', $id)
+                ->whereHas('discount', function($q) use ($seller) {
+                    $q->where('seller_id', $seller->id);
+                })
+                ->firstOrFail();
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -425,11 +470,16 @@ class DiscountController extends Controller
         }
     }
 
-    // Delete a flash sale
+    // Delete a flash sale for seller
     public function destroyFlashSale($id)
     {
         try {
-            $flashSale = FlashSale::findOrFail($id);
+            $seller = Auth::user()->seller;
+            $flashSale = FlashSale::where('id', $id)
+                ->whereHas('discount', function($q) use ($seller) {
+                    $q->where('seller_id', $seller->id);
+                })
+                ->firstOrFail();
             $flashSale->delete();
             return response()->json([
                 'success' => true,
@@ -442,130 +492,6 @@ class DiscountController extends Controller
             ], 500);
         }
     }
-    public function saveVoucherByCode(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'code' => 'required|string|exists:discounts,code',
-        ]);
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Mã voucher không hợp lệ',
-                'errors' => $validator->errors()
-            ], 422);
-        }
 
-        $user = Auth::user();
-        if (!$user) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Bạn cần đăng nhập để lưu voucher'
-            ], 401);
-        }
-
-        $discount = Discount::where('code', $request->code)
-            ->where('status', 'active')
-            ->where('end_date', '>', now())
-            ->first();
-
-        if (!$discount) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Mã voucher không còn hiệu lực hoặc đã hết hạn'
-            ], 404);
-        }
-
-        // Kiểm tra đã lưu chưa
-        $exists = DiscountUser::where('user_id', $user->id)
-            ->where('discount_id', $discount->id)
-            ->exists();
-
-        if ($exists) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Bạn đã lưu mã voucher này rồi'
-            ], 409);
-        }
-
-        // Lưu vào bảng trung gian
-        DiscountUser::create([
-            'user_id' => $user->id,
-            'discount_id' => $discount->id,
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Lưu voucher thành công',
-            'data' => $discount
-        ], 201);
-    }
-
-    public function myVouchers(Request $request)
-    {
-        $user = Auth::user();
-        if (!$user) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Bạn cần đăng nhập'
-            ], 401);
-        }
-        $vouchers = $user->discounts()->get();
-        \Log::info('User ID: ' . $user->id);
-        \Log::info('Vouchers: ' . $vouchers->toJson());
-        return response()->json([
-            'success' => true,
-            'data' => $vouchers
-        ]);
-    }
-
-    public function deleteUserVoucher($id)
-    {
-        $user = Auth::user();
-        if (!$user) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Bạn cần đăng nhập'
-            ], 401);
-        }
-        $deleted = \App\Models\DiscountUser::where('user_id', $user->id)
-            ->where('discount_id', $id)
-            ->delete();
-        if ($deleted) {
-            return response()->json([
-                'success' => true,
-                'message' => 'Xoá mã giảm giá thành công'
-            ]);
-        } else {
-            return response()->json([
-                'success' => false,
-                'message' => 'Không tìm thấy mã giảm giá để xoá'
-            ], 404);
-        }
-    }
-
-    // Public: Lấy tất cả voucher đang hoạt động cho user (chỉ của admin)
-    public function indexPublic()
-    {
-        $discounts = \App\Models\Discount::where('status', 'active')
-            ->where('end_date', '>', now())
-            ->whereNull('seller_id') // Chỉ lấy discount của admin
-            ->get();
-        return response()->json([
-            'success' => true,
-            'data' => $discounts
-        ]);
-    }
-
-    // Public: Lấy discount của seller theo seller_id
-    public function getSellerDiscounts($sellerId)
-    {
-        $discounts = \App\Models\Discount::where('status', 'active')
-            ->where('end_date', '>', now())
-            ->where('seller_id', $sellerId)
-            ->get();
-        return response()->json([
-            'success' => true,
-            'data' => $discounts
-        ]);
-    }
-}
+    // Các hàm saveVoucherByCode, myVouchers, deleteUserVoucher, indexPublic giữ nguyên như DiscountController nếu seller cần dùng
+} 

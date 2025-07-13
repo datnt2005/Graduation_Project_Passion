@@ -382,9 +382,42 @@ export function useCart() {
       return;
     }
 
+    // Nếu không có orderItems, xóa toàn bộ giỏ hàng
     if (!Array.isArray(orderItems) || orderItems.length === 0) {
-      toast('error', 'Không có sản phẩm nào để xóa');
-      return;
+      try {
+        // Lấy tất cả items trong giỏ hàng hiện tại
+        const allItems = cart.value.stores.flatMap(store => store.items || []);
+        const allItemIds = allItems.map(item => item.id).filter(id => !!id);
+
+        if (allItemIds.length === 0) {
+          // Giỏ hàng đã trống
+          cartStore.setCart({ stores: [], total: '0' });
+          selectedItems.value.clear();
+          updateSelections();
+          return;
+        }
+
+        // Xóa từng item
+        for (const id of allItemIds) {
+          const res = await fetch(`${apiBaseUrl}/cart/items/${id}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${token}` },
+          });
+
+          if (!res.ok) {
+            console.warn(`Không thể xóa item ${id}`);
+          }
+        }
+
+        // Cập nhật giỏ hàng sau khi xóa
+        cartStore.setCart({ stores: [], total: '0' });
+        selectedItems.value.clear();
+        updateSelections();
+        return;
+      } catch (err) {
+        toast('error', 'Không thể xóa giỏ hàng: ' + err.message);
+        return;
+      }
     }
 
     const itemIds = orderItems.map(i => i.id).filter(id => !!id);
@@ -411,6 +444,48 @@ export function useCart() {
     } catch (err) {
       toast('error', 'Không thể xóa giỏ hàng: ' + err.message);
       await fetchCart();
+    }
+  };
+
+  const clearAllCart = async () => {
+    const token = localStorage.getItem('access_token');
+
+    if (!token) {
+      console.warn('Không có token để xóa giỏ hàng');
+      return;
+    }
+
+    try {
+      // Lấy tất cả items trong giỏ hàng hiện tại
+      const allItems = cart.value.stores.flatMap(store => store.items || []);
+      const allItemIds = allItems.map(item => item.id).filter(id => !!id);
+
+      if (allItemIds.length === 0) {
+        // Giỏ hàng đã trống
+        cartStore.setCart({ stores: [], total: '0' });
+        selectedItems.value.clear();
+        updateSelections();
+        return;
+      }
+
+      // Xóa từng item
+      for (const id of allItemIds) {
+        const res = await fetch(`${apiBaseUrl}/cart/items/${id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!res.ok) {
+          console.warn(`Không thể xóa item ${id}`);
+        }
+      }
+
+      // Cập nhật giỏ hàng sau khi xóa
+      cartStore.setCart({ stores: [], total: '0' });
+      selectedItems.value.clear();
+      updateSelections();
+    } catch (err) {
+      console.error('Không thể xóa giỏ hàng:', err.message);
     }
   };
 
@@ -558,6 +633,7 @@ export function useCart() {
     updateQuantityWithValidation,
     removeItem,
     clearCart,
+    clearAllCart,
     addItem,
     parsePrice,
     formatPrice,

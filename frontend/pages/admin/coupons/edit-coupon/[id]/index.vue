@@ -1,5 +1,6 @@
 <template>
   <div class="flex min-h-screen bg-gray-100">
+    <!-- XÓA overlay loading toàn trang -->
     <!-- Sidebar -->
     <nav class="w-64 bg-white border-r border-gray-200">
       <ul class="py-2">
@@ -714,13 +715,13 @@ const updateCoupon = async () => {
     loading.value = true;
 
     // Step 1: Update basic discount information
-    const response = await secureFetch(`${apiBase}/discounts/${route.params.id},{},['admin']`, {
+    const response = await secureFetch(`${apiBase}/discounts/${route.params.id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(formData)
-    });
+    }, ['admin']);
 
     const data = await response.json();
 
@@ -736,21 +737,21 @@ const updateCoupon = async () => {
     }
 
     // Step 2: Assign products, categories, and users (có thể là mảng rỗng)
-    await fetch(`${apiBase}/discounts/${route.params.id}/products`, {
+    await secureFetch(`${apiBase}/discounts/${route.params.id}/products`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ product_ids: selectedProducts.value.map(p => p.id) })
-    });
-    await fetch(`${apiBase}/discounts/${route.params.id}/categories`, {
+    }, ['admin']);
+    await secureFetch(`${apiBase}/discounts/${route.params.id}/categories`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ category_ids: selectedCategories.value.map(c => c.id) })
-    });
-    await fetch(`${apiBase}/discounts/${route.params.id}/users`, {
+    }, ['admin']);
+    await secureFetch(`${apiBase}/discounts/${route.params.id}/users`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ user_ids: selectedUsers.value.map(u => u.id) })
-    });
+    }, ['admin']);
 
     showSuccessNotification('Cập nhật mã giảm giá thành công!');
     setTimeout(() => {
