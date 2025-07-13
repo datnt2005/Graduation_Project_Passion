@@ -16,6 +16,7 @@ Route::prefix('products')->group(function () {
     Route::put('/{id}', [ProductController::class, 'update'])->middleware('auth:sanctum');
     Route::delete('/{id}', [ProductController::class, 'destroy']);
     Route::get('/slug/{slug}', [ProductController::class, 'showBySlug']);
+    Route::get('/sellers/{id}', [ProductController::class, 'getProductsBySellerId']);
     Route::post('/change-status/{id}', [ProductController::class, 'changeStatus'])->middleware('auth:sanctum');
     Route::get('/category/{slug}', [ProductController::class, 'getProductBySlugCategory']);
     Route::get('/search/{slug?}', [ProductController::class, 'getProducts']);

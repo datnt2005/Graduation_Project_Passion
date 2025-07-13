@@ -1402,4 +1402,35 @@ class ProductController extends Controller
             ], 500);
         }
     }
+
+    public function getProductsBySellerId($id)
+    {
+        try {
+            $seller = Seller::findOrFail($id);
+            $products = Product::with([
+                'categories',
+                'productVariants.inventories',
+                'productVariants.attributes',
+                'productPic',
+                'tags'
+            ])
+                ->where('seller_id', $seller->id)
+                ->where('status', 'active')
+                ->where('admin_status', 'approved')
+                ->orderBy('created_at', 'desc')
+                ->paginate(10);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Lấy danh sách sản phẩm của seller thành công.',
+                'data' => $products
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Đã xảy ra lỗi khi lấy danh sách sản phẩm của seller.',
+                'error' => env('APP_DEBUG') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
 }
