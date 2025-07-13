@@ -3,41 +3,33 @@
     <div class="max-w-full overflow-x-auto">
       <!-- Header with Create Button -->
       <div class="bg-white px-4 py-4 flex items-center justify-between border-b border-gray-200">
-        <h1 class="text-xl font-semibold text-gray-800">Quản lý sản phẩm</h1>
-        <button @click="router.push('/seller/products/create-product')"
-          class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-150">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24"
-            stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-          </svg>
-          Thêm sản phẩm
-        </button>
+        <h1 class="text-xl font-semibold text-gray-800">Xét duyệt sản phẩm</h1>
       </div>
 
       <!-- Filter Bar -->
       <div class="bg-gray-200 px-4 py-3 flex flex-wrap items-center gap-3 text-sm text-gray-700">
         <div class="flex items-center gap-2">
-          <button @click="filterStatus = ''; filterTrash = ''; filterAdminStatus = ''; fetchProducts()" :class="[
+          <button @click="filterStatus = ''; filterRejected = ''; fetchProducts()" :class="[
             'text-blue-600 hover:underline',
-            filterStatus === '' && filterTrash === '' && filterAdminStatus === '' ? 'font-semibold' : ''
+            filterStatus === '' && filterRejected === '' ? 'font-semibold' : ''
           ]">
             Tất cả
           </button>
           <span>({{ totalProducts }})</span>
-          <button @click="filterStatus = 'instock'; filterTrash = ''; filterAdminStatus = ''; fetchProducts()" :class="[
+          <button @click="filterStatus = 'instock'; filterRejected = ''; fetchProducts()" :class="[
             'text-blue-600 hover:underline',
-            filterStatus === 'instock' && filterTrash === '' ? 'font-semibold' : ''
+            filterStatus === 'instock' && filterRejected === '' ? 'font-semibold' : ''
           ]">
             Còn hàng
           </button>
           <span>({{ inStockProducts }})</span>
-          <button @click="filterTrash = 'trash'; filterStatus = ''; filterAdminStatus = ''; fetchProducts()" :class="[
+          <button @click="filterRejected = 'rejected'; filterStatus = ''; fetchProducts()" :class="[
             'text-blue-600 hover:underline',
-            filterTrash === 'trash' ? 'font-semibold' : ''
+            filterRejected === 'rejected' ? 'font-semibold' : ''
           ]">
-            Thùng rác
+            Đã từ chối
           </button>
-          <span>({{ trashProducts }})</span>
+          <span>({{ rejectedProducts }})</span>
         </div>
         <div class="flex flex-wrap gap-2 items-center">
           <!-- Sort by Date -->
@@ -54,6 +46,14 @@
               {{ category.name }}
             </option>
           </select>
+          <!-- Brand Filter -->
+          <select v-model="filterBrand"
+            class="rounded-md border border-gray-300 py-1.5 pl-3 pr-8 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+            <option value="">Tất cả cửa hàng</option>
+            <option v-for="brand in brands" :key="brand.id" :value="brand.id">
+              {{ brand.store_name }}
+            </option>
+          </select>
           <!-- Tag Filter -->
           <select v-model="filterTag"
             class="rounded-md border border-gray-300 py-1.5 pl-3 pr-8 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
@@ -61,14 +61,6 @@
             <option v-for="tag in tags" :key="tag.id" :value="tag.id">
               {{ tag.name }}
             </option>
-          </select>
-          <!-- Admin Status Filter -->
-          <select v-model="filterAdminStatus"
-            class="rounded-md border border-gray-300 py-1.5 pl-3 pr-8 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
-            <option value="">Tất cả trạng thái duyệt</option>
-            <option value="approved">Đã duyệt</option>
-            <option value="pending">Chờ duyệt</option>
-            <option value="rejected">Từ chối</option>
           </select>
         </div>
         <div class="ml-auto flex flex-wrap gap-2 items-center">
@@ -85,16 +77,12 @@
       </div>
 
       <!-- Action Bar -->
-      <div
-        class="bg-gray-200 px-4 py-3 flex flex-wrap items-center gap-3 text-sm text-gray-700 border-t border-gray-300">
+      <div class="bg-gray-200 px-4 py-3 flex items-center gap-3 text-sm text-gray-700 border-t border-gray-300">
         <select v-model="selectedAction"
           class="rounded-md border border-gray-300 py-1.5 pl-3 pr-8 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
           <option value="">Hành động hàng loạt</option>
-          <option value="active" v-if="filterTrash !== 'trash'">Kích hoạt</option>
-          <option value="inactive" v-if="filterTrash !== 'trash'">Vô hiệu hóa</option>
-          <option value="trash" v-if="filterTrash !== 'trash'">Thêm vào thùng rác</option>
-          <option value="restore" v-if="filterTrash === 'trash'">Khôi phục</option>
-          <option value="delete" v-if="filterTrash === 'trash'">Xóa</option>
+          <option value="approve">Phê duyệt</option>
+          <option value="reject">Từ chối</option>
         </select>
         <button @click="applyBulkAction" :disabled="!selectedAction || selectedProducts.length === 0 || loading" :class="[
           'px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-150',
@@ -104,12 +92,6 @@
         ]">
           {{ loading ? 'Đang xử lý...' : 'Áp dụng' }}
         </button>
-        <select v-model="filterStatus" v-if="filterTrash !== 'trash'"
-          class="rounded-md border border-gray-300 py-1.5 pl-3 pr-8 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
-          <option value="">Tất cả trạng thái</option>
-          <option value="instock">Còn hàng</option>
-          <option value="outofstock">Hết hàng</option>
-        </select>
         <div class="ml-auto text-sm text-gray-600">
           {{ selectedProducts.length }} sản phẩm được chọn / {{ filteredProducts.length }} sản phẩm
         </div>
@@ -129,9 +111,6 @@
               Tên sản phẩm
             </th>
             <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">
-              Tồn kho
-            </th>
-            <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">
               Danh mục
             </th>
             <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">
@@ -141,13 +120,10 @@
               Ngày tạo
             </th>
             <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">
+              Cửa hàng
+            </th>
+            <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">
               Trạng thái
-            </th>
-            <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">
-              Ghi chú
-            </th>
-            <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">
-              Duyệt
             </th>
             <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">
               Thao tác
@@ -171,11 +147,6 @@
               {{ truncateText(product.name, 30) }}
             </td>
             <td class="border border-gray-300 px-3 py-2 text-left">
-              <span :class="getStockStatus(product) === 'instock' ? 'text-green-600' : 'text-red-600'">
-                {{ getStockStatus(product) === 'instock' ? 'Còn hàng' : 'Hết hàng' }}
-              </span>
-            </td>
-            <td class="border border-gray-300 px-3 py-2 text-left">
               {{product.categories?.length ? product.categories.map(c => c.name).join(', ') : '–'}}
             </td>
             <td class="border border-gray-300 px-3 py-2 text-left">
@@ -185,28 +156,10 @@
               {{ formatDate(product.created_at) }}
             </td>
             <td class="border border-gray-300 px-3 py-2 text-left">
-              <span :class="{
-                'text-green-600': product.status === 'active',
-                'text-red-600': product.status === 'inactive',
-                'text-gray-500': product.status === 'draft',
-              }">
-                {{
-                  product.status === 'active'
-                    ? 'Hoạt động'
-                    : product.status === 'inactive'
-                      ? 'Không hoạt động'
-                      : product.status === 'draft'
-                        ? 'Nháp'
-                : 'Không xác định'
-                }}
-              </span>
-
+              {{ product.seller?.store_name || '–' }}
+              <span v-if="product.is_admin_added === 1" class="text-xs text-gray-500">(Admin thêm sản phẩm)</span>
             </td>
             <td class="border border-gray-300 px-3 py-2 text-left">
-              <span v-if="product.is_admin_added === 1" class="text-xs text-gray-500">Admin thêm sản phẩm</span>
-              <span v-else class="text-xs text-gray-500">-</span>
-            </td>
-             <td class="border border-gray-300 px-3 py-2 text-left">
               <span class="inline-block px-3 py-1 text-xs rounded-full font-medium" :class="{
                 'bg-green-100 text-green-700 font-semibold': product.admin_status === 'approved',
                 'bg-yellow-100 text-yellow-600 font-semibold': product.admin_status === 'pending',
@@ -217,16 +170,8 @@
               </span>
             </td>
             <td class="border border-gray-300 px-3 py-2 text-left">
-              <div class="relative inline-block text-left">
-                <button @click="toggleDropdown(product.id)"
-                  class="inline-flex items-center justify-center w-8 h-8 text-gray-600 hover:text-gray-800 focus:outline-none">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                  </svg>
-                </button>
-              </div>
+              <button @click="openDetail(product)" class="text-blue-600 hover:underline text-sm font-medium">Xem chi
+                tiết</button>
             </td>
           </tr>
         </tbody>
@@ -234,62 +179,6 @@
     </div>
   </div>
   <Pagination :currentPage="currentPage" :lastPage="lastPage" @change="fetchProducts" />
-
-  <!-- Dropdown Portal -->
-  <Teleport to="body">
-    <Transition enter-active-class="transition duration-100 ease-out" enter-from-class="transform scale-95 opacity-0"
-      enter-to-class="transform scale-100 opacity-100" leave-active-class="transition duration-75 ease-in"
-      leave-from-class="transform scale-100 opacity-100" leave-to-class="transform scale-95 opacity-0">
-      <div v-if="activeDropdown !== null" class="fixed inset-0 z-50" @click="closeDropdown">
-        <div v-for="product in products" :key="product.id" v-show="activeDropdown === product.id"
-          class="absolute bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50 origin-top-right"
-          :style="dropdownPosition">
-          <div class="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
-            <button v-if="product.status !== 'trash'" @click="editProduct(product.id)"
-              class="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-150"
-              role="menuitem">
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24"
-                stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
-              Sửa
-            </button>
-            <button v-if="product.status !== 'trash'" @click="moveToTrash(product)"
-              class="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors duration-150"
-              role="menuitem">
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24"
-                stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-              Thêm vào thùng rác
-            </button>
-            <button v-if="product.status === 'trash'" @click="restoreProduct(product)"
-              class="flex items-center w-full px-4 py-2 text-sm text-green-600 hover:bg-green-50 transition-colors duration-150"
-              role="menuitem">
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24"
-                stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              Khôi phục
-            </button>
-            <button v-if="product.status === 'trash'" @click="confirmDelete(product)"
-              class="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors duration-150"
-              role="menuitem">
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24"
-                stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-              Xóa vĩnh viễn
-            </button>
-          </div>
-        </div>
-      </div>
-    </Transition>
-  </Teleport>
 
   <!-- Notification Popup -->
   <Teleport to="body">
@@ -333,9 +222,7 @@
       <div v-if="showConfirmDialog" class="fixed inset-0 z-50 overflow-y-auto">
         <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
           <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="closeConfirmDialog"></div>
-
           <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true"></span>
-
           <div
             class="relative inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
             <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
@@ -377,15 +264,104 @@
       </div>
     </Transition>
   </Teleport>
+
+  <!-- Product Detail Modal -->
+  <div v-if="detailModal"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 backdrop-blur-sm">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-3xl p-6 md:p-8 overflow-y-auto max-h-screen relative">
+      <div class="flex justify-between items-start mb-4 border-b pb-3">
+        <div>
+          <h3 class="text-2xl font-bold text-[#1564ff]">Chi tiết sản phẩm</h3>
+          <p class="text-gray-500 text-sm mt-1">Xem thông tin & duyệt sản phẩm</p>
+        </div>
+        <div class="flex flex-col items-end gap-2">
+          <button @click="editProduct(currentDetail?.id)"
+            class="text-sm font-semibold text-blue-600 hover:underline hover:text-blue-800 transition-colors duration-300">
+            Xem & Chỉnh sửa
+          </button>
+          <button @click="closeDetail"
+            class="text-gray-400 hover:text-black text-xl transition-colors duration-200 -mt-1">✕</button>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+        <div>
+          <img :src="`${mediaBase}` + getProductImage(currentDetail)" alt="Ảnh sản phẩm"
+            class="w-full rounded border object-contain max-h-[240px]" />
+        </div>
+        <div class="flex flex-col gap-2">
+          <div><strong>Tên sản phẩm:</strong> {{ currentDetail?.name }}</div>
+          <div>
+            <strong>Mô tả:</strong>
+            <div
+              class="prose max-w-none text-sm text-gray-700 max-h-[200px] overflow-y-auto border border-gray-200 rounded p-2 bg-gray-50"
+              v-html="currentDetail?.description"></div>
+          </div>
+          <div><strong>Giá:</strong> {{ formatCurrency(currentDetail?.price || getDefaultPrice(currentDetail)) }}</div>
+          <div><strong>Danh mục:</strong> {{currentDetail?.categories?.map(c => c.name).join(', ') || '-'}}</div>
+          <div><strong>Nhà bán:</strong> {{ currentDetail?.seller?.store_name || '-' }}</div>
+          <div><strong>Trạng thái kho:</strong>
+            <span class="inline-block ml-1 px-2 py-0.5 rounded-full text-xs"
+              :class="getStockStatus(currentDetail) === 'instock' ? 'bg-green-100 text-green-700' : 'bg-gray-300 text-gray-700'">
+              {{ getStockStatus(currentDetail) === 'instock' ? 'Còn hàng' : 'Hết hàng' }}
+            </span>
+          </div>
+          <div><strong>Ngày tạo:</strong> {{ formatDate(currentDetail?.created_at) }}</div>
+          <div><strong>Trạng thái:</strong>
+             <span class="inline-block px-3 py-1 text-xs rounded-full font-medium" :class="{
+                'bg-green-100 text-green-700 font-semibold': currentDetail.admin_status === 'approved',
+                'bg-yellow-100 text-yellow-600 font-semibold': currentDetail.admin_status === 'pending',
+                'bg-red-100 text-red-600 font-semibold': currentDetail.admin_status === 'rejected',
+                'bg-gray-100 text-gray-500 font-semibold': currentDetail.admin_status === 'trash'
+              }">
+                {{ getStatusLabel(currentDetail.admin_status) }}
+              </span>
+          </div>
+
+        </div>
+      </div>
+      <div v-if="currentDetail?.admin_status === 'pending'" class="mt-6 flex gap-3">
+        <button @click="approveProduct(currentDetail.id)"
+          class="flex-1 py-2 rounded bg-blue-700 hover:bg-blue-900 text-white font-semibold text-sm transition">
+          ✅ Duyệt sản phẩm
+        </button>
+        <button @click="rejectProduct(currentDetail.id)"
+          class="flex-1 py-2 rounded bg-red-500 hover:bg-red-700 text-white font-semibold text-sm transition">
+          ❌ Từ chối
+        </button>
+      </div>
+    </div>
+  </div>
+  <div v-if="reasonModal"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 backdrop-blur-sm">
+    <div class="bg-white w-full max-w-md rounded-xl shadow-xl p-6">
+      <h3 class="text-lg font-semibold mb-3 text-gray-800">
+        {{ pendingAction === 'reject' ? 'Từ chối sản phẩm' : 'Duyệt sản phẩm' }}
+      </h3>
+      <div v-if="pendingAction === 'reject'">
+        <label class="text-sm text-gray-600 mb-1 block">Lý do từ chối</label>
+        <textarea v-model="reasonText" rows="4"
+          class="w-full border rounded p-2 text-sm focus:outline-blue-500 resize-none"
+          placeholder="Nhập lý do từ chối..."></textarea>
+      </div>
+      <p v-else class="text-sm text-gray-700">Bạn chắc chắn muốn <strong>duyệt</strong> sản phẩm này?</p>
+      <div class="flex justify-end mt-5 gap-2">
+        <button @click="reasonModal = false"
+          class="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm">Hủy</button>
+        <button @click="submitApproval" class="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white text-sm">
+          {{ pendingAction === 'reject' ? 'Xác nhận từ chối' : 'Xác nhận duyệt' }}
+        </button>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import Pagination from '~/components/Pagination.vue';
 
 definePageMeta({
-  layout: 'default-seller'
+  layout: 'default-admin'
 });
 
 const router = useRouter();
@@ -395,19 +371,17 @@ const selectAll = ref(false);
 const searchQuery = ref('');
 const selectedAction = ref('');
 const filterStatus = ref('');
-const filterTrash = ref('');
+const filterRejected = ref('');
 const sortBy = ref('newest');
 const filterCategory = ref('');
 const filterBrand = ref('');
 const filterTag = ref('');
-const filterAdminStatus = ref('');
 const categories = ref([]);
+const brands = ref([]);
 const tags = ref([]);
 const totalProducts = ref(0);
 const inStockProducts = ref(0);
-const trashProducts = ref(0);
-const activeDropdown = ref(null);
-const dropdownPosition = ref({ top: '0px', left: '0px', width: '192px' });
+const rejectedProducts = ref(0);
 const loading = ref(false);
 const showNotification = ref(false);
 const notificationMessage = ref('');
@@ -423,79 +397,72 @@ const currentPage = ref(1);
 const lastPage = ref(1);
 const perPage = 10;
 
-const getStatusLabel = (status) => {
-  switch (status) {
-    case 'approved':
-      return 'Đã duyệt';
-    case 'pending':
-      return 'Chờ duyệt';
-    case 'rejected':
-      return 'Từ chối';
-    case 'trash':
-      return 'Đã xóa';
-    default:
-      return 'Không xác định';
-  }
-};
+// For bulk approval/reject
+const pendingProductIds = ref([]);
+const reasonModal = ref(false);
+const reasonText = ref('');
+const pendingAction = ref(null);
+
+// For detail modal
+const detailModal = ref(false);
+const currentDetail = ref(null);
 
 // Fetch product counts (total, instock, trash)
 const fetchProductCounts = async () => {
   try {
-    const token = localStorage.getItem('access_token');
-    // Fetch all products to get total count
-    const productsResponse = await fetch(`${apiBase}/products/sellers`, {
+    const productsResponse = await fetch(`${apiBase}/approvals`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      }
+      headers: { 'Content-Type': 'application/json' }
     });
     const productsData = await productsResponse.json();
     const allProducts = productsData.data?.data || productsData.data || [];
     totalProducts.value = productsData.data?.total || allProducts.length || 0;
     inStockProducts.value = allProducts.filter(p => getStockStatus(p) === 'instock').length;
 
-    // Fetch trashed products to get trash count
-    const trashResponse = await fetch(`${apiBase}/products/sellers/trash`, {
+    // Fetch rejected products
+    const rejectedResponse = await fetch(`${apiBase}/approvals/rejected`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      }
+      headers: { 'Content-Type': 'application/json' }
     });
-    const trashData = await trashResponse.json();
-    const trashProductsList = trashData.data?.data || trashData.data || [];
-    trashProducts.value = trashData.data?.total || trashProductsList.length || 0;
+    const rejectedData = await rejectedResponse.json();
+    const rejectedProductsList = rejectedData.data?.data || rejectedData.data || [];
+    rejectedProducts.value = rejectedData.data?.total || rejectedProductsList.length || 0;
   } catch (error) {
     console.error('Error fetching product counts:', error);
     showNotificationMessage('Có lỗi xảy ra khi tải số lượng sản phẩm', 'error');
   }
 };
 
-// Fetch products from API
+const getStatusLabel = (status) => {
+  switch (status) {
+    case 'approved': return 'Đã duyệt';
+    case 'pending': return 'Chờ duyệt';
+    case 'rejected': return 'Từ chối';
+    case 'trash': return 'Đã xóa';
+    default: return 'Không xác định';
+  }
+};
+
 const fetchProducts = async (page = 1) => {
   try {
     loading.value = true;
     currentPage.value = page;
-    const token = localStorage.getItem('access_token');
-
-    const endpoint = filterTrash.value === 'trash'
-      ? `${apiBase}/products/sellers/trash?page=${page}&per_page=${perPage}`
-      : `${apiBase}/products/sellers?page=${page}&per_page=${perPage}`;
+    const endpoint = filterRejected.value === 'rejected'
+      ? `${apiBase}/approvals/rejected?page=${page}&per_page=${perPage}`
+      : `${apiBase}/approvals?page=${page}&per_page=${perPage}`;
     const response = await fetch(endpoint, {
       method: 'GET',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      }
+      headers: { 'Content-Type': 'application/json' }
     });
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     const data = await response.json();
     products.value = data.data?.data || data.data || data || [];
     lastPage.value = data.data?.last_page || 1;
     currentPage.value = data.data?.current_page || page;
+    selectedProducts.value = []; // Reset selected products
+    selectAll.value = false;
     if (!products.value.length) {
-      showNotificationMessage(filterTrash.value === 'trash' ? 'Không có sản phẩm nào trong thùng rác' : 'Không có sản phẩm nào');
+      showNotificationMessage(filterRejected.value === 'rejected' ? 'Không có sản phẩm nào đã từ chối' : 'Không có sản phẩm nào');
     }
     await fetchProductCounts();
   } catch (error) {
@@ -507,60 +474,56 @@ const fetchProducts = async (page = 1) => {
   }
 };
 
-// Fetch categories
 const fetchCategories = async () => {
   try {
     const response = await fetch(`${apiBase}/categories`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
+      headers: { 'Content-Type': 'application/json' }
     });
     const data = await response.json();
-    categories.value = data.data?.data || data.categories || [];
+    categories.value = data.data.data || data.categories || [];
   } catch (error) {
-    console.error('Error fetching categories:', error);
     showNotificationMessage('Có lỗi xảy ra khi tải danh mục', 'error');
   }
 };
 
-// Fetch tags
+const fetchBrands = async () => {
+  try {
+    const response = await fetch(`${apiBase}/sellers/verified`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await response.json();
+    brands.value = data.data || [];
+  } catch (error) {
+    showNotificationMessage('Có lỗi xảy ra khi tải thương hiệu', 'error');
+  }
+};
+
 const fetchTags = async () => {
   try {
     const response = await fetch(`${apiBase}/tags`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
+      headers: { 'Content-Type': 'application/json' }
     });
     const data = await response.json();
-    tags.value = data.data?.tags || [];
+    tags.value = data.data.tags || [];
   } catch (error) {
-    console.error('Error fetching tags:', error);
     showNotificationMessage('Có lỗi xảy ra khi tải thẻ', 'error');
   }
 };
 
-// Get product image
 const getProductImage = (product) => {
-  if (product.product_pic?.[0]?.imagePath) {
-    return product.product_pic[0].imagePath;
-  }
-  if (product.product_variants?.[0]?.thumbnail) {
-    return product.product_variants[0].thumbnail;
-  }
+  if (product.product_pic?.[0]?.imagePath) return product.product_pic[0].imagePath;
+  if (product.product_variants?.[0]?.thumbnail) return product.product_variants[0].thumbnail;
   return null;
 };
 
-// Get stock status
 const getStockStatus = (product) => {
-  const totalQuantity = product.product_variants?.reduce((sum, variant) => {
-    return sum + (variant.quantity || 0);
-  }, 0) || 0;
+  const totalQuantity = product.product_variants?.reduce((sum, variant) => sum + (variant.quantity || 0), 0) || 0;
   return totalQuantity > 0 ? 'instock' : 'outofstock';
 };
 
-// Toggle select all
 const toggleSelectAll = () => {
   if (selectAll.value) {
     selectedProducts.value = filteredProducts.value.map(p => p.id);
@@ -581,184 +544,31 @@ const applyBulkAction = async () => {
     return;
   }
 
-  if (selectedAction.value === 'delete') {
+  const validIds = selectedProducts.value.filter(id => !!id);
+  if (!validIds.length) {
+    showNotificationMessage('Sản phẩm chọn không hợp lệ.', 'error');
+    return;
+  }
+
+  pendingProductIds.value = validIds;
+  pendingAction.value = selectedAction.value;
+
+  if (selectedAction.value === 'reject') {
+    reasonText.value = '';
+    reasonModal.value = true;
+  } else {
     showConfirmationDialog(
-      'Xác nhận xóa vĩnh viễn',
-      `Bạn có chắc chắn muốn xóa vĩnh viễn ${selectedProducts.value.length} sản phẩm đã chọn?`,
-      async () => {
-        try {
-          loading.value = true;
-          const token = localStorage.getItem('access_token');
-          const deletePromises = selectedProducts.value.map(id =>
-            fetch(`${apiBase}/products/${id}`, {
-              method: 'DELETE',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-              }
-            })
-          );
-
-          const responses = await Promise.all(deletePromises);
-          const failed = responses.some(res => !res.ok);
-          if (failed) {
-            showNotificationMessage('Có lỗi xảy ra khi xóa một số sản phẩm', 'error');
-          } else {
-            showNotificationMessage('Xóa vĩnh viễn các sản phẩm thành công!', 'success');
-          }
-          selectedProducts.value = [];
-          selectAll.value = false;
-          selectedAction.value = '';
-          await fetchProducts();
-        } catch (error) {
-          console.error('Error deleting products:', error);
-          showNotificationMessage('Có lỗi xảy ra khi xóa sản phẩm', 'error');
-        } finally {
-          loading.value = false;
-        }
-      }
+      'Xác nhận duyệt sản phẩm',
+      `Bạn có chắc chắn muốn duyệt ${validIds.length} sản phẩm đã chọn?`,
+      submitBulkApproval
     );
-  } else if (['active', 'inactive', 'trash', 'restore'].includes(selectedAction.value)) {
-    try {
-      loading.value = true;
-      const status = selectedAction.value ===住院
-      const token = localStorage.getItem('access_token');
-      const updatePromises = selectedProducts.value.map(id =>
-        fetch(`${apiBase}/products/change-status/${id}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ status })
-        })
-      );
-
-      const responses = await Promise.all(updatePromises);
-      const failed = responses.some(res => !res.ok);
-      if (failed) {
-        showNotificationMessage('Có lỗi xảy ra khi cập nhật trạng thái một số sản phẩm', 'error');
-      } else {
-        showNotificationMessage(
-          selectedAction.value === 'trash' ? 'Đã chuyển các sản phẩm vào thùng rác!' :
-            selectedAction.value === 'restore' ? 'Khôi phục các sản phẩm thành công!' :
-              'Cập nhật trạng thái thành công!', 'success'
-        );
-      }
-      selectedProducts.value = [];
-      selectAll.value = false;
-      selectedAction.value = '';
-      await fetchProducts();
-    } catch (error) {
-      console.error('Error updating status:', error);
-      showNotificationMessage('Có lỗi xảy ra khi cập nhật trạng thái', 'error');
-    } finally {
-      loading.value = false;
-    }
   }
 };
 
-// Edit product
 const editProduct = (id) => {
-  router.push(`/seller/products/edit-product/${id}`);
+  router.push(`/admin/products/edit-product/${id}`);
 };
 
-// Move to trash
-const moveToTrash = async (product) => {
-  const token = localStorage.getItem('access_token');
-  showConfirmationDialog(
-    'Xác nhận chuyển vào thùng rác',
-    `Bạn có chắc chắn muốn chuyển sản phẩm "${product.name}" vào thùng rác?`,
-    async () => {
-      try {
-        const response = await fetch(`${apiBase}/products/change-status/${product.id}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ status: 'trash' })
-        });
-
-        if (response.ok) {
-          showNotificationMessage('Đã chuyển sản phẩm vào thùng rác!', 'success');
-          await fetchProducts();
-        } else {
-          const data = await response.json();
-          showNotificationMessage(data.message || 'Có lỗi xảy ra khi chuyển vào thùng rác', 'error');
-        }
-      } catch (error) {
-        console.error('Error moving to trash:', error);
-        showNotificationMessage('Có lỗi xảy ra khi chuyển vào thùng rác', 'error');
-      }
-    }
-  );
-};
-
-// Restore product
-const restoreProduct = async (product) => {
-  const token = localStorage.getItem('access_token');
-  showConfirmationDialog(
-    'Xác nhận khôi phục',
-    `Bạn có chắc chắn muốn khôi phục sản phẩm "${product.name}"?`,
-    async () => {
-      try {
-        const response = await fetch(`${apiBase}/products/change-status/${product.id}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ status: 'active' })
-        });
-
-        if (response.ok) {
-          showNotificationMessage('Khôi phục sản phẩm thành công!', 'success');
-          await fetchProducts();
-        } else {
-          const data = await response.json();
-          showNotificationMessage(data.message || 'Có lỗi xảy ra khi khôi phục sản phẩm', 'error');
-        }
-      } catch (error) {
-        console.error('Error restoring product:', error);
-        showNotificationMessage('Có lỗi xảy ra khi khôi phục sản phẩm', 'error');
-      }
-    }
-  );
-};
-
-// Delete product
-const confirmDelete = async (product) => {
-  showConfirmationDialog(
-    'Xác nhận xóa vĩnh viễn',
-    `Bạn có chắc chắn muốn xóa vĩnh viễn sản phẩm "${product.name}" không?`,
-    async () => {
-      try {
-        const token = localStorage.getItem('access_token');
-        const response = await fetch(`${apiBase}/products/${product.id}`, {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (response.ok) {
-          showNotificationMessage('Xóa vĩnh viễn sản phẩm thành công!', 'success');
-          await fetchProducts();
-        } else {
-          const data = await response.json();
-          showNotificationMessage(data.message || 'Có lỗi xảy ra khi xóa sản phẩm', 'error');
-        }
-      } catch (error) {
-        console.error('Error deleting product:', error);
-        showNotificationMessage('Có lỗi xảy ra khi xóa sản phẩm', 'error');
-      }
-    }
-  );
-};
-
-// Format date
 const formatDate = (date) => {
   if (!date) return '–';
   return new Date(date).toLocaleDateString('vi-VN', {
@@ -768,76 +578,41 @@ const formatDate = (date) => {
   });
 };
 
-// Toggle dropdown
-const toggleDropdown = (id) => {
-  if (activeDropdown.value === id) {
-    activeDropdown.value = null;
-  } else {
-    activeDropdown.value = id;
-    nextTick(() => {
-      const button = event.target.closest('button');
-      if (button) {
-        const rect = button.getBoundingClientRect();
-        dropdownPosition.value = {
-          top: `${rect.bottom + window.scrollY + 8}px`,
-          left: `${rect.right + window.scrollX - 192}px`,
-          width: '192px'
-        };
-      }
-    });
-  }
-};
 
-// Close dropdown
 const closeDropdown = (event) => {
-  if (!event.target.closest('.relative') && !event.target.closest('.absolute')) {
-    activeDropdown.value = null;
-  }
+  const dropdowns = document.querySelectorAll('.dropdown-menu');
+  dropdowns.forEach(dropdown => {
+    if (!dropdown.contains(event.target)) {
+      dropdown.classList.add('hidden');
+    }
+  });
 };
 
-// Filtered products
 const filteredProducts = computed(() => {
   let result = [...products.value];
-
-  // Filter by trash status
-  if (filterTrash.value === 'trash') {
-    result = result.filter(product => product.status === 'trash');
+  if (filterRejected.value === 'rejected') {
+    result = result.filter(product => product.admin_status === 'rejected');
   } else {
-    result = result.filter(product => product.status !== 'trash');
+    result = result.filter(product => product.admin_status !== 'rejected');
   }
-
-  // Filter by stock status (only when not in trash view)
-  if (filterStatus.value && filterTrash.value !== 'trash') {
+  if (filterStatus.value && filterRejected.value !== 'rejected') {
     result = result.filter(product => getStockStatus(product) === filterStatus.value);
   }
-
-  // Filter by admin status
-  if (filterAdminStatus.value) {
-    result = result.filter(product => product.admin_status === filterAdminStatus.value);
-  }
-
-  // Filter by category
   if (filterCategory.value) {
     result = result.filter(product =>
       product.categories?.some(category => category.id === filterCategory.value)
     );
   }
-
-  // Filter by brand
   if (filterBrand.value) {
     result = result.filter(product =>
       product.seller?.id === filterBrand.value
     );
   }
-
-  // Filter by tag
   if (filterTag.value) {
     result = result.filter(product =>
       product.tags?.some(tag => tag.id === filterTag.value)
     );
   }
-
-  // Search by name, slug, or description
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase();
     result = result.filter(product =>
@@ -846,18 +621,14 @@ const filteredProducts = computed(() => {
       (product.description && product.description.toLowerCase().includes(query))
     );
   }
-
-  // Sort by date
   if (sortBy.value === 'newest') {
     result.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
   } else if (sortBy.value === 'oldest') {
     result.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
   }
-
   return result;
 });
 
-// Show notification
 const showNotificationMessage = (message, type = 'success') => {
   notificationMessage.value = message;
   notificationType.value = type;
@@ -867,13 +638,11 @@ const showNotificationMessage = (message, type = 'success') => {
   }, 3000);
 };
 
-// Close confirm dialog
 const closeConfirmDialog = () => {
   showConfirmDialog.value = false;
   confirmAction.value = null;
 };
 
-// Handle confirm action
 const handleConfirmAction = async () => {
   if (confirmAction.value) {
     await confirmAction.value();
@@ -881,7 +650,6 @@ const handleConfirmAction = async () => {
   closeConfirmDialog();
 };
 
-// Show confirmation dialog
 const showConfirmationDialog = (title, message, action) => {
   confirmDialogTitle.value = title;
   confirmDialogMessage.value = message;
@@ -889,10 +657,98 @@ const showConfirmationDialog = (title, message, action) => {
   showConfirmDialog.value = true;
 };
 
-// Lifecycle hooks
+const openDetail = (product) => {
+  currentDetail.value = product;
+  detailModal.value = true;
+};
+
+const closeDetail = () => {
+  detailModal.value = false;
+  currentDetail.value = null;
+};
+
+const approveProduct = (id) => {
+  pendingAction.value = 'approve';
+  pendingProductIds.value = [id];
+  reasonText.value = '';
+  reasonModal.value = true;
+};
+
+const rejectProduct = (id) => {
+  pendingAction.value = 'reject';
+  pendingProductIds.value = [id];
+  reasonText.value = '';
+  reasonModal.value = true;
+};
+
+const submitBulkApproval = async () => {
+  if (pendingAction.value === 'reject' && !reasonText.value.trim()) {
+    showNotificationMessage('Vui lòng nhập lý do từ chối.', 'error');
+    return;
+  }
+  try {
+    loading.value = true;
+    const token = localStorage.getItem('access_token');
+    const updatePromises = pendingProductIds.value.map(id =>
+      fetch(`${apiBase}/approvals/${id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          admin_status: pendingAction.value === 'approve' ? 'approved' : 'rejected',
+          reason: reasonText.value
+        })
+      })
+    );
+    const responses = await Promise.all(updatePromises);
+    const failed = responses.some(res => !res.ok);
+    if (failed) {
+      showNotificationMessage('Có lỗi xảy ra khi cập nhật trạng thái một số sản phẩm', 'error');
+    } else {
+      showNotificationMessage(
+        pendingAction.value === 'approve'
+          ? 'Duyệt các sản phẩm thành công!'
+          : 'Từ chối các sản phẩm thành công!',
+        'success'
+      );
+    }
+    selectedProducts.value = [];
+    selectAll.value = false;
+    selectedAction.value = '';
+    reasonModal.value = false;
+    await fetchProducts();
+  } catch (error) {
+    showNotificationMessage('Lỗi khi xử lý hành động hàng loạt', 'error');
+  } finally {
+    loading.value = false;
+  }
+};
+
+const submitApproval = async () => {
+  if (!pendingProductIds.value.length && currentDetail.value?.id) {
+    pendingProductIds.value = [currentDetail.value.id];
+  }
+
+  await submitBulkApproval();
+  reasonModal.value = false;
+  detailModal.value = false;
+};
+
+const formatCurrency = (value) => {
+  if (!value) return '–';
+  return Number(value).toLocaleString('vi-VN', { style: 'currency', currency: 'VND', minimumFractionDigits: 0 });
+};
+
+const getDefaultPrice = (product) => {
+  return product?.product_variants?.[0]?.price || 0;
+};
+
 onMounted(() => {
   fetchProducts();
   fetchCategories();
+  fetchBrands();
   fetchTags();
   document.addEventListener('click', closeDropdown);
 });

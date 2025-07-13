@@ -150,7 +150,8 @@ public function showStore($slug)
 
             // Get paginated products
             $productsQuery = $seller->products();
-            $productsQuery->where('status', 'active');
+            $productsQuery->where('status', 'active')
+                ->where('admin_status', 'approved');
             if ($search) {
                 $productsQuery->where('name', 'like', '%' . $search . '%');
             }
