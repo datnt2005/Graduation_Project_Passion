@@ -171,69 +171,35 @@
             </div>
 
             <!-- Refund Information -->
-<div v-if="['failed', 'cancelled', 'returned'].includes(order.status) && !order.refund"
-     class="bg-white rounded-lg shadow-sm border border-gray-200 mb-8">
-  <h3 class="text-xl font-bold text-gray-800 p-6 border-b border-gray-200 bg-gray-50">Xử lý hoàn tiền</h3>
-  <div class="p-6 text-sm text-gray-700">
-    <p class="mb-4"><strong>Lý do hiện tại:</strong> {{ order.note || 'Chưa có ghi chú' }}</p>
-    <!-- Thông báo lỗi nếu không có dữ liệu hoàn tiền -->
-    <div v-if="order.status === 'refunded' && !order.refund"
-         class="mt-4 bg-yellow-50 p-4 rounded-md border border-yellow-200 text-yellow-700">
-      <p><strong>Cảnh báo:</strong> Đơn hàng ở trạng thái đã hoàn tiền, nhưng không tìm thấy thông tin yêu cầu hoàn tiền. Vui lòng liên hệ hỗ trợ!</p>
-    </div>
-    <!-- Hiển thị thông tin hoàn tiền nếu có -->
-    <div v-if="order.refund" class="mt-4 bg-gray-50 p-4 rounded-md border border-gray-200">
-      <h4 class="text-lg font-semibold text-gray-800 mb-3">Thông tin yêu cầu hoàn tiền</h4>
-      <div class="space-y-3">
-        <p><strong>Mã hoàn tiền:</strong> {{ order.refund?.id || '-' }}</p>
-        <p><strong>Số tiền hoàn:</strong> {{ formatPrice((order.refund?.amount || order.final_price) * 1000) }}</p>
-        <p><strong>Trạng thái:</strong>
-          <span :class="refundStatusClass(order.refund?.status || 'approved')"
-                class="px-3 py-1 text-xs rounded-full font-medium whitespace-nowrap">
-            {{ refundStatusText(order.refund?.status || 'approved') }}
-          </span>
-        </p>
-        <p><strong>Lý do:</strong> {{ order.refund?.reason || order.note || 'Không có lý do' }}</p>
-        <p><strong>Thời gian tạo:</strong> {{ formatDate(order.refund?.created_at || order.updated_at) || '-' }}</p>
-      </div>
-    </div>
-    <!-- Hiển thị form nếu chưa có yêu cầu và trạng thái cho phép -->
-    <div v-if="!order.refund" class="mt-4 bg-white p-4 rounded-md border border-gray-200">
-      <h4 class="text-lg font-semibold text-gray-800 mb-3">Gửi yêu cầu hoàn tiền</h4>
-      <div class="space-y-4">
-        <div>
-          <label class="block mb-1 font-medium text-gray-700" for="refund-amount">Số tiền hoàn (VND):</label>
-          <input v-model.number="refundAmount" id="refund-amount" type="number" min="0"
-                 :max="maxRefundAmount"
-                 class="w-full border rounded px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                 placeholder="Nhập số tiền hoàn" aria-label="Nhập số tiền hoàn" aria-required="true">
-          <p v-if="refundAmount > maxRefundAmount" class="text-red-500 text-xs mt-1">
-            Số tiền hoàn không được vượt quá {{ formatPrice(maxRefundAmount) }}!
-          </p>
-          <p v-else class="text-green-500 text-xs mt-1">
-            Số tiền hoàn đã được tự động điền: {{ formatPrice(refundAmount) }}
-          </p>
-        </div>
-        <div>
-          <label class="block mb-1 font-medium text-gray-700" for="refund-reason">Lý do hoàn tiền:</label>
-          <textarea v-model="refundReason" id="refund-reason"
-                    class="w-full border rounded px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Nhập lý do hoàn tiền" rows="4" aria-label="Nhập lý do hoàn tiền"
-                    aria-required="true"></textarea>
-        </div>
-        <button @click="resetRefundAmount"
-                class="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
-                aria-label="Đặt lại số tiền">Đặt lại số tiền</button>
-        <button @click="requestRefund(order)"
-                class="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                :disabled="!refundAmount || !refundReason || refundAmount <= 0 || refundAmount > maxRefundAmount"
-                aria-label="Gửi yêu cầu hoàn tiền">
-          Gửi yêu cầu hoàn tiền
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
+            <div v-if="['failed', 'cancelled', 'returned', 'refunded'].includes(order.status)"
+              class="bg-white rounded-lg shadow-sm border border-gray-200 mb-8">
+              <h3 class="text-xl font-bold text-gray-800 p-6 border-b border-gray-200 bg-gray-50">Xử lý hoàn tiền</h3>
+              <div class="p-6 text-sm text-gray-700">
+                <p class="mb-4"><strong>Lý do hiện tại:</strong> {{ order.note || 'Chưa có ghi chú' }}</p>
+                <!-- Hiển thị thông tin hoàn tiền nếu có -->
+                <div v-if="hasRefund" class="mt-4 bg-gray-50 p-4 rounded-md border border-gray-200">
+                  <h4 class="text-lg font-semibold text-gray-800 mb-3">Thông tin yêu cầu hoàn tiền</h4>
+                  <div class="space-y-3">
+                    <p><strong>Mã hoàn tiền:</strong> {{ order.refund?.id || '-' }}</p>
+                    <p><strong>Số tiền hoàn:</strong> {{ formatPrice((order.refund?.amount || order.final_price) * 1000)
+                      }}</p>
+                    <p><strong>Trạng thái:</strong>
+                      <span :class="refundStatusClass(order.refund?.status || 'approved')"
+                        class="px-3 py-1 text-xs rounded-full font-medium whitespace-nowrap">
+                        {{ refundStatusText(order.refund?.status || 'approved') }}
+                      </span>
+                    </p>
+                    <p><strong>Lý do:</strong> {{ order.refund?.reason || order.note || 'Không có lý do' }}</p>
+                    <p><strong>Thời gian tạo:</strong> {{ formatDate(order.refund?.created_at || order.updated_at) ||
+                      '-' }}</p>
+                  </div>
+                </div>
+                <!-- Thông báo khi không có yêu cầu hoàn tiền -->
+                <div v-else class="mt-4 bg-yellow-50 p-4 rounded-md border border-yellow-200 text-yellow-700">
+                  <p><strong>Thông báo:</strong> Không có yêu cầu hoàn tiền nào cho đơn hàng này.</p>
+                </div>
+              </div>
+            </div>
 
             <!-- Action Buttons -->
             <div class="flex justify-end space-x-4">
@@ -281,8 +247,6 @@ const isLoading = ref(true);
 const config = useRuntimeConfig();
 const apiBase = config.public.apiBaseUrl;
 const mediaBaseUrl = config.public.mediaBaseUrl.endsWith('/') ? config.public.mediaBaseUrl : config.public.mediaBaseUrl + '/';
-const refundAmount = ref(0);
-const refundReason = ref('');
 const hasRefund = ref(false);
 
 // Utility Functions
@@ -381,21 +345,6 @@ const refundStatusClass = (status) => ({
   rejected: 'bg-red-100 text-red-800'
 })[status] || 'bg-green-100 text-green-800';
 
-// Computed
-const maxRefundAmount = computed(() => {
-  if (!order.value) return 0;
-  const finalPrice = Number(order.value.final_price || 0) * 1000;
-  const shippingFee = Number(order.value.shipping?.shipping_fee || 0) * 1000;
-  console.log('Calculating maxRefundAmount:', { finalPrice, shippingFee });
-  return Math.max(finalPrice - shippingFee, 0);
-});
-
-// Reset refund amount to default
-const resetRefundAmount = () => {
-  refundAmount.value = maxRefundAmount.value;
-  toast('info', `Số tiền hoàn đã được đặt lại: ${formatPrice(refundAmount.value)}`);
-};
-
 // API Calls
 const fetchOrder = async () => {
   isLoading.value = true;
@@ -406,6 +355,7 @@ const fetchOrder = async () => {
     }
     if (!token) throw new Error('Chưa đăng nhập');
 
+    // Lấy thông tin đơn hàng
     const { data } = await axios.get(`${apiBase}/orders/${orderId.value}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
@@ -418,25 +368,8 @@ const fetchOrder = async () => {
       subtotal: data.data.order_items.reduce((sum, item) => sum + Number(item.total || 0), 0)
     };
 
-    // Kiểm tra và gán maxRefundAmount
-    const finalPrice = Number(order.value.final_price || 0) * 1000;
-    const shippingFee = Number(order.value.shipping?.shipping_fee || 0) * 1000;
-    if (isNaN(finalPrice) || isNaN(shippingFee)) {
-      console.error('Invalid final_price or shipping_fee:', { finalPrice, shippingFee });
-      toast('error', 'Dữ liệu đơn hàng không hợp lệ, không thể tính số tiền hoàn!');
-      refundAmount.value = 0;
-    } else if (!order.value.refund && ['failed', 'cancelled', 'returned'].includes(order.value.status)) {
-      refundAmount.value = Math.max(finalPrice - shippingFee, 0);
-      if (refundAmount.value > 0) {
-        toast('info', `Số tiền hoàn đã được tự động điền: ${formatPrice(refundAmount.value)}`);
-      } else {
-        toast('error', 'Số tiền hoàn không hợp lệ!');
-      }
-    }
-
     // Kiểm tra yêu cầu hoàn tiền
-    hasRefund.value = !!order.value.refund || data.data.status === 'refunded';
-    if (data.data.status === 'refunded' && !order.value.refund) {
+    if (['failed', 'cancelled', 'returned', 'refunded'].includes(order.value.status)) {
       try {
         const refundRes = await axios.get(`${apiBase}/refunds?order_id=${orderId.value}`, {
           headers: { Authorization: `Bearer ${token}` }
@@ -444,10 +377,18 @@ const fetchOrder = async () => {
         if (refundRes.data.success && Array.isArray(refundRes.data.data) && refundRes.data.data.length > 0) {
           order.value.refund = refundRes.data.data[0];
           hasRefund.value = true;
+        } else {
+          order.value.refund = null;
+          hasRefund.value = false;
         }
       } catch (err) {
         console.error('Error fetching refund:', err);
+        order.value.refund = null;
+        hasRefund.value = false;
       }
+    } else {
+      order.value.refund = null;
+      hasRefund.value = false;
     }
 
     // Fetch address names
@@ -469,6 +410,11 @@ const fetchOrder = async () => {
         ward_name: wards.find(w => w.WardCode == data.data.address.ward_code)?.WardName || '-'
       };
     }
+
+    console.log('Order data:', order.value);
+    console.log('Order status:', order.value?.status);
+    console.log('Has refund:', hasRefund.value);
+    console.log('Refund data:', order.value?.refund);
   } catch (err) {
     console.error('Error fetching order:', err.message, err.response?.status, err.response?.data);
     toast('error', err.response?.data?.message || 'Không thể tải thông tin đơn hàng!');
@@ -480,84 +426,8 @@ const fetchOrder = async () => {
     }
     order.value = null;
     hasRefund.value = false;
-    refundAmount.value = 0;
   } finally {
     isLoading.value = false;
-  }
-};
-
-const requestRefund = async (order) => {
-  if (order.refund || hasRefund.value) {
-    toast('error', 'Đơn hàng này đã có yêu cầu hoàn tiền!');
-    return;
-  }
-
-  if (!refundReason.value) {
-    toast('error', 'Vui lòng nhập lý do hoàn tiền!');
-    return;
-  }
-  if (!refundAmount.value || refundAmount.value <= 0) {
-    toast('error', 'Vui lòng nhập số tiền hoàn hợp lệ!');
-    return;
-  }
-  if (refundAmount.value > maxRefundAmount.value) {
-    toast('error', `Số tiền hoàn không được vượt quá ${formatPrice(maxRefundAmount.value)}!`);
-    return;
-  }
-
-  const result = await Swal.fire({
-    title: 'Xác nhận yêu cầu hoàn tiền',
-    text: `Bạn có chắc chắn muốn yêu cầu hoàn ${formatPrice(refundAmount.value)} cho đơn hàng ${order.shipping?.tracking_code || order.id}?`,
-    icon: 'question',
-    showCancelButton: true,
-    confirmButtonText: 'Gửi yêu cầu',
-    cancelButtonText: 'Hủy',
-    confirmButtonColor: '#f97316',
-    cancelButtonColor: '#6b7280'
-  });
-
-  if (!result.isConfirmed) return;
-
-  try {
-    const token = process.client ? localStorage.getItem('access_token') || useCookie('access_token')?.value : null;
-    if (!token) throw new Error('Chưa đăng nhập');
-
-    const response = await axios.post(`${apiBase}/orders/${order.id}/refund`, {
-      reason: refundReason.value,
-      amount: Number(refundAmount.value) / 1000,
-      status: 'pending'
-    }, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-
-    if (response.data.success) {
-      toast('success', response.data.message || 'Yêu cầu hoàn tiền đã được gửi!');
-      refundAmount.value = 0;
-      refundReason.value = '';
-      order.value.refund = response.data.data; // Cập nhật thông tin refund
-      hasRefund.value = true; // Cập nhật hasRefund
-      await fetchOrder(); // Tải lại đơn hàng để cập nhật trạng thái
-    } else {
-      throw new Error(response.data.message || 'Lỗi khi gửi yêu cầu hoàn tiền');
-    }
-  } catch (error) {
-    console.error('Lỗi khi gửi yêu cầu hoàn tiền:', error.message, error.response?.status, error.response?.data);
-    let message = error.response?.data?.message || error.message;
-    if (message.includes('Đơn hàng này đã có yêu cầu hoàn tiền')) {
-      message = 'Đơn hàng này đã có yêu cầu hoàn tiền đang chờ xử lý!';
-      await fetchOrder();
-    } else if (message.includes('Số tiền hoàn không được vượt quá')) {
-      message = `Số tiền hoàn không được vượt quá ${formatPrice(maxRefundAmount.value)}!`;
-    } else if (error.response?.status === 404) {
-      message = 'Không tìm thấy đơn hàng hoặc dịch vụ hoàn tiền!';
-    } else if (error.response?.status === 403) {
-      message = 'Bạn không có quyền yêu cầu hoàn tiền. Vui lòng đăng nhập lại!';
-      if (process.client) {
-        localStorage.removeItem('access_token');
-      }
-      router.push('/login');
-    }
-    toast('error', message);
   }
 };
 
@@ -679,11 +549,6 @@ onMounted(async () => {
 // Watch hasRefund for debugging
 watch(hasRefund, (newValue) => {
   console.log('hasRefund changed:', newValue);
-});
-
-// Watch refundAmount for debugging
-watch(refundAmount, (newValue) => {
-  console.log('refundAmount changed:', newValue);
 });
 </script>
 

@@ -710,15 +710,24 @@ class OrderController extends Controller
      * Display the specified resource.
      */
     public function show($id)
-{
-  $order = Order::with(['user', 'address', 'shipping', 'orderItems.product', 'orderItems.variant', 'payments', 'refund'])
-    ->where('user_id', Auth::id())
-    ->findOrFail($id);
-  return response()->json([
-    'success' => true,
-    'data' => $this->formatOrderResponse($order)
-  ], 200);
-}
+    {
+        $order = Order::with([
+            'user',
+            'address',
+            'shipping',
+            'orderItems.product',
+            'orderItems.variant',
+            'payments',
+            'refund' // Đảm bảo nạp quan hệ refund
+        ])
+            ->where('user_id', Auth::id())
+            ->findOrFail($id);
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->formatOrderResponse($order)
+        ], 200);
+    }
 
 
     /**
@@ -896,73 +905,123 @@ class OrderController extends Controller
     }
 
     protected function formatOrderResponse($order)
-{
-  return [
-    'id' => $order->id,
-    'status' => $order->status,
-    'note' => $order->note,
-    'created_at' => $order->created_at ? $order->created_at->toISOString() : null,
-    'total_price' => (float)($order->total_price ?? 0),
-    'discount_price' => (float)($order->discount_price ?? 0),
-    'shipping_fee' => isset($order->shipping->shipping_fee) ? (float)$order->shipping->shipping_fee : 0,
-    'final_price' => (float)($order->final_price ?? 0),
-    'user' => $order->user ? [
-      'id' => $order->user->id,
-      'name' => $order->user->name,
-      'email' => $order->user->email
-    ] : null,
-    'address' => $order->address ? [
-      'id' => $order->address->id,
-      'detail' => $order->address->detail,
-      'phone' => $order->address->phone,
-      'province_id' => $order->address->province_id,
-      'district_id' => $order->address->district_id,
-      'ward_code' => $order->address->ward_code
-    ] : null,
-    'shipping' => $order->shipping ? [
-      'id' => $order->shipping->id,
-      'shipping_method_id' => $order->shipping->shipping_method_id,
-      'estimated_delivery' => $order->shipping->estimated_delivery,
-      'shipping_fee' => (float)($order->shipping->shipping_fee ?? 0),
-      'tracking_code' => $order->shipping->tracking_code,
-      'status' => $order->shipping->status
-    ] : null,
-    'order_items' => $order->orderItems->map(function ($item) {
-      return [
-        'product' => [
-          'id' => $item->product->id,
-          'name' => $item->product->name,
-          'thumbnail' => $item->product->thumbnail,
-          'stock' => $item->product->stock
-        ],
-        'variant' => $item->variant ? [
-          'id' => $item->variant->id,
-          'name' => $item->variant->name,
-          'stock' => $item->variant->stock
-        ] : null,
-        'price' => (float)$item->price,
-        'quantity' => $item->quantity,
-        'total' => (float)$item->total
-      ];
-    })->toArray(),
-    'payments' => $order->payments->map(function ($payment) {
-      return [
-        'method' => $payment->method,
-        'amount' => (float)$payment->amount,
-        'status' => $payment->status,
-        'created_at' => $payment->created_at ? $payment->created_at->toISOString() : null
-      ];
-    })->toArray(),
-    'refund' => $order->refund ? [
-      'id' => $order->refund->id,
-      'order_id' => $order->refund->order_id,
-      'amount' => (float)$order->refund->amount,
-      'reason' => $order->refund->reason,
-      'status' => $order->refund->status,
-      'created_at' => $order->refund->created_at ? $order->refund->created_at->toISOString() : null
-    ] : null
-  ];
-}
+    {
+        return [
+            'id' => $order->id,
+            'status' => $order->status,
+            'note' => $order->note,
+            'created_at' => $order->created_at ? $order->created_at->format('d/m/Y H:i') : null,
+            'total_price' => (float)($order->total_price ?? 0),
+            'discount_price' => (float)($order->discount_price ?? 0),
+            'shipping_fee' => isset($order->shipping->shipping_fee) ? (float)$order->shipping->shipping_fee : null,
+            'final_price' => (float)($order->final_price ?? 0),
+            'user' => $order->user ? [
+                'id' => $order->user->id,
+                'name' => $order->user->name,
+                'email' => $order->user->email
+            ] : null,
+            'address' => $order->address ? [
+                'id' => $order->address->id,
+                'name' => $order->address->name,
+                'phone' => $order->address->phone,
+                'detail' => $order->address->detail,
+                'province_id' => $order->address->province_id,
+                'district_id' => $order->address->district_id,
+                'ward_code' => $order->address->ward_code,
+                'province_name' => $order->address->province_name,
+                'district_name' => $order->address->district_name,
+                'ward_name' => $order->address->ward_name
+            ] : null,
+            'shipping' => $order->shipping ? [
+                'id' => $order->shipping->id,
+                'shipping_method_id' => $order->shipping->shipping_method_id,
+                'estimated_delivery' => $order->shipping->estimated_delivery ? $order->shipping->estimated_delivery->toISOString() : null,
+                'shipping_fee' => (float)($order->shipping->shipping_fee ?? 0),
+                'tracking_code' => $order->shipping->tracking_code,
+                'status' => $order->shipping->status
+            ] : null,
+            'order_items' => $order->orderItems->map(function ($item) {
+                return [
+                    'product' => [
+                        'id' => $item->product->id,
+                        'name' => $item->product->name,
+                        'thumbnail' => $item->product->thumbnail,
+                        'slug' => $item->product->slug,
+                        'stock' => $item->product->stock
+                    ],
+                    'variant' => $item->variant ? [
+                        'id' => $item->variant->id,
+                        'name' => $item->variant->name,
+                        'stock' => $item->variant->stock
+                    ] : null,
+                    'price' => (float)$item->price,
+                    'quantity' => $item->quantity,
+                    'total' => (float)$item->total
+                ];
+            })->toArray(),
+            'payments' => $order->payments->map(function ($payment) {
+                return [
+                    'method' => $payment->method,
+                    'amount' => (float)$payment->amount,
+                    'status' => $payment->status,
+                    'created_at' => $payment->created_at ? $payment->created_at->format('d/m/Y H:i') : null
+                ];
+            })->toArray(),
+            'refund' => $order->refund ? [
+                'id' => $order->refund->id,
+                'order_id' => $order->refund->order_id,
+                'amount' => (float)$order->refund->amount,
+                'reason' => $order->refund->reason,
+                'status' => $order->refund->status,
+                'created_at' => $order->refund->created_at ? $order->refund->created_at->format('d/m/Y H:i') : null
+            ] : null
+        ];
+    }
+
+    public function requestRefund(Request $request, $id)
+    {
+        $order = Order::where('user_id', Auth::id())->findOrFail($id);
+
+        if ($order->refund) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Đơn hàng này đã có yêu cầu hoàn tiền'
+            ], 400);
+        }
+
+        if (!in_array($order->status, ['failed', 'cancelled', 'returned'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Đơn hàng không đủ điều kiện để hoàn tiền'
+            ], 400);
+        }
+
+        $request->validate([
+            'reason' => 'required|string|max:255',
+            'amount' => 'required|numeric|min:0|max:' . ($order->final_price - ($order->shipping->shipping_fee ?? 0)),
+            'status' => 'required|in:pending,approved,rejected'
+        ]);
+
+        $refund = Refund::create([
+            'order_id' => $order->id,
+            'amount' => $request->amount,
+            'reason' => $request->reason,
+            'status' => $request->status
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Yêu cầu hoàn tiền đã được gửi',
+            'data' => [
+                'id' => $refund->id,
+                'order_id' => $refund->order_id,
+                'amount' => (float)$refund->amount,
+                'reason' => $refund->reason,
+                'status' => $refund->status,
+                'created_at' => $refund->created_at ? $refund->created_at->format('d/m/Y H:i') : null
+            ]
+        ], 200);
+    }
 
 
     /**

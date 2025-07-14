@@ -366,14 +366,14 @@
                     <div v-for="payment in selectedOrder.payments" :key="payment.created_at"
                       class="px-4 py-3 text-sm text-gray-700 space-y-1">
                       <p>Phương thức: <span class="text-black">{{ payment.method || '-' }}</span></p>
-                      <p>Số tiền: <span class="text-black">{{ formatPrice(payment.amount * 1000) }}</span></p>
+                      <p>Số tiền: <span class="text-black">{{ formatPrice(payment.amount) }}</span></p>
                       <p v-if="payment && payment.status">Trạng thái: <span class="text-black">{{
                           statusText(payment.status) }}</span></p>
                     </div>
                   </div>
                 </div>
                 <!-- Xử lý hoàn tiền -->
-                <div v-if="['failed', 'cancelled', 'returned'].includes(selectedOrder.status) && !selectedOrder.refund"
+                <div v-if="['failed', 'cancelled', 'returned'].includes(selectedOrder.status) && !effectiveRefund"
                   class="border border-gray-200 rounded-lg mb-6">
                   <div class="border-b px-4 py-2 font-medium text-sm bg-gray-50 text-gray-800">Xử lý hoàn tiền</div>
                   <div class="px-4 py-3 text-sm text-gray-700">
@@ -394,17 +394,17 @@
                     </div>
                   </div>
                 </div>
-                <div v-if="selectedOrder.refund" class="border border-gray-200 rounded-lg mb-6">
+                <div v-if="effectiveRefund" class="border border-gray-200 rounded-lg mb-6">
                   <div class="border-b px-4 py-2 font-medium text-sm bg-gray-50 text-gray-800">Thông tin hoàn tiền</div>
                   <div class="px-4 py-3 text-sm text-gray-700">
-                    <p><b>Mã hoàn tiền:</b> {{ selectedOrder.refund.id || '-' }}</p>
-                    <p><b>Số tiền hoàn:</b> {{ formatPrice((selectedOrder.refund.amount || 0)) }}</p>
+                    <p><b>Mã hoàn tiền:</b> {{ effectiveRefund.id || '-' }}</p>
+                    <p><b>Số tiền hoàn:</b> {{ formatPrice(effectiveRefund.amount * 1000) }}</p>
                     <p><b>Trạng thái:</b>
-                      <span :class="refundStatusClass(selectedOrder.refund.status)">{{
-                        refundStatusText(selectedOrder.refund.status) }}</span>
+                      <span :class="refundStatusClass(effectiveRefund.status)">{{
+                        refundStatusText(effectiveRefund.status) }}</span>
                     </p>
-                    <p><b>Lý do:</b> {{ selectedOrder.refund.reason || '-' }}</p>
-                    <p><b>Thời gian tạo:</b> {{ formatDate(selectedOrder.refund.created_at) }}</p>
+                    <p><b>Lý do:</b> {{ effectiveRefund.reason || '-' }}</p>
+                    <p><b>Thời gian tạo:</b> {{ formatDate(effectiveRefund.created_at) }}</p>
                   </div>
                 </div>
               </div>
@@ -521,7 +521,6 @@ const formatDate = (date) => {
   if (!date) return '-';
   try {
     let parsedDate;
-    // Xử lý định dạng '21/06/2025 15:22'
     if (typeof date === 'string' && date.match(/^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}$/)) {
       const [day, month, year, time] = date.split(/[\s\/:]+/);
       parsedDate = new Date(`${year}-${month}-${day}T${time}:00.000Z`);
@@ -569,6 +568,11 @@ const getProductImage = (thumbnail) => {
 const maxRefundAmount = computed(() => {
   if (!selectedOrder.value) return 0;
   return Math.max((Number(selectedOrder.value.final_price || 0) - Number(selectedOrder.value.shipping?.shipping_fee || 0)), 0);
+});
+
+const effectiveRefund = computed(() => {
+  if (selectedOrder.value?.refund) return selectedOrder.value.refund;
+  return refunds.value.find(refund => refund.order_id === selectedOrder.value?.id) || null;
 });
 
 const debouncedSearch = debounce((value) => {
@@ -655,7 +659,7 @@ const fetchRefunds = async (forceRefresh = false) => {
       for (const refund of refunds.value) {
         if (!refund.order) {
           try {
-            const orderResponse = await axios.get(`${apiBase}/orders/${refund.order_id}`, {
+            const orderResponse = await axios.get(`${apiBase}/user/orders/${refund.order_id}`, {
               headers: { Authorization: `Bearer ${token}` }
             });
             refund.order = orderResponse.data.data || null;
@@ -679,90 +683,98 @@ const fetchRefunds = async (forceRefresh = false) => {
 };
 
 const viewOrder = async (id) => {
-    try {
-        const token = localStorage.getItem('access_token');
-        if (!token) {
-            router.push('/login');
-            throw new Error('Chưa đăng nhập');
-        }
-
-        const { data } = await axios.get(`${apiBase}/user/orders/${id}`, {
-            headers: { Authorization: `Bearer ${token}` }
-        });
-
-        console.log('API response for /user/orders/${id}:', data);
-
-        // Kiểm tra nếu phản hồi có success và data
-        let orderData = data;
-        if (data.success !== undefined && data.data) {
-            orderData = data.data;
-        }
-
-        if (!orderData || !orderData.id) {
-            throw new Error(data?.message || 'Phản hồi API không chứa dữ liệu đơn hàng');
-        }
-
-        selectedOrder.value = {
-            ...orderData,
-            refund: orderData.refund || null,
-            address: orderData.address || {},
-            user: orderData.user || {},
-            order_items: Array.isArray(orderData.order_items) ? orderData.order_items : [],
-            payments: Array.isArray(orderData.payments) ? orderData.payments : [],
-            shipping: orderData.shipping || null
-        };
-
-        console.log('selectedOrder.value:', selectedOrder.value);
-
-        // Tự động điền số tiền hoàn
-        if (!selectedOrder.value.refund && ['failed', 'cancelled', 'returned'].includes(selectedOrder.value.status)) {
-            refundAmount.value = maxRefundAmount.value;
-            toast('info', `Số tiền hoàn đã được tự động điền: ${formatPrice(refundAmount.value)}`);
-        } else {
-            refundAmount.value = 0;
-        }
-
-        isDetailOpen.value = true;
-
-        // Tải thông tin địa chỉ
-        if (!provinces.value.length || !districts.value.length || !wards.value.length) {
-            await Promise.all([loadProvinces(), loadDistricts(), loadWards()]);
-        }
-        const province = provinces.value.find(p => p.ProvinceID == selectedOrder.value.address?.province_id);
-        const district = districts.value.find(d => d.DistrictID == selectedOrder.value.address?.district_id);
-        const ward = wards.value.find(w => w.WardCode == selectedOrder.value.address?.ward_code);
-        selectedOrder.value.address = {
-            ...selectedOrder.value.address,
-            province_name: province?.ProvinceName || '',
-            district_name: district?.DistrictName || '',
-            ward_name: ward?.WardName || ''
-        };
-
-        // Cập nhật cache
-        const cacheKey = `user_orders_page_${page.value}`;
-        const cache = localStorage.getItem(cacheKey);
-        if (cache) {
-            const cachedData = JSON.parse(cache);
-            cachedData.orders = cachedData.orders.map(o => o.id === id ? selectedOrder.value : o);
-            localStorage.setItem(cacheKey, JSON.stringify(cachedData));
-        }
-    } catch (err) {
-        console.error('Error fetching order:', err, {
-            status: err.response?.status,
-            data: err.response?.data
-        });
-        let message = err.message || 'Không thể tải thông tin đơn hàng!';
-        if (err.response?.status === 401) {
-            localStorage.removeItem('access_token');
-            router.push('/login');
-            message = 'Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!';
-        } else if (err.response?.status === 404) {
-            message = 'Không tìm thấy đơn hàng!';
-        } else if (err.response?.data?.message) {
-            message = err.response.data.message;
-        }
-        toast('error', message);
+  try {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      router.push('/login');
+      throw new Error('Chưa đăng nhập');
     }
+
+    const { data } = await axios.get(`${apiBase}/user/orders/${id}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    console.log('API response for /user/orders/${id}:', data);
+
+    // Xử lý phản hồi API
+    let orderData = data;
+    if (data.success !== undefined && data.data) {
+      orderData = data.data;
+    }
+
+    if (!orderData || !orderData.id) {
+      throw new Error(data?.message || 'Phản hồi API không chứa dữ liệu đơn hàng');
+    }
+
+    selectedOrder.value = {
+      ...orderData,
+      refund: orderData.refund || null,
+      address: orderData.address || {},
+      user: orderData.user || {},
+      order_items: Array.isArray(orderData.order_items) ? orderData.order_items : [],
+      payments: Array.isArray(orderData.payments) ? orderData.payments : [],
+      shipping: orderData.shipping || null
+    };
+
+    console.log('selectedOrder.value:', selectedOrder.value);
+
+    // Kiểm tra yêu cầu hoàn tiền trong danh sách refunds nếu refund là null
+    if (!selectedOrder.value.refund) {
+      const refund = refunds.value.find(r => r.order_id === id);
+      if (refund) {
+        selectedOrder.value.refund = refund;
+      }
+    }
+
+    // Tự động điền số tiền hoàn
+    if (!selectedOrder.value.refund && ['failed', 'cancelled', 'returned'].includes(selectedOrder.value.status)) {
+      refundAmount.value = maxRefundAmount.value;
+      toast('info', `Số tiền hoàn đã được tự động điền: ${formatPrice(refundAmount.value)}`);
+    } else {
+      refundAmount.value = 0;
+    }
+
+    isDetailOpen.value = true;
+
+    // Tải thông tin địa chỉ
+    if (!provinces.value.length || !districts.value.length || !wards.value.length) {
+      await Promise.all([loadProvinces(), loadDistricts(), loadWards()]);
+    }
+    const province = provinces.value.find(p => p.ProvinceID == selectedOrder.value.address?.province_id);
+    const district = districts.value.find(d => d.DistrictID == selectedOrder.value.address?.district_id);
+    const ward = wards.value.find(w => w.WardCode == selectedOrder.value.address?.ward_code);
+    selectedOrder.value.address = {
+      ...selectedOrder.value.address,
+      province_name: province?.ProvinceName || '',
+      district_name: district?.DistrictName || '',
+      ward_name: ward?.WardName || ''
+    };
+
+    // Cập nhật cache
+    const cacheKey = `user_orders_page_${page.value}`;
+    const cache = localStorage.getItem(cacheKey);
+    if (cache) {
+      const cachedData = JSON.parse(cache);
+      cachedData.orders = cachedData.orders.map(o => o.id === id ? selectedOrder.value : o);
+      localStorage.setItem(cacheKey, JSON.stringify(cachedData));
+    }
+  } catch (err) {
+    console.error('Error fetching order:', err, {
+      status: err.response?.status,
+      data: err.response?.data
+    });
+    let message = err.message || 'Không thể tải thông tin đơn hàng!';
+    if (err.response?.status === 401) {
+      localStorage.removeItem('access_token');
+      router.push('/login');
+      message = 'Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!';
+    } else if (err.response?.status === 404) {
+      message = 'Không tìm thấy đơn hàng!';
+    } else if (err.response?.data?.message) {
+      message = err.response.data.message;
+    }
+    toast('error', message);
+  }
 };
 
 const requestRefund = async (order) => {
@@ -790,7 +802,7 @@ const requestRefund = async (order) => {
 
     const response = await axios.post(`${apiBase}/orders/${order.id}/refund`, {
       reason: refundReason.value,
-      amount: Number(refundAmount.value), // Không chia 1000 vì final_price đã ở đơn vị VND
+      amount: Number(refundAmount.value),
       status: 'pending'
     }, {
       headers: { Authorization: `Bearer ${token}` }
@@ -807,6 +819,7 @@ const requestRefund = async (order) => {
       // Xóa cache để đảm bảo dữ liệu mới
       const cacheKey = `user_orders_page_${page.value}`;
       localStorage.removeItem(cacheKey);
+      localStorage.removeItem('user_refunds');
       refundAmount.value = 0;
       refundReason.value = '';
       isDetailOpen.value = true; // Đảm bảo modal vẫn mở
@@ -817,6 +830,11 @@ const requestRefund = async (order) => {
     let message = error.response?.data?.message || error.message;
     if (message.includes('Đơn hàng này đã có yêu cầu hoàn tiền')) {
       message = 'Đơn hàng này đã có yêu cầu hoàn tiền đang chờ xử lý!';
+      // Làm mới danh sách hoàn tiền và đơn hàng
+      await Promise.all([fetchOrders(true), fetchRefunds(true)]);
+      if (selectedOrder.value?.id === order.id) {
+        await viewOrder(order.id);
+      }
     } else if (message.includes('Số tiền hoàn không được vượt quá')) {
       message = `Số tiền hoàn không được vượt quá ${formatPrice(maxRefundAmount.value)}!`;
     } else if (error.response?.status === 404) {
@@ -955,7 +973,7 @@ const downloadPDF = async (orderId) => {
     const res = await axios.get(`${apiBase}/user/orders/${orderId}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
-    const data = res.data;
+    const data = res.data.success ? res.data.data : res.data;
     const { default: html2pdf } = await import('html2pdf.js');
     const content = `
       <div style="font-family:sans-serif; font-size:13px;">
@@ -977,13 +995,13 @@ const downloadPDF = async (orderId) => {
               <tr>
                 <td style="padding:4px;">${item.product.name}${item.variant ? ` (${item.variant.name})` : ''}</td>
                 <td style="padding:4px; text-align:center;">${item.quantity}</td>
-                <td style="padding:4px; text-align:right;">${formatPrice(item.price * 1000)}</td>
-                <td style="padding:4px; text-align:right;">${formatPrice(item.total * 1000)}</td>
+                <td style="padding:4px; text-align:right;">${formatPrice(item.price)}</td>
+                <td style="padding:4px; text-align:right;">${formatPrice(item.total)}</td>
               </tr>
             `).join('')}
           </tbody>
         </table>
-        <p style="text-align:right; font-weight:bold; margin-top:10px;">Tổng cộng: ${formatPrice(data.final_price * 1000)}</p>
+        <p style="text-align:right; font-weight:bold; margin-top:10px;">Tổng cộng: ${formatPrice(data.final_price)}</p>
       </div>
     `;
     const opt = {

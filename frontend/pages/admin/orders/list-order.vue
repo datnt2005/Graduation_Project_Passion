@@ -1,4 +1,3 @@
-```vue
 <template>
   <div class="bg-gray-100 text-gray-700 font-sans min-h-screen">
     <div class="max-w-full overflow-x-auto">
@@ -295,10 +294,10 @@
           </select>
         </div>
         <div v-if="refundLoading" class="text-center text-gray-400 py-10">Đang tải dữ liệu...</div>
-<div v-else-if="refundError" class="text-center text-red-500 py-10">{{ refundError }}</div>
-<div v-else-if="!refundFilteredData.length" class="text-center text-gray-400 py-10">
-  Không có yêu cầu hoàn tiền nào phù hợp với bộ lọc hiện tại.
-</div>
+        <div v-else-if="refundError" class="text-center text-red-500 py-10">{{ refundError }}</div>
+        <div v-else-if="!refundFilteredData.length" class="text-center text-gray-400 py-10">
+          Không có yêu cầu hoàn tiền nào phù hợp với bộ lọc hiện tại.
+        </div>
         <div v-else class="mt-4">
           <table class="w-full table-auto divide-y divide-gray-200">
             <thead>
@@ -441,31 +440,19 @@
               <div class="border-b px-4 py-2 font-medium text-sm bg-gray-50 text-gray-800">Xử lý hoàn tiền</div>
               <div class="px-4 py-3 text-sm text-gray-700">
                 <p><b>Lý do hiện tại:</b> {{ selectedOrder?.note || 'Chưa có ghi chú' }}</p>
-                <div v-if="!selectedOrder?.refund" class="mt-2">
-                  <label class="block mb-1">Số tiền hoàn (VND):</label>
-                  <input v-model.number="refundAmount" type="number" min="0" :max="maxRefundAmount"
-                    class="w-full border rounded px-3 py-2" placeholder="Nhập số tiền hoàn">
-                </div>
-                <div v-if="!selectedOrder?.refund" class="mt-2">
-                  <label class="block mb-1">Lý do hoàn tiền:</label>
-                  <textarea v-model="refundReason" class="w-full border rounded px-3 py-2"
-                    placeholder="Nhập lý do hoàn tiền"></textarea>
-                </div>
-                <div v-if="!selectedOrder?.refund" class="mt-2">
-                  <button @click="processRefund(selectedOrder)"
-                    class="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700"
-                    :disabled="!refundAmount || !refundReason || refundAmount <= 0 || refundAmount > maxRefundAmount">Xử
-                    lý hoàn tiền</button>
-                </div>
                 <!-- Hiển thị thông tin hoàn tiền nếu có -->
-                <div v-if="selectedOrder?.refund" class="mt-4">
-                  <p><b>Thông tin hoàn tiền:</b></p>
+                <div v-if="selectedOrder?.refund" class="mt-4 bg-gray-50 p-4 rounded-md border border-gray-200">
+                  <p class="font-semibold text-gray-800 mb-3">Thông tin hoàn tiền:</p>
                   <p><b>Mã hoàn tiền:</b> {{ selectedOrder.refund.id }}</p>
                   <p><b>Số tiền hoàn:</b> {{ formatPrice(selectedOrder.refund.amount) }}</p>
                   <p><b>Trạng thái:</b> <span :class="refundStatusClass(selectedOrder.refund.status)">{{
                     refundStatusText(selectedOrder.refund.status) }}</span></p>
-                  <p><b>Lý do:</b> {{ selectedOrder.refund.reason }}</p>
+                  <p><b>Lý do:</b> {{ selectedOrder.refund.reason || 'Không có lý do' }}</p>
                   <p><b>Thời gian tạo:</b> {{ formatDate(selectedOrder.refund.created_at) }}</p>
+                </div>
+                <!-- Thông báo khi không có yêu cầu hoàn tiền -->
+                <div v-else class="mt-4 bg-yellow-50 p-4 rounded-md border border-yellow-200 text-yellow-700">
+                  <p><b>Thông báo:</b> Không có yêu cầu hoàn tiền nào cho đơn hàng này.</p>
                 </div>
               </div>
             </div>
@@ -583,8 +570,6 @@
     </div>
   </div>
 </template>
-```
-
 
 <script setup>
 import { ref, onMounted, computed, onUnmounted, watch } from 'vue';
@@ -620,8 +605,6 @@ const payoutSortOption = ref('transferred_desc');
 const logs = ref([]);
 const logLoading = ref(false);
 const logError = ref('');
-const refundAmount = ref(0);
-const refundReason = ref('');
 const paymentMethods = ref([]);
 const paymentLoading = ref(false);
 const refunds = ref([]);
@@ -1184,8 +1167,6 @@ const deleteRefund = async (refundId) => {
   }
 };
 
-// Trong <script setup>
-
 // Hàm duyệt yêu cầu hoàn tiền
 const approveRefund = async (refund) => {
   const result = await Swal.fire({
@@ -1335,90 +1316,6 @@ const refundStatusMap = {
   pending: { text: 'Chờ xử lý', class: 'bg-yellow-100 text-yellow-800' },
   approved: { text: 'Đã duyệt', class: 'bg-green-100 text-green-800' },
   rejected: { text: 'Đã từ chối', class: 'bg-red-100 text-red-800' }
-};
-
-const processRefund = async (order) => {
-  if (!refundReason.value) {
-    showNotification('Vui lòng nhập lý do hoàn tiền!', false);
-    return;
-  }
-  if (!refundAmount.value || refundAmount.value <= 0) {
-    showNotification('Vui lòng nhập số tiền hoàn hợp lệ!', false);
-    return;
-  }
-  if (refundAmount.value > maxRefundAmount.value) {
-    showNotification(`Số tiền hoàn không được vượt quá ${formatPrice(maxRefundAmount.value)}!`, false);
-    return;
-  }
-
-  const result = await Swal.fire({
-    title: 'Xác nhận hoàn tiền',
-    text: `Bạn có chắc chắn muốn hoàn ${formatPrice(refundAmount.value)} cho đơn hàng ${order.shipping?.tracking_code || order.id}?`,
-    icon: 'question',
-    showCancelButton: true,
-    confirmButtonText: 'Hoàn tiền',
-    cancelButtonText: 'Hủy',
-    confirmButtonColor: '#f97316',
-    cancelButtonColor: '#6b7280'
-  });
-
-  if (!result.isConfirmed) return;
-
-  try {
-    loading.value = true;
-    const token = localStorage.getItem('access_token');
-    if (!token) throw new Error('Không tìm thấy access token. Vui lòng đăng nhập lại.');
-
-    const response = await fetch(`${apiBase}/orders/${order.id}/refund`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify({
-        reason: refundReason.value,
-        amount: Number(refundAmount.value),
-        status: 'pending'
-      })
-    });
-
-    const contentType = response.headers.get('Content-Type');
-    if (!contentType || !contentType.includes('application/json')) {
-      const text = await response.text();
-      console.error('Non-JSON response:', text.slice(0, 200));
-      throw new Error(`Phản hồi không phải JSON: ${text.slice(0, 100)}...`);
-    }
-
-    const data = await response.json();
-    if (response.ok && data.success) {
-      showNotification('Xử lý hoàn tiền thành công', true);
-      await Promise.all([fetchOrders(), fetchRefunds()]);
-      if (selectedOrder.value?.id === order.id) {
-        selectedOrder.value = {
-          ...selectedOrder.value,
-          status: data.data.status === 'approved' ? 'refunded' : selectedOrder.value.status,
-          note: refundReason.value,
-          refund: data.data
-        };
-      }
-      refundAmount.value = 0;
-      refundReason.value = '';
-    } else {
-      throw new Error(data.message || 'Lỗi khi xử lý hoàn tiền');
-    }
-  } catch (error) {
-    console.error('Error processing refund:', error.message);
-    let message = error.message;
-    if (message.includes('Đơn hàng này đã có yêu cầu hoàn tiền')) {
-      message = 'Đơn hàng này đã có yêu cầu hoàn tiền đang chờ xử lý!';
-    } else if (message.includes('Số tiền hoàn không được vượt quá')) {
-      message = `Số tiền hoàn không được vượt quá ${formatPrice(maxRefundAmount.value)}!`;
-    }
-    showNotification(message, false);
-  } finally {
-    loading.value = false;
-  }
 };
 
 const verifyGhnStatus = async (order) => {
