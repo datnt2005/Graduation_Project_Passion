@@ -51,8 +51,7 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
     const storedData = localStorage.getItem('buy_now');
     if (storedData) {
       buyNowData.value = JSON.parse(storedData);
-      // Kiểm tra timestamp (30 phút)
-      const maxAge = 30 * 60 * 1000;
+      const maxAge = 30 * 60 * 1000; 
       if (Date.now() - buyNowData.value.timestamp > maxAge) {
         localStorage.removeItem('buy_now');
         buyNowData.value = null;
@@ -152,7 +151,7 @@ const cartItems = computed(() => {
     }, 0);
   });
 
-  // Shipping fee calculations
+  // Phí vận chuyển
   const rawShippingFee = computed(() => {
     const raw = shippingRef.value?.fees?.[selectedShippingMethod.value];
     return raw ? parsePrice(raw) : 0;
@@ -163,7 +162,7 @@ const cartItems = computed(() => {
     return Math.max(0, rawShippingFee.value - discount);
   });
 
-  // Final total including discounts and shipping
+  // Tổng tiền cuối cùng (sử dụng final_price từ backend nếu có)
   const finalTotal = computed(() => {
     const baseTotal = total.value;
     const productDiscount = calculateDiscount(baseTotal);
@@ -243,12 +242,14 @@ const cartItems = computed(() => {
       if (!userData?.id) throw new Error('Không tìm thấy thông tin người dùng');
 
       // Chuẩn bị dữ liệu đơn hàng
-      const items = cartItems.value.map((item) => ({
-        product_id: item.product.id,
-        product_variant_id: item.productVariant?.id || null,
-        quantity: item.quantity,
-        price: parsePrice(item.sale_price || item.price),
-      }));
+      const items = cartItems.value.flatMap((store) =>
+        store.items.map((item) => ({
+          product_id: item.product?.id,
+          product_variant_id: item.productVariant?.id || null,
+          quantity: item.quantity,
+          price: parsePrice(item.sale_price || item.price),
+        }))
+      ).filter(item => item.product_id);
 
       if (!items.length) {
         toast('error', 'Không có sản phẩm hợp lệ để đặt hàng');
@@ -289,7 +290,7 @@ const cartItems = computed(() => {
       const { orders } = await orderResponse.json();
 
       if (!orders || !orders.length) throw new Error('Không nhận được đơn hàng từ server');
-
+      
       if (isBuyNow.value) {
         localStorage.removeItem('buy_now');
       }

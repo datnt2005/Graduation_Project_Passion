@@ -33,18 +33,15 @@
                   placeholder="VD: 234 Thôn 2" required />
               </div>
 
-              <!-- Loại địa chỉ -->
               <div class="mb-4">
                 <label class="block text-sm font-medium text-gray-700 mb-2">Loại địa chỉ</label>
                 <div class="flex flex-col sm:flex-row gap-4">
                   <label class="inline-flex items-center">
-                    <input type="radio" class="form-radio text-blue-600" value="home" v-model="addressForm.address_type"
-                      name="address_type" />
+                    <input type="radio" class="form-radio text-blue-600" value="home" v-model="addressForm.address_type" name="address_type" />
                     <span class="ml-2 text-sm text-gray-700">Nhà riêng / Chung cư</span>
                   </label>
                   <label class="inline-flex items-center">
-                    <input type="radio" class="form-radio text-blue-600" value="company"
-                      v-model="addressForm.address_type" name="address_type" />
+                    <input type="radio" class="form-radio text-blue-600" value="company" v-model="addressForm.address_type" name="address_type" />
                     <span class="ml-2 text-sm text-gray-700">Cơ quan / Công ty</span>
                   </label>
                 </div>
@@ -53,8 +50,7 @@
               <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-1">Tỉnh/Thành phố</label>
-                  <select v-model="addressForm.province_id" class="w-full border border-gray-300 rounded-md py-2 px-3"
-                    required>
+                  <select v-model="addressForm.province_id" class="w-full border border-gray-300 rounded-md py-2 px-3" required @change="loadDistricts(addressForm.province_id)">
                     <option value="">Chọn tỉnh</option>
                     <option v-for="province in provinces" :key="province.ProvinceID" :value="province.ProvinceID">
                       {{ province.ProvinceName }}
@@ -64,8 +60,7 @@
 
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-1">Quận/Huyện</label>
-                  <select v-model="addressForm.district_id" class="w-full border border-gray-300 rounded-md py-2 px-3"
-                    required>
+                  <select v-model="addressForm.district_id" class="w-full border border-gray-300 rounded-md py-2 px-3" required @change="loadWards(addressForm.district_id)">
                     <option value="">Chọn huyện</option>
                     <option v-for="district in districts" :key="district.DistrictID" :value="district.DistrictID">
                       {{ district.DistrictName }}
@@ -75,8 +70,7 @@
 
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-1">Phường/Xã</label>
-                  <select v-model="addressForm.ward_code" class="w-full border border-gray-300 rounded-md py-2 px-3"
-                    required>
+                  <select v-model="addressForm.ward_code" class="w-full border border-gray-300 rounded-md py-2 px-3" required>
                     <option value="">Chọn xã</option>
                     <option v-for="ward in wards" :key="ward.WardCode" :value="ward.WardCode">
                       {{ ward.WardName }}
@@ -86,15 +80,12 @@
               </div>
 
               <div class="flex items-center mb-6">
-                <input id="defaultAddress" type="checkbox" v-model="addressForm.isDefault"
-                  class="h-4 w-4 text-blue-600 border-gray-300 rounded" />
+                <input id="defaultAddress" type="checkbox" v-model="addressForm.isDefault" class="h-4 w-4 text-blue-600 border-gray-300 rounded" />
                 <label for="defaultAddress" class="ml-2 text-sm text-gray-900">Đặt làm địa chỉ mặc định</label>
               </div>
 
               <div class="flex justify-end gap-3">
-                <button type="button" @click="goBack" class="px-4 py-2 border border-gray-300 rounded-md text-sm">
-                  Quay lại
-                </button>
+                <button type="button" @click="goBack" class="px-4 py-2 border border-gray-300 rounded-md text-sm">Quay lại</button>
                 <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700">
                   {{ isEditMode ? 'Cập nhật' : 'Lưu địa chỉ' }}
                 </button>
@@ -111,21 +102,17 @@
 import { useAddressForm } from '~/composables/useAddressForm'
 import { useRuntimeConfig, useRoute, useRouter } from '#app'
 import SidebarProfile from '~/components/shared/layouts/Sidebar-profile.vue'
-import { onMounted, computed } from 'vue'
+import { onMounted, ref } from 'vue'
 import axios from 'axios'
 import { useAuthHeaders } from '~/composables/useAuthHeaders'
 import { useToast } from '~/composables/useToast'
-import { ref } from 'vue'
 
 const errors = ref({})
-
-
 const { showSuccess, showError } = useToast()
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBaseUrl
 const route = useRoute()
 const router = useRouter()
-
 const user_id = useCookie('user_id')?.value || null
 
 const {
@@ -144,8 +131,6 @@ const id = route.query.id
 const loadAddressToEdit = async () => {
   try {
     const query = route.query
-
-    // Nếu đã truyền đủ thông tin từ route.query thì dùng
     if (query.province_id && query.district_id && query.ward_code) {
       const provinceId = +query.province_id
       const districtId = +query.district_id
@@ -164,9 +149,7 @@ const loadAddressToEdit = async () => {
 
       await loadDistricts(provinceId)
       await loadWards(districtId)
-
     } else {
-      // fallback: gọi API nếu thiếu thông tin
       const res = await axios.get(`${apiBase}/address/${id}`, useAuthHeaders())
       const data = res.data.data
 
@@ -185,7 +168,6 @@ const loadAddressToEdit = async () => {
       await loadDistricts(data.province_id)
       await loadWards(data.district_id)
     }
-
   } catch (err) {
     showError('Không tải được địa chỉ để chỉnh sửa.')
   }
@@ -196,7 +178,6 @@ const saveAddress = async () => {
     ...addressForm.value,
     is_default: addressForm.value.isDefault ? 1 : 0,
   }
-
   try {
     if (isEditMode) {
       await axios.put(`${apiBase}/address/${id}`, payload, useAuthHeaders())
@@ -207,52 +188,29 @@ const saveAddress = async () => {
     }
     router.push('/users/myaddress')
   } catch (e) {
-  if (e.response && e.response.status === 401) {
-    showError('Bạn cần đăng nhập để thêm địa chỉ.') // ✅ Ghi đè lỗi Unauthenticated
-    return
-  }
-
-  const data = e.response?.data
-
-  if (data?.errors) {
-    errors.value = data.errors
-    const firstError = Object.values(data.errors)[0]?.[0]
-    showError(firstError || 'Dữ liệu không hợp lệ.')
-  } else {
-    showError(data?.message || 'Có lỗi xảy ra. Vui lòng thử lại.')
-  }
-}
-}
-
-  const goBack = () => {
-    router.back()
-  }
-
-  const getProvinceName = (id) => {
-    const item = provinces.value.find(p => p.ProvinceID === id)
-    return item?.ProvinceName || ''
-  }
-  const getDistrictName = (id) => {
-    const item = districts.value.find(d => d.DistrictID === id)
-    return item?.DistrictName || ''
-  }
-  const getWardName = (code) => {
-    const item = wards.value.find(w => w.WardCode === code)
-    return item?.WardName || ''
-  }
-
-  defineExpose({
-    getProvinceName,
-    getDistrictName,
-    getWardName
-  })
-
-  onMounted(async () => {
-    await loadProvinces()
-
-    if (isEditMode) {
-      await loadAddressToEdit()
+    if (e.response && e.response.status === 401) {
+      showError('Bạn cần đăng nhập để thêm địa chỉ.')
+      return
     }
-  })
+    const data = e.response?.data
+    if (data?.errors) {
+      errors.value = data.errors
+      const firstError = Object.values(data.errors)[0]?.[0]
+      showError(firstError || 'Dữ liệu không hợp lệ.')
+    } else {
+      showError(data?.message || 'Có lỗi xảy ra. Vui lòng thử lại.')
+    }
+  }
+}
 
+const goBack = () => {
+  router.back()
+}
+
+onMounted(async () => {
+  await loadProvinces()
+  if (isEditMode) {
+    await loadAddressToEdit()
+  }
+})
 </script>

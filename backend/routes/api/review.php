@@ -17,15 +17,6 @@ Route::middleware(['auth:sanctum', 'checkRole:user,seller,admin'])->group(functi
     Route::delete('/reviews/{id}', [ReviewController::class, 'destroy']);      // Xóa đánh giá cá nhân
 });
 
-// Các route quản trị dành riêng cho admin
-Route::prefix('admin/reviews')
-    ->middleware(['auth:sanctum', 'checkRole:admin'])
-    ->group(function () {
-        Route::get('/', [ReviewController::class, 'adminIndex']);
-        Route::get('/{id}', [ReviewController::class, 'adminShow']);
-        Route::put('/{id}', [ReviewController::class, 'adminUpdate']);
-        Route::delete('/{id}', [ReviewController::class, 'adminDestroy']);
-    });
 
 Route::prefix('seller/reviews')
     ->middleware(['auth:sanctum', 'checkRole:seller'])
