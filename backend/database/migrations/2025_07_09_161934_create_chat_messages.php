@@ -9,22 +9,21 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-    public function up()
+    public function up(): void
     {
-        if (!Schema::hasTable('chat_messages')) {
-            Schema::create('chat_messages', function (Blueprint $table) {
-                $table->id();
-                $table->unsignedBigInteger('session_id');
-                $table->unsignedBigInteger('sender_id');
-                $table->enum('sender_type', ['user', 'seller']);
-                $table->text('message')->nullable();
-                $table->enum('message_type', ['text', 'image', 'product'])->default('text');
-                $table->enum('status', ['normal', 'deleted'])->default('normal');
-                $table->timestamps();
-            });
-        }
-    }
+        Schema::create('chat_messages', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('session_id');
+            $table->unsignedBigInteger('sender_id');
+            $table->enum('sender_type', ['user', 'seller']);
+            $table->text('message')->nullable()->charset('utf8mb4')->collation('utf8mb4_unicode_ci');
+            $table->enum('message_type', ['text', 'image', 'product'])->default('text');
+            $table->enum('status', ['normal', 'deleted'])->default('normal');
+            $table->timestamps();
 
+            $table->foreign('session_id')->references('id')->on('chat_sessions')->onDelete('cascade');
+        });
+    }
 
     /**
      * Reverse the migrations.

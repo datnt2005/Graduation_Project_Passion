@@ -243,83 +243,83 @@ class OrderController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function validateBuyNow(Request $request)
-    {
-        try {
-            $validator = Validator::make($request->all(), [
-                'product_id' => 'required|exists:products,id',
-                'product_variant_id' => 'nullable|exists:product_variants,id',
-                'quantity' => 'required|integer|min:1',
-                'price' => 'required|numeric|min:0',
-            ], [
-                'product_id.required' => 'ID sản phẩm là bắt buộc',
-                'product_id.exists' => 'Sản phẩm không tồn tại',
-                'product_variant_id.exists' => 'Biến thể sản phẩm không tồn tại',
-                'quantity.required' => 'Số lượng là bắt buộc',
-                'quantity.integer' => 'Số lượng phải là số nguyên',
-                'quantity.min' => 'Số lượng phải lớn hơn 0',
-                'price.required' => 'Giá sản phẩm là bắt buộc',
-                'price.numeric' => 'Giá phải là số',
-                'price.min' => 'Giá phải lớn hơn hoặc bằng 0',
-            ]);
+public function validateBuyNow(Request $request)
+{
+    try {
+        $validator = Validator::make($request->all(), [
+            'product_id' => 'required|exists:products,id',
+            'product_variant_id' => 'nullable|exists:product_variants,id',
+            'quantity' => 'required|integer|min:1',
+            'price' => 'required|numeric|min:0',
+        ], [
+            'product_id.required' => 'ID sản phẩm là bắt buộc',
+            'product_id.exists' => 'Sản phẩm không tồn tại',
+            'product_variant_id.exists' => 'Biến thể sản phẩm không tồn tại',
+            'quantity.required' => 'Số lượng là bắt buộc',
+            'quantity.integer' => 'Số lượng phải là số nguyên',
+            'quantity.min' => 'Số lượng phải lớn hơn 0',
+            'price.required' => 'Giá sản phẩm là bắt buộc',
+            'price.numeric' => 'Giá phải là số',
+            'price.min' => 'Giá phải lớn hơn hoặc bằng 0',
+        ]);
 
-            if ($validator->fails()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Dữ liệu không hợp lệ',
-                    'errors' => $validator->errors()
-                ], 422);
-            }
-
-            // Lấy dữ liệu sản phẩm
-            $product = Product::find($request->product_id);
-            $variant = $request->product_variant_id ? ProductVariant::find($request->product_variant_id) : null;
-
-            // Validate biến thể
-            if ($request->product_variant_id && !$variant) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Biến thể sản phẩm không tồn tại'
-                ], 404);
-            }
-
-            // Kiểm tra giá
-            $actualPrice = $variant ? ($variant->sale_price ?? $variant->price ?? 0) : ($variant->sale_price ?? $variant->price ?? 0);
-            if ($actualPrice <= 0) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Sản phẩm không có giá hợp lệ trong cơ sở dữ liệu'
-                ], 400);
-            }
-
-            if (abs($actualPrice - $request->price) > 0.01) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Giá sản phẩm không khớp với dữ liệu server'
-                ], 400);
-            }
-
-            // Kiểm tra tồn kho
-            $stock = $variant ? $variant->quantity : $product->quantity;
-            if ($request->quantity > $stock) {
-                return response()->json([
-                    'success' => false,
-                    'message' => "Số lượng vượt quá tồn kho ($stock)"
-                ], 400);
-            }
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Dữ liệu buy now hợp lệ'
-            ], 200);
-        } catch (\Exception $e) {
+        if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Có lỗi xảy ra khi validate dữ liệu buy now',
-                'error' => $e->getMessage()
-            ], 500);
+                'message' => 'Dữ liệu không hợp lệ',
+                'errors' => $validator->errors()
+            ], 422);
         }
+
+        // Lấy dữ liệu sản phẩm
+        $product = Product::find($request->product_id);
+        $variant = $request->product_variant_id ? ProductVariant::find($request->product_variant_id) : null;
+
+        // Validate biến thể
+        if ($request->product_variant_id && !$variant) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Biến thể sản phẩm không tồn tại'
+            ], 404);
+        }
+
+        // Kiểm tra giá
+        $actualPrice = $variant ? ($variant->sale_price ?? $variant->price ?? 0) : ($variant->sale_price ?? $variant->price ?? 0);
+        if ($actualPrice <= 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Sản phẩm không có giá hợp lệ trong cơ sở dữ liệu'
+            ], 400);
+        }
+
+        if (abs($actualPrice - $request->price) > 0.01) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Giá sản phẩm không khớp với dữ liệu server'
+            ], 400);
+        }
+
+        // Kiểm tra tồn kho
+        $stock = $variant ? $variant->quantity : $product->quantity;
+        if ($request->quantity > $stock) {
+            return response()->json([
+                'success' => false,
+                'message' => "Số lượng vượt quá tồn kho ($stock)"
+            ], 400);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Dữ liệu buy now hợp lệ'
+        ], 200);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Có lỗi xảy ra khi validate dữ liệu buy now',
+            'error' => $e->getMessage()
+        ], 500);
     }
+}
     public function index(Request $request)
     {
         try {
@@ -498,7 +498,7 @@ class OrderController extends Controller
             'payment_method' => 'required|string|in:COD,VNPAY,MOMO',
             'address_id' => 'required|exists:addresses,id',
             'service_id' => 'required|integer|min:1',
-            'is_buy_now' => 'nullable|boolean',
+            'is_buy_now' => 'nullable|boolean', // Thêm validate cho is_buy_now
         ], [
             'user_id.required' => 'ID người dùng là bắt buộc',
             'user_id.exists' => 'ID người dùng không tồn tại',
@@ -546,7 +546,7 @@ class OrderController extends Controller
                     throw new \Exception('Giá sản phẩm không khớp: ' . $item['product_id']);
                 }
 
-                $stock = $variant ? $variant->quantity : $product->stock;
+                $stock = $variant ? $variant->stock : $product->stock;
                 if ($item['quantity'] > $stock) {
                     throw new \Exception('Số lượng vượt quá tồn kho: ' . $item['product_id']);
                 }
@@ -614,16 +614,15 @@ class OrderController extends Controller
                 $finalPrice = $totalPrice - $discountPrice;
 
                 // 6. Tạo shipping
-                $address = \App\Models\Address::find($request->address_id);
-                $ghn = new \App\Services\GHNService();
+                $address = Address::find($request->address_id);
+                $ghn = new GHNService();
                 $ghnOrder = $ghn->createShippingOrder($order, $address, $request->service_id, $request->payment_method);
 
-                $shippingMethod = \App\Models\ShippingMethod::firstOrCreate(
+                $shippingMethod = ShippingMethod::firstOrCreate(
                     ['id' => $request->service_id],
                     ['name' => $ghnOrder['service_type_id'] ?? 'GHN', 'carrier' => 'GHN', 'estimated_days' => 3, 'cost' => $ghnOrder['total_fee'] ?? 0]
                 );
-
-                $shipping = \App\Models\Shipping::create([
+                $shipping = Shipping::create([
                     'order_id' => $order->id,
                     'shipping_method_id' => $shippingMethod->id,
                     'estimated_delivery' => $ghnOrder['expected_delivery_time'] ?? null,
@@ -632,7 +631,7 @@ class OrderController extends Controller
                     'status' => 'pending',
                 ]);
 
-                // 7. Cập nhật final_price với phí ship (chỉ một lần)
+                // 7. Cập nhật final_price với phí ship
                 $finalPrice += $shipping->shipping_fee ?? 0;
 
                 $order->update([
@@ -653,10 +652,9 @@ class OrderController extends Controller
                     'amount' => $finalPrice,
                     'status' => 'pending'
                 ]);
-
-                // 9. Gửi mail xác nhận đơn hàng cho COD
-                if ($order->user && $order->user->email) {
-                    Mail::to($order->user->email)->send(new \App\Mail\OrderSuccessMail($order));
+                // 9. Gửi mail xác nhận cho COD
+                if ($request->payment_method === 'COD' && $order->user && $order->user->email) {
+                    Mail::to($order->user->email)->send(new OrderSuccessMail($order));
                 }
 
                 $order->load([
@@ -688,19 +686,20 @@ class OrderController extends Controller
      */
     public function show($id)
     {
-        $order = Order::with([
-            'user',
-            'address',
-            'shipping',
-            'orderItems.product',
-            'orderItems.variant',
-            'payments',
-            'refund' // Đảm bảo nạp quan hệ refund
-        ])
-            ->where('user_id', Auth::id())
-            ->findOrFail($id);
+        try {
+            $user = auth()->user();
+            $order = Order::with([
+                'orderItems.product',
+                'orderItems.productVariant',
+                'user',
+                'address',
+                'payments.paymentMethod',
+                'shipping'
+            ])->where('id', $id)
+                ->where('user_id', $user->id)
+                ->firstOrFail();
 
-        return response()->json([
+          return response()->json([
             'success' => true,
             'data' => $this->formatOrderResponse($order)
         ], 200);

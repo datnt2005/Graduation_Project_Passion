@@ -11,14 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        if (!Schema::hasTable('chat_attachments')) {
         Schema::create('chat_attachments', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('message_id');
             $table->json('attachments')->nullable();
             $table->timestamps();
+            $table->foreign('message_id')->references('id')->on('chat_messages')->onDelete('cascade');
         });
-    }
     }
 
     /**

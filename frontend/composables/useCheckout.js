@@ -51,88 +51,91 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
     const storedData = localStorage.getItem('buy_now');
     if (storedData) {
       buyNowData.value = JSON.parse(storedData);
-      const maxAge = 30 * 60 * 1000; // 30 phút
+      const maxAge = 30 * 60 * 1000; 
       if (Date.now() - buyNowData.value.timestamp > maxAge) {
         localStorage.removeItem('buy_now');
         buyNowData.value = null;
         toast('error', 'Dữ liệu buyNow đã hết hạn. Vui lòng chọn lại sản phẩm.');
+      } else {
       }
     }
   };
 
   // Derive cartItems từ cart hoặc buyNow
-  const cartItems = computed(() => {
-    if (isBuyNow.value && buyNowData.value) {
-      const price = parsePrice(buyNowData.value.price);
-      return [{
-        seller_id: buyNowData.value.seller_id || null,
-        store_name: buyNowData.value.store_name || '',
-        store_url: buyNowData.value.store_url || '',
-        items: [{
-          id: buyNowData.value.product_id,
-          product: {
-            id: buyNowData.value.product.id,
-            name: buyNowData.value.product.name || 'Unknown Product',
-            slug: buyNowData.value.product.slug || '',
-            images: buyNowData.value.product.images || [],
-          },
-          productVariant: buyNowData.value.productVariant?.id ? {
-            id: buyNowData.value.productVariant.id,
-            sku: buyNowData.value.productVariant.sku || '',
-            thumbnail: buyNowData.value.productVariant.thumbnail || '',
-            attributes: buyNowData.value.productVariant.attributes || [],
-          } : null,
-          quantity: buyNowData.value.quantity,
-          price: price,
-          sale_price: price,
-        }],
-        store_total: price * buyNowData.value.quantity,
-        discount: 0
-      }];
-    }
+const cartItems = computed(() => {
+  if (isBuyNow.value && buyNowData.value) {
+    const price = parsePrice(buyNowData.value.price);
+    return [{
+      seller_id: buyNowData.value.seller_id || null,
+      store_name: buyNowData.value.store_name || '',
+      store_url: buyNowData.value.store_url || '',
+      items: [{
+        id: buyNowData.value.product_id,
+        product: {
+          id: buyNowData.value.product.id,
+          name: buyNowData.value.product.name || 'Unknown Product',
+          slug: buyNowData.value.product.slug || '',
+          images: buyNowData.value.product.images || [],
+        },
+        productVariant: buyNowData.value.productVariant?.id ? {
+          id: buyNowData.value.productVariant.id,
+          sku: buyNowData.value.productVariant.sku || '',
+          thumbnail: buyNowData.value.productVariant.thumbnail || '',
+          attributes: buyNowData.value.productVariant.attributes || [],
+        } : null,
+        quantity: buyNowData.value.quantity,
+        price: price,
+        sale_price: price,
+      }],
+      store_total: price * buyNowData.value.quantity,
+      discount: 0
+    }];
+  }
 
-    if (!cart.value || !cart.value.stores) return [];
+  if (!cart.value || !cart.value.stores) return [];
 
-    return cart.value.stores.map((store) => {
-      const items = (store.items || [])
-        .filter((item) => item.is_selected)
-        .map((item) => ({
-          id: item.id,
-          quantity: item.quantity,
-          price: parsePrice(item.price),
-          sale_price: parsePrice(item.sale_price || item.price),
-          productVariant: item.productVariant?.id ? {
-            id: item.productVariant.id,
-            sku: item.productVariant.sku || '',
-            thumbnail: item.productVariant.thumbnail || '',
-            attributes: item.productVariant.attributes || [],
-          } : null,
-          product: item.product?.id ? {
-            id: item.product.id,
-            name: item.product.name || '',
-            slug: item.product.slug || '',
-            images: item.product.images || [],
-          } : null
-        }));
+  return cart.value.stores.map((store) => {
+    const items = (store.items || [])
+      .filter((item) => item.is_selected)
+      .map((item) => ({
+        id: item.id,
+        quantity: item.quantity,
+        price: parsePrice(item.price),
+        sale_price: parsePrice(item.sale_price || item.price),
+        productVariant: item.productVariant?.id ? {
+          id: item.productVariant.id,
+          sku: item.productVariant.sku || '',
+          thumbnail: item.productVariant.thumbnail || '',
+          attributes: item.productVariant.attributes || [],
+        } : null,
+        product: item.product?.id ? {
+          id: item.product.id,
+          name: item.product.name || '',
+          slug: item.product.slug || '',
+          images: item.product.images || [],
+        } : null
+      }));
 
-      const storeTotal = items.reduce((sum, item) => sum + item.sale_price * item.quantity, 0);
+    const storeTotal = items.reduce((sum, item) => sum + item.sale_price * item.quantity, 0);
 
-      return {
-        seller_id: store.seller_id,
-        store_name: store.store_name || '',
-        store_url: store.store_url || '',
-        items,
-        store_total: storeTotal,
-        discount: 0
-      };
-    });
+    return {
+      seller_id: store.seller_id,
+      store_name: store.store_name || '',
+      store_url: store.store_url || '',
+      items,
+      store_total: storeTotal,
+      discount: 0 // Nếu có mã giảm giá theo shop thì tính ở đây
+    };
   });
+});
 
-  // Tổng tiền sản phẩm (chưa bao gồm phí ship và giảm giá)
+
+  // Total dựa trên cartItems hoặc buyNow
   const total = computed(() => {
     if (isBuyNow.value && buyNowData.value) {
       const price = parsePrice(buyNowData.value.price);
-      return price * buyNowData.value.quantity;
+      const total = price * buyNowData.value.quantity;
+      return total;
     }
     return cart.value.stores.reduce((total, store) => {
       return (
@@ -287,10 +290,7 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
       const { orders } = await orderResponse.json();
 
       if (!orders || !orders.length) throw new Error('Không nhận được đơn hàng từ server');
-
-      // Log để kiểm tra final_price từ backend
-      console.log('Order response:', orders);
-
+      
       if (isBuyNow.value) {
         localStorage.removeItem('buy_now');
       }
@@ -389,7 +389,7 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
     getShippingDiscount,
     formatPrice,
     parsePrice,
-    getPaymentMethodLabel,
+    getPaymentMethodLabel,  
     placeOrder,
     selectStoreItems,
     isBuyNow,

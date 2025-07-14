@@ -16,6 +16,7 @@ foreach (glob(__DIR__.'/api/*.php') as $routeFile) {
 
 // api chat user width seller
 use App\Http\Controllers\SettingController;
+
 use App\Http\Controllers\ChatController;
 
 Route::get('/settings', [SettingController::class, 'index']);
