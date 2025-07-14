@@ -107,12 +107,15 @@
                 <i class="fas fa-info-circle mr-1"></i>Chưa áp dụng mã giảm giá
               </div>
             </template>
+            <div class="text-xs text-gray-700 mt-1">
+              Phí vận chuyển: <span class="font-semibold">{{ formatPrice(parsePrice(fees[selectedMethod])) }}</span>
+            </div>
           </div>
         </div>
       </div>
     </div>
     <div class="text-right text-sm font-semibold text-gray-900 mt-4">
-      Tổng tiền vận chuyển: <span id="shipping-fee-display">{{ formatPrice(fees[selectedMethod]) }}</span>
+      Tổng tiền vận chuyển: <span id="shipping-fee-display">{{ formatPrice((Number(String(fees[selectedMethod]).replace(/[^\d]/g, '')) || 0) * localCartItems.length) }}</span>
     </div>
 
   </section>
@@ -212,12 +215,18 @@ defineExpose({
 
 const parsePrice = (price) => {
   if (price == null) return 0;
-  let clean = String(price).trim();
-  // Nếu là số kiểu "12.313,00" (châu Âu), chuyển thành "12313.00"
-  if (/^\d{1,3}(\.\d{3})*(,\d+)?$/.test(clean)) {
-    clean = clean.replace(/\./g, '').replace(',', '.');
+  let clean = String(price).replace(/[^\d.,]/g, '').trim();
+  // Nếu có cả dấu chấm và dấu phẩy, xử lý kiểu Việt Nam: 20.500 hoặc 20.500,00
+  if (clean.includes('.') && clean.includes(',')) {
+    clean = clean.split(',')[0].replace(/\./g, '');
+  } else if (clean.includes('.')) {
+    // Nếu chỉ có dấu chấm, giả sử là phân tách nghìn
+    clean = clean.replace(/\./g, '');
+  } else if (clean.includes(',')) {
+    // Nếu chỉ có dấu phẩy, giả sử là phân tách thập phân
+    clean = clean.replace(/,/g, '');
   }
-  const num = parseFloat(clean);
+  const num = parseInt(clean, 10);
   return isNaN(num) ? 0 : num;
 };
 

@@ -724,7 +724,8 @@ public function validateBuyNow(Request $request)
                 'tracking_code' => $order->shipping->tracking_code,
                 'status' => $order->shipping->status,
                 'estimated_delivery' => $order->shipping->estimated_delivery,
-                'shipping_fee' => $order->shipping->shipping_fee,
+                'shipping_fee' => (int) ($order->shipping->shipping_fee ?? 0),
+                'shipping_discount' => (int) ($order->shipping->shipping_discount ?? 0),
             ] : null,
             'user' => [
                 'id' => $order->user->id,
@@ -739,13 +740,12 @@ public function validateBuyNow(Request $request)
                 'district_id' => $order->address->district_id,
                 'ward_code' => $order->address->ward_code,
                 'detail' => $order->address->detail,
-
             ],
             'note' => $order->note ?? '',
             'status' => $order->status,
-            'total_price' => $this->formatPrice($order->total_price) . ' đ',
-            'discount_price' => $this->formatPrice($order->discount_price) . ' đ',
-            'final_price' => $this->formatPrice($order->final_price) . ' đ',
+            'total_price' => (int) $order->total_price,
+            'discount_price' => (int) $order->discount_price,
+            'final_price' => (int) $order->final_price,
             'shipping_method' => $order->shipping_method,
             'created_at' => $order->created_at->format('d/m/Y H:i:s'),
             'updated_at' => $order->updated_at->format('d/m/Y H:i:s'),
@@ -760,17 +760,18 @@ public function validateBuyNow(Request $request)
                     'variant' => $item->productVariant ? [
                         'id' => $item->productVariant->id,
                         'name' => $item->productVariant->name,
+                        'thumbnail' => $item->productVariant->thumbnail ?? null,
                     ] : null,
                     'quantity' => $item->quantity,
-                    'price' => $item->price,
-                    'total' => $this->formatPrice($item->price * $item->quantity) . ' đ',
+                    'price' => (int) $item->price,
+                    'total' => (int) ($item->price * $item->quantity),
                 ];
             }),
             'payments' => $order->payments->map(function ($payment) {
                 return [
                     'id' => $payment->id,
                     'method' => $payment->paymentMethod ? $payment->paymentMethod->name : null,
-                    'amount' => $this->formatPrice($payment->amount) . ' đ',
+                    'amount' => (int) $payment->amount,
                     'status' => $payment->status,
                     'created_at' => $payment->created_at->format('d/m/Y H:i:s'),
                 ];

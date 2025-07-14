@@ -60,7 +60,9 @@
               </div>
               <div class="flex justify-between font-bold border-t pt-2 mt-2">
                 <span>Tổng thanh toán:</span>
-                <span class="text-blue-700">{{ formatPrice((parseInt(order.final_price) || 0) + (parseInt(order.shipping?.shipping_fee) || 0)) }} đ</span>
+                <span class="text-blue-700">
+                  {{ formatPrice((parseInt(order.final_price) || 0) + (parseInt(order.shipping?.shipping_fee) || 0)) }} đ
+                </span>
               </div>
             </div>
             <!-- Danh sách sản phẩm đã đặt (nếu có) -->

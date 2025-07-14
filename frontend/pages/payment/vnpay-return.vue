@@ -31,7 +31,9 @@
                 <div class="mt-1 font-semibold text-gray-800">
                   {{
                     order.address
-                      ? [order.address.detail, order.address.ward_name, order.address.district_name, order.address.province_name].filter(Boolean).join(', ')
+                      ? [order.address.detail, order.address.ward_name, order.address.district_name, order.address.province_name]
+                          .filter(v => v && v !== 'null' && v !== 'undefined')
+                          .join(', ')
                       : 'Không có'
                   }}
                 </div>
@@ -44,23 +46,23 @@
             <div class="mt-4 text-left text-sm space-y-1">
               <div class="flex justify-between">
                 <span>Tổng tiền hàng:</span>
-                <span>{{ formatPrice(order.total_price) }} đ</span>
+                <span>{{ formatPrice(order.total_price) }}</span>
               </div>
               <div class="flex justify-between" v-if="order.discount_price > 0">
                 <span>Giảm giá sản phẩm:</span>
-                <span class="text-green-600">- {{ formatPrice(order.discount_price) }} đ</span>
+                <span class="text-green-600">- {{ formatPrice(order.discount_price) }}</span>
               </div>
               <div class="flex justify-between">
                 <span>Phí vận chuyển:</span>
-                <span>{{ formatPrice(order.shipping?.shipping_fee) }} đ</span>
+                <span>{{ formatPrice(order.shipping?.shipping_fee) }}</span>
               </div>
               <div class="flex justify-between" v-if="order.shipping && order.shipping.shipping_discount > 0">
                 <span>Giảm giá phí ship:</span>
-                <span class="text-green-600">- {{ formatPrice(order.shipping.shipping_discount) }} đ</span>
+                <span class="text-green-600">- {{ formatPrice(order.shipping.shipping_discount) }}</span>
               </div>
               <div class="flex justify-between font-bold border-t pt-2 mt-2">
                 <span>Tổng thanh toán:</span>
-                <span class="text-blue-700">{{ formatPrice((parseInt(order.final_price) || 0) + (parseInt(order.shipping?.shipping_fee) || 0)) }} đ</span>
+                <span class="text-blue-700">{{ formatPrice((parseInt(order.final_price) || 0) + (parseInt(order.shipping?.shipping_fee) || 0)) }}</span>
               </div>
             </div>
             <!-- Danh sách sản phẩm đã đặt (nếu có) -->
@@ -74,7 +76,7 @@
                       :src="getProductImage(item.variant?.thumbnail || item.product?.thumbnail)"
                       :alt="item.product?.name || 'Ảnh sản phẩm'"
                       class="w-12 h-12 object-cover rounded-md border"
-                      @error="e => e.target.src = '/images/no-image.png'"
+                      @error="e => { if (!e.target._errorHandled) { e.target.src = '/images/no-image.png'; e.target._errorHandled = true; } }"
                     />
                   </div>
                   <div class="flex-1">
@@ -100,7 +102,9 @@
               <div class="mt-1 font-semibold text-gray-800">
                 {{
                   orderDetail.address
-                    ? [orderDetail.address.detail, orderDetail.address.ward_name, orderDetail.address.district_name, orderDetail.address.province_name].filter(Boolean).join(', ')
+                    ? [orderDetail.address.detail, orderDetail.address.ward_name, orderDetail.address.district_name, orderDetail.address.province_name]
+                        .filter(v => v && v !== 'null' && v !== 'undefined')
+                        .join(', ')
                     : 'Không có'
                 }}
               </div>
@@ -236,10 +240,28 @@ const loadWards = async (district_id) => {
   wards.value = data.data || []
 }
 
+function enrichAddress(address) {
+  if (!address) return;
+  if (address.province_id && !address.province_name) {
+    const province = provinces.value.find(p => p.ProvinceID == address.province_id);
+    address.province_name = province?.ProvinceName || '';
+  }
+  if (address.district_id && !address.district_name) {
+    const district = districts.value.find(d => d.DistrictID == address.district_id);
+    address.district_name = district?.DistrictName || '';
+  }
+  if (address.ward_code && !address.ward_name) {
+    const ward = wards.value.find(w => w.WardCode == address.ward_code);
+    address.ward_name = ward?.WardName || '';
+  }
+}
+
 function getProductImage(thumbnail) {
   if (!thumbnail) return '/images/no-image.png';
   if (thumbnail.startsWith('http://') || thumbnail.startsWith('https://')) return thumbnail;
-  return mediaBaseUrl + thumbnail;
+  // Nếu thumbnail bắt đầu bằng '/', bỏ dấu '/' đầu để tránh lỗi khi nối
+  let cleanThumb = thumbnail.startsWith('/') ? thumbnail.slice(1) : thumbnail;
+  return mediaBaseUrl + cleanThumb;
 }
 
 onMounted(async () => {
@@ -317,6 +339,23 @@ onMounted(async () => {
         transactionId.value = '-'
         tracking_code.value = '-'
         orderDetail.value = []
+      }
+      await loadProvinces();
+      let firstAddress = null;
+      if (Array.isArray(orderDetail.value) && orderDetail.value.length > 0) {
+        firstAddress = orderDetail.value[0]?.address;
+      } else if (orderDetail.value && orderDetail.value.address) {
+        firstAddress = orderDetail.value.address;
+      }
+      if (firstAddress) {
+        if (firstAddress.province_id) await loadDistricts(firstAddress.province_id);
+        if (firstAddress.district_id) await loadWards(firstAddress.district_id);
+      }
+      // enrich address cho từng order
+      if (Array.isArray(orderDetail.value)) {
+        orderDetail.value.forEach(order => { if (order.address) enrichAddress(order.address); });
+      } else if (orderDetail.value && orderDetail.value.address) {
+        enrichAddress(orderDetail.value.address);
       }
     } else {
       loading.value = false

@@ -64,23 +64,23 @@
               <div class="mt-4 text-left text-sm space-y-1">
                 <div class="flex justify-between">
                   <span>Tổng tiền hàng:</span>
-                  <span>{{ formatPrice(order.total_price) }} đ</span>
+                  <span>{{ formatPrice(order.total_price) }}</span>
                 </div>
                 <div class="flex justify-between" v-if="order.discount_price > 0">
                   <span>Giảm giá sản phẩm:</span>
-                  <span class="text-green-600">- {{ formatPrice(order.discount_price) }} đ</span>
+                  <span class="text-green-600">- {{ formatPrice(order.discount_price) }}</span>
                 </div>
                 <div class="flex justify-between">
                   <span>Phí vận chuyển:</span>
-                  <span>{{ formatPrice(order.shipping?.shipping_fee) }} đ</span>
+                  <span>{{ formatPrice(order.shipping?.shipping_fee) }}</span>
                 </div>
                 <div class="flex justify-between" v-if="order.shipping && order.shipping.shipping_discount > 0">
                   <span>Giảm giá phí ship:</span>
-                  <span class="text-green-600">- {{ formatPrice(order.shipping.shipping_discount) }} đ</span>
+                  <span class="text-green-600">- {{ formatPrice(order.shipping.shipping_discount) }}</span>
                 </div>
                 <div class="flex justify-between font-bold border-t pt-2 mt-2">
                   <span>Tổng thanh toán:</span>
-                  <span class="text-blue-700">{{ formatPrice((parseInt(order.final_price) || 0) + (parseInt(order.shipping?.shipping_fee) || 0)) }} đ</span>
+                  <span class="text-blue-700">{{ formatPrice((parseInt(order.final_price) || 0) + (parseInt(order.shipping?.shipping_fee) || 0)) }}</span>
                 </div>
               </div>
             </div>
@@ -153,7 +153,7 @@
           <div class="bg-gray-50 rounded-lg p-6 w-full text-left border border-gray-200 shadow-sm">
             <div class="grid grid-cols-2 gap-4">
               <p><span class="font-semibold text-gray-800">Mã vận đơn:</span> {{ tracking_code || 'Đang cập nhật' }}</p>
-              <p><span class="font-semibold text-gray-800">Số tiền:</span> {{ formatPrice(amount) }} đ</p>
+              <p><span class="font-semibold text-gray-800">Số tiền:</span> {{ formatPrice(amount) }}</p>
               <p><span class="font-semibold text-gray-800">Phương thức:</span> MOMO</p>
               <p><span class="font-semibold text-gray-800">Mã giao dịch:</span> {{ transactionId }}</p>
             </div>

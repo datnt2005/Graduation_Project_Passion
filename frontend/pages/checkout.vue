@@ -403,11 +403,11 @@
                   </div>
                   <div class="flex justify-between">
                     <span class="text-[14px]">Phí vận chuyển</span>
-                    <span class="text-[14px] text-gray-800">{{ formattedFinalShippingFee }}</span>
+                    <span class="text-[14px] text-gray-800">{{ formatPrice(totalShippingFee) }}</span>
                   </div>
                   <div class="flex justify-between">
                     <span class="text-[14px]">Giảm giá phí ship</span>
-                    <span class="text-green-600">- {{ formatPrice(getShippingDiscount(total)) }}</span>
+                    <span class="text-green-600">- {{ formatPrice(totalShippingDiscount) }}</span>
                   </div>
                   <!-- Giảm giá từ mã khuyến mãi -->
                   <div v-if="calculateDiscount(total) > 0" class="flex justify-between">
@@ -423,7 +423,7 @@
                   <div
                     class="flex justify-between pt-3 border-t border-gray-200 text-base font-semibold">
                     <span class="text-[14px]">Tổng thanh toán</span>
-                    <span class="text-[15px] text-lg">{{ formattedFinalTotal }}</span>
+                    <span class="text-[15px] text-lg">{{ formatPrice(realFinalTotal) }}</span>
                   </div>
                   <p class="text-xs text-gray-500 italic text-right mt-1 leading-snug">
                     (Giá đã bao gồm thuế GTGT, phí đóng gói, phí vận chuyển và chi phí phát sinh khác)
@@ -578,6 +578,33 @@ const uniqueShippingDiscounts = computed(() => {
     }
     return false;
   });
+});
+
+const shopCount = computed(() => cartItems.value.length);
+const totalShippingFee = computed(() => {
+  // Nếu chỉ có 1 shop, lấy phí ship như cũ
+  if (shopCount.value <= 1) return finalShippingFee.value;
+  // Nếu nhiều shop, nhân phí ship với số shop (giả sử phí giống nhau)
+  return finalShippingFee.value * shopCount.value;
+});
+
+// Tổng giảm giá phí ship (nếu có)
+const totalShippingDiscount = computed(() => {
+  return typeof getShippingDiscount === 'function' ? getShippingDiscount(total.value) : 0;
+});
+
+const realShippingFee = computed(() => {
+  // Phí vận chuyển thực trả = max(0, finalShippingFee.value)
+  return Math.max(0, finalShippingFee.value);
+});
+
+// Tổng thanh toán thực tế (tổng tiền hàng - giảm giá + tổng phí ship - giảm giá phí ship)
+const realFinalTotal = computed(() => {
+  const baseTotal = total.value;
+  const productDiscount = calculateDiscount(baseTotal);
+  const shopDiscountsTotal = cartItems.value.reduce((sum, shop) => sum + (shop.discount || 0), 0);
+  // KHÔNG trừ totalShippingDiscount nữa, chỉ cộng realShippingFee
+  return Math.max(0, baseTotal - productDiscount - shopDiscountsTotal + realShippingFee.value);
 });
 
 // Address loading
