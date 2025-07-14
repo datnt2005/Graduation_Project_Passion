@@ -6,7 +6,7 @@ import { useDiscount } from '~/composables/useDiscount';
 import { useToast } from '~/composables/useToast';
 import { useRoute } from 'vue-router';
 
-export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress) {
+export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress, storeNotes) {
   const config = useRuntimeConfig();
   const route = useRoute();
   const { toast } = useToast();
@@ -40,6 +40,10 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
 
   const selectedPaymentMethod = ref('');
 
+  // Thêm state để lưu trữ discount cho từng shop
+  const shopDiscounts = ref({});
+  const shopDiscountIds = ref({}); // Thêm state để lưu discountId cho từng shop
+
   // Kiểm tra xem có phải luồng buyNow không
   const isBuyNow = computed(() => route.query.buyNow === 'true');
 
@@ -48,6 +52,7 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
 
   // Load dữ liệu buyNow từ localStorage
   const loadBuyNowData = () => {
+    if (typeof window === 'undefined' || !window.localStorage) return; // Chỉ chạy trên client
     const storedData = localStorage.getItem('buy_now');
     if (storedData) {
       buyNowData.value = JSON.parse(storedData);
@@ -59,6 +64,24 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
       } else {
       }
     }
+  };
+
+  // Hàm để cập nhật discount cho shop
+  const updateShopDiscount = (sellerId, discount, discountId = null) => {
+    shopDiscounts.value[sellerId] = discount;
+    if (discountId) {
+      shopDiscountIds.value[sellerId] = discountId;
+    }
+  };
+
+  // Hàm để lấy discount cho shop
+  const getShopDiscount = (sellerId) => {
+    return shopDiscounts.value[sellerId] || 0;
+  };
+
+  // Hàm để lấy discountId cho shop
+  const getShopDiscountId = (sellerId) => {
+    return shopDiscountIds.value[sellerId] || null;
   };
 
   // Derive cartItems từ cart hoặc buyNow
@@ -88,7 +111,8 @@ const cartItems = computed(() => {
         sale_price: price,
       }],
       store_total: price * buyNowData.value.quantity,
-      discount: 0
+      discount: getShopDiscount(buyNowData.value.seller_id),
+      selectedDiscountId: getShopDiscountId(buyNowData.value.seller_id)
     }];
   }
 
@@ -124,7 +148,8 @@ const cartItems = computed(() => {
       store_url: store.store_url || '',
       items,
       store_total: storeTotal,
-      discount: 0 // Nếu có mã giảm giá theo shop thì tính ở đây
+      discount: getShopDiscount(store.seller_id), // Sử dụng discount từ shopDiscounts
+      selectedDiscountId: getShopDiscountId(store.seller_id)
     };
   });
 });
@@ -166,7 +191,13 @@ const cartItems = computed(() => {
   const finalTotal = computed(() => {
     const baseTotal = total.value;
     const productDiscount = calculateDiscount(baseTotal);
-    return Math.max(0, baseTotal - productDiscount + finalShippingFee.value);
+    
+    // Tính tổng discount của tất cả shop
+    const shopDiscountsTotal = cartItems.value.reduce((sum, shop) => {
+      return sum + (shop.discount || 0);
+    }, 0);
+    
+    return Math.max(0, baseTotal - productDiscount - shopDiscountsTotal + finalShippingFee.value);
   });
 
   // Formatted price utilities
@@ -241,21 +272,45 @@ const cartItems = computed(() => {
       const { data: userData } = await userResponse.json();
       if (!userData?.id) throw new Error('Không tìm thấy thông tin người dùng');
 
-      // Chuẩn bị dữ liệu đơn hàng
-      const items = cartItems.value.flatMap((store) =>
-        store.items.map((item) => ({
-          product_id: item.product?.id,
-          product_variant_id: item.productVariant?.id || null,
-          quantity: item.quantity,
-          price: parsePrice(item.sale_price || item.price),
-        }))
-      ).filter(item => item.product_id);
+      // Chuẩn bị dữ liệu đơn hàng - flatten tất cả items từ các stores
+      const allItems = [];
+      cartItems.value.forEach(store => {
+        if (store.items && Array.isArray(store.items)) {
+          store.items.forEach(item => {
+            if (item.product && item.product.id) {
+              allItems.push({
+                product_id: item.product.id,
+                product_variant_id: item.productVariant?.id || null,
+                quantity: item.quantity,
+                price: parsePrice(item.sale_price || item.price),
+                seller_id: store.seller_id,
+              });
+            }
+          });
+        }
+      });
 
-      if (!items.length) {
-        toast('error', 'Không có sản phẩm hợp lệ để đặt hàng');
-        return;
-      }
+      // Chuẩn bị notes cho từng seller
+      const notesBySeller = storeNotes?.value || {};
 
+      // Tạo mảng discount_ids bao gồm cả voucher shop và voucher admin/ship
+      const discountIds = [];
+      
+      // Thêm voucher shop (từ shopDiscounts)
+      cartItems.value.forEach(shop => {
+        if (shop.selectedDiscountId) {
+          discountIds.push(shop.selectedDiscountId);
+        }
+      });
+      
+      // Thêm voucher admin/ship (từ selectedDiscounts)
+      selectedDiscounts.value.forEach(discount => {
+        if (!discountIds.includes(discount.id)) {
+          discountIds.push(discount.id);
+        }
+      });
+
+      // Khi gửi order, truyền notesBySeller lên backend
       const orderData = {
         user_id: userData.id,
         address_id: selectedAddress.value.id,
@@ -264,12 +319,14 @@ const cartItems = computed(() => {
         receiver_phone: selectedAddress.value.phone || 'Chưa cung cấp số điện thoại',
         payment_method: selectedPaymentMethod.value,
         service_id: selectedShippingMethod.value,
-        discount_id: selectedDiscounts.value?.[0]?.id || null,
-        items,
+        discount_ids: discountIds, // Gửi mảng id mã giảm giá bao gồm cả shop và admin/ship
+        items: allItems,
         ward_id: selectedAddress.value.ward_id,
         district_id: selectedAddress.value.district_id,
         province_id: selectedAddress.value.province_id,
         is_buy_now: isBuyNow.value,
+        skip_stock_check: true, // Tạm thời bỏ qua kiểm tra tồn kho
+        store_notes: notesBySeller,
       };
 
       const orderResponse = await fetch(`${config.public.apiBaseUrl}/orders`, {
@@ -290,7 +347,10 @@ const cartItems = computed(() => {
       const { orders } = await orderResponse.json();
 
       if (!orders || !orders.length) throw new Error('Không nhận được đơn hàng từ server');
-      
+
+      // Xóa items đã đặt hàng khỏi giỏ hàng
+      await removeOrderedItems(allItems);
+
       if (isBuyNow.value) {
         localStorage.removeItem('buy_now');
       }
@@ -362,6 +422,54 @@ const cartItems = computed(() => {
   // Gọi loadBuyNowData khi khởi tạo
   loadBuyNowData();
 
+  // Hàm xóa items đã đặt hàng khỏi giỏ hàng
+  const removeOrderedItems = async (orderedItems) => {
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) return;
+
+      // Lấy danh sách cart items hiện tại
+      const cartResponse = await fetch(`${config.public.apiBaseUrl}/cart`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+      });
+
+      if (!cartResponse.ok) return;
+
+      const cartData = await cartResponse.json();
+      const cartItems = cartData.data?.stores || [];
+
+      // Tìm và xóa các items đã đặt hàng
+      for (const orderedItem of orderedItems) {
+        for (const store of cartItems) {
+          const itemToRemove = store.items?.find(item => 
+            item.product?.id === orderedItem.product_id && 
+            item.product_variant?.id === orderedItem.product_variant_id
+          );
+
+          if (itemToRemove) {
+            // Xóa item khỏi giỏ hàng
+            await fetch(`${config.public.apiBaseUrl}/cart/${itemToRemove.id}`, {
+              method: 'DELETE',
+              headers: {
+                Authorization: `Bearer ${token}`,
+                Accept: 'application/json',
+              },
+            });
+          }
+        }
+      }
+
+      // Refresh cart data
+      await fetchCart();
+    } catch (error) {
+      console.error('Error removing ordered items from cart:', error);
+      // Không throw error vì việc xóa giỏ hàng không quan trọng bằng việc tạo order
+    }
+  };
+
   return {
     cartItems,
     total,
@@ -392,7 +500,11 @@ const cartItems = computed(() => {
     getPaymentMethodLabel,  
     placeOrder,
     selectStoreItems,
+    removeOrderedItems,
     isBuyNow,
     buyNowData,
+    updateShopDiscount,
+    getShopDiscount,
+    getShopDiscountId,
   };
 }

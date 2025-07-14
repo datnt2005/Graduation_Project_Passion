@@ -634,7 +634,7 @@ const toggleFollow = async () => {
 };
 
 const formatPrice = (price) => price !== null && price !== undefined
-  ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price)
+  ? new Intl.NumberFormat('vi-VN').format(price) + ' ₫'
   : 'Liên hệ';
 
 const formatCurrency = (value) => formatPrice(value);

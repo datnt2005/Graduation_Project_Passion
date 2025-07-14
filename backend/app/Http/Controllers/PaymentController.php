@@ -85,7 +85,9 @@ class PaymentController extends Controller
             if ($orders->isEmpty()) {
                 return response()->json(['message' => 'Không tìm thấy đơn hàng'], 404);
             }
-            $totalAmount = $orders->sum('final_price');
+            $totalAmount = $orders->sum(function($order) {
+                return $order->final_price + ($order->shipping->shipping_fee ?? 0);
+            });
             $orderInfo = 'Thanh toán nhiều đơn: ' . implode(',', $orderIds);
             $txnRef = implode('-', $orderIds) . '_' . time();
 
@@ -115,7 +117,7 @@ class PaymentController extends Controller
                 'order_id.exists' => 'ID đơn hàng không tồn tại'
             ]);
             $order = Order::findOrFail($request->order_id);
-            $totalAmount = $order->final_price;
+            $totalAmount = $order->final_price + ($order->shipping->shipping_fee ?? 0);
             $orderInfo = 'Thanh toan don hang ' . $order->id;
             $txnRef = $order->id . '_' . time();
 
@@ -382,6 +384,8 @@ class PaymentController extends Controller
                     $payment->update(['status' => 'completed']);
                     // Lấy danh sách order_id từ bảng payment_orders
                     $orderIds = \DB::table('payment_orders')->where('payment_id', $payment->id)->pluck('order_id');
+                    $orderDetails = [];
+                    
                     foreach ($orderIds as $oid) {
                         $order = Order::find($oid);
                         if ($order) {
@@ -392,15 +396,78 @@ class PaymentController extends Controller
                             if ($order->user && $order->user->email) {
                                 \Mail::to($order->user->email)->send(new \App\Mail\OrderSuccessMail($order));
                             }
+                            
+                            // Thêm order detail vào mảng
+                            $orderDetails[] = [
+                                'id' => $order->id,
+                                'user' => [
+                                    'id' => $order->user->id,
+                                    'name' => $order->user->name,
+                                    'email' => $order->user->email,
+                                ],
+                                'address' => $order->address ? [
+                                    'id' => $order->address->id,
+                                    'name' => $order->address->name,
+                                    'phone' => $order->address->phone,
+                                    'province_id' => $order->address->province_id,
+                                    'district_id' => $order->address->district_id,
+                                    'ward_code' => $order->address->ward_code,
+                                    'detail' => $order->address->detail,
+                                    'province_name' => $order->address->province->name ?? null,
+                                    'district_name' => $order->address->district->name ?? null,
+                                    'ward_name' => $order->address->ward->name ?? null,
+                                ] : null,
+                                'note' => $order->note,
+                                'status' => $order->status,
+                                'total_price' => $order->total_price,
+                                'discount_price' => $order->discount_price,
+                                'final_price' => $order->final_price,
+                                'shipping' => $order->shipping ? [
+                                    'tracking_code' => $order->shipping->tracking_code,
+                                    'status' => $order->shipping->status,
+                                    'estimated_delivery' => $order->shipping->estimated_delivery,
+                                    'shipping_fee' => $order->shipping->shipping_fee,
+                                    'shipping_discount' => $order->shipping->shipping_discount ?? 0,
+                                ] : null,
+                                'created_at' => $order->created_at,
+                                'order_items' => $order->orderItems->map(function ($item) {
+                                    return [
+                                        'id' => $item->id,
+                                        'product' => [
+                                            'id' => $item->product->id,
+                                            'name' => $item->product->name,
+                                            'thumbnail' => $item->product->thumbnail,
+                                        ],
+                                        'variant' => $item->productVariant ? [
+                                            'id' => $item->productVariant->id,
+                                            'name' => $item->productVariant->name,
+                                        ] : null,
+                                        'quantity' => $item->quantity,
+                                        'price' => $item->price,
+                                        'total' => $item->price * $item->quantity,
+                                    ];
+                                }),
+                                'payments' => $order->payments->map(function ($payment) {
+                                    return [
+                                        'id' => $payment->id,
+                                        'method' => $payment->paymentMethod ? $payment->paymentMethod->name : null,
+                                        'amount' => $payment->amount,
+                                        'status' => $payment->status,
+                                        'created_at' => $payment->created_at,
+                                    ];
+                                }),
+                            ];
                         }
                     }
+                    
                     return response()->json([
                         'message' => 'Thanh toán thành công',
                         'success' => true,
                         'order_ids' => $orderIds,
                         'transaction_id' => $vnpTranId,
-                        'amount' => $vnp_Amount / 100,
-                        'bank_code' => $vnp_BankCode
+                        'amount' => $payment->amount,
+                        'bank_code' => $vnp_BankCode,
+                        'order_detail' => $orderDetails // Thêm order_detail
                     ]);
                 } else {
                     $payment->update(['status' => 'failed']);
@@ -461,8 +528,67 @@ class PaymentController extends Controller
                     'order_id' => $orderId,
                     'tracking_code' => $order->shipping->tracking_code ?? null,
                     'transaction_id' => $vnpTranId,
-                    'amount' => $vnp_Amount / 100,
-                    'bank_code' => $vnp_BankCode
+                    'amount' => $order->final_price + ($order->shipping->shipping_fee ?? 0),
+                    'bank_code' => $vnp_BankCode,
+                    'order_detail' => [
+                        'id' => $order->id,
+                        'user' => [
+                            'id' => $order->user->id,
+                            'name' => $order->user->name,
+                            'email' => $order->user->email,
+                        ],
+                        'address' => $order->address ? [
+                            'id' => $order->address->id,
+                            'name' => $order->address->name,
+                            'phone' => $order->address->phone,
+                            'province_id' => $order->address->province_id,
+                            'district_id' => $order->address->district_id,
+                            'ward_code' => $order->address->ward_code,
+                            'detail' => $order->address->detail,
+                            'province_name' => $order->address->province->name ?? null,
+                            'district_name' => $order->address->district->name ?? null,
+                            'ward_name' => $order->address->ward->name ?? null,
+                        ] : null,
+                        'note' => $order->note,
+                        'status' => $order->status,
+                        'total_price' => $order->total_price,
+                        'discount_price' => $order->discount_price,
+                        'final_price' => $order->final_price,
+                        'shipping' => $order->shipping ? [
+                            'tracking_code' => $order->shipping->tracking_code,
+                            'status' => $order->shipping->status,
+                            'estimated_delivery' => $order->shipping->estimated_delivery,
+                            'shipping_fee' => $order->shipping->shipping_fee,
+                            'shipping_discount' => $order->shipping->shipping_discount ?? 0,
+                        ] : null,
+                        'created_at' => $order->created_at,
+                        'order_items' => $order->orderItems->map(function ($item) {
+                            return [
+                                'id' => $item->id,
+                                'product' => [
+                                    'id' => $item->product->id,
+                                    'name' => $item->product->name,
+                                    'thumbnail' => $item->product->thumbnail,
+                                ],
+                                'variant' => $item->productVariant ? [
+                                    'id' => $item->productVariant->id,
+                                    'name' => $item->productVariant->name,
+                                ] : null,
+                                'quantity' => $item->quantity,
+                                'price' => $item->price,
+                                'total' => $item->price * $item->quantity,
+                            ];
+                        }),
+                        'payments' => $order->payments->map(function ($payment) {
+                            return [
+                                'id' => $payment->id,
+                                'method' => $payment->paymentMethod ? $payment->paymentMethod->name : null,
+                                'amount' => $payment->amount,
+                                'status' => $payment->status,
+                                'created_at' => $payment->created_at,
+                            ];
+                        }),
+                    ]
                 ]);
             }
 
@@ -501,7 +627,9 @@ class PaymentController extends Controller
             if ($orders->isEmpty()) {
                 return response()->json(['message' => 'Không tìm thấy đơn hàng'], 404);
             }
-            $totalAmount = (int) $orders->sum('final_price');
+            $totalAmount = (int) $orders->sum(function($order) {
+                return $order->final_price + ($order->shipping->shipping_fee ?? 0);
+            });
             $orderInfo = 'Thanh toán nhiều đơn: ' . implode(',', $orderIds);
             $orderId = time() . "";
             $redirectUrl = "http://localhost:3000/payment/momo-return";
@@ -586,7 +714,7 @@ class PaymentController extends Controller
         $accessKey = "F8BBA842ECF85";
         $secretKey = "K951B6PE1waDMi640xX08PD3vg6EkVlz";
         $orderInfo = "Thanh toán đơn hàng " . $order->id;
-        $amount = (int)($order->final_price); // Convert to integer
+        $amount = (int)($order->final_price + ($order->shipping->shipping_fee ?? 0)); // Convert to integer
         $orderId = time() . ""; // Mã đơn hàng, unique
         $redirectUrl = "http://localhost:3000/payment/momo-return";
         $ipnUrl = "http://localhost:8000/api/payments/momo/ipn";
@@ -744,7 +872,7 @@ class PaymentController extends Controller
                         'success' => true,
                         'order_ids' => $orderIds,
                         'transaction_id' => $transId,
-                        'amount' => $amount,
+                        'amount' => $payment->amount,
                     ]);
                 } else {
                     $payment->update(['status' => 'failed', 'transaction_id' => $transId]);
@@ -795,7 +923,7 @@ class PaymentController extends Controller
                     'message' => 'Thanh toán thành công',
                     'order_id' => $originalOrderId,
                     'tracking_code' => $order->shipping->tracking_code ?? null,
-                    'amount' => $amount,
+                    'amount' => $order->final_price + ($order->shipping->shipping_fee ?? 0),
                     'transId' => $transId,
                     'orderDetail' => [
                         'id' => $order->id,
@@ -818,7 +946,12 @@ class PaymentController extends Controller
                         'total_price' => $order->total_price,
                         'discount_price' => $order->discount_price,
                         'final_price' => $order->final_price,
-                        'shipping' => $order->shipping,
+                        'shipping' => $order->shipping ? [
+                            'tracking_code' => $order->shipping->tracking_code,
+                            'status' => $order->shipping->status,
+                            'estimated_delivery' => $order->shipping->estimated_delivery,
+                            'shipping_fee' => $order->shipping->shipping_fee,
+                        ] : null,
                         'created_at' => $order->created_at,
                         'order_items' => $order->orderItems->map(function ($item) {
                             return [
@@ -827,10 +960,17 @@ class PaymentController extends Controller
                                     'id' => $item->product->id,
                                     'name' => $item->product->name,
                                     'thumbnail' => $item->product->thumbnail,
+                                    'product_pic' => $item->product->productPic->map(function($pic) {
+                                        return [
+                                            'id' => $pic->id,
+                                            'imagePath' => $pic->imagePath,
+                                        ];
+                                    }),
                                 ],
                                 'variant' => $item->productVariant ? [
                                     'id' => $item->productVariant->id,
                                     'name' => $item->productVariant->name,
+                                    'thumbnail' => $item->productVariant->thumbnail,
                                 ] : null,
                                 'quantity' => $item->quantity,
                                 'price' => $item->price,

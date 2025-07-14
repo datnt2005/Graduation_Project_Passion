@@ -34,7 +34,7 @@
               </div>
               <!-- Shipping Selector -->
               <ShippingSelector ref="shippingRef" :address="selectedAddress" v-model:selectedMethod="selectedShippingMethod"
-                :cart-items="cartItems" />
+                :cart-items="cartItems" @update:shop-discount="handleShopDiscountUpdate" />
 
               <!-- Payment Methods -->
               <section class="bg-white rounded-[4px] p-5">
@@ -214,7 +214,10 @@
                           <p class="text-xs text-gray-600">
                             {{ discount.discount_type === 'percentage'
                               ? `Giảm ${Math.round(discount.discount_value)}%`
-                              : `Giảm ${formatPrice(discount.discount_value)}` }}
+                              : (discount.discount_type === 'shipping_fee'
+                                  ? `Giảm ${formatPrice(Number(discount.discount_value) / 100)}`
+                                  : `Giảm ${formatPrice(discount.discount_value)}`)
+                            }}
                             <span v-if="discount.min_order_value">
                               (Đơn tối thiểu {{ formatPrice(discount.min_order_value) }})
                             </span>
@@ -255,13 +258,18 @@
                           Áp dụng
                         </button>
                       </div>
+                      <p class="text-xs text-gray-500 mt-1">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        Bạn có thể nhập mã giảm giá của admin hoặc mã giảm giá của từng shop
+                      </p>
                     </div>
                     <div class="space-y-6 max-h-[450px] overflow-y-auto">
                       <div>
                         <h3 class="text-sm font-medium text-gray-700 mb-2">Mã giảm phí vận chuyển</h3>
-                        <div v-if="discounts.filter(d => d.discount_type === 'shipping_fee').length"
+                        <div v-if="discountLoading" class="text-gray-500 text-sm italic mt-2">Đang tải mã giảm giá...</div>
+                        <div v-else-if="uniqueShippingDiscounts.length"
                           class="space-y-3">
-                          <div v-for="discount in discounts.filter(d => d.discount_type === 'shipping_fee')"
+                          <div v-for="discount in uniqueShippingDiscounts"
                             :key="discount.id"
                             class="border border-gray-300 rounded-md p-4 hover:border-blue-500 transition duration-200"
                             :class="{ 'opacity-50': total < discount.min_order_value }">
@@ -269,7 +277,7 @@
                               <div>
                                 <p class="font-semibold text-sm text-gray-800">{{ discount.name }}</p>
                                 <p class="text-xs text-gray-600">
-                                  Giảm {{ formatPrice(discount.discount_value) }}
+                                  Giảm {{ formatPrice(Number(discount.discount_value) / 100) }}
                                   <span v-if="discount.min_order_value">
                                     | Đơn tối thiểu {{ formatPrice(discount.min_order_value) }}
                                   </span>
@@ -296,9 +304,10 @@
                       </div>
                       <div>
                         <h3 class="text-sm font-medium text-gray-700 mb-2">Mã giảm giá sản phẩm</h3>
-                        <div v-if="discounts.filter(d => d.discount_type !== 'shipping_fee').length"
+                        <div v-if="discountLoading" class="text-gray-500 text-sm italic mt-2">Đang tải mã giảm giá...</div>
+                        <div v-else-if="publicDiscounts.filter(d => d.discount_type !== 'shipping_fee' && d.seller_id === null).length"
                           class="space-y-3">
-                          <div v-for="discount in discounts.filter(d => d.discount_type !== 'shipping_fee')"
+                          <div v-for="discount in publicDiscounts.filter(d => d.discount_type !== 'shipping_fee' && d.seller_id === null)"
                             :key="discount.id"
                             class="border border-gray-300 rounded-md p-4 hover:border-blue-500 transition duration-200"
                             :class="{ 'opacity-50': total < discount.min_order_value }">
@@ -308,7 +317,7 @@
                                 <p class="text-xs text-gray-600">
                                   {{ discount.discount_type === 'percentage'
                                     ? `Giảm ${Math.round(discount.discount_value)}%`
-                                    : `Giảm ${formatPrice(discount.discount_value)}` }}
+                                    : `Giảm ${formatPrice(Number(discount.discount_value) / 100)}` }}
                                   <span v-if="discount.min_order_value">
                                     | Đơn tối thiểu {{ formatPrice(discount.min_order_value) }}
                                   </span>
@@ -362,26 +371,59 @@
                     {{ cartItems.length }} sản phẩm.
                   </div>
                   <hr />
+                  <div v-for="store in cartItems" :key="store.seller_id" class="bg-white rounded shadow p-4 mb-4">
+                    <!-- Danh sách sản phẩm của cửa hàng -->
+                    <div v-for="item in store.items" :key="item.id" class="flex items-center border-b last:border-b-0 py-2">
+                      <img :src="item.productVariant?.thumbnail ? mediaBaseUrl + item.productVariant.thumbnail : '/images/default-product.jpg'" :alt="item.product?.name" class="w-12 h-12 object-cover rounded mr-3" />
+                      <div class="flex-1">
+                        <div class="font-semibold">{{ item.product?.name }}</div>
+                        <div class="text-xs text-gray-500">{{ item.productVariant?.attributes?.map(attr => attr.value).join(' - ') }}</div>
+                        <div class="text-xs text-gray-500">Số lượng: x{{ item.quantity }}</div>
+                      </div>
+                      <div class="font-semibold">{{ formatPrice(item.sale_price) }} đ</div>
+                    </div>
+                    <!-- Tổng tiền shop -->
+                    <div class="flex justify-end font-semibold mt-2">
+                      <template v-if="store.discount > 0">
+                        <div class="text-right">
+                          <div class="text-xs text-gray-500 line-through">{{ formatPrice(store.store_total) }} đ</div>
+                          <div class="text-green-600">{{ formatPrice(store.store_total - store.discount) }} đ</div>
+                          <div class="text-xs text-green-600">(Giảm {{ formatPrice(store.discount) }} đ)</div>
+                        </div>
+                      </template>
+                      <template v-else>
+                        Tổng tiền: {{ formatPrice(store.store_total) }} đ
+                      </template>
+                    </div>
+                    <!-- ĐÃ XÓA phần ghi chú cho cửa hàng ở sidebar, chỉ giữ ở main -->
+                  </div>
                   <div class="flex justify-between">
                     <span class="text-[14px]">Tổng tiền hàng</span>
                     <span class="text-[14px] text-gray-800">{{ formattedTotal }}</span>
                   </div>
                   <div class="flex justify-between">
                     <span class="text-[14px]">Phí vận chuyển</span>
-                    <span class="text-[14px] text-gray-800">{{ formattedFinalShippingFee }}</span>
+                    <span class="text-[14px] text-gray-800">{{ formatPrice(totalShippingFee) }}</span>
                   </div>
                   <div class="flex justify-between">
                     <span class="text-[14px]">Giảm giá phí ship</span>
-                    <span class="text-green-600">- {{ formatPrice(getShippingDiscount(total)) }}</span>
+                    <span class="text-green-600">- {{ formatPrice(totalShippingDiscount) }}</span>
                   </div>
-                  <div class="flex justify-between">
-                    <span class="text-[14px]">Giảm giá</span>
+                  <!-- Giảm giá từ mã khuyến mãi -->
+                  <div v-if="calculateDiscount(total) > 0" class="flex justify-between">
+                    <span class="text-[14px]">Giảm giá khuyến mãi</span>
                     <span class="text-green-600">- {{ formatPrice(calculateDiscount(total)) }}</span>
+                  </div>
+                  
+                  <!-- Giảm giá từ mã shop -->
+                  <div v-for="storeItem in shopsWithDiscount" :key="storeItem.seller_id" class="flex justify-between">
+                    <span class="text-[14px]">Giảm giá {{ storeItem.store_name }}</span>
+                    <span class="text-green-600">- {{ formatPrice(storeItem.discount) }}</span>
                   </div>
                   <div
                     class="flex justify-between pt-3 border-t border-gray-200 text-base font-semibold">
                     <span class="text-[14px]">Tổng thanh toán</span>
-                    <span class="text-[15px] text-lg">{{ formattedFinalTotal }}</span>
+                    <span class="text-[15px] text-lg">{{ formatPrice(realFinalTotal) }}</span>
                   </div>
                   <p class="text-xs text-gray-500 italic text-right mt-1 leading-snug">
                     (Giá đã bao gồm thuế GTGT, phí đóng gói, phí vận chuyển và chi phí phát sinh khác)
@@ -404,7 +446,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, computed } from 'vue';
 import { useRoute, useRuntimeConfig } from '#app';
 import axios from 'axios';
 import Swal from 'sweetalert2';
@@ -415,6 +457,7 @@ import { useDiscount } from '~/composables/useDiscount';
 
 const config = useRuntimeConfig();
 const apiBase = config.public.apiBaseUrl;
+const mediaBaseUrl = config.public.mediaBaseUrl;
 const route = useRoute();
 
 // State
@@ -427,6 +470,7 @@ const wards = ref([]);
 const manualCode = ref('');
 const showDiscountModal = ref(false);
 const requestInvoice = ref(false);
+const storeNotes = ref({});
 
 // Promotions (mock data, replace with API call if needed)
 const promotions = ref([
@@ -504,9 +548,64 @@ const {
   getPaymentMethodLabel,
   placeOrder,
   selectStoreItems,
-} = useCheckout(shippingRef, selectedShippingMethod, selectedAddress);
+  removeOrderedItems,
+  isBuyNow,
+  buyNowData,
+  updateShopDiscount,
+  getShopDiscount,
+} = useCheckout(shippingRef, selectedShippingMethod, selectedAddress, storeNotes);
 
-const { fetchMyVouchers } = useDiscount();
+const { fetchMyVouchers, fetchDiscounts: fetchPublicDiscounts, fetchSellerDiscounts, discounts: publicDiscounts } = useDiscount();
+
+// Handler cho shop discount update
+const handleShopDiscountUpdate = (data) => {
+  if (data && data.sellerId && updateShopDiscount) {
+    updateShopDiscount(data.sellerId, data.discount, data.discountId);
+  }
+};
+
+// Computed để lọc các shop có discount
+const shopsWithDiscount = computed(() => {
+  return cartItems.value.filter(shop => shop.discount > 0);
+});
+
+const uniqueShippingDiscounts = computed(() => {
+  const seen = new Set();
+  return (publicDiscounts.value || []).filter(d => {
+    if (d.discount_type === 'shipping_fee' && d.seller_id === null && !seen.has(d.id)) {
+      seen.add(d.id);
+      return true;
+    }
+    return false;
+  });
+});
+
+const shopCount = computed(() => cartItems.value.length);
+const totalShippingFee = computed(() => {
+  // Nếu chỉ có 1 shop, lấy phí ship như cũ
+  if (shopCount.value <= 1) return finalShippingFee.value;
+  // Nếu nhiều shop, nhân phí ship với số shop (giả sử phí giống nhau)
+  return finalShippingFee.value * shopCount.value;
+});
+
+// Tổng giảm giá phí ship (nếu có)
+const totalShippingDiscount = computed(() => {
+  return typeof getShippingDiscount === 'function' ? getShippingDiscount(total.value) : 0;
+});
+
+const realShippingFee = computed(() => {
+  // Phí vận chuyển thực trả = max(0, finalShippingFee.value)
+  return Math.max(0, finalShippingFee.value);
+});
+
+// Tổng thanh toán thực tế (tổng tiền hàng - giảm giá + tổng phí ship - giảm giá phí ship)
+const realFinalTotal = computed(() => {
+  const baseTotal = total.value;
+  const productDiscount = calculateDiscount(baseTotal);
+  const shopDiscountsTotal = cartItems.value.reduce((sum, shop) => sum + (shop.discount || 0), 0);
+  // KHÔNG trừ totalShippingDiscount nữa, chỉ cộng realShippingFee
+  return Math.max(0, baseTotal - productDiscount - shopDiscountsTotal + realShippingFee.value);
+});
 
 // Address loading
 const loadProvinces = async () => {
@@ -587,7 +686,32 @@ const applyManualDiscount = async () => {
     toast('warning', 'Vui lòng nhập mã giảm giá');
     return;
   }
-  const discount = discounts.value.find((d) => d.code?.toUpperCase() === code);
+  
+  // Tìm trong discount của admin trước
+  let discount = publicDiscounts.value.find((d) => d.code?.toUpperCase() === code);
+  
+  // Nếu không tìm thấy, tìm trong discount của các seller
+  if (!discount) {
+    for (const shop of cartItems.value) {
+      if (shop.seller_id) {
+        const sellerDiscounts = await fetchSellerDiscounts(shop.seller_id);
+        discount = sellerDiscounts.find((d) => d.code?.toUpperCase() === code);
+        if (discount) {
+          // Nếu là discount của seller, áp dụng cho shop đó
+          const discountAmount = discount.discount_type === 'percentage' 
+            ? (shop.store_total * discount.discount_value / 100)
+            : discount.discount_value;
+          
+          updateShopDiscount(shop.seller_id, discountAmount);
+          toast('success', `Đã áp dụng mã giảm giá cho ${shop.store_name}`);
+          manualCode.value = '';
+          showDiscountModal.value = false;
+          return;
+        }
+      }
+    }
+  }
+  
   if (!discount) {
     toast('error', 'Không tìm thấy mã giảm giá này');
     return;
@@ -681,6 +805,7 @@ onMounted(async () => {
     await Promise.all([
       selectStoreItems(),
       fetchPaymentMethods(),
+      fetchPublicDiscounts(),
       fetchMyVouchers(),
       loadSelectedAddress(),
     ]);

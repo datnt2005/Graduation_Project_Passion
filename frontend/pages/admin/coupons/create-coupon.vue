@@ -1,5 +1,13 @@
 <template>
   <div class="flex min-h-screen bg-gray-100">
+    <!-- Loading Overlay -->
+    <div v-if="loading" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-lg p-6 flex flex-col items-center">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+        <p class="text-gray-700 font-medium">Đang tải dữ liệu...</p>
+      </div>
+    </div>
+
     <!-- Sidebar -->
     <nav class="w-64 bg-white border-r border-gray-200">
       <ul class="py-2">
@@ -432,6 +440,7 @@
                     <span>Không kích hoạt</span>
                   </label>
                 </div>
+                <span v-if="errors.status" class="text-red-500 text-xs mt-1">{{ errors.status }}</span>
               </div>
 
               <!-- Submit Button -->
@@ -693,6 +702,10 @@ const validateForm = () => {
   errors.discount_value = '';
   errors.start_date = '';
   errors.end_date = '';
+  errors.status = '';
+  errors.usage_limit = '';
+  errors.min_order_value = '';
+  errors.discount_type = '';
 
   let isValid = true;
 
@@ -709,10 +722,16 @@ const validateForm = () => {
   if (!formData.discount_type) {
     errors.discount_type = 'Vui lòng chọn loại giảm giá';
     isValid = false;
+  } else if (!['percentage', 'fixed', 'shipping_fee'].includes(formData.discount_type)) {
+    errors.discount_type = 'Loại giảm giá không hợp lệ';
+    isValid = false;
   }
 
-  if (formData.discount_value <= 0) {
-    errors.discount_value = 'Giá trị giảm giá phải lớn hơn 0';
+  if (formData.discount_value === undefined || formData.discount_value === null) {
+    errors.discount_value = 'Giá trị giảm giá không được để trống';
+    isValid = false;
+  } else if (formData.discount_value < 0) {
+    errors.discount_value = 'Giá trị giảm giá phải lớn hơn hoặc bằng 0';
     isValid = false;
   }
 
@@ -757,6 +776,24 @@ const validateForm = () => {
     }
   }
 
+  // Validate status
+  if (!formData.status) {
+    errors.status = 'Vui lòng chọn trạng thái';
+    isValid = false;
+  }
+
+  // Validate usage_limit
+  if (formData.usage_limit !== null && formData.usage_limit < 1) {
+    errors.usage_limit = 'Giới hạn sử dụng phải lớn hơn 0';
+    isValid = false;
+  }
+
+  // Validate min_order_value
+  if (formData.min_order_value !== null && formData.min_order_value < 0) {
+    errors.min_order_value = 'Giá trị đơn hàng tối thiểu phải lớn hơn hoặc bằng 0';
+    isValid = false;
+  }
+
   return isValid;
 };
 
@@ -773,11 +810,11 @@ const createCoupon = async () => {
 
   try {
     loading.value = true;
-    const response = await secureFetch(`${apiBase}/discounts`,{}, ['admin'], {
+    const response = await secureFetch(`${apiBase}/discounts`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(requestData)
-    });
+    }, ['admin']);
     const data = await response.json();
 
     if (data.success) {
@@ -816,10 +853,15 @@ if (selectedUsers.value.length > 0) {
         router.push('/admin/coupons/list-coupon');
       }, 1000);
     } else {
-      // Xử lý lỗi
+      // Hiển thị lỗi rõ ràng
+      showNotification.value = true;
+      notificationMessage.value = data.message || 'Tạo mã giảm giá thất bại';
+      console.error('Lỗi tạo coupon:', data);
     }
   } catch (error) {
-    // Xử lý lỗi
+    showNotification.value = true;
+    notificationMessage.value = 'Lỗi kết nối hoặc lỗi hệ thống';
+    console.error('Lỗi tạo coupon:', error);
   } finally {
     loading.value = false;
   }

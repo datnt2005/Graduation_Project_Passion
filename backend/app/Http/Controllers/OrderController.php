@@ -22,6 +22,7 @@ use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Log;
 use App\Mail\OrderStatusUpdatedMail;
 use App\Mail\OrderSuccessMail;
 use Illuminate\Support\Facades\Mail;
@@ -486,9 +487,19 @@ public function validateBuyNow(Request $request)
      */
     public function store(Request $request)
     {
+        // Debug logging
+        Log::info('Order store request', [
+            'request_data' => $request->all(),
+            'user_id' => $request->user_id,
+            'items_count' => count($request->items ?? []),
+            'payment_method' => $request->payment_method,
+            'service_id' => $request->service_id,
+        ]);
+
         $request->validate([
             'user_id' => 'required|exists:users,id',
-            'discount_id' => 'nullable|exists:discounts,id',
+            'discount_ids' => 'nullable|array',
+            'discount_ids.*' => 'exists:discounts,id',
             'note' => 'nullable|string',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
@@ -498,7 +509,8 @@ public function validateBuyNow(Request $request)
             'payment_method' => 'required|string|in:COD,VNPAY,MOMO',
             'address_id' => 'required|exists:addresses,id',
             'service_id' => 'required|integer|min:1',
-            'is_buy_now' => 'nullable|boolean', // Thêm validate cho is_buy_now
+            'is_buy_now' => 'nullable|boolean',
+            'skip_stock_check' => 'nullable|boolean',
         ], [
             'user_id.required' => 'ID người dùng là bắt buộc',
             'user_id.exists' => 'ID người dùng không tồn tại',
@@ -520,8 +532,10 @@ public function validateBuyNow(Request $request)
             'address_id.required' => 'Địa chỉ là bắt buộc',
             'address_id.exists' => 'Địa chỉ không tồn tại',
             'service_id.required' => 'Phương thức giao hàng là bắt buộc',
-            'service_id.integer' => 'Phương thức giao hàng không hợp lệ',
+            'service_id.integer' => 'Phương thức giao hàng phải là số nguyên',
+            'service_id.min' => 'Phương thức giao hàng không hợp lệ',
             'is_buy_now.boolean' => 'Trường is_buy_now phải là boolean',
+            'skip_stock_check.boolean' => 'Trường skip_stock_check phải là boolean',
         ]);
 
         try {
@@ -546,9 +560,29 @@ public function validateBuyNow(Request $request)
                     throw new \Exception('Giá sản phẩm không khớp: ' . $item['product_id']);
                 }
 
-                $stock = $variant ? $variant->stock : $product->stock;
-                if ($item['quantity'] > $stock) {
-                    throw new \Exception('Số lượng vượt quá tồn kho: ' . $item['product_id']);
+                // Kiểm tra tồn kho - chỉ cho ProductVariant
+                if ($variant && !($request->skip_stock_check ?? false)) {
+                    $stock = $variant->quantity ?? 0;
+                    
+                    // Debug logging
+                    Log::info('Stock check for variant', [
+                        'product_id' => $item['product_id'],
+                        'variant_id' => $item['product_variant_id'],
+                        'requested_quantity' => $item['quantity'],
+                        'available_stock' => $stock,
+                    ]);
+
+                    if ($stock > 0 && $item['quantity'] > $stock) {
+                        throw new \Exception('Số lượng vượt quá tồn kho: ' . $item['product_id'] . ' (Có: ' . $stock . ', Yêu cầu: ' . $item['quantity'] . ')');
+                    }
+                } else {
+                    // Nếu không có variant hoặc bỏ qua kiểm tra tồn kho
+                    Log::info('Skipping stock check', [
+                        'product_id' => $item['product_id'],
+                        'requested_quantity' => $item['quantity'],
+                        'skip_stock_check' => $request->skip_stock_check ?? false,
+                        'has_variant' => $variant ? 'yes' : 'no',
+                    ]);
                 }
             }
 
@@ -571,7 +605,7 @@ public function validateBuyNow(Request $request)
                 $order = Order::create([
                     'user_id' => $request->user_id,
                     'address_id' => $request->address_id,
-                    'discount_id' => $request->discount_id,
+                    'discount_id' => null, // sẽ cập nhật sau nếu có mã shop/admin
                     'note' => $request->note ?? '',
                     'status' => 'pending',
                     'total_price' => 0,
@@ -593,68 +627,109 @@ public function validateBuyNow(Request $request)
                     $totalPrice += $item['price'] * $item['quantity'];
                 }
 
-                // 5. Áp dụng discount (nếu có)
+                // 5. Áp dụng discount (giống Shopee)
                 $discountPrice = 0;
-                if ($request->discount_id) {
-                    $discount = Discount::find($request->discount_id);
-                    if ($discount) {
-                        $discountPrice = $discount->discount_type === 'percentage'
-                            ? $totalPrice * ($discount->discount_value / 100)
-                            : $discount->discount_value;
-                        $discountPrice = min($discountPrice, $totalPrice);
-
-                        DiscountUser::create([
-                            'discount_id' => $discount->id,
-                            'user_id' => $request->user_id,
-                            'is_used' => true,
-                        ]);
+                $appliedDiscountId = null;
+                $shopDiscount = null;
+                $adminDiscount = null;
+                $shippingDiscount = null;
+                if ($request->discount_ids && is_array($request->discount_ids)) {
+                    foreach ($request->discount_ids as $did) {
+                        $discount = Discount::find($did);
+                        if (!$discount) continue;
+                        if ($discount->discount_type === 'shipping_fee' && $discount->seller_id === null) {
+                            $shippingDiscount = $discount; // Chỉ lấy voucher phí ship admin
+                        } elseif ($discount->seller_id == $sellerId && ($discount->discount_type === 'percentage' || $discount->discount_type === 'fixed')) {
+                            $shopDiscount = $discount;
+                        } elseif ($discount->seller_id === null && ($discount->discount_type === 'percentage' || $discount->discount_type === 'fixed')) {
+                            $adminDiscount = $discount;
+                        }
                     }
                 }
-
+                // Áp dụng mã shop nếu có, nếu không thì mã admin (chỉ 1 voucher sản phẩm mỗi shop)
+                $usedDiscount = $shopDiscount ?: $adminDiscount;
+                if ($usedDiscount) {
+                    $discountPrice = $usedDiscount->discount_type === 'percentage'
+                        ? $totalPrice * ($usedDiscount->discount_value / 100)
+                        : $usedDiscount->discount_value;
+                    $discountPrice = min($discountPrice, $totalPrice);
+                    DiscountUser::create([
+                        'discount_id' => $usedDiscount->id,
+                        'user_id' => $request->user_id,
+                        'is_used' => true,
+                    ]);
+                    $order->discount_id = $usedDiscount->id;
+                }
+                // Tính final_price chỉ cho sản phẩm (không bao gồm phí ship)
                 $finalPrice = $totalPrice - $discountPrice;
 
                 // 6. Tạo shipping
                 $address = Address::find($request->address_id);
-                $ghn = new GHNService();
-                $ghnOrder = $ghn->createShippingOrder($order, $address, $request->service_id, $request->payment_method);
+                $shippingFee = 0;
+                $trackingCode = null;
+                $estimatedDelivery = null;
+                try {
+                    $ghn = new GHNService();
+                    $ghnOrder = $ghn->createShippingOrder($order, $address, $request->service_id, $request->payment_method);
+                    $shippingFee = $ghnOrder['total_fee'] ?? 0;
+                    $trackingCode = $ghnOrder['order_code'] ?? null;
+                    $estimatedDelivery = $ghnOrder['expected_delivery_time'] ?? null;
+                } catch (\Exception $e) {
+                    Log::warning('GHN API error: ' . $e->getMessage());
+                    $shippingFee = 30000; // 30,000 VND mặc định
+                }
+                // Áp dụng mã phí ship admin nếu có
+                if ($shippingDiscount) {
+                    $shippingFee = max(0, $shippingFee - $shippingDiscount->discount_value);
+                    DiscountUser::create([
+                        'discount_id' => $shippingDiscount->id,
+                        'user_id' => $request->user_id,
+                        'is_used' => true,
+                    ]);
+                }
 
                 $shippingMethod = ShippingMethod::firstOrCreate(
                     ['id' => $request->service_id],
-                    ['name' => $ghnOrder['service_type_id'] ?? 'GHN', 'carrier' => 'GHN', 'estimated_days' => 3, 'cost' => $ghnOrder['total_fee'] ?? 0]
+                    ['name' => 'GHN Standard', 'carrier' => 'GHN', 'estimated_days' => 3, 'cost' => $shippingFee]
                 );
                 $shipping = Shipping::create([
                     'order_id' => $order->id,
                     'shipping_method_id' => $shippingMethod->id,
-                    'estimated_delivery' => $ghnOrder['expected_delivery_time'] ?? null,
-                    'shipping_fee' => $ghnOrder['total_fee'] ?? 0,
-                    'tracking_code' => $ghnOrder['order_code'] ?? null,
+                    'estimated_delivery' => $estimatedDelivery,
+                    'shipping_fee' => $shippingFee,
+                    'tracking_code' => $trackingCode,
                     'status' => 'pending',
                 ]);
 
-                // 7. Cập nhật final_price với phí ship
-                $finalPrice += $shipping->shipping_fee ?? 0;
-
+                // 7. Cập nhật order với final_price (chỉ sản phẩm) và tạo payment với tổng tiền (bao gồm phí ship)
                 $order->update([
                     'total_price' => $totalPrice,
                     'discount_price' => $discountPrice,
-                    'final_price' => $finalPrice,
+                    'final_price' => $finalPrice, // Chỉ giá sản phẩm sau discount
+                    'discount_id' => $order->discount_id, // Đảm bảo luôn lưu discount_id
                 ]);
 
-                // 8. Tạo payment
+                // 8. Tạo payment với tổng tiền bao gồm phí ship
                 $paymentMethod = PaymentMethod::firstOrCreate(
                     ['name' => $request->payment_method],
                     ['status' => 'active']
                 );
 
+                $totalPaymentAmount = $finalPrice + $shippingFee; // Tổng tiền thanh toán bao gồm phí ship
+
                 Payment::create([
                     'order_id' => $order->id,
                     'payment_method_id' => $paymentMethod->id,
-                    'amount' => $finalPrice,
+                    'amount' => $totalPaymentAmount, // Lưu tổng tiền thanh toán
                     'status' => 'pending'
                 ]);
                 // 9. Gửi mail xác nhận cho COD
                 if ($request->payment_method === 'COD' && $order->user && $order->user->email) {
-                    Mail::to($order->user->email)->send(new OrderSuccessMail($order));
+                    try {
+                        Mail::to($order->user->email)->send(new OrderSuccessMail($order));
+                    } catch (\Exception $e) {
+                        Log::warning('Send order success mail error: ' . $e->getMessage());
+                    }
                 }
 
                 $order->load([
@@ -884,14 +959,14 @@ public function validateBuyNow(Request $request)
     {
         return [
             'id' => $order->id,
-            'status' => $order->status,
-            'note' => $order->note,
-            'created_at' => $order->created_at ? $order->created_at->format('d/m/Y H:i') : null,
-            'total_price' => (float)($order->total_price ?? 0),
-            'discount_price' => (float)($order->discount_price ?? 0),
-            'shipping_fee' => isset($order->shipping->shipping_fee) ? (float)$order->shipping->shipping_fee : null,
-            'final_price' => (float)($order->final_price ?? 0),
-            'user' => $order->user ? [
+            'shipping' => $order->shipping ? [
+                'tracking_code' => $order->shipping->tracking_code,
+                'status' => $order->shipping->status,
+                'estimated_delivery' => $order->shipping->estimated_delivery,
+                'shipping_fee' => (int) ($order->shipping->shipping_fee ?? 0),
+                'shipping_discount' => (int) ($order->shipping->shipping_discount ?? 0),
+            ] : null,
+            'user' => [
                 'id' => $order->user->id,
                 'name' => $order->user->name,
                 'email' => $order->user->email
@@ -904,18 +979,16 @@ public function validateBuyNow(Request $request)
                 'province_id' => $order->address->province_id,
                 'district_id' => $order->address->district_id,
                 'ward_code' => $order->address->ward_code,
-                'province_name' => $order->address->province_name,
-                'district_name' => $order->address->district_name,
-                'ward_name' => $order->address->ward_name
-            ] : null,
-            'shipping' => $order->shipping ? [
-                'id' => $order->shipping->id,
-                'shipping_method_id' => $order->shipping->shipping_method_id,
-                'estimated_delivery' => $order->shipping->estimated_delivery ? $order->shipping->estimated_delivery->toISOString() : null,
-                'shipping_fee' => (float)($order->shipping->shipping_fee ?? 0),
-                'tracking_code' => $order->shipping->tracking_code,
-                'status' => $order->shipping->status
-            ] : null,
+                'detail' => $order->address->detail,
+            ],
+            'note' => $order->note ?? '',
+            'status' => $order->status,
+            'total_price' => (int) $order->total_price,
+            'discount_price' => (int) $order->discount_price,
+            'final_price' => (int) $order->final_price,
+            'shipping_method' => $order->shipping_method,
+            'created_at' => $order->created_at->format('d/m/Y H:i:s'),
+            'updated_at' => $order->updated_at->format('d/m/Y H:i:s'),
             'order_items' => $order->orderItems->map(function ($item) {
                 return [
                     'product' => [
@@ -925,20 +998,22 @@ public function validateBuyNow(Request $request)
                         'slug' => $item->product->slug,
                         'stock' => $item->product->stock
                     ],
-                    'variant' => $item->variant ? [
-                        'id' => $item->variant->id,
-                        'name' => $item->variant->name,
-                        'stock' => $item->variant->stock
+                    'variant' => $item->productVariant ? [
+                        'id' => $item->productVariant->id,
+                        'name' => $item->productVariant->name,
+                        'thumbnail' => $item->productVariant->thumbnail ?? null,
                     ] : null,
                     'price' => (float)$item->price,
                     'quantity' => $item->quantity,
-                    'total' => (float)$item->total
+                    'price' => (int) $item->price,
+                    'total' => (int) ($item->price * $item->quantity),
                 ];
             })->toArray(),
             'payments' => $order->payments->map(function ($payment) {
                 return [
-                    'method' => $payment->method,
-                    'amount' => (float)$payment->amount,
+                    'id' => $payment->id,
+                    'method' => $payment->paymentMethod ? $payment->paymentMethod->name : null,
+                    'amount' => (int) $payment->amount,
                     'status' => $payment->status,
                     'created_at' => $payment->created_at ? $payment->created_at->format('d/m/Y H:i') : null
                 ];
