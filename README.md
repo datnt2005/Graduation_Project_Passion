@@ -10,6 +10,8 @@ php artisan migrate
 
 # frontend
 npm install vue-slider-component
+# kiểm tra tốc độ th nhưng chưa cần
+npm install -D @nuxt/devtools
 
 # Chạy queue worker (giúp gửi mail nhanh, xử lý job nền)
 php artisan queue:work

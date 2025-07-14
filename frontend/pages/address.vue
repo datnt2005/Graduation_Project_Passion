@@ -153,19 +153,36 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, computed, reactive, watchEffect } from 'vue'
+import { useHead, useRuntimeConfig } from '#app'
 import axios from 'axios'
 import Swal from 'sweetalert2'
 import { useAuthHeaders } from '~/composables/useAuthHeaders'
+import { useToast } from '~/composables/useToast'
 
+useHead({
+  title: 'Địa chỉ giao hàng | Thanh toán',
+  meta: [
+    { name: 'description', content: 'Chọn hoặc thêm địa chỉ giao hàng để hoàn tất đơn hàng của bạn.' },
+    { name: 'robots', content: 'noindex, nofollow' }, // Trang checkout không cần lập chỉ mục
+    { property: 'og:title', content: 'Địa chỉ giao hàng - Thanh toán' },
+    { property: 'og:description', content: 'Quản lý địa chỉ giao hàng để nhận hàng nhanh chóng.' }
+  ]
+})
+
+const { showSuccess, showError } = useToast()
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBaseUrl
+
 const showNewAddressForm = ref(false)
 const shippingFee = ref(0)
 const provinces = ref([])
 const districts = ref([])
 const wards = ref([])
+const addresses = ref([])
 const editAddress = ref(null)
+const loading = ref(true)
+const resolved = reactive({})
 
 const form = ref({
   name: '',
@@ -175,158 +192,235 @@ const form = ref({
   ward_code: '',
   detail: '',
   address_type: 'home',
-  isDefault: false,
+  is_default: false
 })
 
-const Toast = Swal.mixin({
-  toast: true,
-  position: 'top-end',
-  showConfirmButton: false,
-  timer: 2000,
-  timerProgressBar: true,
+const provinceMap = computed(() => new Map(provinces.value.map(p => [p.ProvinceID, p.ProvinceName])))
+const districtMap = computed(() => new Map(districts.value.map(d => [d.DistrictID, d.DistrictName])))
+const wardMap = computed(() => new Map(wards.value.map(w => [`${w.WardCode}-${w.DistrictID}`, w.WardName])))
+
+const isFormValid = computed(() => {
+  return (
+    form.value.name.trim() &&
+    form.value.phone.trim() &&
+    form.value.province_id &&
+    form.value.district_id &&
+    form.value.ward_code &&
+    form.value.detail.trim()
+  )
 })
 
-// Load tỉnh/thành
+const formatPrice = (price) => {
+  const number = typeof price === 'string' ? parseFloat(price) : price
+  if (isNaN(number)) return '0 ₫'
+  return new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency: 'VND',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(number)
+}
+
+const getProvinceName = (id) => id ? provinceMap.value.get(id) || 'Đang tải...' : ''
+const getDistrictName = (id) => id ? districtMap.value.get(id) || 'Đang tải...' : ''
+const getWardName = (code, did) => (code && did) ? wardMap.value.get(`${code}-${did}`) || 'Đang tải...' : ''
+
 const loadProvinces = async () => {
-  const res = await axios.get(`${apiBase}/ghn/provinces`)
-  provinces.value = res.data.data || []
-}
-
-// Load quận/huyện
-const loadDistricts = async () => {
-  form.value.district_id = ''
-  form.value.ward_code = ''
-  districts.value = []
-  wards.value = []
-  if (!form.value.province_id) return
-
-  const res = await axios.post(`${apiBase}/ghn/districts`, {
-    province_id: form.value.province_id,
-  })
-  districts.value = res.data.data || []
-}
-
-// Load phường/xã
-const loadWards = async () => {
-  form.value.ward_code = ''
-  wards.value = []
-  if (!form.value.district_id) return
-
-  const res = await axios.post(`${apiBase}/ghn/wards`, {
-    district_id: form.value.district_id,
-  })
-  wards.value = res.data.data || []
-}
-
-// Tính phí ship
-const calculateShippingFee = async () => {
-  if (!form.value.ward_code) return
-  const res = await axios.post(`${apiBase}/shipping/calculate-fee`, {
-    province_id: form.value.province_id,
-    district_id: form.value.district_id,
-    ward_code: form.value.ward_code,
-  })
-  shippingFee.value = res.data.fee || 0
-}
-
-// Gửi form
-const submitForm = async () => {
+  const cacheKey = 'ghn_provinces'
+  const cache = localStorage.getItem(cacheKey)
+  if (cache) {
+    provinces.value = JSON.parse(cache)
+    return
+  }
   try {
-    const payload = {
-      name: form.value.name,
-      phone: form.value.phone,
-      province_id: form.value.province_id,
-      district_id: form.value.district_id,
-      ward_code: form.value.ward_code,
-      detail: form.value.detail,
-      address_type: form.value.address_type,
-      is_default: form.value.isDefault ? 1 : 0,
-    }
-
-    if (editAddress.value) {
-      await axios.put(`${apiBase}/address/${editAddress.value.id}`, payload, useAuthHeaders())
-      Toast.fire({ icon: 'success', title: 'Cập nhật địa chỉ thành công!' })
-    } else {
-      await axios.post(`${apiBase}/address`, payload, useAuthHeaders())
-      Toast.fire({ icon: 'success', title: 'Thêm địa chỉ thành công!' })
-    }
-
-    setTimeout(() => location.reload(), 1500)
-    showNewAddressForm.value = false
-    editAddress.value = null
-  } catch (error) {
-    if (error.response?.data?.errors) {
-      Toast.fire({ icon: 'error', title: Object.values(error.response.data.errors).join('\n') })
-    } else {
-      Toast.fire({ icon: 'error', title: 'Lỗi khi gửi dữ liệu.' })
-    }
+    const res = await axios.get(`${apiBase}/ghn/provinces`)
+    provinces.value = res.data.data || []
+    localStorage.setItem(cacheKey, JSON.stringify(provinces.value))
+  } catch {
+    showError('Không tải được danh sách tỉnh.')
   }
 }
 
-const cancel = () => {
-  resetForm()
-  showNewAddressForm.value = false
+const loadDistrictsAppend = async (provinceId) => {
+  if (!provinceId) return
+  const cacheKey = `ghn_districts_${provinceId}`
+  const cache = localStorage.getItem(cacheKey)
+  if (cache) {
+    const parsed = JSON.parse(cache)
+    const ids = parsed.map(d => d.DistrictID)
+    if (!districts.value.some(d => ids.includes(d.DistrictID))) {
+      districts.value.push(...parsed)
+    }
+    return
+  }
+  try {
+    const res = await axios.post(`${apiBase}/ghn/districts`, { province_id: provinceId })
+    const data = res.data.data || []
+    localStorage.setItem(cacheKey, JSON.stringify(data))
+    districts.value.push(...data.filter(d => !districts.value.some(existing => existing.DistrictID === d.DistrictID)))
+  } catch {
+    showError('Không tải được danh sách quận.')
+  }
 }
 
-// Lấy tên địa chỉ theo ID
-const getProvinceName = (province_id) => {
-  const p = provinces.value.find(item => item.ProvinceID == province_id)
-  return p ? p.ProvinceName : ''
-}
-const getDistrictName = (district_id) => {
-  const d = districts.value.find(item => item.DistrictID == district_id)
-  return d ? d.DistrictName : ''
-}
-const getWardName = (ward_code, district_id) => {
-  const w = wards.value.find(item =>
-    item.WardCode == ward_code && item.DistrictID == district_id
-  )
-  return w ? w.WardName : ''
+const loadWardsAppend = async (districtId) => {
+  if (!districtId) return
+  const cacheKey = `ghn_wards_${districtId}`
+  const cache = localStorage.getItem(cacheKey)
+  if (cache) {
+    const parsed = JSON.parse(cache)
+    const codes = parsed.map(w => w.WardCode)
+    if (!wards.value.some(w => codes.includes(w.WardCode))) {
+      wards.value.push(...parsed)
+    }
+    return
+  }
+  try {
+    const res = await axios.post(`${apiBase}/ghn/wards`, { district_id: districtId })
+    const data = res.data.data || []
+    localStorage.setItem(cacheKey, JSON.stringify(data))
+    wards.value.push(...data.filter(w => !wards.value.some(existing => existing.WardCode === w.WardCode)))
+  } catch {
+    showError('Không tải được danh sách phường.')
+  }
 }
 
-// Danh sách địa chỉ
-const addresses = ref([])
+const resolveAddressText = async (address) => {
+  await Promise.all([
+    loadDistrictsAppend(address.province_id),
+    loadWardsAppend(address.district_id)
+  ])
+  const ward = getWardName(address.ward_code, address.district_id)
+  const district = getDistrictName(address.district_id)
+  const province = getProvinceName(address.province_id)
+  return `${address.detail}, ${ward}, ${district}, ${province}`
+}
+
 const loadAddresses = async () => {
+  loading.value = true
   try {
     const res = await axios.get(`${apiBase}/address`, useAuthHeaders())
     addresses.value = res.data.data || []
-    const provinceIds = [...new Set(addresses.value.map(a => a.province_id))]
-    const districtIds = [...new Set(addresses.value.map(a => a.district_id))]
-    for (const pid of provinceIds) {
-      const resDistricts = await axios.post(`${apiBase}/ghn/districts`, {
-        province_id: pid
-      })
-      if (Array.isArray(resDistricts.data.data)) {
-        districts.value.push(...resDistricts.data.data)
-      }
-    }
+    await Promise.all(addresses.value.map(addr => resolveAddressText(addr).then(text => {
+      resolved[addr.id] = text
+    })))
+  } catch {
+    showError('Không thể tải địa chỉ.')
+  } finally {
+    loading.value = false
+  }
+}
 
-    for (const did of districtIds) {
-      const resWards = await axios.post(`${apiBase}/ghn/wards`, {
-        district_id: did
-      })
-      if (Array.isArray(resWards.data.data)) {
-        wards.value.push(...resWards.data.data)
-      }
+const calculateShippingFee = async () => {
+  const { province_id, district_id, ward_code } = form.value
+  if (!province_id || !district_id || !ward_code) {
+    shippingFee.value = 0
+    return
+  }
+  try {
+    const res = await axios.post(`${apiBase}/shipping/calculate-fee`, { province_id, district_id, ward_code })
+    shippingFee.value = res.data.fee || 0
+  } catch {
+    shippingFee.value = 0
+    showError('Không thể tính phí giao hàng.')
+  }
+}
+
+const submitForm = async () => {
+  if (!isFormValid.value) {
+    showError('Vui lòng điền đầy đủ thông tin.')
+    return
+  }
+
+  const payload = {
+    name: form.value.name.trim(),
+    phone: form.value.phone.trim(),
+    province_id: form.value.province_id,
+    district_id: form.value.district_id,
+    ward_code: form.value.ward_code,
+    detail: form.value.detail.trim(),
+    address_type: form.value.address_type,
+    is_default: form.value.is_default ? 1 : 0
+  }
+
+  const confirm = await Swal.fire({
+    title: editAddress.value ? 'Cập nhật địa chỉ?' : 'Thêm địa chỉ mới?',
+    text: `Bạn có chắc chắn muốn ${editAddress.value ? 'cập nhật' : 'thêm'} địa chỉ này?`,
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonText: editAddress.value ? 'Cập nhật' : 'Thêm',
+    cancelButtonText: 'Hủy',
+    confirmButtonColor: '#3b82f6',
+    cancelButtonColor: '#6b7280'
+  })
+
+  if (!confirm.isConfirmed) return
+
+  try {
+    if (editAddress.value) {
+      await axios.put(`${apiBase}/address/${editAddress.value.id}`, payload, useAuthHeaders())
+      showSuccess('Cập nhật địa chỉ thành công!')
+    } else {
+      await axios.post(`${apiBase}/address`, payload, useAuthHeaders())
+      showSuccess('Thêm địa chỉ thành công!')
     }
-  } catch (err) {
-    console.error('Lỗi tải địa chỉ:', err)
-    Toast.fire({ icon: 'error', title: 'Không thể tải địa chỉ. Vui lòng đăng nhập lại.' })
+    await loadAddresses()
+    resetForm()
+    showNewAddressForm.value = false
+  } catch (e) {
+    showError(e.response?.data?.message || 'Lỗi khi lưu địa chỉ.')
   }
 }
 
 const deleteAddress = async (id) => {
+  const confirm = await Swal.fire({
+    title: 'Xóa địa chỉ?',
+    text: 'Bạn có chắc chắn muốn xóa địa chỉ này?',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: 'Xóa',
+    cancelButtonText: 'Hủy',
+    confirmButtonColor: '#ef4444',
+    cancelButtonColor: '#6b7280'
+  })
+
+  if (!confirm.isConfirmed) return
+
   try {
     await axios.delete(`${apiBase}/address/${id}`, useAuthHeaders())
-    Toast.fire({ icon: 'success', title: 'Xóa địa chỉ thành công!' })
-    setTimeout(() => location.reload(), 1500)
-  } catch (error) {
-    Toast.fire({ icon: 'error', title: error.response?.data?.message || 'Lỗi khi xóa địa chỉ' })
+    showSuccess('Xóa địa chỉ thành công!')
+    await loadAddresses()
+  } catch {
+    showError('Không thể xóa địa chỉ.')
   }
 }
 
+const startEditAddress = async (addr) => {
+  editAddress.value = addr
+  Object.assign(form.value, {
+    name: addr.name,
+    phone: addr.phone,
+    province_id: addr.province_id,
+    district_id: addr.district_id,
+    ward_code: addr.ward_code,
+    detail: addr.detail,
+    address_type: addr.address_type,
+    is_default: addr.is_default === 1
+  })
+  showNewAddressForm.value = true
+  await Promise.all([
+    loadDistrictsAppend(form.value.province_id),
+    loadWardsAppend(form.value.district_id)
+  ])
+}
+
+const toggleNewAddressForm = () => {
+  showNewAddressForm.value = !showNewAddressForm.value
+  if (!showNewAddressForm.value) resetForm()
+}
+
 const resetForm = () => {
-  form.value = {
+  Object.assign(form.value, {
     name: '',
     phone: '',
     province_id: '',
@@ -334,43 +428,33 @@ const resetForm = () => {
     ward_code: '',
     detail: '',
     address_type: 'home',
-    isDefault: false,
-  }
+    is_default: false
+  })
   editAddress.value = null
+  shippingFee.value = 0
+  districts.value = []
+  wards.value = []
 }
 
-const startEditAddress = async (address) => {
-  showNewAddressForm.value = true
-  editAddress.value = address
-
-  form.value = {
-    name: address.name,
-    phone: address.phone,
-    province_id: address.province_id,
-    district_id: address.district_id,
-    ward_code: address.ward_code,
-    detail: address.detail,
-    address_type: address.address_type,
-    isDefault: address.is_default == 1,
-  }
-
-  await loadDistricts()
-  await loadWards()
-}
-const toggleNewAddressForm = () => {
-  showNewAddressForm.value = !showNewAddressForm.value
-}
-
-onMounted(() => {
-  loadProvinces()
-  loadAddresses()
+onMounted(async () => {
+  await Promise.all([
+    loadProvinces(),
+    loadAddresses()
+  ])
 })
 
-watch(() => form.value.province_id, loadDistricts)
-watch(() => form.value.district_id, loadWards)
-watch(() => form.value.ward_code, calculateShippingFee)
-</script>
+watchEffect(() => {
+  if (form.value.province_id) loadDistrictsAppend(form.value.province_id)
+})
 
+watchEffect(() => {
+  if (form.value.district_id) loadWardsAppend(form.value.district_id)
+})
+
+watchEffect(() => {
+  if (form.value.ward_code) calculateShippingFee()
+})
+</script>
 
 
 

@@ -1,9 +1,6 @@
 <template>
   <div class="bg-[#f8f9fc] font-sans text-[14px] text-[#222222]">
     <div class="max-w-[1200px] mx-auto px-4 py-4 flex flex-col md:flex-row md:space-x-4">
-      <!-- Refresh button -->
-      
-
       <!-- Left main content -->
       <div class="flex-1">
         <!-- Breadcrumb -->
@@ -82,7 +79,7 @@
             <label class="flex items-center space-x-2">
               <input
                 class="w-4 h-4 border border-[#d9d9d9] rounded-sm checked:bg-[#F97316] checked:border-transparent cursor-pointer"
-                type="checkbox"  :checked="selectAll" @change="handleSelectAll" />
+                type="checkbox" :checked="selectAll" @change="handleSelectAll" />
             </label>
             <span class="text-[16px]">Tất cả ({{ totalItems }} sản phẩm)</span>
             <div></div>
@@ -141,14 +138,14 @@
               <div></div>
               <div class="text-right font-semibold text-[14px]">
                 <span v-if="item.sale_price && item.sale_price !== item.price" class="text-red-500">
-                  {{ parsePrice(item.sale_price).toLocaleString('vi-VN') }}₫
+                  {{ formatPrice(item.sale_price) }}
                 </span>
                 <span v-if="item.sale_price && item.sale_price !== item.price"
                   class="text-gray-500 text-[12px] line-through">
-                  {{ parsePrice(item.price).toLocaleString('vi-VN') }}₫
+                  {{ formatPrice(item.price) }}
                 </span>
                 <span v-else class="text-red-500">
-                  {{ parsePrice(item.price).toLocaleString('vi-VN') }}₫
+                  {{ formatPrice(item.price) }}
                 </span>
               </div>
               <div class="flex justify-center items-center space-x-1">
@@ -170,7 +167,7 @@
                 </button>
               </div>
               <div class="text-right text-[#ff3b30] font-semibold text-[14px]">
-                {{ (parsePrice(item.sale_price || item.price) * item.quantity).toLocaleString('vi-VN') }}₫
+                {{ formatPrice((parsePrice(item.sale_price || item.price) * item.quantity)) }}
               </div>
               <div class="text-center text-[#999999] cursor-pointer">
                 <button @click="showRemoveItemDialog(item.id)" class="hover:text-red-500">
@@ -187,11 +184,11 @@
         <div class="bg-white rounded-md p-4 text-[13px] text-[#222222] border border-[#f0f0f0]">
           <div class="flex justify-between items-center mb-2">
             <span class="text-[#999999]">Tổng tiền hàng</span>
-            <span class="font-semibold">{{ selectedTotal.toLocaleString('vi-VN') }}₫</span>
+            <span class="font-semibold">{{ formatPrice(selectedTotal) }}</span>
           </div>
           <div class="flex justify-between items-center mb-1 border-b border-[#f0f0f0] pb-2">
             <span class="font-semibold text-[15px]">Tổng tiền thanh toán</span>
-            <span class="font-semibold text-[#ff3b30] text-[18px]">{{ selectedTotal.toLocaleString('vi-VN') }}₫</span>
+            <span class="font-semibold text-[#ff3b30] text-[18px]">{{ formatPrice(selectedTotal) }}</span>
           </div>
           <div class="text-[11px] text-[#999999] mb-4">
             (Đã bao gồm VAT nếu có)
@@ -276,7 +273,6 @@ const {
   isCartReady,
   selectedTotal,
   fetchCart,
-  mergeCart,
   navigateToCheckout,
   handleSelectAll,
   handleStoreSelection,
@@ -285,6 +281,7 @@ const {
   updateQuantityWithValidation,
   removeItem,
   parsePrice,
+  formatPrice,
   mediaBaseUrl,
 } = useCart();
 

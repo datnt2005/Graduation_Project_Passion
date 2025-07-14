@@ -147,7 +147,8 @@ class SearchService
                     'reviews',
                     'seller',
                     'tags'
-                ])->where('status', 'active');
+                ])->where('status', 'active')
+                    ->where('admin_status', 'approved');
 
                 if (!$isSearchMode && !empty($categoryIds)) {
                     $query->whereHas('categories', fn($q) => $q->whereIn('categories.id', $categoryIds));

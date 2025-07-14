@@ -1,163 +1,132 @@
-    <template>
-        <main class="bg-[#f5f7fa] font-sans text-sm text-[#222222]">
-            <div class="max-w-[1200px] mx-auto p-6 space-y-6">
-                <div class="w-full max-w-6xl">
-                    <div class="text-sm text-gray-500 rounded ">
-                        <nuxt-link to="/">
-                            <span class="text-gray-400">Trang chủ</span>
-                        </nuxt-link>
-                        <span class="mx-1">›</span>
-                        <span class="text-gray-500 font-semibold">{{ product.name }}</span>
-                    </div>
+<template>
+    <main class="bg-[#f5f7fa] font-sans text-sm text-[#222222]">
+        <div class="max-w-[1200px] mx-auto p-6 space-y-6">
+            <div class="w-full max-w-6xl">
+                <div class="text-sm text-gray-500 rounded">
+                    <nuxt-link to="/">
+                        <span class="text-gray-400">Trang chủ</span>
+                    </nuxt-link>
+                    <span class="mx-1">›</span>
+                    <span class="text-gray-500 font-semibold">{{ product.name }}</span>
                 </div>
-                <!-- Loading Skeleton (Responsive & giống UI thật) -->
-                <div v-if="loading"
-                    class="grid grid-cols-1 md:grid-cols-2 gap-6 animate-pulse bg-white border border-gray-200 rounded-md p-4 md:p-6 mx-auto w-full max-w-[1102px] min-h-[610px]">
-                    <!-- Left: Ảnh sản phẩm lớn + thumbnail -->
-                    <div class="flex flex-col gap-4">
-                        <!-- Ảnh chính -->
-                        <div class="w-full aspect-square bg-gray-200 rounded-md"></div>
-                        <!-- Thumbnail -->
-                        <div class="flex gap-2 overflow-x-auto">
-                            <div class="w-16 h-16 bg-gray-200 rounded-md"></div>
-                            <div class="w-16 h-16 bg-gray-200 rounded-md"></div>
-                            <div class="w-16 h-16 bg-gray-200 rounded-md"></div>
-                        </div>
-                    </div>
-
-                    <!-- Right: Thông tin sản phẩm -->
-                    <div class="flex flex-col justify-between w-full">
-                        <div class="space-y-4">
-                            <!-- Tên sản phẩm -->
-                            <div class="h-6 bg-gray-200 rounded w-1/2"></div>
-                            <!-- Đánh giá -->
-                            <div class="h-4 bg-gray-200 rounded w-1/3"></div>
-                            <!-- Shop Info -->
-                            <div class="flex items-center gap-4">
-                                <div class="w-10 h-10 rounded-full bg-gray-200"></div>
-                                <div class="flex-1 space-y-2">
-                                    <div class="h-4 bg-gray-200 rounded w-1/2"></div>
-                                    <div class="h-4 bg-gray-200 rounded w-1/3"></div>
-                                </div>
-                            </div>
-                            <!-- Giá -->
-                            <div class="h-10 bg-gray-200 rounded w-1/3"></div>
-                            <!-- Thuộc tính (color, chất liệu) -->
-                            <div class="space-y-2">
-                                <div class="h-4 bg-gray-200 rounded w-1/4"></div>
-                                <div class="h-8 bg-gray-200 rounded w-1/2"></div>
-                                <div class="h-4 bg-gray-200 rounded w-1/4"></div>
-                                <div class="h-8 bg-gray-200 rounded w-1/2"></div>
-                            </div>
-                            <!-- Số lượng -->
-                            <div class="flex items-center gap-3">
-                                <div class="h-4 bg-gray-200 rounded w-20"></div>
-                                <div class="flex gap-2">
-                                    <div class="w-8 h-8 bg-gray-200 rounded"></div>
-                                    <div class="w-12 h-8 bg-gray-200 rounded"></div>
-                                    <div class="w-8 h-8 bg-gray-200 rounded"></div>
-                                </div>
-                            </div>
-                        </div>
-                        <!-- Nút hành động -->
-                        <div class="flex gap-4 mt-6">
-                            <div class="h-12 bg-gray-200 rounded w-1/2"></div>
-                            <div class="h-12 bg-gray-200 rounded w-1/2"></div>
-                        </div>
-                    </div>
-                </div>
-
-
-
-                <!-- Error Message -->
-                <div v-if="error" class="text-red-500 text-center">{{ error }}</div>
-                <!-- Main Product Section -->
-                <section v-if="!loading && !error" class="bg-white border border-gray-200 rounded-md p-4 md:p-6 mb-8">
-                    <div v-if="selectedVariant" class="flex flex-col md:flex-row gap-6">
-                        <!-- Product Image Gallery -->
-                        <ProductImageGallery :images="images" :media-base="mediaBase" :current-index="currentIndex"
-                            @update:current-index="currentIndex = $event" @next-image="nextImage"
-                            @prev-image="prevImage" @start-auto-slide="startAutoSlide"
-                            @pause-auto-slide="pauseAutoSlide" :is-gallery-hovered="isGalleryHovered" />
-                        <!-- Product Info -->
-                        <ProductInfo :product="product" :seller="seller" :media-base="mediaBase"
-                            :selected-variant="selectedVariant" :variant-attributes="variantAttributes"
-                            :selected-options="selectedOptions" :quantity="quantity" :is-favorite="isFavorite"
-                            :is-variant-fully-selected="isVariantFullySelected" :variants="variants"
-                            @toggle-favorite="toggleFavorite" @view-shop="viewShop" @select-option="selectOption"
-                            @increase-quantity="increaseQuantity" @decrease-quantity="decreaseQuantity"
-                            @validate-selection="onValidateSelection" @add-to-cart="addToCart" @buy-now="buyNow"
-                            @update:quantity="quantity = $event" :validation-message="validationMessage"
-                            @clear-validation="validationMessage = ''" :loading="loading"
-                            @chat-with-shop="chatWithShop" />
-                    </div>
-                    <div v-else class="text-center text-gray-500">
-                        Không có biến thể sản phẩm hợp lệ.
-                    </div>
-                </section>
-                <!-- Product Description -->
-                <ProductDescription v-if="!loading && !error" :full-description="product.fullDescription"
-                    :is-collapsed="isCollapsed" @toggle-collapse="isCollapsed = !isCollapsed" />
-                <!-- Phone Number -->
-                <PhoneNumber v-if="!loading && !error && product.phone !== 'N/A'" :phone="product.phone" />
-                <!-- Related Products -->
-                <section v-if="!loading && !error" class="w-full mb-12 py-6 bg-gray-50">
-                    <h3 class="text-center text-2xl font-bold text-gray-800 mb-6 tracking-wide">
-                        Sản Phẩm Liên Quan
-                    </h3>
-                    <div v-if="relatedProducts.length"
-                        class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6 max-w-6xl mx-auto px-4">
-                        <RelatedProductItem v-for="item in displayProducts" :key="item.id" :product="item" />
-                    </div>
-                    <div v-else class="text-center text-gray-500">Không có sản phẩm liên quan</div>
-                    <div v-if="relatedProducts.length > 4" class="max-w-6xl mx-auto px-4 mt-6 flex justify-end">
-                        <button
-                            class="text-sm text-blue-600 cursor-pointer hover:underline hover:text-blue-800 transition-colors duration-200"
-                            @click="showAll = !showAll" :aria-expanded="showAll">
-                            {{ showAll ? 'Thu gọn' : 'Xem Tất Cả' }}
-                        </button>
-                    </div>
-                </section>
-
-                <ProductReviews v-if="product.id" :product-id="product.id" />
             </div>
-        </main>
-    </template>
+            <!-- Loading State -->
+            <div v-if="loading" class="text-center text-gray-500">
+                <i class="fas fa-spinner fa-spin mr-2"></i> Đang tải...
+            </div>
+            <!-- Error Message -->
+            <div v-if="error" class="text-red-500 text-center">{{ error }}</div>
+            <!-- Main Product Section -->
+            <section v-if="!loading && !error" class="bg-white border border-gray-200 rounded-md p-4 md:p-6 mb-8">
+                <div v-if="selectedVariant" class="flex flex-col md:flex-row gap-6">
+                    <!-- Product Image Gallery -->
+                    <ProductImageGallery :images="images" :media-base="mediaBase" :current-index="currentIndex"
+                        @update:current-index="currentIndex = $event" @next-image="nextImage" @prev-image="prevImage"
+                        @start-auto-slide="startAutoSlide" @pause-auto-slide="pauseAutoSlide"
+                        :is-gallery-hovered="isGalleryHovered" />
+                    <!-- Product Info -->
+                    <ProductInfo :product="product" :seller="seller" :media-base="mediaBase"
+                        :selected-variant="selectedVariant" :variant-attributes="variantAttributes"
+                        :selected-options="selectedOptions" :quantity="quantity" :is-favorite="isFavorite"
+                        :is-variant-fully-selected="isVariantFullySelected" :variants="variants"
+                        @toggle-favorite="toggleFavorite" @view-shop="viewShop" @select-option="selectOption"
+                        @increase-quantity="increaseQuantity" @decrease-quantity="decreaseQuantity"
+                        @validate-selection="onValidateSelection" @add-to-cart="addToCart" @buy-now="buyNow"
+                        @update:quantity="quantity = $event" :validation-message="validationMessage"
+                        @clear-validation="validationMessage = ''" :loading="loading" @chat-with-shop="chatWithShop" />
+                </div>
+                <div v-else class="text-center text-gray-500">
+                    Không có biến thể sản phẩm hợp lệ.
+                </div>
+            </section>
+
+
+            <section v-if="!loading && !error" class="w-full mb-12">
+                <div class="flex flex-col md:flex-row gap-6">
+                    <!-- Description Tabs -->
+                    <div class="md:w-3/4 bg-white border border-gray-200 rounded-md p-4 md:p-6">
+                        <div class="flex border-b border-gray-200">
+                            <ProductDescription v-if="!loading && !error" :full-description="product.fullDescription"
+                                :description="product.description" />
+                        </div>
+                    </div>
+                    <!-- Shop Products -->
+                    <div v-if="shopProducts.length" class="md:w-1/4 bg-gray-50 rounded-md p-4 bg-white border border-gray-200">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                            Sản Phẩm Của Cửa Hàng
+                        </h3>
+                        <div class="grid grid-cols-1 gap-3">
+                            <ShopProductItem v-for="item in displayShopProducts" :key="item.id" :product="item" />
+                        </div>
+                        
+                        <div class="mt-4 flex justify-end">
+                            <nuxt-link :to="`/seller/${seller.store_slug || 'unknown-seller'}`"
+                                class="text-sm text-blue-600 cursor-pointer hover:underline hover:text-blue-800 transition-colors duration-200">
+                                Xem Tất Cả
+                            </nuxt-link>
+                        </div>
+                    </div>
+                    <div v-else class="md:w-1/4 bg-gray-50 rounded-md p-4">
+                        <p class="text-gray-500">Không có sản phẩm nào từ cửa hàng này.</p>
+                    </div>
+                </div>
+            </section>
+            <!-- Related Products -->
+            <section v-if="!loading && !error" class="w-full mb-12 py-6 bg-gray-50">
+                <h3 class="text-center text-2xl font-bold text-gray-800 mb-6 tracking-wide">
+                    Sản Phẩm Liên Quan
+                </h3>
+                <div v-if="relatedProducts.length"
+                    class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-6 max-w-6xl mx-auto px-4">
+                    <RelatedProductItem v-for="item in displayRelatedProducts" :key="item.id" :product="item" />
+                </div>
+                <div v-else class="text-center text-gray-500">Không có sản phẩm liên quan</div>
+                <div v-if="relatedProducts.length > 5" class="max-w-6xl mx-auto px-4 mt-6 flex justify-end">
+                    <button
+                        class="text-sm text-blue-600 cursor-pointer hover:underline hover:text-blue-800 transition-colors duration-200"
+                        @click="showAllRelated = !showAllRelated" :aria-expanded="showAllRelated">
+                        {{ showAllRelated ? 'Thu gọn' : 'Xem Tất Cả' }}
+                    </button>
+                </div>
+            </section>
+            <!-- Product Reviews -->
+            <ProductReviews v-if="product.id" :product-id="product.id" />
+        </div>
+    </main>
+</template>
 
 <script setup>
 import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue';
 import axios from 'axios';
 import { useRoute, useRouter } from 'vue-router';
 import RelatedProductItem from '../components/shared/products/RelatedProductItem.vue';
+import ShopProductItem from '../components/shared/products/ShopProductItem.vue';
 import ProductImageGallery from '../components/shared/products/ProductImageGallery.vue';
 import ProductInfo from '../components/shared/products/ProductInfo.vue';
 import ProductDescription from '../components/shared/products/ProductDescription.vue';
 import ProductReviews from '../components/shared/reviews/ProductReviews.vue';
-import PhoneNumber from '../components/shared/products/PhoneNumber.vue';
 import { useToast } from '~/composables/useToast';
 import { useChatStore } from '~/stores/chat';
 import { useRuntimeConfig } from '#app';
-
 import { useCart } from '~/composables/useCart';
-const { fetchCart } = useCart();
+import { useAuthStore } from '@/stores/auth';
 
+const { fetchCart } = useCart();
+const auth = useAuthStore();
+const isLoggedIn = computed(() => auth.isLoggedIn);
 const { toast } = useToast();
 const config = useRuntimeConfig();
 const router = useRouter();
 const route = useRoute();
-const chatStore = useChatStore()
+const chatStore = useChatStore();
 
 const apiBase = config.public.apiBaseUrl;
 const mediaBase = config.public.mediaBaseUrl;
-const auth = useAuthStore();
-
 
 // API Data
 const apiData = ref(null);
 const error = ref(null);
 const loading = ref(true);
-
-
 
 // Product Data
 const product = ref({
@@ -184,7 +153,6 @@ const seller = ref({
     last_active: ''
 });
 
-
 const category = ref({});
 const tag = ref({});
 // Image gallery data
@@ -201,19 +169,20 @@ const priceKey = ref(0);
 
 // Related products
 const relatedProducts = ref([]);
-const showAll = ref(false);
-const displayProducts = computed(() => {
-    return showAll.value ? relatedProducts.value : relatedProducts.value.slice(0, 4);
+const showAllRelated = ref(false);
+const displayRelatedProducts = computed(() => {
+    return showAllRelated.value ? relatedProducts.value : relatedProducts.value.slice(0, 5);
+});
+
+// Shop products
+const shopProducts = ref([]);
+const displayShopProducts = computed(() => {
+    return shopProducts.value.slice(0, 5);
 });
 
 // Favorites state
 const isFavorite = ref(false);
-const isLoggedIn = computed(() => auth.isLoggedIn);
-const currentUser = computed(() => auth.currentUser);
 
-const openLoginModal = () => {
-    window.dispatchEvent(new CustomEvent('openLoginModal'));
-};
 // Validation state
 const validationMessage = ref('');
 
@@ -238,7 +207,6 @@ const selectedVariant = computed(() => {
         return defaultVariant;
     }
 
-    // If no attributes, select the first variant with stock > 0
     if (!variantAttributes.value.length) {
         const variant = variants.value.find(v => v.stock > 0) || variants.value[0];
         if (variant) {
@@ -338,6 +306,7 @@ function onValidateSelection(callback) {
     const isValid = validateSelection();
     if (typeof callback === 'function') callback(isValid);
 }
+
 function formatPrice(price) {
     if (!price || price === 'null' || price === null || price === undefined) {
         return '0';
@@ -370,12 +339,14 @@ function selectOption(attrName, value) {
         validationMessage.value = (`Tùy chọn hiện không khả dụng hoặc đã hết hàng.`);
     }
 }
+
 function selectDefaultVariant(variant) {
     if (variant?.id) {
-        selectedOptions.value = {}; // Clear any existing selections
+        selectedOptions.value = {};
         validationMessage.value = '';
     }
 }
+
 function increaseQuantity() {
     if (selectedVariant.value?.stock && quantity.value < selectedVariant.value.stock) {
         quantity.value++;
@@ -388,6 +359,10 @@ function decreaseQuantity() {
     }
 }
 
+const openLoginModal = () => {
+    window.dispatchEvent(new CustomEvent('openLoginModal'));
+};
+
 function validateSelection() {
     const requiredAttrs = variantAttributes.value.map(attr => attr.name);
     const selectedAttrs = Object.keys(selectedOptions.value || {});
@@ -395,7 +370,6 @@ function validateSelection() {
     const isValid = requiredAttrs.every(attr => selectedOptions.value[attr]);
     if (!isValid) {
         validationMessage.value = 'Vui lòng chọn Phân loại hàng';
-        console.log('Validation failed:', validationMessage.value); // Debug log
         return false;
     }
 
@@ -410,10 +384,8 @@ function validateSelection() {
     }
     const token = localStorage.getItem('access_token');
     if (!token) {
-        if (!isLoggedIn.value) {
-            openLoginModal();
-            return;
-        }
+        openLoginModal();
+        return;
     }
     validationMessage.value = '';
     return true;
@@ -467,7 +439,6 @@ async function addToCart() {
             body: JSON.stringify(payload)
         });
         const data = await res.json();
-        console.log('API response:', data); // Debug
         if (!res.ok) {
             throw new Error(data.message || `Failed to add to cart: ${res.statusText}`);
         }
@@ -476,7 +447,6 @@ async function addToCart() {
         validationMessage.value = '';
         await fetchCart();
     } catch (err) {
-        console.error('Add to cart error:', err);
         toast('error', err.message || 'Thêm vào giỏ hàng thất bại.');
         validationMessage.value = err.message || 'Có lỗi xảy ra.';
     } finally {
@@ -486,35 +456,70 @@ async function addToCart() {
 
 async function buyNow() {
     if (!validateSelection()) {
-        return; // Halt if validation fails, message is set
+        return;
     }
 
     const token = localStorage.getItem('access_token');
-    const payload = {
+    if (!token) {
+        validationMessage.value = 'Vui lòng đăng nhập để tiếp tục.';
+        return;
+    }
+
+    const rawPrice =
+        selectedVariant.value?.sale_price &&
+            selectedVariant.value?.sale_price !== 'null'
+            ? selectedVariant.value.sale_price
+            : selectedVariant.value?.price;
+
+    const parsedPrice = parseFloat(String(rawPrice).replace(/[^\d.-]/g, ''));
+    const buyNowData = {
         product_id: product.value.id || 0,
-        variant_id: selectedVariant.value?.id || null,
-        quantity: Number(quantity.value) || 1,
-        price: selectedVariant.value?.sale_price || selectedVariant.value?.price || '0.00'
+        product_variant_id: selectedVariant.value?.id || null,
+        quantity: quantity.value,
+        price: isNaN(parsedPrice) ? 0 : parsedPrice,
+        timestamp: Date.now(),
+        seller_id: seller.value?.id || null,
+        store_name: seller.value?.store_name || '',
+        store_url: `/seller/${seller.value?.store_slug || ''}`,
+        product: {
+            id: product.value.id,
+            name: product.value.name || 'Unknown Product',
+            slug: product.value.slug || '',
+            images: product.value.images || [],
+        },
+        productVariant: selectedVariant.value?.id ? {
+            id: selectedVariant.value.id,
+            sku: selectedVariant.value.sku || '',
+            thumbnail: selectedVariant.value.thumbnail || '',
+            attributes: selectedVariant.value.attributes || [],
+        } : null,
     };
 
     try {
+        localStorage.setItem('buy_now', JSON.stringify(buyNowData));
+
         loading.value = true;
-        const res = await fetch(`${apiBase}/orders/create`, {
+        const res = await fetch(`${apiBase}/orders/validate-buy-now`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                Authorization: `Bearer ${token}`
+                'Authorization': `Bearer ${token}`,
             },
-            body: JSON.stringify(payload)
+            body: JSON.stringify({
+                product_id: buyNowData.product_id,
+                product_variant_id: buyNowData.product_variant_id,
+                quantity: buyNowData.quantity,
+                price: buyNowData.price,
+            }),
         });
         const data = await res.json();
         if (!res.ok) {
-            throw new Error(data.message || `Failed to create order: ${res.statusText}`);
+            throw new Error(data.message || `Failed to validate buy-now: ${res.statusText}`);
         }
-        router.push(`/checkout/${data.order_id}`);
+
+        router.push(`/checkout?buyNow=true`);
     } catch (err) {
-        console.error('Buy now error:', err);
-        validationMessage.value = `Error creating order: ${err.message}. Please try again.`;
+        validationMessage.value = `Lỗi khi xử lý buyNow: ${err.message}. Vui lòng thử lại.`;
     } finally {
         loading.value = false;
     }
@@ -643,20 +648,59 @@ async function fetchProduct() {
             image: String(item.image || '/default-product.jpg')
         }));
 
+        // Fetch shop products
+        await fetchShopProducts();
+
         priceKey.value++;
     } catch (err) {
-        console.error('Error fetching product:', err);
         error.value = err.message || 'Unable to load product details. Please try again later.';
     } finally {
         loading.value = false;
     }
 }
 
-const chatWithShop = async () => {
-    console.log('Toast:', toast);
-    console.log('Product:', product.value);
-    console.log('Seller:', seller.value);
+async function fetchShopProducts() {
+    try {
+        const sellerId = seller.value?.id || product.value.sellerId;
+        if (!sellerId) {
+            shopProducts.value = [];
+            return;
+        }
+        const res = await fetch(`${apiBase}/products/sellers/${sellerId}`);
+        if (!res.ok) {
+            throw new Error(`Lỗi khi tải sản phẩm của shop: ${res.status} ${res.statusText}`);
+        }
+        const data = await res.json();
+        if (!data.success) {
+            throw new Error(data.message || 'Lỗi API');
+        }
+        shopProducts.value = (data.data.data || []).map(item => {
+            // Lấy variant đầu tiên có số lượng > 0
+            const variant = item.product_variants?.find(v => v.price && v.quantity > 0) || item.product_variants?.[0] || {};
+            // Tính discountPercent
+            const price = parseFloat(variant?.sale_price || variant?.price || '0.00');
+            const originalPrice = parseFloat(variant?.price || '0.00');
+            const discountPercent = variant?.sale_price && price < originalPrice
+                ? Math.round(((originalPrice - price) / originalPrice) * 100)
+                : 0;
+            // Lấy ảnh đầu tiên
+            const image = item.product_pic?.[0]?.imagePath || '/default-product.jpg';
+            return {
+                id: Number(item.id || 0),
+                name: item.name || 'Unknown Product',
+                slug: item.slug || 'unknown-product',
+                price: String(price),
+                image: `${mediaBase}${image}`,
+                discountPercent: Number(discountPercent),
+                sold: String(item.sold || '0')
+            };
+        }).filter(item => item !== null && item.id !== product.value.id); // Lọc sản phẩm không hợp lệ và sản phẩm đang xem
+    } catch (err) {
+        shopProducts.value = [];
+    }
+}
 
+const chatWithShop = async () => {
     const token = localStorage.getItem('access_token');
     if (!token) {
         toast('error', 'Vui lòng đăng nhập để chat');
@@ -666,7 +710,6 @@ const chatWithShop = async () => {
 
     if (!product.value || !product.value.id) {
         toast('error', 'Dữ liệu sản phẩm không hợp lệ');
-        console.error('Product data is missing');
         return;
     }
 
@@ -678,19 +721,16 @@ const chatWithShop = async () => {
         userId = data?.data?.id;
         if (!userId) {
             toast('error', 'Không tìm thấy thông tin người dùng');
-            console.error('User ID is missing');
             return;
         }
     } catch (error) {
         toast('error', 'Lỗi khi lấy thông tin người dùng');
-        console.error('❌ Lỗi khi lấy user:', error);
         return;
     }
 
     const sellerId = seller.value?.id || product.value.sellerId;
     if (!sellerId) {
         toast('error', 'Không tìm thấy thông tin cửa hàng. Vui lòng thử lại sau.');
-        console.error('Seller ID is missing');
         return;
     }
 
@@ -704,14 +744,11 @@ const chatWithShop = async () => {
         store_name: seller.value.store_name,
         avatar: seller.value.avatar
     };
-
-    console.log('Sending product message:', productData);
     try {
         await chatStore.sendProductMessage(productData, userId, sellerId);
         toast('success', 'Đã gửi tin nhắn sản phẩm đến cửa hàng');
     } catch (error) {
         toast('error', 'Lỗi khi gửi tin nhắn sản phẩm: ' + (error.message || 'Vui lòng thử lại'));
-        console.error('❌ Lỗi khi gửi tin nhắn:', error);
     }
 };
 
@@ -737,7 +774,6 @@ watch(selectedOptions, (newOptions) => {
 
 watch(() => route.params.slug, (newSlug, oldSlug) => {
     if (newSlug !== oldSlug) {
-        console.log('Slug changed:', newSlug);
         fetchProduct();
     }
 }, { immediate: true });

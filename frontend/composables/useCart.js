@@ -27,26 +27,51 @@ export function useCart() {
   });
 
   const selectedTotal = computed(() => {
-    return cart.value.stores.reduce((total, store) => {
+    const total = cart.value.stores.reduce((total, store) => {
       return total + (store.items || []).reduce((storeTotal, item) => {
         if (item && selectedItems.value.has(item.id)) {
-          return storeTotal + (parsePrice(item.sale_price) || parsePrice(item.price)) * (item.quantity || 1);
+          const price = parsePrice(item.sale_price || item.price);
+          const quantity = item.quantity || 1;
+          return storeTotal + price * quantity;
         }
         return storeTotal;
       }, 0);
     }, 0);
+    return total;
   });
 
   const parsePrice = (price) => {
-    if (price == null) return 0;
-    let clean = String(price).trim();
-    if (clean.includes(',') && clean.includes('.')) {
-      clean = clean.replace(/\./g, '').replace(',', '.');
-    } else {
-      clean = clean.replace(/[,.]/g, '');
+    if (price == null) {
+      return 0;
     }
-    const num = Number(clean.replace(/[^\d.-]/g, ''));
-    return isNaN(num) ? 0 : num;
+    let clean = String(price).trim();
+
+    // Handle Vietnamese number formats: "315.000" (315,000), "315.000,00" (315,000.00), "315000" (315,000)
+    if (clean.includes(',') && clean.includes('.')) {
+      // "315.000,00" → comma is decimal separator, dot is thousand separator
+      if (clean.lastIndexOf(',') > clean.lastIndexOf('.')) {
+        clean = clean.replace(/\./g, '').replace(',', '.');
+      } else {
+        // "315,000.00" → dot is decimal separator, comma is thousand separator
+        clean = clean.replace(/,/g, '');
+      }
+    } else if (clean.includes('.')) {
+      // "315.000" → dot is thousand separator in Vietnamese format
+      clean = clean.replace(/\./g, '');
+    } else if (clean.includes(',')) {
+      // "315,000" → comma is thousand separator
+      clean = clean.replace(/,/g, '');
+    }
+
+    const num = parseFloat(clean.replace(/[^\d.-]/g, '')) || 0;
+    const result = Math.round(num * 100) / 100; // Round to 2 decimal places
+    return result;
+  };
+
+  const formatPrice = (price) => {
+    const parsed = parsePrice(price);
+    const formatted = parsed.toLocaleString('vi-VN', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    return `${formatted} đ`;
   };
 
   const syncSelectedItemsToBackend = async () => {
@@ -74,15 +99,13 @@ export function useCart() {
         throw new Error(data.message || 'Lỗi khi đồng bộ sản phẩm đã chọn');
       }
 
-      // Update cart with backend response
       const cartData = data.data;
       cartStore.setCart(cartData);
       selectedItems.value = new Set(data.valid_item_ids || []);
       updateSelections();
     } catch (err) {
       toast('error', 'Không thể đồng bộ sản phẩm đã chọn: ' + err.message);
-      console.error('Sync selected items error:', err);
-      await fetchCart(); // Fetch latest cart state on error
+      await fetchCart();
     } finally {
       loading.value = false;
     }
@@ -199,7 +222,6 @@ export function useCart() {
       });
     } catch (err) {
       toast('error', 'Không thể chuyển đến trang thanh toán: ' + err.message);
-      console.error('Checkout navigation error:', err);
     } finally {
       loading.value = false;
     }
@@ -249,7 +271,6 @@ export function useCart() {
     } catch (err) {
       cartStore.setCart({ stores: [], total: '0' });
       toast('error', 'Không thể lấy danh sách sản phẩm đã chọn: ' + err.message);
-      console.error('Fetch selected items error:', err);
     } finally {
       loading.value = false;
       isCartReady.value = true;
@@ -307,7 +328,6 @@ export function useCart() {
     } catch (error) {
       item.quantity = originalQuantity;
       toast('error', 'Không thể cập nhật số lượng: ' + error.message);
-      console.error('Update quantity error:', error);
       await fetchCart();
     } finally {
       loading.value = false;
@@ -345,232 +365,186 @@ export function useCart() {
         throw new Error(data.message || 'Lỗi khi xóa sản phẩm');
       }
 
-      await fetchCart(); // Fetch updated cart
+      await fetchCart();
       updateSelections();
     } catch (err) {
       toast('error', 'Không thể xóa sản phẩm: ' + err.message);
-      console.error('Remove item error:', err);
       await fetchCart();
     }
   };
 
-// const clearCart = async (orderItems = []) => {
-//   const token = localStorage.getItem('access_token');
+  const clearCart = async (orderItems = []) => {
+    const token = localStorage.getItem('access_token');
 
-//   if (!token) {
-//     toast('error', 'Vui lòng đăng nhập để xóa giỏ hàng');
-//     window.dispatchEvent(new CustomEvent('openLoginModal'));
-//     return;
-//   }
+    if (!token) {
+      toast('error', 'Vui lòng đăng nhập để xóa giỏ hàng');
+      window.dispatchEvent(new CustomEvent('openLoginModal'));
+      return;
+    }
 
-//   if (!Array.isArray(orderItems) || orderItems.length === 0) {
-//     toast('error', 'Không có sản phẩm nào để xóa');
-//     return;
-//   }
+    // Nếu không có orderItems, xóa toàn bộ giỏ hàng
+    if (!Array.isArray(orderItems) || orderItems.length === 0) {
+      try {
+        // Lấy tất cả items trong giỏ hàng hiện tại
+        const allItems = cart.value.stores.flatMap(store => store.items || []);
+        const allItemIds = allItems.map(item => item.id).filter(id => !!id);
 
-//   // ✅ Xoá bằng id 
-//   const itemIds = orderItems.map(i => i.id).filter(id => !!id);
+        if (allItemIds.length === 0) {
+          // Giỏ hàng đã trống
+          cartStore.setCart({ stores: [], total: '0' });
+          selectedItems.value.clear();
+          updateSelections();
+          return;
+        }
 
-//   if (itemIds.length === 0) {
-//     toast('error', 'Không tìm thấy ID để xóa sản phẩm khỏi giỏ hàng');
-//     return;
-//   }
+        // Xóa từng item
+        for (const id of allItemIds) {
+          const res = await fetch(`${apiBaseUrl}/cart/items/${id}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${token}` },
+          });
 
-//   try {
-//     for (const id of itemIds) {
-//       const res = await fetch(`${apiBaseUrl}/cart/items/${id}`, {
-//         method: 'DELETE',
-//         headers: { Authorization: `Bearer ${token}` },
-//       });
+          if (!res.ok) {
+            console.warn(`Không thể xóa item ${id}`);
+          }
+        }
 
-//       if (!res.ok) {
-//         throw new Error(`Lỗi khi xóa sản phẩm có ID: ${id}`);
-//       }
-//     }
+        // Cập nhật giỏ hàng sau khi xóa
+        cartStore.setCart({ stores: [], total: '0' });
+        selectedItems.value.clear();
+        updateSelections();
+        return;
+      } catch (err) {
+        toast('error', 'Không thể xóa giỏ hàng: ' + err.message);
+        return;
+      }
+    }
 
-//     await fetchCart(); // Sync lại cart
-//     updateSelections();
-//   } catch (err) {
-//     toast('error', 'Không thể xóa giỏ hàng: ' + err.message);
-//     console.error('❌ Clear cart error:', err);
-//     await fetchCart();
-//   }
-// };
+    const itemIds = orderItems.map(i => i.id).filter(id => !!id);
 
-const clearCart = async (orderItems = []) => {
-  const token = localStorage.getItem('access_token');
+    if (itemIds.length === 0) {
+      toast('error', 'Không tìm thấy cart_item_id để xóa sản phẩm khỏi giỏ hàng');
+      return;
+    }
 
-  if (!token) {
-    toast('error', 'Vui lòng đăng nhập để xóa giỏ hàng');
-    window.dispatchEvent(new CustomEvent('openLoginModal'));
-    return;
-  }
+    try {
+      for (const id of itemIds) {
+        const res = await fetch(`${apiBaseUrl}/cart/items/${id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
-  if (!Array.isArray(orderItems) || orderItems.length === 0) {
-    toast('error', 'Không có sản phẩm nào để xóa');
-    return;
-  }
+        if (!res.ok) {
+          throw new Error(`Lỗi khi xóa sản phẩm có ID: ${id}`);
+        }
+      }
 
- const itemIds = orderItems.map(i => i.id).filter(id => !!id);
+      await fetchCart();
+      updateSelections();
+    } catch (err) {
+      toast('error', 'Không thể xóa giỏ hàng: ' + err.message);
+      await fetchCart();
+    }
+  };
 
-  if (itemIds.length === 0) {
-    toast('error', 'Không tìm thấy cart_item_id để xóa sản phẩm khỏi giỏ hàng');
-    return;
-  }
+  const clearAllCart = async () => {
+    const token = localStorage.getItem('access_token');
 
-  try {
-    for (const id of itemIds) {
-      const res = await fetch(`${apiBaseUrl}/cart/items/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
+    if (!token) {
+      console.warn('Không có token để xóa giỏ hàng');
+      return;
+    }
+
+    try {
+      // Lấy tất cả items trong giỏ hàng hiện tại
+      const allItems = cart.value.stores.flatMap(store => store.items || []);
+      const allItemIds = allItems.map(item => item.id).filter(id => !!id);
+
+      if (allItemIds.length === 0) {
+        // Giỏ hàng đã trống
+        cartStore.setCart({ stores: [], total: '0' });
+        selectedItems.value.clear();
+        updateSelections();
+        return;
+      }
+
+      // Xóa từng item
+      for (const id of allItemIds) {
+        const res = await fetch(`${apiBaseUrl}/cart/items/${id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!res.ok) {
+          console.warn(`Không thể xóa item ${id}`);
+        }
+      }
+
+      // Cập nhật giỏ hàng sau khi xóa
+      cartStore.setCart({ stores: [], total: '0' });
+      selectedItems.value.clear();
+      updateSelections();
+    } catch (err) {
+      console.error('Không thể xóa giỏ hàng:', err.message);
+    }
+  };
+
+  const addItem = async (productVariantId, quantity) => {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      toast('error', 'Vui lòng đăng nhập để thêm vào giỏ hàng');
+      window.dispatchEvent(new CustomEvent('openLoginModal'));
+      return;
+    }
+
+    try {
+      loading.value = true;
+      const res = await fetch(`${apiBaseUrl}/cart/add`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ product_variant_id: productVariantId, quantity }),
       });
 
+      const data = await res.json();
+
       if (!res.ok) {
-        throw new Error(`Lỗi khi xóa sản phẩm có ID: ${id}`);
+        if (res.status === 401) {
+          localStorage.removeItem('access_token');
+          window.dispatchEvent(new CustomEvent('openLoginModal'));
+          return;
+        }
+
+        if (res.status === 400 && data.message.includes('tồn kho')) {
+          toast('error', data.message);
+          return;
+        }
+
+        throw new Error(data.message || 'Lỗi khi thêm vào giỏ hàng');
       }
+
+      if (data.success) {
+        cartStore.setCart(data.data);
+        const newItem = data.data.stores.flatMap(store => store.items || [])
+          .find(item => item.product_variant_id === productVariantId);
+
+        if (newItem?.id) {
+          selectedItems.value.add(newItem.id);
+          await syncSelectedItemsToBackend();
+        }
+
+        toast('success', 'Đã thêm sản phẩm vào giỏ hàng');
+      } else {
+        throw new Error(data.message || 'Lỗi khi thêm vào giỏ hàng');
+      }
+    } catch (err) {
+      toast('error', 'Không thể thêm vào giỏ hàng: ' + err.message);
+    } finally {
+      loading.value = false;
     }
-
-    await fetchCart(); // đồng bộ lại giỏ hàng
-    updateSelections();
-  } catch (err) {
-    toast('error', 'Không thể xóa giỏ hàng: ' + err.message);
-    console.error('❌ Clear cart error:', err);
-    await fetchCart();
-  }
-};
-
-
-  // const addItem = async (productVariantId, quantity) => {
-  //   const token = localStorage.getItem('access_token');
-  //   if (!token) {
-  //     toast('error', 'Vui lòng đăng nhập để thêm vào giỏ hàng');
-  //     window.dispatchEvent(new CustomEvent('openLoginModal'));
-  //     return;
-  //   }
-
-  //   try {
-  //     loading.value = true;
-  //     const res = await fetch(`${apiBaseUrl}/cart/add`, {
-  //       method: 'POST',
-  //       headers: {
-  //         'Content-Type': 'application/json',
-  //         Authorization: `Bearer ${token}`,
-  //       },
-  //       body: JSON.stringify({ product_variant_id: productVariantId, quantity }),
-  //     });
-
-  //     if (!res.ok) {
-  //       if (res.status === 401) {
-  //         localStorage.removeItem('access_token');
-  //         window.dispatchEvent(new CustomEvent('openLoginModal'));
-  //         return;
-  //       }
-  //       throw new Error('Lỗi khi thêm vào giỏ hàng');
-  //     }
-
-  //     const data = await res.json();
-  //     if (data.success) {
-  //       cartStore.setCart(data.data);
-  //       const newItem = data.data.stores.flatMap(store => store.items || []).find(item => item.product_variant_id === productVariantId);
-  //       if (newItem?.id) {
-  //         selectedItems.value.add(newItem.id);
-  //         await syncSelectedItemsToBackend();
-  //       }
-  //       toast('success', 'Đã thêm sản phẩm vào giỏ hàng');
-  //     } else {
-  //       throw new Error(data.message || 'Lỗi khi thêm vào giỏ hàng');
-  //     }
-  //   } catch (err) {
-  //     toast('error', 'Không thể thêm vào giỏ hàng: ' + err.message);
-  //     console.error('Add item error:', err);
-  //   } finally {
-  //     loading.value = false;
-  //   }
-  // };
-
-const addItem = async (productVariantId, quantity) => {
-  const token = localStorage.getItem('access_token');
-  if (!token) {
-    toast('error', 'Vui lòng đăng nhập để thêm vào giỏ hàng');
-    window.dispatchEvent(new CustomEvent('openLoginModal'));
-    return;
-  }
-
-  // 🔎 Lấy biến thể sản phẩm và tồn kho
-  const productVariant = productVariants.value.find(v => v.id === productVariantId);
-  if (!productVariant) {
-    toast('error', 'Không tìm thấy thông tin sản phẩm');
-    return;
-  }
-
-  const maxStock = productVariant.inventory_quantity;
-
-  // 🔍 Lấy số lượng hiện tại trong giỏ hàng
-  const currentItem = cartStore.cart?.stores
-    ?.flatMap(store => store.items || [])
-    ?.find(item => item.product_variant_id === productVariantId);
-
-  const currentQtyInCart = currentItem?.quantity || 0;
-  const newTotal = currentQtyInCart + quantity;
-
-  if (newTotal > maxStock) {
-    const remain = maxStock - currentQtyInCart;
-    toast('warning', `Chỉ có thể thêm tối đa ${remain <= 0 ? 0 : remain} sản phẩm nữa vào giỏ hàng`);
-    return;
-  }
-
-  try {
-    loading.value = true;
-
-    const res = await fetch(`${apiBaseUrl}/cart/add`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ product_variant_id: productVariantId, quantity }),
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      if (res.status === 401) {
-        localStorage.removeItem('access_token');
-        window.dispatchEvent(new CustomEvent('openLoginModal'));
-        return;
-      }
-
-      if (res.status === 400 && data.message.includes('tồn kho')) {
-        toast('error', data.message);
-        return;
-      }
-
-      throw new Error(data.message || 'Lỗi khi thêm vào giỏ hàng');
-    }
-
-    if (data.success) {
-      cartStore.setCart(data.data);
-      const newItem = data.data.stores.flatMap(store => store.items || [])
-        .find(item => item.product_variant_id === productVariantId);
-
-      if (newItem?.id) {
-        selectedItems.value.add(newItem.id);
-        await syncSelectedItemsToBackend();
-      }
-
-      toast('success', 'Đã thêm sản phẩm vào giỏ hàng');
-    } else {
-      throw new Error(data.message || 'Lỗi khi thêm vào giỏ hàng');
-    }
-  } catch (err) {
-    toast('error', 'Không thể thêm vào giỏ hàng: ' + err.message);
-    console.error('Add item error:', err);
-  } finally {
-    loading.value = false;
-  }
-};
-
-
+  };
 
   const fetchCart = async () => {
     const token = localStorage.getItem('access_token');
@@ -607,6 +581,14 @@ const addItem = async (productVariantId, quantity) => {
 
       const data = await res.json();
       if (data.success) {
+        // Validate prices
+        data.data.stores.forEach(store => {
+          store.items.forEach(item => {
+            if (!item.price || isNaN(parseFloat(item.price))) {
+              item.price = '0';
+            }
+          });
+        });
         cartStore.setCart(data.data);
         selectedItems.value = new Set(
           data.data.stores.flatMap(store => (store.items || []).filter(item => item?.is_selected).map(item => item.id))
@@ -618,14 +600,13 @@ const addItem = async (productVariantId, quantity) => {
     } catch (err) {
       cartStore.setCart({ stores: [], total: '0' });
       toast('error', 'Không thể lấy dữ liệu giỏ hàng: ' + err.message);
-      console.error('Fetch cart error:', err);
     } finally {
       loading.value = false;
       isCartReady.value = true;
     }
   };
 
-  onMounted(async () => { 
+  onMounted(async () => {
     await fetchCart();
     window.addEventListener('loginSuccess', () => {
       fetchCart();
@@ -652,8 +633,10 @@ const addItem = async (productVariantId, quantity) => {
     updateQuantityWithValidation,
     removeItem,
     clearCart,
+    clearAllCart,
     addItem,
     parsePrice,
+    formatPrice,
     fetchSelectedItems,
   };
 }

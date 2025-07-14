@@ -13,6 +13,7 @@ interface Discount {
     start_date: string
     end_date: string
     status: 'active' | 'inactive' | 'expired'
+    seller_id?: number // Added for shop-specific discounts
 }
 
 export const useDiscount = () => {
@@ -24,21 +25,14 @@ export const useDiscount = () => {
 
 
     const fetchDiscounts = async () => {
-        const token = localStorage.getItem('access_token')
-        if (!token) {
-            error.value = 'Vui lòng đăng nhập để tiếp tục'
-            return navigateTo('/auth/login')
-        }
-
         loading.value = true
         error.value = null
 
         try {
-            const res = await fetch(`${config.public.apiBaseUrl}/discounts`, {
+            const res = await fetch(`${config.public.apiBaseUrl}/discounts/all`, {
                 method: 'GET',
                 headers: {
-                    'Accept': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    'Accept': 'application/json'
                 }
             })
 
@@ -54,6 +48,36 @@ export const useDiscount = () => {
         } catch (err) {
             console.error('Error fetching discounts:', err)
             error.value = err instanceof Error ? err.message : 'Lỗi không xác định'
+        } finally {
+            loading.value = false
+        }
+    }
+
+    const fetchSellerDiscounts = async (sellerId: number) => {
+        loading.value = true
+        error.value = null
+
+        try {
+            const res = await fetch(`${config.public.apiBaseUrl}/discounts/seller/${sellerId}`, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json'
+                }
+            })
+
+            if (!res.ok) {
+                throw new Error('Lỗi khi lấy danh sách mã giảm giá của shop')
+            }
+
+            const data = await res.json()
+            return data.data.filter((discount: Discount) =>
+                discount.status === 'active' &&
+                new Date(discount.end_date) > new Date()
+            )
+        } catch (err) {
+            console.error('Error fetching seller discounts:', err)
+            error.value = err instanceof Error ? err.message : 'Lỗi không xác định'
+            return []
         } finally {
             loading.value = false
         }
@@ -158,25 +182,26 @@ export const useDiscount = () => {
         const isProductDiscount = discount.discount_type === 'percentage' || discount.discount_type === 'fixed';
         const isShippingDiscount = discount.discount_type === 'shipping_fee';
 
-        // Kiểm tra trùng mã
+        // Kiểm tra trùng mã (id)
         if (selectedDiscounts.value.find(d => d.id === discount.id)) {
             showErrorNotification('Mã giảm giá này đã được áp dụng');
             return;
         }
 
-        // Không cho chọn 2 mã cùng loại
-        if (
-            isProductDiscount && selectedDiscounts.value.find(d => d.discount_type === 'percentage' || d.discount_type === 'fixed')
-        ) {
-            showErrorNotification('Chỉ được chọn 1 mã giảm giá cho sản phẩm');
-            return;
+        // Đảm bảo không có nhiều hơn 1 voucher phí ship admin
+        if (isShippingDiscount) {
+            // Xóa tất cả các voucher phí ship admin cũ trước khi thêm mới
+            selectedDiscounts.value = selectedDiscounts.value.filter(d => !(d.discount_type === 'shipping_fee' && !d.seller_id));
         }
 
-        if (
-            isShippingDiscount && selectedDiscounts.value.find(d => d.discount_type === 'shipping_fee')
-        ) {
-            showErrorNotification('Chỉ được chọn 1 mã giảm giá phí vận chuyển');
-            return;
+        // Đảm bảo không có nhiều hơn 1 voucher shop cho mỗi shop
+        if (isProductDiscount && discount.seller_id) {
+            selectedDiscounts.value = selectedDiscounts.value.filter(d => !(d.seller_id === discount.seller_id && (d.discount_type === 'percentage' || d.discount_type === 'fixed')));
+        }
+
+        // Đảm bảo không có nhiều hơn 1 voucher admin sản phẩm
+        if (isProductDiscount && !discount.seller_id) {
+            selectedDiscounts.value = selectedDiscounts.value.filter(d => !(!d.seller_id && (d.discount_type === 'percentage' || d.discount_type === 'fixed')));
         }
 
         // Hợp lệ → áp dụng
@@ -286,6 +311,7 @@ export const useDiscount = () => {
         error,
         formatPrice,
         fetchDiscounts,
+        fetchSellerDiscounts,
         fetchMyVouchers,
         applyDiscount,
         removeDiscount,

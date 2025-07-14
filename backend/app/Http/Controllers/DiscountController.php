@@ -543,11 +543,25 @@ class DiscountController extends Controller
         }
     }
 
-    // Public: Lấy tất cả voucher đang hoạt động cho user
+    // Public: Lấy tất cả voucher đang hoạt động cho user (chỉ của admin)
     public function indexPublic()
     {
         $discounts = \App\Models\Discount::where('status', 'active')
             ->where('end_date', '>', now())
+            ->whereNull('seller_id') // Chỉ lấy discount của admin
+            ->get();
+        return response()->json([
+            'success' => true,
+            'data' => $discounts
+        ]);
+    }
+
+    // Public: Lấy discount của seller theo seller_id
+    public function getSellerDiscounts($sellerId)
+    {
+        $discounts = \App\Models\Discount::where('status', 'active')
+            ->where('end_date', '>', now())
+            ->where('seller_id', $sellerId)
             ->get();
         return response()->json([
             'success' => true,
