@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Auth;
 
 class RefundController extends Controller
 {
-   public function index(Request $request)
+    public function index(Request $request)
     {
         try {
             $user = Auth::user();
@@ -182,7 +182,7 @@ class RefundController extends Controller
         }
     }
 
-    
+
 
     public function store(Request $request)
     {
@@ -196,7 +196,7 @@ class RefundController extends Controller
 
         // Kiểm tra số tiền hoàn
         $order = Order::findOrFail($data['order_id']);
-        $maxRefundAmount = max(($order->final_price - ($order->shipping?->shipping_fee ?? 0)), 0);
+        $maxRefundAmount = max((floatval($order->final_price) - floatval($order->shipping?->shipping_fee ?? 0)), 0);
         if ($data['amount'] > $maxRefundAmount) {
             return response()->json([
                 'success' => false,
@@ -242,7 +242,7 @@ class RefundController extends Controller
         // Kiểm tra số tiền hoàn nếu được cung cấp
         if (isset($data['amount'])) {
             $order = Order::findOrFail($refund->order_id);
-            $maxRefundAmount = max(($order->final_price - ($order->shipping?->shipping_fee ?? 0)), 0);
+            $maxRefundAmount = max((floatval($order->final_price) - floatval($order->shipping?->shipping_fee ?? 0)), 0);
             if ($data['amount'] > $maxRefundAmount) {
                 return response()->json([
                     'success' => false,
@@ -267,88 +267,88 @@ class RefundController extends Controller
     }
 
     public function approve($id)
-{
-    try {
-        $refund = Refund::findOrFail($id);
-        if ($refund->status !== 'pending') {
+    {
+        try {
+            $refund = Refund::findOrFail($id);
+            if ($refund->status !== 'pending') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Yêu cầu hoàn tiền không ở trạng thái chờ xử lý'
+                ], 400);
+            }
+
+            $refund->status = 'approved';
+            $refund->save();
+
+            // Cập nhật trạng thái đơn hàng
+            $order = Order::findOrFail($refund->order_id);
+            $order->status = 'refunded';
+            $order->note = $refund->reason;
+            $order->save();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'id' => $refund->id,
+                    'status' => $refund->status,
+                    'reason' => $refund->reason,
+                    'amount' => (float) $refund->amount,
+                    'order_id' => $refund->order_id,
+                    'created_at' => $refund->created_at->toISOString(),
+                    'updated_at' => $refund->updated_at->toISOString()
+                ]
+            ], 200);
+        } catch (\Exception $e) {
+            Log::error('Error approving refund', [
+                'refund_id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json([
                 'success' => false,
-                'message' => 'Yêu cầu hoàn tiền không ở trạng thái chờ xử lý'
-            ], 400);
+                'message' => 'Lỗi khi duyệt yêu cầu hoàn tiền: ' . $e->getMessage()
+            ], 500);
         }
-
-        $refund->status = 'approved';
-        $refund->save();
-
-        // Cập nhật trạng thái đơn hàng
-        $order = Order::findOrFail($refund->order_id);
-        $order->status = 'refunded';
-        $order->note = $refund->reason;
-        $order->save();
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'id' => $refund->id,
-                'status' => $refund->status,
-                'reason' => $refund->reason,
-                'amount' => (float) $refund->amount,
-                'order_id' => $refund->order_id,
-                'created_at' => $refund->created_at->toISOString(),
-                'updated_at' => $refund->updated_at->toISOString()
-            ]
-        ], 200);
-    } catch (\Exception $e) {
-        Log::error('Error approving refund', [
-            'refund_id' => $id,
-            'error' => $e->getMessage(),
-            'trace' => $e->getTraceAsString()
-        ]);
-        return response()->json([
-            'success' => false,
-            'message' => 'Lỗi khi duyệt yêu cầu hoàn tiền: ' . $e->getMessage()
-        ], 500);
     }
-}
 
-public function reject($id)
-{
-    try {
-        $refund = Refund::findOrFail($id);
-        if ($refund->status !== 'pending') {
+    public function reject($id)
+    {
+        try {
+            $refund = Refund::findOrFail($id);
+            if ($refund->status !== 'pending') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Yêu cầu hoàn tiền không ở trạng thái chờ xử lý'
+                ], 400);
+            }
+
+            $refund->status = 'rejected';
+            $refund->save();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'id' => $refund->id,
+                    'status' => $refund->status,
+                    'reason' => $refund->reason,
+                    'amount' => (float) $refund->amount,
+                    'order_id' => $refund->order_id,
+                    'created_at' => $refund->created_at->toISOString(),
+                    'updated_at' => $refund->updated_at->toISOString()
+                ]
+            ], 200);
+        } catch (\Exception $e) {
+            Log::error('Error rejecting refund', [
+                'refund_id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json([
                 'success' => false,
-                'message' => 'Yêu cầu hoàn tiền không ở trạng thái chờ xử lý'
-            ], 400);
+                'message' => 'Lỗi khi từ chối yêu cầu hoàn tiền: ' . $e->getMessage()
+            ], 500);
         }
-
-        $refund->status = 'rejected';
-        $refund->save();
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'id' => $refund->id,
-                'status' => $refund->status,
-                'reason' => $refund->reason,
-                'amount' => (float) $refund->amount,
-                'order_id' => $refund->order_id,
-                'created_at' => $refund->created_at->toISOString(),
-                'updated_at' => $refund->updated_at->toISOString()
-            ]
-        ], 200);
-    } catch (\Exception $e) {
-        Log::error('Error rejecting refund', [
-            'refund_id' => $id,
-            'error' => $e->getMessage(),
-            'trace' => $e->getTraceAsString()
-        ]);
-        return response()->json([
-            'success' => false,
-            'message' => 'Lỗi khi từ chối yêu cầu hoàn tiền: ' . $e->getMessage()
-        ], 500);
     }
-}
 
     public function destroy($id)
     {
@@ -437,56 +437,56 @@ public function reject($id)
     }
 
     public function process(Request $request, $orderId)
-{
-    $data = $request->validate([
-        'reason' => 'required|string',
-        'amount' => 'required|numeric|min:0',
-        'status' => 'nullable|in:pending,approved,rejected'
-    ]);
+    {
+        $data = $request->validate([
+            'reason' => 'required|string',
+            'amount' => 'required|numeric|min:0',
+            'status' => 'nullable|in:pending,approved,rejected'
+        ]);
 
-    // Kiểm tra đơn hàng
-    $order = Order::where('id', $orderId)->where('user_id', Auth::id())->firstOrFail();
-    $maxRefundAmount = max(($order->final_price - ($order->shipping?->shipping_fee ?? 0)), 0);
-    if ($data['amount'] > $maxRefundAmount) {
+        // Kiểm tra đơn hàng
+        $order = Order::where('id', $orderId)->where('user_id', Auth::id())->firstOrFail();
+        $maxRefundAmount = max(($order->final_price - ($order->shipping?->shipping_fee ?? 0)), 0);
+        if ($data['amount'] > $maxRefundAmount) {
+            return response()->json([
+                'success' => false,
+                'message' => "Số tiền hoàn không được vượt quá " . number_format($maxRefundAmount, 0, '', ',') . " đ"
+            ], 422);
+        }
+
+        // Kiểm tra xem đơn hàng đã có yêu cầu hoàn tiền chưa
+        if (Refund::where('order_id', $orderId)->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Đơn hàng này đã có yêu cầu hoàn tiền.'
+            ], 422);
+        }
+
+        // Thêm user_id từ người dùng hiện tại
+        $data['order_id'] = $orderId;
+        $data['user_id'] = Auth::id();
+        $data['status'] = $data['status'] ?? 'pending';
+
+        // Tạo yêu cầu hoàn tiền
+        $refund = Refund::create($data);
+
+        // Cập nhật trạng thái đơn hàng nếu status là approved
+        if ($data['status'] === 'approved') {
+            $order->update(['status' => 'refunded', 'note' => $data['reason']]);
+        }
+
         return response()->json([
-            'success' => false,
-            'message' => "Số tiền hoàn không được vượt quá " . number_format($maxRefundAmount, 0, '', ',') . " đ"
-        ], 422);
+            'success' => true,
+            'message' => 'Yêu cầu hoàn tiền đã được gửi',
+            'data' => [
+                'id' => $refund->id,
+                'order_id' => $refund->order_id,
+                'user_id' => $refund->user_id,
+                'amount' => (float)$refund->amount,
+                'status' => $refund->status,
+                'reason' => $refund->reason,
+                'created_at' => $refund->created_at ? $refund->created_at->toISOString() : null
+            ]
+        ], 201);
     }
-
-    // Kiểm tra xem đơn hàng đã có yêu cầu hoàn tiền chưa
-    if (Refund::where('order_id', $orderId)->exists()) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Đơn hàng này đã có yêu cầu hoàn tiền.'
-        ], 422);
-    }
-
-    // Thêm user_id từ người dùng hiện tại
-    $data['order_id'] = $orderId;
-    $data['user_id'] = Auth::id();
-    $data['status'] = $data['status'] ?? 'pending';
-
-    // Tạo yêu cầu hoàn tiền
-    $refund = Refund::create($data);
-
-    // Cập nhật trạng thái đơn hàng nếu status là approved
-    if ($data['status'] === 'approved') {
-        $order->update(['status' => 'refunded', 'note' => $data['reason']]);
-    }
-
-    return response()->json([
-        'success' => true,
-        'message' => 'Yêu cầu hoàn tiền đã được gửi',
-        'data' => [
-            'id' => $refund->id,
-            'order_id' => $refund->order_id,
-            'user_id' => $refund->user_id,
-            'amount' => (float)$refund->amount,
-            'status' => $refund->status,
-            'reason' => $refund->reason,
-            'created_at' => $refund->created_at ? $refund->created_at->toISOString() : null
-        ]
-    ], 201);
-}
 }

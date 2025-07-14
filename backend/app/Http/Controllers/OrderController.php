@@ -498,7 +498,7 @@ class OrderController extends Controller
             'payment_method' => 'required|string|in:COD,VNPAY,MOMO',
             'address_id' => 'required|exists:addresses,id',
             'service_id' => 'required|integer|min:1',
-            'is_buy_now' => 'nullable|boolean', // Thêm validate cho is_buy_now
+            'is_buy_now' => 'nullable|boolean',
         ], [
             'user_id.required' => 'ID người dùng là bắt buộc',
             'user_id.exists' => 'ID người dùng không tồn tại',
@@ -556,7 +556,6 @@ class OrderController extends Controller
             $itemsBySeller = [];
             $isBuyNow = $request->is_buy_now ?? false;
             if ($isBuyNow) {
-                // Với buyNow, chỉ có một sản phẩm, không cần nhóm theo seller
                 $itemsBySeller[0] = $items; // Giả lập seller_id = 0 cho buyNow
             } else {
                 foreach ($items as $item) {
@@ -578,7 +577,7 @@ class OrderController extends Controller
                     'total_price' => 0,
                     'discount_price' => 0,
                     'final_price' => 0,
-                    'is_buy_now' => $isBuyNow, // Lưu flag is_buy_now
+                    'is_buy_now' => $isBuyNow,
                 ]);
 
                 // 4. Tạo order_items
@@ -615,16 +614,16 @@ class OrderController extends Controller
                 $finalPrice = $totalPrice - $discountPrice;
 
                 // 6. Tạo shipping
-                $address = Address::find($request->address_id);
-                $ghn = new GHNService();
+                $address = \App\Models\Address::find($request->address_id);
+                $ghn = new \App\Services\GHNService();
                 $ghnOrder = $ghn->createShippingOrder($order, $address, $request->service_id, $request->payment_method);
 
-                $shippingMethod = ShippingMethod::firstOrCreate(
+                $shippingMethod = \App\Models\ShippingMethod::firstOrCreate(
                     ['id' => $request->service_id],
                     ['name' => $ghnOrder['service_type_id'] ?? 'GHN', 'carrier' => 'GHN', 'estimated_days' => 3, 'cost' => $ghnOrder['total_fee'] ?? 0]
                 );
 
-                $shipping = Shipping::create([
+                $shipping = \App\Models\Shipping::create([
                     'order_id' => $order->id,
                     'shipping_method_id' => $shippingMethod->id,
                     'estimated_delivery' => $ghnOrder['expected_delivery_time'] ?? null,
@@ -633,7 +632,7 @@ class OrderController extends Controller
                     'status' => 'pending',
                 ]);
 
-                // 7. Cập nhật final_price với phí ship
+                // 7. Cập nhật final_price với phí ship (chỉ một lần)
                 $finalPrice += $shipping->shipping_fee ?? 0;
 
                 $order->update([
@@ -655,31 +654,9 @@ class OrderController extends Controller
                     'status' => 'pending'
                 ]);
 
-                // 6. Shipping (tùy chỉnh lại nếu cần)
-                $address = \App\Models\Address::find($request->address_id);
-                $ghn = new \App\Services\GHNService();
-                $ghnOrder = $ghn->createShippingOrder($order, $address, $request->service_id, $request->payment_method);
-
-                $shippingMethod = \App\Models\ShippingMethod::firstOrCreate(
-                    ['id' => $request->service_id],
-                    ['name' => $ghnOrder['service_type_id'] ?? 'GHN', 'carrier' => 'GHN', 'estimated_days' => 3, 'cost' => $ghnOrder['total_fee'] ?? 0]
-                );
-
-                $shipping = \App\Models\Shipping::create([
-                    'order_id' => $order->id,
-                    'shipping_method_id' => $shippingMethod->id,
-                    'estimated_delivery' => $ghnOrder['expected_delivery_time'] ?? null,
-                    'shipping_fee' => $ghnOrder['total_fee'] ?? 0,
-                    'tracking_code' => $ghnOrder['order_code'] ?? null,
-                    'status' => 'pending',
-                ]);
-
-                $order->final_price = $order->final_price + ($shipping->shipping_fee ?? 0);
-                $order->save();
-
-                // Gửi mail xác nhận đơn hàng cho COD
+                // 9. Gửi mail xác nhận đơn hàng cho COD
                 if ($order->user && $order->user->email) {
-                    \Mail::to($order->user->email)->send(new \App\Mail\OrderSuccessMail($order));
+                    Mail::to($order->user->email)->send(new \App\Mail\OrderSuccessMail($order));
                 }
 
                 $order->load([

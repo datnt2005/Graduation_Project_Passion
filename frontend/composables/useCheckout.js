@@ -51,13 +51,11 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
     const storedData = localStorage.getItem('buy_now');
     if (storedData) {
       buyNowData.value = JSON.parse(storedData);
-      // Kiểm tra timestamp (30 phút)
-      const maxAge = 30 * 60 * 1000;
+      const maxAge = 30 * 60 * 1000; // 30 phút
       if (Date.now() - buyNowData.value.timestamp > maxAge) {
         localStorage.removeItem('buy_now');
         buyNowData.value = null;
         toast('error', 'Dữ liệu buyNow đã hết hạn. Vui lòng chọn lại sản phẩm.');
-      } else {
       }
     }
   };
@@ -125,18 +123,16 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
         store_url: store.store_url || '',
         items,
         store_total: storeTotal,
-        discount: 0 // Nếu có mã giảm giá theo shop thì tính ở đây
+        discount: 0
       };
     });
   });
 
-
-  // Total dựa trên cartItems hoặc buyNow
+  // Tổng tiền sản phẩm (chưa bao gồm phí ship và giảm giá)
   const total = computed(() => {
     if (isBuyNow.value && buyNowData.value) {
       const price = parsePrice(buyNowData.value.price);
-      const total = price * buyNowData.value.quantity;
-      return total;
+      return price * buyNowData.value.quantity;
     }
     return cart.value.stores.reduce((total, store) => {
       return (
@@ -152,7 +148,7 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
     }, 0);
   });
 
-  // Shipping fee calculations
+  // Phí vận chuyển
   const rawShippingFee = computed(() => {
     const raw = shippingRef.value?.fees?.[selectedShippingMethod.value];
     return raw ? parsePrice(raw) : 0;
@@ -163,7 +159,7 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
     return Math.max(0, rawShippingFee.value - discount);
   });
 
-  // Final total including discounts and shipping
+  // Tổng tiền cuối cùng (sử dụng final_price từ backend nếu có)
   const finalTotal = computed(() => {
     const baseTotal = total.value;
     const productDiscount = calculateDiscount(baseTotal);
@@ -250,8 +246,7 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
           quantity: item.quantity,
           price: parsePrice(item.sale_price || item.price),
         }))
-      ).filter(item => item.product_id); // tránh trường hợp product_id bị undefined
-
+      ).filter(item => item.product_id);
 
       if (!items.length) {
         toast('error', 'Không có sản phẩm hợp lệ để đặt hàng');
@@ -292,6 +287,9 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
       const { orders } = await orderResponse.json();
 
       if (!orders || !orders.length) throw new Error('Không nhận được đơn hàng từ server');
+
+      // Log để kiểm tra final_price từ backend
+      console.log('Order response:', orders);
 
       if (isBuyNow.value) {
         localStorage.removeItem('buy_now');

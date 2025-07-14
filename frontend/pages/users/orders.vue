@@ -35,6 +35,11 @@
           <input @input="debouncedSearch($event.target.value)" type="text" placeholder="Tìm theo mã vận đơn"
             class="ml-4 px-3 py-2 border rounded-md text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
             style="min-width:180px;" aria-label="Tìm kiếm đơn hàng theo mã vận đơn" />
+          <button @click="refreshData"
+            class="px-4 py-2 rounded-full border text-sm bg-white text-gray-700 border-gray-300 hover:bg-blue-50"
+            aria-label="Làm mới dữ liệu">
+            <i class="fas fa-sync-alt"></i> Làm mới
+          </button>
         </div>
 
         <!-- Tabs -->
@@ -167,7 +172,7 @@
               class="bg-white rounded-lg shadow border border-gray-200 p-4">
               <div class="flex justify-between items-center mb-2">
                 <span class="text-sm text-gray-500 font-medium">Mã vận đơn: {{ order.shipping?.tracking_code || '-'
-                  }}</span>
+                }}</span>
                 <span :class="statusClass(order.status)"
                   class="px-2 py-1 text-xs rounded-full font-medium whitespace-nowrap">
                   {{ statusText(order.status) }}
@@ -346,7 +351,8 @@
                         <p class="text-xs text-gray-500">{{ formatPrice(item.price) }} × {{ item.quantity || 0 }}</p>
                       </div>
                     </div>
-                    <div class="text-right text-gray-900 font-semibold whitespace-nowrap">{{ formatPrice(item.total) }}</div>
+                    <div class="text-right text-gray-900 font-semibold whitespace-nowrap">{{ formatPrice(item.total) }}
+                    </div>
                   </div>
                 </div>
                 <!-- Thông tin thanh toán -->
@@ -368,7 +374,7 @@
                       <p>Phương thức: <span class="text-black">{{ payment.method || '-' }}</span></p>
                       <p>Số tiền: <span class="text-black">{{ formatPrice(payment.amount) }}</span></p>
                       <p v-if="payment && payment.status">Trạng thái: <span class="text-black">{{
-                          statusText(payment.status) }}</span></p>
+                        statusText(payment.status) }}</span></p>
                     </div>
                   </div>
                 </div>
@@ -382,8 +388,8 @@
                       <label class="block mb-1" for="refund-amount">Số tiền hoàn (VND):</label>
                       <input v-model.number="refundAmount" id="refund-amount" type="number" min="0"
                         :max="maxRefundAmount" class="w-full border rounded px-3 py-2 bg-gray-100 cursor-not-allowed"
-                        :disabled="true" placeholder="Số tiền hoàn tự động" aria-label="Số tiền hoàn tự động"
-                        aria-required="true">
+                        :disabled="true" :placeholder="`Số tiền hoàn tự động: ${formatPrice(maxRefundAmount * 1000)}`"
+                        aria-label="Số tiền hoàn tự động" aria-required="true">
                       <label class="block mb-1 mt-2" for="refund-reason">Lý do hoàn tiền:</label>
                       <textarea v-model="refundReason" id="refund-reason" class="w-full border rounded px-3 py-2"
                         placeholder="Nhập lý do hoàn tiền" aria-label="Nhập lý do hoàn tiền"
@@ -417,7 +423,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import axios from 'axios';
 import SidebarProfile from '~/components/shared/layouts/Sidebar-profile.vue';
 import Swal from 'sweetalert2/dist/sweetalert2.min.js';
@@ -567,7 +573,9 @@ const getProductImage = (thumbnail) => {
 
 const maxRefundAmount = computed(() => {
   if (!selectedOrder.value) return 0;
-  return Math.max((Number(selectedOrder.value.final_price || 0) - Number(selectedOrder.value.shipping?.shipping_fee || 0)), 0);
+  const finalPrice = parseFloat(selectedOrder.value.final_price || 0) / 1000; // Chia cho 1000 để khớp đơn vị
+  const shippingFee = parseFloat(selectedOrder.value.shipping?.shipping_fee || 0) / 1000;
+  return Math.max(finalPrice - shippingFee, 0);
 });
 
 const effectiveRefund = computed(() => {
@@ -606,6 +614,8 @@ const fetchOrders = async (forceRefresh = false) => {
       axios.get(`${apiBase}/user/orders?page=${page.value}&per_page=${perPage}`, { headers: { Authorization: `Bearer ${token}` } })
     ]);
 
+    console.log('fetchOrders API response:', { user: userRes.data, orders: ordersRes.data });
+
     user.value = userRes.data;
     orders.value = Array.isArray(ordersRes.data.data) ? ordersRes.data.data.map(order => ({
       ...order,
@@ -614,10 +624,11 @@ const fetchOrders = async (forceRefresh = false) => {
     localStorage.setItem(cacheKey, JSON.stringify({
       orders: orders.value,
       user: user.value,
-      expiry: Date.now() + 1000 * 60 * 60 // Cache 1 giờ
+      expiry: Date.now() + 1000 * 60 * 5 // Cache 5 phút
     }));
     updateTabCounts();
   } catch (err) {
+    console.error('fetchOrders error:', err);
     toast('error', 'Không thể tải đơn hàng!');
   } finally {
     isLoading.value = false;
@@ -647,6 +658,9 @@ const fetchRefunds = async (forceRefresh = false) => {
     const { data } = await axios.get(`${apiBase}/refunds`, {
       headers: { Authorization: `Bearer ${token}` }
     });
+
+    console.log('fetchRefunds API response:', data);
+
     refunds.value = Array.isArray(data.data) ? data.data.map(refund => ({
       ...refund,
       amount: Number(refund.amount) || 0,
@@ -671,10 +685,11 @@ const fetchRefunds = async (forceRefresh = false) => {
     }
     localStorage.setItem(cacheKey, JSON.stringify({
       refunds: refunds.value,
-      expiry: Date.now() + 1000 * 60 * 60 // Cache 1 giờ
+      expiry: Date.now() + 1000 * 60 * 5 // Cache 5 phút
     }));
     updateTabCounts();
   } catch (error) {
+    console.error('fetchRefunds error:', error);
     refundError.value = error.response?.data?.message || 'Lỗi khi tải danh sách hoàn tiền';
     refunds.value = [];
   } finally {
@@ -694,14 +709,9 @@ const viewOrder = async (id) => {
       headers: { Authorization: `Bearer ${token}` }
     });
 
-    console.log('API response for /user/orders/${id}:', data);
+    console.log('viewOrder API response:', data);
 
-    // Xử lý phản hồi API
-    let orderData = data;
-    if (data.success !== undefined && data.data) {
-      orderData = data.data;
-    }
-
+    let orderData = data.success !== undefined && data.data ? data.data : data;
     if (!orderData || !orderData.id) {
       throw new Error(data?.message || 'Phản hồi API không chứa dữ liệu đơn hàng');
     }
@@ -718,7 +728,6 @@ const viewOrder = async (id) => {
 
     console.log('selectedOrder.value:', selectedOrder.value);
 
-    // Kiểm tra yêu cầu hoàn tiền trong danh sách refunds nếu refund là null
     if (!selectedOrder.value.refund) {
       const refund = refunds.value.find(r => r.order_id === id);
       if (refund) {
@@ -726,17 +735,15 @@ const viewOrder = async (id) => {
       }
     }
 
-    // Tự động điền số tiền hoàn
     if (!selectedOrder.value.refund && ['failed', 'cancelled', 'returned'].includes(selectedOrder.value.status)) {
       refundAmount.value = maxRefundAmount.value;
-      toast('info', `Số tiền hoàn đã được tự động điền: ${formatPrice(refundAmount.value)}`);
+      toast('info', `Số tiền hoàn đã được tự động điền: ${formatPrice(refundAmount.value * 1000)}`);
     } else {
       refundAmount.value = 0;
     }
 
     isDetailOpen.value = true;
 
-    // Tải thông tin địa chỉ
     if (!provinces.value.length || !districts.value.length || !wards.value.length) {
       await Promise.all([loadProvinces(), loadDistricts(), loadWards()]);
     }
@@ -750,16 +757,15 @@ const viewOrder = async (id) => {
       ward_name: ward?.WardName || ''
     };
 
-    // Cập nhật cache
     const cacheKey = `user_orders_page_${page.value}`;
-    const cache = localStorage.getItem(cacheKey);
-    if (cache) {
-      const cachedData = JSON.parse(cache);
-      cachedData.orders = cachedData.orders.map(o => o.id === id ? selectedOrder.value : o);
-      localStorage.setItem(cacheKey, JSON.stringify(cachedData));
-    }
+    localStorage.removeItem(cacheKey);
+    localStorage.setItem(cacheKey, JSON.stringify({
+      orders: orders.value.map(o => o.id === id ? selectedOrder.value : o),
+      user: user.value,
+      expiry: Date.now() + 1000 * 60 * 5 // Cache 5 phút
+    }));
   } catch (err) {
-    console.error('Error fetching order:', err, {
+    console.error('viewOrder error:', err, {
       status: err.response?.status,
       data: err.response?.data
     });
@@ -783,9 +789,14 @@ const requestRefund = async (order) => {
     return;
   }
 
+  if (refundAmount.value > maxRefundAmount.value) {
+    toast('error', `Số tiền hoàn không được vượt quá ${formatPrice(maxRefundAmount.value * 1000)}!`);
+    return;
+  }
+
   const result = await Swal.fire({
     title: 'Xác nhận yêu cầu hoàn tiền',
-    text: `Bạn có chắc chắn muốn yêu cầu hoàn ${formatPrice(refundAmount.value)} cho đơn hàng ${order.shipping?.tracking_code || order.id}?`,
+    text: `Bạn có chắc chắn muốn yêu cầu hoàn ${formatPrice(refundAmount.value * 1000)} cho đơn hàng ${order.shipping?.tracking_code || order.id}?`,
     icon: 'question',
     showCancelButton: true,
     confirmButtonText: 'Gửi yêu cầu',
@@ -800,6 +811,18 @@ const requestRefund = async (order) => {
     const token = localStorage.getItem('access_token');
     if (!token) throw new Error('Chưa đăng nhập');
 
+    console.log('Sending refund request:', {
+      order_id: order.id,
+      final_price: selectedOrder.value.final_price,
+      shipping_fee: selectedOrder.value.shipping?.shipping_fee || 0,
+      maxRefundAmount: maxRefundAmount.value,
+      refundAmount: refundAmount.value
+    });
+
+    const cacheKey = `user_orders_page_${page.value}`;
+    localStorage.removeItem(cacheKey);
+    localStorage.removeItem('user_refunds');
+
     const response = await axios.post(`${apiBase}/orders/${order.id}/refund`, {
       reason: refundReason.value,
       amount: Number(refundAmount.value),
@@ -810,33 +833,27 @@ const requestRefund = async (order) => {
 
     if (response.data.success) {
       toast('success', response.data.message || 'Yêu cầu hoàn tiền đã được gửi!');
-      // Làm mới danh sách đơn hàng và yêu cầu hoàn tiền
       await Promise.all([fetchOrders(true), fetchRefunds(true)]);
-      // Cập nhật selectedOrder
       if (selectedOrder.value?.id === order.id) {
         await viewOrder(order.id);
       }
-      // Xóa cache để đảm bảo dữ liệu mới
-      const cacheKey = `user_orders_page_${page.value}`;
-      localStorage.removeItem(cacheKey);
-      localStorage.removeItem('user_refunds');
       refundAmount.value = 0;
       refundReason.value = '';
-      isDetailOpen.value = true; // Đảm bảo modal vẫn mở
+      isDetailOpen.value = true;
     } else {
       throw new Error(response.data.message || 'Lỗi khi gửi yêu cầu hoàn tiền');
     }
   } catch (error) {
+    console.error('requestRefund error:', error);
     let message = error.response?.data?.message || error.message;
     if (message.includes('Đơn hàng này đã có yêu cầu hoàn tiền')) {
       message = 'Đơn hàng này đã có yêu cầu hoàn tiền đang chờ xử lý!';
-      // Làm mới danh sách hoàn tiền và đơn hàng
       await Promise.all([fetchOrders(true), fetchRefunds(true)]);
       if (selectedOrder.value?.id === order.id) {
         await viewOrder(order.id);
       }
     } else if (message.includes('Số tiền hoàn không được vượt quá')) {
-      message = `Số tiền hoàn không được vượt quá ${formatPrice(maxRefundAmount.value)}!`;
+      message = `Số tiền hoàn không được vượt quá ${formatPrice(maxRefundAmount.value * 1000)}!`;
     } else if (error.response?.status === 404) {
       message = 'Không tìm thấy đơn hàng hoặc dịch vụ hoàn tiền!';
     } else if (error.response?.status === 403) {
@@ -957,10 +974,22 @@ const cancelOrder = async (id) => {
       headers: { Authorization: `Bearer ${token}` }
     });
     toast('success', 'Đơn hàng đã được hủy!');
+    const cacheKey = `user_orders_page_${page.value}`;
+    localStorage.removeItem(cacheKey);
+    localStorage.removeItem('user_refunds');
     await fetchOrders(true);
   } catch (err) {
+    console.error('cancelOrder error:', err);
     toast('error', 'Không thể hủy đơn hàng!');
   }
+};
+
+const refreshData = async () => {
+  const cacheKey = `user_orders_page_${page.value}`;
+  localStorage.removeItem(cacheKey);
+  localStorage.removeItem('user_refunds');
+  await Promise.all([fetchOrders(true), fetchRefunds(true)]);
+  toast('success', 'Dữ liệu đã được làm mới!');
 };
 
 const printOrder = (orderId) => {
@@ -1013,6 +1042,7 @@ const downloadPDF = async (orderId) => {
     };
     html2pdf().from(content).set(opt).save();
   } catch (err) {
+    console.error('downloadPDF error:', err);
     toast('error', 'Không thể tải hóa đơn PDF!');
   }
 };
@@ -1042,7 +1072,7 @@ const paginatedOrders = computed(() => {
   return filteredOrders.value.slice(start, start + perPage);
 });
 
-// Lifecycle
+// Lifecycle and watchers
 onMounted(async () => {
   useHead({
     title: `Đơn hàng của tôi | ${user.value?.name || 'Quản lý đơn hàng'}`,
@@ -1054,7 +1084,15 @@ onMounted(async () => {
       { property: 'og:type', content: 'website' }
     ]
   });
-  await Promise.all([fetchOrders(), fetchRefunds()]);
+  await Promise.all([fetchOrders(true), fetchRefunds(true)]);
+});
+
+watch(selectedTab, async () => {
+  await Promise.all([fetchOrders(true), fetchRefunds(true)]);
+});
+
+watch(page, async () => {
+  await fetchOrders(true);
 });
 </script>
 
