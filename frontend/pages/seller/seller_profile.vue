@@ -158,7 +158,54 @@
       </div>
 
       <!-- Loading fallback -->
-      <div v-else class="text-center text-gray-500 py-10 text-sm">Đang tải hồ sơ người bán...</div>
+     <!-- Skeleton loading -->
+<div v-else class="animate-pulse grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6">
+  <!-- Trái -->
+  <div class="space-y-6">
+    <div class="bg-white p-6 rounded-xl shadow space-y-6">
+      <div class="flex items-center gap-4">
+        <div class="w-20 h-20 rounded-full bg-gray-300"></div>
+        <div class="space-y-2 flex-1">
+          <div class="h-4 w-1/2 bg-gray-300 rounded"></div>
+          <div class="h-3 w-1/3 bg-gray-200 rounded"></div>
+          <div class="h-5 w-24 bg-gray-300 rounded"></div>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-8">
+        <div class="h-4 bg-gray-200 rounded col-span-1"></div>
+        <div class="h-4 bg-gray-200 rounded col-span-1"></div>
+        <div class="h-4 bg-gray-200 rounded col-span-1"></div>
+        <div class="h-4 bg-gray-200 rounded col-span-1"></div>
+        <div class="h-4 bg-gray-200 rounded col-span-2"></div>
+        <div class="h-4 bg-gray-200 rounded col-span-2"></div>
+        <div class="h-4 bg-gray-200 rounded col-span-2"></div>
+      </div>
+    </div>
+
+    <div class="bg-white p-6 rounded-xl shadow space-y-4">
+      <div class="h-4 w-40 bg-gray-300 rounded"></div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="h-3 w-full bg-gray-200 rounded"></div>
+        <div class="h-3 w-full bg-gray-200 rounded"></div>
+        <div class="h-3 w-full bg-gray-200 rounded"></div>
+        <div class="h-3 w-full bg-gray-200 rounded"></div>
+        <div class="h-3 w-full bg-gray-200 rounded"></div>
+        <div class="h-3 w-full bg-gray-200 rounded"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Phải -->
+  <div class="bg-white p-6 rounded-xl shadow space-y-4">
+    <div class="h-4 w-32 bg-gray-300 rounded"></div>
+    <div class="space-y-4">
+      <div class="w-full aspect-[4/3] bg-gray-200 rounded"></div>
+      <div class="w-full aspect-[4/3] bg-gray-200 rounded"></div>
+      <div class="w-full aspect-[4/3] bg-gray-200 rounded"></div>
+    </div>
+  </div>
+</div>
+
     </div>
 
     <!-- Overlay xem ảnh -->
@@ -298,7 +345,7 @@ const printToPDF = () => {
 
 // Chuyển sang trang chỉnh sửa
 const editProfile = async () => {
-  toast('success', 'Đi đến chỉnh sửa hồ sơ.');
+  
   await navigateTo('/seller/seller_profile_edit');
 };
 
