@@ -70,18 +70,31 @@ class FavoriteController extends Controller
     {
         try {
             $userId = Auth::id();
-            $favorites = Wishlist::with('product')->where('user_id', $userId)->get();
+            // Eager load productPic
+            $favorites = Wishlist::with(['product.productPic'])->where('user_id', $userId)->get();
 
-            return response()->json([
-                'success' => true,
-                'data' => $favorites
-            ]);
+            // Format lại dữ liệu để frontend dễ dùng
+            $favorites = $favorites->map(function ($item) {
+                $product = $item->product;
+                // Lấy ảnh đầu tiên nếu có
+                $image = $product && $product->productPic->count() > 0
+                    ? $product->productPic->first()->imagePath
+                    : null;
+                return [
+                    'id' => $item->id,
+                    'product' => [
+                        'id' => $product->id ?? null,
+                        'name' => $product->name ?? null,
+                        'slug' => $product->slug ?? null,
+                        'fullDescription' => $product->description ?? null,
+                        'image' => $image,
+                    ]
+                ];
+            });
+
+            return response()->json(['success' => true, 'data' => $favorites]);
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Không thể lấy danh sách yêu thích',
-                'error' => $e->getMessage()
-            ], 500);
+            return response()->json(['success' => false, 'message' => 'Đã xảy ra lỗi'], 500);
         }
     }
 }

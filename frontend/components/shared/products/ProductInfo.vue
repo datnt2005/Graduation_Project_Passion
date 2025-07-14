@@ -133,7 +133,19 @@
     </div>
 </template>
 <script setup>
-import { ref, watch } from 'vue';
+import { ref, onMounted, watch } from "vue";
+import { computed } from 'vue';
+import { useToast } from '@/composables/useToast';
+import { useRouter } from "vue-router";
+import { useAuthStore } from "~/stores/auth";
+import Swal from 'sweetalert2';
+import { useRuntimeConfig } from '#app'
+
+const auth = useAuthStore();
+const { toast } = useToast();
+const router = useRouter();
+const config = useRuntimeConfig()
+const apiBase = config.public.apiBaseUrl
 
 const props = defineProps({
     product: { type: Object, required: true },
@@ -166,6 +178,53 @@ const emit = defineEmits([
     'chat-with-shop'
 ]);
 
+const isFavorite = ref(props.isFavorite)
+
+async function toggleFavorite() {
+  const token = localStorage.getItem('access_token')
+
+  if (!token || !auth.isLoggedIn || !auth.currentUser) {
+    toast('error', 'Vui lòng đăng nhập để sử dụng chức năng này!')
+    router.push('/login')
+    return
+  }
+
+  try {
+    const res = await $fetch(`${apiBase}/favorites/toggle`, {
+      method: 'POST',
+      body: { product_id: props.product.id },
+      headers: { Authorization: `Bearer ${token}` }
+    })
+
+    if (res.favorited) {
+      toast('success', 'Đã thêm sản phẩm vào yêu thích!')
+    } else {
+      toast('success', 'Đã xóa sản phẩm khỏi yêu thích!')
+    }
+
+    isFavorite.value = res.favorited
+  } catch (e) {
+    toast('error', e?.data?.message || 'Có lỗi xảy ra, vui lòng thử lại!')
+  }
+}
+
+
+onMounted(async () => {
+  const token = localStorage.getItem('access_token')
+  if (token && !auth.isLoggedIn) {
+    try {
+      const user = await $fetch('/user', {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      auth.currentUser = user
+      auth.isLoggedIn = true
+    } catch (err) {
+      auth.currentUser = null
+      auth.isLoggedIn = false
+    }
+  }
+  // ... phần kiểm tra yêu thích như cũ
+})
 const localQuantity = ref(props.quantity);
 const isAddingToCart = ref(false);
 

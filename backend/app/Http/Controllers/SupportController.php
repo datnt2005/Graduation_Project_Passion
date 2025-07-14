@@ -20,6 +20,18 @@ class SupportController extends Controller
             'content' => 'required|string|max:2000',
         ]);
         $support = Support::create($data);
+
+        // Gửi email xác nhận cho user
+        try {
+            \Mail::send('emails.support_user_created', ['support' => $support], function ($message) use ($support) {
+                $message->to($support->email)
+                    ->subject('Xác nhận yêu cầu hỗ trợ từ Passion');
+            });
+        } catch (\Exception $e) {
+            \Log::error('Mail send error (support created): ' . $e->getMessage());
+            // Không trả lỗi cho user, chỉ log lại
+        }
+
         return response()->json(['success' => true, 'message' => 'Gửi hỗ trợ thành công!']);
     }
 
@@ -68,10 +80,15 @@ class SupportController extends Controller
         $support->save();
 
         // Gửi mail phản hồi
-        Mail::raw("Phản hồi từ Pasion:\n\n" . $data['admin_reply'], function ($message) use ($support) {
-            $message->to($support->email)
-                ->subject('Phản hồi hỗ trợ từ Pasion');
-        });
+        try {
+            Mail::send('emails.support_user', ['support' => $support, 'admin_reply' => $data['admin_reply']], function ($message) use ($support) {
+                $message->to($support->email)
+                    ->subject('Phản hồi hỗ trợ từ Pasion');
+            });
+        } catch (\Exception $e) {
+            \Log::error('Mail send error: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Không gửi được email: ' . $e->getMessage()], 500);
+        }
 
         return response()->json(['success' => true, 'message' => 'Đã gửi phản hồi']);
     }
