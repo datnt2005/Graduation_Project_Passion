@@ -14,10 +14,13 @@ Route::middleware(['auth:sanctum', 'checkRole:admin'])->group(function () {
     Route::post('profile/update/{id}', [UserController::class, 'updateUser']);
 
 });
+Route::middleware('auth:sanctum')->get('/user-list', [UserController::class, 'getAllUsers']);
 
 Route::middleware(['auth:sanctum', 'checkRole:user,admin'])->group(function () {
     Route::apiResource('users', UserController::class);
 });
+
+
 
 // Lấy danh sách theo vai trò – cho phép admin + seller
 Route::middleware(['auth:sanctum', 'checkRole:admin,seller'])->get('/users/by-role/{role}', [UserController::class, 'getByRole']);

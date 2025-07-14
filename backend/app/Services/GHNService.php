@@ -4,6 +4,8 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use App\Models\OrderItem;
+use App\Models\Product;
 
 class GHNService
 {
@@ -77,52 +79,104 @@ class GHNService
      * @throws \Exception
      */
     public function createShippingOrder($order, $address, $serviceId, $paymentMethod)
-{
-    $codAmount = $paymentMethod === 'COD' ? (int) $order->final_price : 0;
-    $payload = [
-        'shop_id' => $this->shopId,
-        'from_district_id' => 3152,
-        'service_id' => $serviceId, // từ frontend
-        'to_name' => $address->name,
-        'to_phone' => $address->phone,
-        'to_address' => $address->detail,
-        'to_ward_code' => $address->ward_code,
-        'to_district_id' => $address->district_id,
-        'weight' => 500,
-        'length' => 20,
-        'width' => 15,
-        'height' => 10,
-        'cod_amount' => $codAmount,
-        'payment_type_id' => 2, // 2: shop trả phí ship
-        'required_note' => 'CHOXEMHANGKHONGTHU',
-        'items' => [
-            [
+    {
+        // Lấy danh sách OrderItem của đơn hàng
+        $orderItems = OrderItem::where('order_id', $order->id)
+            ->with('product', 'productVariant') // Nạp quan hệ với model Product
+            ->get();
+
+        // Tạo mảng items cho payload
+        $items = [];
+        $totalWeight = 0; // Tổng khối lượng (gram)
+        $maxLength = 0; // Chiều dài tối đa (cm)
+        $maxWidth = 0; // Chiều rộng tối đa (cm)
+        $maxHeight = 0; // Chiều cao tối đa (cm)
+
+        foreach ($orderItems as $orderItem) {
+            $product = $orderItem->product;
+            $variant = $orderItem->productVariant;
+
+            $productName = $product->name ?? "Sản phẩm #" . $orderItem->product_id;
+            $productCode = $variant && $variant->sku ? $variant->sku : ($product->sku ?? ("SP" . $orderItem->product_id));
+            $quantity = $orderItem->quantity;
+            $weight = $product->weight ?? 500; // Mặc định 500g nếu không có khối lượng
+            $length = $product->length ?? 20; // Mặc định 20cm
+            $width = $product->width ?? 15; // Mặc định 15cm
+            $height = $product->height ?? 10; // Mặc định 10cm
+
+            // Thêm sản phẩm vào mảng items
+            $items[] = [
+                'name' => $productName,
+                'code' => $productCode,
+                'quantity' => $quantity,
+                'weight' => $weight, // Khối lượng của từng sản phẩm (gram)
+                'length' => $length, // Chiều dài (cm)
+                'width' => $width, // Chiều rộng (cm)
+                'height' => $height, // Chiều cao (cm)
+            ];
+
+            // Cập nhật tổng khối lượng và kích thước
+            $totalWeight += $weight * $quantity;
+            $maxLength = max($maxLength, $length);
+            $maxWidth = max($maxWidth, $width);
+            $maxHeight = max($maxHeight, $height);
+        }
+
+        // Nếu không có sản phẩm, thêm một mục mặc định để tránh lỗi
+        if (empty($items)) {
+            $items[] = [
                 'name' => "Đơn hàng #" . $order->id,
-                'quantity' => 1
-            ]
-        ]
-    ];
+                'code' => "ORDER" . $order->id,
+                'quantity' => 1,
+                'weight' => 500,
+                'length' => 20,
+                'width' => 15,
+                'height' => 10,
+            ];
+            $totalWeight = 500;
+            $maxLength = 20;
+            $maxWidth = 15;
+            $maxHeight = 10;
+        }
 
-    // Ghi log payload gửi đi
-    Log::error('GHN Payload:', $payload);
+        $codAmount = $paymentMethod === 'COD' ? (int) $order->final_price : 0;
 
-    $response = Http::withHeaders($this->headers())
-    ->post("{$this->baseUrl}/v2/shipping-order/create", $payload);
+        $payload = [
+            'shop_id' => $this->shopId,
+            'from_district_id' => 3152,
+            'service_id' => $serviceId,
+            'to_name' => $address->name,
+            'to_phone' => $address->phone,
+            'to_address' => $address->detail,
+            'to_ward_code' => $address->ward_code,
+            'to_district_id' => $address->district_id,
+            'weight' => $totalWeight,
+            'length' => $maxLength,
+            'width' => $maxWidth,
+            'height' => $maxHeight,
+            'cod_amount' => $codAmount,
+            'payment_type_id' => 2, // 2: shop trả phí ship
+            'required_note' => 'CHOXEMHANGKHONGTHU',
+            'items' => $items,
+        ];
 
+        // Ghi log payload gửi đi
+        Log::info('GHN Payload:', $payload);
 
-    // Ghi log status code và response body từ GHN
-    Log::error('GHN URL:', ["{$this->baseUrl}/v2/shipping-order/create"]);
+        $response = Http::withHeaders($this->headers())
+            ->post("{$this->baseUrl}/v2/shipping-order/create", $payload);
 
-    Log::error('GHN Response:', [
-        'status' => $response->status(),
-        'body' => $response->body(),
-    ]);
+        // Ghi log status code và response body từ GHN
+        Log::info('GHN URL:', ["{$this->baseUrl}/v2/shipping-order/create"]);
+        Log::info('GHN Response:', [
+            'status' => $response->status(),
+            'body' => $response->body(),
+        ]);
 
-    if (!$response->successful()) {
-        throw new \Exception("Tạo đơn GHN thất bại: " . $response->body());
+        if (!$response->successful()) {
+            throw new \Exception("Tạo đơn GHN thất bại: " . $response->body());
+        }
+
+        return $response->json()['data'];
     }
-
-    return $response->json()['data'];
-}
-
 }

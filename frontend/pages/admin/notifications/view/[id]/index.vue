@@ -30,12 +30,11 @@
       <!-- Nội dung chính -->
       <main class="flex-1 p-6 bg-gray-100">
         <div class="max-w-5xl mx-auto bg-white rounded shadow border border-gray-200 p-6 space-y-6">
-          <!-- Loading -->
           <div v-if="loading" class="text-sm text-gray-500">Đang tải thông tin...</div>
 
           <!-- Thông báo -->
           <div v-else-if="notification">
-            <!-- Tiêu đề + ảnh -->
+            <!-- Thông tin chung -->
             <div class="flex items-start gap-4">
               <img v-if="notification.image_url" :src="notification.image_url"
                 class="w-24 h-24 object-cover border rounded" alt="Ảnh thông báo" />
@@ -47,45 +46,92 @@
             </div>
 
             <!-- Thông tin phụ -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-gray-700">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-gray-700 mt-4">
               <div><strong>Loại:</strong> {{ typeText(notification.type) }}</div>
-              <div><strong>Vai trò nhận:</strong> {{ roleText(notification.to_role) }}</div>
               <div>
+                <strong>Vai trò nhận:</strong>
+                <span v-if="notification.to_roles && notification.to_roles.length">
+                  <span v-for="(role, index) in notification.to_roles" :key="index"
+                    class="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs mr-1">
+                    {{ roleText(role) }}
+                  </span>
+                </span>
+                <span v-else class="text-gray-500 italic">Không có</span>
+              </div>
+              <div v-if="notification.link">
                 <strong>Liên kết:</strong>
                 <a :href="notification.link" target="_blank" class="text-blue-600 hover:underline break-all">
                   {{ notification.link }}
                 </a>
               </div>
               <div>
-                <strong>Tình trạng:</strong>
+                <strong>Trạng thái:</strong>
                 <span :class="statusClass(notification.status)">
                   {{ notification.status === 'sent' ? 'Đã gửi' : 'Lưu nháp' }}
                 </span>
               </div>
               <div>
-                <strong>Trạng thái đọc:</strong>
-                <span
-                  :class="notification.is_read == 1 ? 'text-green-700 font-semibold' : 'text-yellow-700 font-semibold'">
-                  {{ notification.is_read == 1 ? 'Đã đọc' : 'Chưa đọc' }}
+                <strong>Kênh gửi:</strong>
+                <span v-if="notification.channels && notification.channels.length">
+                  <span v-for="(ch, index) in notification.channels" :key="index"
+                    class="inline-block bg-gray-200 text-gray-800 px-2 py-1 rounded-full text-xs mr-1">
+                    {{ channelText(ch) }}
+                  </span>
                 </span>
-              </div>
-              <div>
-                <strong>Trạng thái xóa:</strong>
-                <span
-                  :class="notification.is_hidden == 1 ? 'text-yellow-700 font-semibold' : 'text-green-700 font-semibold'">
-                  {{ notification.is_hidden == 1 ? 'Đã ẩn' : 'Đang hiển thị' }}
-                </span>
+                <span v-else class="text-gray-500 italic">Không có</span>
               </div>
             </div>
+
             <!-- Nội dung -->
-            <div>
+            <div class="mt-4">
               <p class="font-semibold mb-1">Nội dung:</p>
               <div class="bg-gray-50 p-4 rounded border text-gray-800 whitespace-pre-line">
                 {{ stripHTML(notification.content) || 'Không có nội dung' }}
               </div>
             </div>
 
-            <!-- Nút quay lại -->
+            <!-- Người nhận -->
+            <div v-if="notification.recipients?.length > 0" class="mt-8">
+              <p class="font-semibold mb-2 text-gray-800">Danh sách người nhận ({{ notification.recipients.length }}):
+              </p>
+              <div class="overflow-x-auto">
+                <table class="min-w-full text-sm border border-gray-300 bg-white">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th class="border px-3 py-2 text-left">Tên</th>
+                      <th class="border px-3 py-2 text-left">Email</th>
+                      <th class="border px-3 py-2 text-left">Trạng thái đọc</th>
+                      <th class="border px-3 py-2 text-left">Ngày đọc</th>
+                      <th class="border px-3 py-2 text-left">Trạng thái hiển thị</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="r in notification.recipients" :key="r.id" class="border-t">
+                      <td class="px-3 py-2">{{ r.user?.name || 'Không xác định' }}</td>
+                      <td class="px-3 py-2">{{ r.user?.email || '-' }}</td>
+                      <td class="px-3 py-2">
+                        <span :class="r.is_read ? 'text-green-600 font-medium' : 'text-yellow-600 font-medium'">
+                          {{ r.is_read ? 'Đã đọc' : 'Chưa đọc' }}
+                        </span>
+                      </td>
+                      <td class="px-3 py-2">
+                        {{ r.read_at ? formatDate(r.read_at) : '-' }}
+                      </td>
+                      <td class="px-3 py-2">
+                        <span :class="r.is_hidden ? 'text-red-600' : 'text-green-700'">
+                          {{ r.is_hidden ? 'Đã ẩn' : 'Hiển thị' }}
+                        </span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Không có người nhận -->
+            <div v-else class="mt-4 text-sm text-gray-500 italic">Không có người nhận nào.</div>
+
+            <!-- Quay lại -->
             <div class="pt-6 border-t">
               <button class="bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded" @click="goBack">
                 ← Quay lại danh sách
@@ -97,6 +143,7 @@
           <div v-else class="text-red-600">Không tìm thấy thông báo.</div>
         </div>
       </main>
+
     </div>
   </div>
 </template>
@@ -151,6 +198,13 @@ function typeText(type) {
     general: 'Chung',
     message: 'Tin nhắn'
   }[type] || type
+}
+
+function channelText(channel) {
+  return {
+    web: 'Web',
+    email: 'Email'
+  }[channel] || channel
 }
 
 function roleText(role) {

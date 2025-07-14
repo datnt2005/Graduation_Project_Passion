@@ -2,7 +2,7 @@ import axios from 'axios'
 import type { AxiosRequestConfig, AxiosResponse } from 'axios'
 import { navigateTo } from '#app'
 
-const apiBaseUrl = 'http://localhost:8000/api'
+const apiBaseUrl = useRuntimeConfig().public.apiBaseUrl
 
 export async function secureAxios<T = any>(
   url: string,
@@ -10,8 +10,11 @@ export async function secureAxios<T = any>(
   allowedRoles: string[] = []
 ): Promise<AxiosResponse<T>> {
   const token = localStorage.getItem('access_token')
-  if (!token) throw new Error('Chưa đăng nhập')
+  if (!token) {
+    navigateTo('/unauthorized') //  
 
+    throw new Error('Chưa đăng nhập')
+  }
   // Gọi /me để lấy role
   const meRes = await axios.get(`${apiBaseUrl}/me`, {
     headers: {

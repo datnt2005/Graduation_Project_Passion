@@ -4,7 +4,7 @@ type SecureFetchOptions = RequestInit & {
   headers?: Record<string, string>
 }
 
-const apiBaseUrl = 'http://localhost:8000/api'
+const apiBaseUrl = useRuntimeConfig().public.apiBaseUrl
 
 export async function secureFetch(
   apiUrl: string,

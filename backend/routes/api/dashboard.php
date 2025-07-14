@@ -15,4 +15,12 @@ Route::middleware(['auth:sanctum', 'checkRole:admin'])
         Route::get('/revenue-profit-chart', [DashboardController::class, 'revenueProfitChart']);
     });
 
+// Dashboard stats cho seller
+Route::middleware(['auth:sanctum', 'checkRole:seller'])
+    ->prefix('dashboard')
+    ->group(function () {
+        Route::get('/seller-stats-list', [DashboardController::class, 'sellerStatsList']);
+        Route::get('/seller-revenue-profit-chart', [DashboardController::class, 'sellerRevenueProfitChart']);
+    });
+
     

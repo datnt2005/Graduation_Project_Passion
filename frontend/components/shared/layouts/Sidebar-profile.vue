@@ -131,7 +131,7 @@ const sidebarItems = [
   { to: '/users/orders', icon: 'file-alt', label: 'Quản lý đơn hàng' },
   { to: '/users/myaddress', icon: 'map-marker-alt', label: 'Sổ địa chỉ' },
   { to: '/users/favorites', icon: 'heart', label: 'Sản phẩm yêu thích' },
-  { to: '/users/comments', icon: 'star', label: 'Nhận xét của tôi' },
+  { to: '/account/comments', icon: 'star', label: 'Nhận xét của tôi' },
   {
     to: '/users/vouchers',
     img: 'https://storage.googleapis.com/a1aa/image/e0af1418-a92a-43bf-ade5-4d49087465f2.jpg',

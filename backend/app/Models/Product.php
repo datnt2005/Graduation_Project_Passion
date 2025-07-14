@@ -10,9 +10,10 @@ class Product extends Model
 {
     use HasFactory;
     protected $table = 'products';
-    protected $fillable = [ 'seller_id', 'name', 'slug', 'description', 'status', 'is_admin_added'];
-    public function productVariants(){
-      return $this->hasMany(ProductVariant::class, 'product_id', 'id');
+    protected $fillable = ['seller_id', 'name', 'slug', 'description', 'status', 'admin_status', 'is_admin_added'];
+    public function productVariants()
+    {
+        return $this->hasMany(ProductVariant::class, 'product_id', 'id');
     }
 
     public function productPic()
@@ -64,5 +65,35 @@ class Product extends Model
     public function pics()
     {
         return $this->hasMany(ProductPic::class, 'product_id'); // Giả sử bảng `product_pics` có cột `product_id`
+    }
+    public function scopeSearch($query, $searchTerm)
+    {
+        return $query->where('name', 'like', '%' . $searchTerm . '%')
+            ->orWhere('description', 'like', '%' . $searchTerm . '%');
+    }
+    public function scopeActive($query)
+    {
+        return $query->where('status', 'active');
+    }
+    public function trends()
+    {
+        return $this->hasMany(Trend::class, 'entity_id', 'id')
+            ->where('entity_type', 'product');
+    }
+    public function scopeTrending($query)
+    {
+        return $query->whereHas('trends', function ($query) {
+            $query->where('entity_type', 'product')
+                ->orderBy('search_count', 'desc')
+                ->orWhere('click_count', 'desc');
+        });
+    }
+    public function approvals()
+    {
+        return $this->hasMany(ProductApproval::class);
+    }
+    public function latestApproval()
+    {
+        return $this->hasOne(ProductApproval::class)->latest();
     }
 }

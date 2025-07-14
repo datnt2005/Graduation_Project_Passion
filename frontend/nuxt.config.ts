@@ -1,24 +1,43 @@
 export default defineNuxtConfig({
+  ssr: false,
   compatibilityDate: '2025-05-15',
-  css: ['@/assets/css/tailwind.css',
-     '@fortawesome/fontawesome-free/css/all.min.css',
-      'vue-slider-component/theme/default.css'
+
+  css: [
+    '@/assets/css/tailwind.css',
+    '@fortawesome/fontawesome-free/css/all.min.css',
+    'vue-slider-component/theme/default.css'
   ],
-   modules: ['@pinia/nuxt'],
+
+  modules: [
+    '@pinia/nuxt',
+    '@nuxt/devtools' // ⬅ nếu bạn muốn khai báo rõ ràng (tự động nếu đã cài)
+  ],
+
   plugins: ['~/plugins/fontawesome'],
-  devtools: { enabled: false },
-   postcss: {
+
+  devtools: { enabled: true }, // ✅ bật devtools tại đây
+
+  postcss: {
     plugins: {
-       tailwindcss: {},
+      tailwindcss: {},
       autoprefixer: {},
     },
   },
-   runtimeConfig: {
+
+  runtimeConfig: {
     public: {
-      apiBaseUrl: process.env.API_BASE_URL ,
+      apiBaseUrl: process.env.API_BASE_URL,
       mediaBaseUrl: process.env.MEDIA_BASE_URL,
     }
-  }
+  },
+  vue: {
+    compilerOptions: {
+      isCustomElement: (tag) => tag === 'emoji-picker',
+    },
+  },
+  vite: {
+    server: {
+      hmr: false, // Tắt HMR
+    },
+  },
 });
-
- 

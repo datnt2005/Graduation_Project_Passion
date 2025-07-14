@@ -1,31 +1,38 @@
 <template>
-    <Teleport to="body">
-        <div v-if="visible" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-            <div class="bg-white rounded-lg w-[500px] p-6">
-                <h2 class="text-lg font-bold mb-4">Báo Cáo Đánh Giá Này</h2>
-                <p class="mb-4">Vui lòng chọn lý do báo cáo</p>
+  <Teleport to="body">
+    <div v-if="visible" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+      <div class="bg-white rounded-lg w-[500px] p-6">
+        <h2 class="text-lg font-bold mb-4">Báo Cáo Đánh Giá Này</h2>
+        <p class="mb-4">Vui lòng chọn lý do báo cáo</p>
 
-                <div class="space-y-2 mb-4">
-                    <label v-for="option in reasons" :key="option.value" class="flex items-start gap-2">
-                        <input type="radio" v-model="selected" :value="option.value" />
-                        <span>{{ option.label }}</span>
-                    </label>
+        <div class="space-y-2 mb-4">
+          <label
+            v-for="option in reasons"
+            :key="option.value"
+            class="flex items-center gap-2 cursor-pointer"
+          >
+            <input type="radio" v-model="selected" :value="option.value" class="mt-0.5" />
+            <span class="leading-[1.4]">{{ option.label }}</span>
+          </label>
 
-                    <div v-if="selected === 'other'" class="mt-2">
-                        <textarea v-model="detail" rows="3" class="w-full p-2 border rounded resize-none"
-                            placeholder="Vui lòng mô tả chi tiết vi phạm (bắt buộc)"></textarea>
-                    </div>
-                </div>
-
-                <div class="flex justify-end gap-2">
-                    <button @click="closeDialog" class="px-4 py-2 border rounded">Hủy</button>
-                    <button @click="submit" class="px-4 py-2 bg-red-500 text-white rounded">Gửi</button>
-                </div>
-            </div>
+          <div v-if="selected === 'other'" class="mt-2">
+            <textarea
+              v-model="detail"
+              rows="3"
+              class="w-full p-2 border rounded resize-none"
+              placeholder="Vui lòng mô tả chi tiết vi phạm (bắt buộc)"
+            ></textarea>
+          </div>
         </div>
-    </Teleport>
-</template>
 
+        <div class="flex justify-end gap-2">
+          <button @click="closeDialog" class="px-4 py-2 border rounded hover:bg-gray-100">Hủy</button>
+          <button @click="submit" class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">Gửi</button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
+</template>
 <script setup>
 import { ref } from 'vue'
 import { useRuntimeConfig } from '#app'

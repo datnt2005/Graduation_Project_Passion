@@ -16,6 +16,7 @@ class Order extends Model
         'discount_id',
         'note',
         'status',
+        'is_buy_now',
         'total_price',
         'discount_price',
         'shipping_fee',
@@ -39,10 +40,10 @@ class Order extends Model
         return $this->belongsTo(User::class);
     }
 
-        public function address()
-        {
-            return $this->belongsTo(Address::class);
-        }
+    public function address()
+    {
+        return $this->belongsTo(Address::class);
+    }
 
     public function discount()
     {
@@ -60,7 +61,15 @@ class Order extends Model
         return $this->hasMany(Payment::class);
     }
 
+    public function refund()
+    {
+        return $this->hasOne(Refund::class, 'order_id', 'id');
+    }
 
+    public function payout()
+    {
+        return $this->hasOne(Payout::class, 'order_id', 'id');
+    }
 
     // Phương thức kiểm tra và áp dụng mã giảm giá
     public function applyDiscount($discountCode)
@@ -145,8 +154,7 @@ class Order extends Model
     }
 
     public function shipping()
-{
-    return $this->hasOne(Shipping::class);
-}
-
+    {
+        return $this->hasOne(Shipping::class);
+    }
 }

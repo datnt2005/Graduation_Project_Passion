@@ -10,9 +10,13 @@ php artisan migrate
 
 # frontend
 npm install vue-slider-component
+# kiểm tra tốc độ th nhưng chưa cần
+npm install -D @nuxt/devtools
 
 # Chạy queue worker (giúp gửi mail nhanh, xử lý job nền)
 php artisan queue:work
+#xóa key search không cần thiết (không có user_id)
+php artisan search:cleanup-db
 
 ---everyone--- 
 1: Trước khi bắt đầu "LUÔN LUÔN CHECK GIT XEM CÓ CODE MỚI KHÔNG. LUÔN LUÔN PULL CODE MỚI TRƯỚC KHI BẮT ĐẦU CODE".

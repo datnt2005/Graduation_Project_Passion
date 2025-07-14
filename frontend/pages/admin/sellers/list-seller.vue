@@ -1,15 +1,14 @@
 <template>
   <div class="bg-gray-100 text-gray-700 font-sans">
     <div class="max-w-full overflow-x-auto">
+
       <!-- Header -->
       <div class="bg-white px-4 py-4 flex items-center justify-between border-b border-gray-200">
         <h1 class="text-xl font-semibold text-gray-800">Danh sách Seller</h1>
-        <button
-          class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-150">
-          Xuất dữ liệu
-        </button>
+
       </div>
 
+      <!-- Filter -->
       <div class="bg-gray-200 px-4 py-3 flex flex-wrap items-center gap-3 text-sm text-gray-700">
         <div class="flex items-center gap-2">
           <span class="font-bold">Tất cả</span>
@@ -28,7 +27,7 @@
         </div>
       </div>
 
-      <!-- action -->
+      <!-- Lọc trạng thái -->
       <div
         class="bg-gray-200 px-4 py-3 flex flex-wrap items-center gap-3 text-sm text-gray-700 border-t border-gray-300">
         <select v-model="filterVerifyStatus"
@@ -40,7 +39,7 @@
         </select>
       </div>
 
-      <!-- Table -->
+      <!-- Bảng -->
       <div class="overflow-x-auto rounded-xl shadow border">
         <table class="min-w-full w-full bg-white text-sm">
           <thead>
@@ -54,39 +53,22 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(user, idx) in filteredSellers" :key="user.id" class="border-b group hover:bg-[#f5f6fa]">
-              <!-- STT -->
-              <td class="py-3 px-4 text-gray-600 font-semibold">
-                {{ idx + 1 }}
-              </td>
-
-              <!-- Tên cửa hàng -->
-              <td class="py-3 px-4 text-gray-800 text-sm font-normal">
-                {{ user.seller?.store_name || '-' }}
-              </td>
-
-              <!-- Email -->
-              <td class="py-3 px-4 text-gray-800 text-sm font-normal">
-                {{ user.email }}
-              </td>
-
-              <!-- SĐT -->
-              <td class="py-3 px-4 text-gray-800 text-sm font-normal">
-                {{ user.seller?.phone_number || '-' }}
-              </td>
-
-              <!-- Trạng thái -->
+            <tr v-for="(seller, idx) in filteredSellers" :key="seller.id" class="border-b group hover:bg-[#f5f6fa]">
+              <td class="py-3 px-4 text-gray-600 font-semibold">{{ idx + 1 }}</td>
+              <td class="py-3 px-4">{{ seller.store_name || '-' }}</td>
+              <td class="py-3 px-4">{{ seller.user?.email || '-' }}</td>
+              <td class="py-3 px-4">{{ seller.phone_number || '-' }}</td>
               <td class="py-3 px-4 text-center">
-                <span
-                  class="inline-block px-3 py-1 text-xs rounded-full font-medium bg-[#f5f6fa] text-gray-700 border border-gray-200"
-                  :class="user.status === 'active' ? '' : 'text-gray-400'">
-                  {{ user.status === 'active' ? 'Đang hoạt động' : 'Không hoạt động' }}
+                <span class="inline-block px-3 py-1 text-xs rounded-full font-medium" :class="{
+                  'bg-green-100 text-green-700': seller.verification_status === 'verified',
+                  'bg-yellow-100 text-yellow-700': seller.verification_status === 'pending',
+                  'bg-red-100 text-red-700': seller.verification_status === 'rejected'
+                }">
+                  {{ getVerifyText(seller.verification_status) }}
                 </span>
               </td>
-
-              <!-- Hành động -->
               <td class="py-3 px-4 text-center">
-                <button @click="openDetail(user)" class="text-blue-600 hover:underline text-sm font-medium">
+                <button @click="openDetail(seller)" class="text-blue-600 hover:underline text-sm font-medium">
                   Xem chi tiết
                 </button>
               </td>
@@ -98,13 +80,10 @@
         </table>
       </div>
 
-      <!-- Modal xem chi tiết Seller với tab -->
-      <!-- Modal Chi tiết Seller -->
-      <!-- Modal Chi tiết Seller với giao diện mới giống ảnh Daddy gửi -->
+      <!-- Modal chi tiết -->
       <div v-if="detailModal"
         class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 font-sans backdrop-blur-sm">
-        <div
-          class="bg-white rounded-xl shadow-xl w-full max-w-3xl relative animate-fadeIn p-6 md:p-8 transition-all duration-300">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-3xl relative animate-fadeIn p-6 md:p-8 overflow-y-auto max-h-screen">
 
           <!-- Header -->
           <div class="border-b border-gray-200 pb-4">
@@ -121,99 +100,106 @@
             <div class="flex border rounded-lg overflow-hidden mt-5">
               <button class="flex-1 py-2 text-sm font-medium text-center transition-all"
                 :class="tab === 'info' ? 'bg-white text-[#1564ff] shadow font-semibold' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
-                @click="tab = 'info'">
-                <i class="mr-1">👤</i> Thông tin cơ bản
-              </button>
+                @click="tab = 'info'">👤 Thông tin cơ bản</button>
               <button class="flex-1 py-2 text-sm font-medium text-center transition-all"
                 :class="tab === 'verify' ? 'bg-white text-[#1564ff] shadow font-semibold' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
-                @click="tab = 'verify'">
-                <i class="mr-1">📄</i> Giấy tờ & Xác minh
-              </button>
+                @click="tab = 'verify'">📄 Giấy tờ & Xác minh</button>
             </div>
           </div>
 
-          <!-- Tab: Thông tin -->
+          <!-- Tab info -->
           <div v-if="tab === 'info'" class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-            <!-- Avatar -->
             <div class="flex flex-col items-center border rounded-lg p-4">
               <div class="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center text-xl font-bold">
-                {{ getInitials(currentDetail.name) }}
+                {{ getInitials(currentDetail.user?.name) }}
               </div>
-              <div class="mt-3 text-lg font-semibold text-gray-800">{{ currentDetail.name || '-' }}</div>
+              <div class="mt-3 text-lg font-semibold text-gray-800">{{ currentDetail.user?.name || '-' }}</div>
               <div class="mt-1 text-sm">
                 <span class="inline-block rounded-full px-2 py-0.5 text-xs font-medium"
-                  :class="currentDetail.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-500'">
-                  {{ currentDetail.status === 'active' ? 'Đang hoạt động' : 'Không hoạt động' }}
+                  :class="currentDetail.user?.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-500'">
+                  {{ currentDetail.user?.status === 'active' ? 'Đang hoạt động' : 'Không hoạt động' }}
                 </span>
               </div>
               <div class="mt-2 text-sm text-gray-500">
-                <i class="mr-1">🏪</i>{{ currentDetail.seller?.store_name || '-' }}
+                🏪 {{ currentDetail.store_name || '-' }}
               </div>
             </div>
 
-            <!-- Thông tin chi tiết -->
-            <div class="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4 border rounded-lg p-4">
-              <div class="text-sm"><strong>CCCD:</strong> {{ currentDetail.seller?.identity_card_number || '-' }}</div>
-              <div class="text-sm"><strong>Ngày sinh:</strong> {{ currentDetail.seller?.date_of_birth || '-' }}</div>
-              <div class="text-sm"><strong>Số điện thoại:</strong> {{ currentDetail.seller?.phone_number || '-' }}</div>
-              <div class="text-sm"><strong>Email:</strong> {{ currentDetail.email || '-' }}</div>
-              <div class="text-sm sm:col-span-2"><strong>Địa chỉ:</strong> {{ currentDetail.seller?.personal_address ||
-                '-' }}
-              </div>
-              <div class="text-sm sm:col-span-2"><strong>Giới thiệu:</strong> {{ currentDetail.seller?.bio || '-' }}
+            <!-- Chi tiết -->
+            <div
+              class="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 border rounded-lg p-4 text-sm min-h-[420px]">
+              <div><strong>CCCD:</strong> {{ currentDetail.identity_card_number || '-' }}</div>
+              <div><strong>Ngày sinh:</strong> {{ currentDetail.date_of_birth || '-' }}</div>
+              <div><strong>Số điện thoại:</strong> {{ currentDetail.phone_number || '-' }}</div>
+              <div><strong>Email:</strong> {{ currentDetail.user?.email || '-' }}</div>
+              <div><strong>Địa chỉ:</strong> {{ currentDetail.personal_address || '-' }}</div>
+              <div><strong>Giới thiệu:</strong> {{ currentDetail.bio || '-' }}</div>
+              <div><strong>Mã số thuế:</strong> {{ currentDetail.tax_code || '-' }}</div>
+              <div><strong>Tên doanh nghiệp:</strong> {{ currentDetail.business_name || '-' }}</div>
+              <div><strong>Email doanh nghiệp:</strong> {{ currentDetail.business_email || '-' }}</div>
+              <div><strong>Địa chỉ lấy hàng:</strong> {{ currentDetail.pickup_address || '-' }}</div>
+              <div><strong>Giao hàng:</strong>
+                {{ currentDetail.shipping_options?.express === 'true' ? 'Giao hàng nhanh' : 'Không có thông tin' }}
               </div>
             </div>
           </div>
 
-          <!-- Tab: Giấy tờ & Xác minh -->
+          <!-- Tab giấy tờ -->
           <div v-else-if="tab === 'verify'" class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-            <!-- Ảnh giấy tờ -->
             <div class="border rounded-lg p-4">
-              <div class="font-semibold text-gray-700 mb-2">Ảnh CCCD/Giấy tờ</div>
-              <div v-if="currentDetail.seller?.document"
+              <div class="font-semibold text-gray-700 mb-2">Ảnh CCCD mặt trước</div>
+              <div v-if="currentDetail.id_card_front_url"
                 class="aspect-square border border-gray-300 rounded-lg flex items-center justify-center cursor-pointer overflow-hidden"
-                @click="enlargeImage(currentDetail.seller.document)">
-                <img :src="getDocUrl(currentDetail.seller.document)" class="object-contain max-w-full max-h-full" />
+                @click="enlargeImage(currentDetail.id_card_front_url)">
+                <img :src="getDocUrl(currentDetail.id_card_front_url)" class="object-contain max-w-full max-h-full" />
               </div>
               <div v-else
                 class="aspect-square border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-gray-400 text-5xl">
-                <i>📷</i>
+                📷
               </div>
             </div>
 
-            <!-- Trạng thái xác minh -->
-            <div class="border rounded-lg p-4 flex flex-col justify-between">
+            <div class="border rounded-lg p-4">
+              <div class="font-semibold text-gray-700 mb-2">Ảnh CCCD mặt sau</div>
+              <div v-if="currentDetail.id_card_back_url"
+                class="aspect-square border border-gray-300 rounded-lg flex items-center justify-center cursor-pointer overflow-hidden"
+                @click="enlargeImage(currentDetail.id_card_back_url)">
+                <img :src="getDocUrl(currentDetail.id_card_back_url)" class="object-contain max-w-full max-h-full" />
+              </div>
+              <div v-else
+                class="aspect-square border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-gray-400 text-5xl">
+                📷
+              </div>
+            </div>
+
+            <div class="md:col-span-2 border rounded-lg p-4 flex flex-col justify-between">
               <div>
                 <div class="font-semibold text-gray-700 mb-2">Trạng thái xác minh</div>
                 <div class="mb-3">
-                  <span v-if="currentDetail.seller?.verification_status === 'verified'"
-                    class="inline-block bg-green-100 text-green-700 text-xs font-semibold px-3 py-1 rounded-full">
-                    ✅ Đã xác minh
-                  </span>
-                  <span v-else-if="currentDetail.seller?.verification_status === 'rejected'"
-                    class="inline-block bg-red-100 text-red-700 text-xs font-semibold px-3 py-1 rounded-full">
-                    ❌ Đã bị từ chối
-                  </span>
+                  <span v-if="currentDetail.verification_status === 'verified'"
+                    class="inline-block bg-green-100 text-green-700 text-xs font-semibold px-3 py-1 rounded-full">✅ Đã
+                    xác minh</span>
+                  <span v-else-if="currentDetail.verification_status === 'rejected'"
+                    class="inline-block bg-red-100 text-red-700 text-xs font-semibold px-3 py-1 rounded-full">❌ Đã từ
+                    chối</span>
                   <span v-else
-                    class="inline-block bg-yellow-100 text-yellow-700 text-xs font-semibold px-3 py-1 rounded-full">
-                    ⏳ Chờ xác minh
-                  </span>
+                    class="inline-block bg-yellow-100 text-yellow-700 text-xs font-semibold px-3 py-1 rounded-full">⏳
+                    Chờ xác minh</span>
                 </div>
 
-                <div v-if="currentDetail.seller?.verification_status === 'rejected'"
+                <div v-if="currentDetail.verification_status === 'rejected'"
                   class="bg-red-50 text-red-700 text-sm border border-red-200 rounded p-3">
-                  Seller này đã bị từ chối xác minh. Vui lòng xem xét lý do và liên hệ lại nếu cần.
+                  Seller này đã bị từ chối
                 </div>
-                <div v-else-if="currentDetail.seller?.verification_status !== 'verified'"
+                <div v-else-if="currentDetail.verification_status !== 'verified'"
                   class="bg-blue-50 text-blue-700 text-sm border border-blue-200 rounded p-3">
-                  Seller này đang chờ được xác minh. Vui lòng kiểm tra thông tin và giấy tờ trước khi phê duyệt.
+                  Seller đang chờ xác minh. Vui lòng kiểm tra thông tin kỹ trước khi phê duyệt.
                 </div>
               </div>
 
-              <!-- Buttons -->
               <div class="flex gap-3 mt-6"
-                v-if="currentDetail.seller?.verification_status !== 'verified' && currentDetail.seller?.verification_status !== 'rejected'">
-                <button @click="approveSeller(currentDetail.seller.id)" :disabled="loadingApprove"
+                v-if="currentDetail.verification_status !== 'verified' && currentDetail.verification_status !== 'rejected'">
+                <button @click="approveSeller(currentDetail.id)" :disabled="loadingApprove"
                   class="flex-1 py-2 rounded bg-blue-700 hover:bg-blue-900 text-white font-semibold text-sm transition"
                   :class="{ 'opacity-60 cursor-not-allowed': loadingApprove }">
                   {{ loadingApprove ? 'Đang duyệt...' : 'Duyệt seller' }}
@@ -226,28 +212,24 @@
               </div>
             </div>
           </div>
-
-          <!-- Modal ảnh -->
-          <div v-if="imagePreview" class="fixed inset-0 z-60 flex items-center justify-center bg-black bg-opacity-70"
-            @click="imagePreview = null">
-            <img :src="imagePreview" alt="Preview"
-              class="max-h-[90vh] max-w-[90vw] rounded-xl shadow-lg border-4 border-white" />
-          </div>
-
           <!-- Modal từ chối -->
-          <div v-if="rejectModal" class="fixed inset-0 z-60 flex items-center justify-center bg-black bg-opacity-50">
-            <div class="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 relative animate-fadeIn">
-              <button class="absolute top-3 right-3 text-gray-400 hover:text-black" @click="closeReject">✕</button>
-              <h3 class="text-lg font-bold mb-4 text-red-700">Nhập lý do từ chối</h3>
-              <textarea v-model="rejectReason" rows="4"
-                class="w-full border border-gray-300 rounded px-3 py-2 mb-3 focus:ring-2 focus:ring-red-500 focus:outline-none"
-                placeholder="Nhập lý do từ chối seller này..."></textarea>
-              <div class="flex justify-end gap-2">
-                <button @click="closeReject" class="px-4 py-1 rounded bg-gray-200 hover:bg-gray-300">Hủy</button>
-                <button @click="submitReject" :disabled="!rejectReason.trim() || loadingReject"
-                  class="px-4 py-1 rounded bg-red-600 hover:bg-red-700 text-white font-semibold"
-                  :class="{ 'opacity-60 cursor-not-allowed': !rejectReason.trim() || loadingReject }">
-                  {{ loadingReject ? 'Đang từ chối...' : 'Xác nhận' }}
+          <div v-if="rejectModal"
+            class="fixed inset-0 z-60 bg-black bg-opacity-40 backdrop-blur-sm flex items-center justify-center px-4">
+            <div class="bg-white rounded-lg shadow-lg w-full max-w-md p-6 animate-fadeIn">
+              <h2 class="text-lg font-semibold text-red-600 mb-2">Từ chối seller</h2>
+              <p class="text-sm text-gray-600 mb-4">Vui lòng nhập lý do từ chối xác minh seller này.</p>
+              <textarea v-model="rejectReason" rows="4" placeholder="Nhập lý do..."
+                class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-red-500"></textarea>
+
+              <div class="mt-4 flex justify-end gap-2">
+                <button @click="closeReject"
+                  class="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 text-sm text-gray-800 font-semibold">
+                  Hủy
+                </button>
+                <button @click="submitReject" :disabled="loadingReject"
+                  class="px-4 py-2 rounded bg-red-500 hover:bg-red-600 text-sm text-white font-semibold"
+                  :class="{ 'opacity-60 cursor-not-allowed': loadingReject }">
+                  {{ loadingReject ? 'Đang xử lý...' : 'Xác nhận từ chối' }}
                 </button>
               </div>
             </div>
@@ -255,10 +237,14 @@
 
         </div>
       </div>
-      <!-- end Modal -->
+
+
+
+      <!-- end modal -->
     </div>
   </div>
 </template>
+
 
 
 <script setup>
@@ -266,18 +252,18 @@ import { ref, computed, onMounted } from 'vue'
 import Swal from 'sweetalert2'
 import 'sweetalert2/dist/sweetalert2.min.css'
 import axios from 'axios'
-definePageMeta({ 
+definePageMeta({
   layout: 'default-admin'
 });
 import { secureAxios } from '@/utils/secureAxios'
 
 import { useNotification } from '~/composables/useNotification'
-const { showNotification  } = useNotification()
+const { showNotification } = useNotification()
 
 // State
 const sellers = ref([])
 const loading = ref(true)
-const searchQuery = ref('') 
+const searchQuery = ref('')
 const detailModal = ref(false)
 const currentDetail = ref(null)
 const tab = ref('info')
@@ -289,14 +275,16 @@ const loadingApprove = ref(false);
 const loadingReject = ref(false);
 const getSellerId = (user) => user?.seller?.id
 const filterVerifyStatus = ref('')
- 
+const rejectSeller = ref(null)
+
 
 
 const config = useRuntimeConfig();
 const API = config.public.apiBaseUrl;
-const mediaBase = config.public.mediaBaseUrl;
+const mediaBaseUrl = config.public.mediaBaseUrl;
 
- 
+//  lấy link ảnh
+
 // Lấy danh sách sellers
 const fetchSellers = async () => {
   loading.value = true
@@ -322,19 +310,20 @@ const filteredSellers = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
   const status = filterVerifyStatus.value
 
-  return sellers.value.filter(user => {
+  return sellers.value.filter(seller => {
     const matchSearch =
       !q ||
-      (user.seller?.store_name && user.seller.store_name.toLowerCase().includes(q)) ||
-      (user.email && user.email.toLowerCase().includes(q)) ||
-      (user.phone && user.phone.toLowerCase().includes(q))
+      (seller.store_name && seller.store_name.toLowerCase().includes(q)) ||
+      (seller.user?.email && seller.user.email.toLowerCase().includes(q)) ||
+      (seller.phone_number && seller.phone_number.toLowerCase().includes(q))
 
     const matchStatus =
-      !status || user.seller?.verification_status === status
+      !status || seller.verification_status === status
 
     return matchSearch && matchStatus
   })
 })
+
 
 
 // Modal chi tiết
@@ -368,7 +357,11 @@ const getColor = (name) => {
   for (let i = 0; i < (name || '').length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash)
   return colors[Math.abs(hash) % colors.length]
 }
-
+const getVerifyText = (status) => {
+  if (status === 'verified') return 'Đã xác minh'
+  if (status === 'rejected') return 'Đã từ chối'
+  return 'Chờ xác minh'
+}
 // Duyệt seller
 const approveSeller = async (sellerId) => {
   const result = await Swal.fire({
@@ -398,49 +391,54 @@ const approveSeller = async (sellerId) => {
     await fetchSellers()
     detailModal.value = false
     showNotification('Seller đã được duyệt!', 'success')
-    } catch (e) {
-  showNotification('Lỗi khi duyệt seller! Vui lòng thử lại sau!', 'error')
+  } catch (e) {
+    showNotification('Lỗi khi duyệt seller! Vui lòng thử lại sau!', 'error')
   } finally {
     loadingApprove.value = false
   }
 }
 // Từ chối seller
-const openReject = (user) => {
-  rejectSellerId.value = user.seller?.id
-  rejectReason.value = ''
+const openReject = (seller) => {
+  rejectSeller.value = seller
+  rejectSellerId.value = seller.id
   rejectModal.value = true
 }
+
 const closeReject = () => {
   rejectModal.value = false
   rejectSellerId.value = null
   rejectReason.value = ''
 }
+
+
 const submitReject = async () => {
   if (!rejectReason.value.trim()) {
-showNotification('error', 'Vui lòng nhập lý do từ chối!')
+    showNotification('error', 'Vui lòng nhập lý do từ chối!')
     return
   }
 
   loadingReject.value = true
   try {
-  await secureAxios(`${API}/admin/sellers/${rejectSellerId.value}/reject`, {
-    method: 'POST', 
-    data: {
-      reason: rejectReason.value.trim()
-    }
-  }, ['admin'])
+    await secureAxios(`${API}/admin/sellers/${rejectSellerId.value}/reject`, {
+      method: 'POST',
+      data: {
+        reason: rejectReason.value.trim()
+      }
+    }, ['admin'])
     await fetchSellers()
     rejectModal.value = false
     detailModal.value = false
-showNotification('Seller đã bị từ chối!', 'success')
+    showNotification('Seller đã bị từ chối!', 'success')
   } catch (e) {
-showNotification('Lỗi khi duyệt seller! Vui lòng thử lại sau!', 'error')
+    showNotification('Lỗi khi duyệt seller! Vui lòng thử lại sau!', 'error')
   } finally {
     loadingReject.value = false
   }
 }
-
-const getDocUrl = (url) => url?.startsWith('http') ? url : '/' + url
+const getDocUrl = (url) => {
+  if (!url) return ''
+  return url.startsWith('http') ? url : `${mediaBaseUrl}${url}`
+}
 const enlargeImage = (imgUrl) => {
   if (imgUrl) imagePreview.value = getDocUrl(imgUrl)
 }

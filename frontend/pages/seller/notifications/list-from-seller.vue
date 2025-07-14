@@ -5,7 +5,7 @@
 <script setup>
 import NotificationListPage from '@/components/notifications/NotificationListPage.vue'
 definePageMeta({
-  layout: 'default-admin'
+  layout: 'default-seller'
 })
 
 </script>
