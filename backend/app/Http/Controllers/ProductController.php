@@ -26,6 +26,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Cache;
 use App\Services\SearchService;
+use App\Models\StockMovement;
+
 
 class ProductController extends Controller
 {
@@ -196,7 +198,9 @@ class ProductController extends Controller
                         ], 422);
                     }
                 }
+
             }
+
         }
 
         // Kiểm tra thuộc tính trùng nhau nếu có biến thể và thuộc tính
@@ -314,6 +318,19 @@ class ProductController extends Controller
                         })->toArray();
 
                         Inventory::insert($inventoryData);
+
+                    foreach ($inventoryData as $item) {
+                                    StockMovement::create([
+                                        'product_variant_id' => $item['product_variant_id'],
+                                        'action_type' => 'import', // vì đây là lần thêm mới
+                                        'quantity' => $item['quantity'],
+                                        'note' => 'Nhập kho khi tạo sản phẩm',
+                                        'created_by' => $user->id,
+                                        'created_by_type' => $user->role,
+                                        'created_at' => now(),
+                                        'updated_at' => now(),
+                                    ]);
+                                }
                     }
 
                     // Xử lý attributes nếu có
@@ -330,6 +347,11 @@ class ProductController extends Controller
                             })->toArray();
                             $productVariant->attributes()->attach($attributes);
                         }
+                             $productVariant->attributeValues()->sync(
+                            collect($variant['attributes'] ?? [])
+                                ->filter(fn($a) => !empty($a['value_id']))
+                                ->pluck('value_id')
+                        );
                     }
                 }
             }
@@ -630,6 +652,19 @@ class ProductController extends Controller
                         if (!empty($inventoryData)) {
                             Inventory::insert($inventoryData);
                         }
+                             foreach ($inventoryData as $item) {
+                    StockMovement::create([
+                        'product_variant_id' => $item['product_variant_id'],
+                        'action_type' => 'import', // vì đây là lần thêm mới
+                        'quantity' => $item['quantity'],
+                        'note' => 'Nhập kho khi tạo sản phẩm',
+                        'created_by' => $user->id,
+                        'created_by_type' => $user->role,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+
                     }
 
                     // Handle attributes
@@ -648,6 +683,13 @@ class ProductController extends Controller
                         if (!empty($attributes)) {
                             $productVariant->attributes()->attach($attributes);
                         }
+
+                        $productVariant->attributeValues()->sync(
+                            collect($variant['attributes'] ?? [])
+                                ->filter(fn($a) => !empty($a['value_id']))
+                                ->pluck('value_id')
+                        );
+
                     }
                 }
             } else {

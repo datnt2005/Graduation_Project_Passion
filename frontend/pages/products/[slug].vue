@@ -744,7 +744,6 @@ const chatWithShop = async () => {
         store_name: seller.value.store_name,
         avatar: seller.value.avatar
     };
-
     try {
         await chatStore.sendProductMessage(productData, userId, sellerId);
         toast('success', 'Đã gửi tin nhắn sản phẩm đến cửa hàng');

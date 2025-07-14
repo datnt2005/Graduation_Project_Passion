@@ -19,4 +19,6 @@ class Attribute extends Model
     {
         return $this->hasMany(AttributeValue::class, 'attribute_id' , 'id');
     }
+    // Quan hệ với ProductVariants thông qua VariantAttribute
+
 }

@@ -1,6 +1,7 @@
 <?php
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\PayoutController;
+use App\Http\Controllers\InventoryController;
 
 Route::get('inventory/list', [App\Http\Controllers\InventoryController::class, 'list']);
 Route::get('inventory/low-stock', [App\Http\Controllers\InventoryController::class, 'lowStock']);
@@ -19,5 +20,16 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
 
 });
+
+
+Route::middleware(['auth:sanctum', 'checkRole:admin,seller'])->group(function () {
+    Route::get('/stock-movements', [InventoryController::class, 'stockHistory']);
+Route::post('/inventories/{inventory}/action', [InventoryController::class, 'markDamagedOrExport']);
+
+    Route::post('/inventories/import', [InventoryController::class, 'import']);
+    Route::put('/inventories/{inventory}', [InventoryController::class, 'update']);
+});
+
+
 Route::middleware(['auth:sanctum', 'checkRole:admin,seller'])
 ->get('/payout/list-approved', [PayoutController::class, 'listApproved']);

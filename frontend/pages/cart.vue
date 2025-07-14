@@ -18,10 +18,44 @@
           {{ error }}
         </div>
 
-        <!-- Loading state -->
-        <div v-if="!isCartReady" class="flex justify-center items-center py-8">
-          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+       <!-- Skeleton loading for cart -->
+<div
+  v-if="!isCartReady"
+  class="max-w-[1200px] mx-auto px-4 py-4 flex flex-col md:flex-row md:space-x-4 animate-pulse"
+>
+  <!-- Left side (cart items) -->
+  <div class="flex-1 space-y-4">
+    <!-- Fake store block (lặp lại 2 lần nếu muốn nhiều) -->
+    <div class="border border-[#f8b77b] rounded-md bg-white">
+      <div class="flex items-center px-4 py-2 border-b border-[#f8b77b] bg-[#ffe0b3]">
+        <div class="w-4 h-4 bg-gray-200 rounded-sm mr-2"></div>
+        <div class="w-32 h-4 bg-gray-200 rounded mr-2"></div>
+        <div class="w-4 h-4 bg-gray-200 rounded ml-auto"></div>
+      </div>
+      <!-- Fake product row -->
+      <div class="grid grid-cols-[40px_280px_1fr_120px_120px_120px_40px] items-center px-4 py-4 gap-2">
+        <div class="w-4 h-4 bg-gray-200 rounded-sm"></div>
+        <div class="flex items-center gap-2">
+          <div class="w-[60px] h-[60px] bg-gray-200 rounded-sm"></div>
+          <div class="space-y-2">
+            <div class="w-48 h-4 bg-gray-200 rounded"></div>
+            <div class="w-32 h-3 bg-gray-200 rounded"></div>
+          </div>
         </div>
+        <div></div>
+        <div class="w-20 h-4 bg-gray-200 rounded mx-auto"></div>
+        <div class="flex justify-center gap-1">
+          <div class="w-6 h-6 bg-gray-200 rounded-sm"></div>
+          <div class="w-10 h-6 bg-gray-200 rounded-sm"></div>
+          <div class="w-6 h-6 bg-gray-200 rounded-sm"></div>
+        </div>
+        <div class="w-20 h-4 bg-gray-200 rounded mx-auto"></div>
+        <div class="w-4 h-4 bg-gray-200 rounded mx-auto"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 
         <!-- Empty cart state -->
         <div v-else-if="!cart.stores.length" class="flex flex-col items-center justify-center py-8 space-y-4">
