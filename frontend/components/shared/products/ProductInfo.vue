@@ -137,11 +137,14 @@ import { computed } from 'vue';
 import { useToast } from '@/composables/useToast';
 import { useRouter } from "vue-router";
 import { useAuthStore } from "~/stores/auth";
+import Swal from 'sweetalert2';
+import { useRuntimeConfig } from '#app'
 
 const auth = useAuthStore();
 const { toast } = useToast();
 const router = useRouter();
-
+const config = useRuntimeConfig()
+const apiBase = config.public.apiBaseUrl
 
 const props = defineProps({
     product: { type: Object, required: true },
@@ -176,7 +179,6 @@ const isFavorite = ref(props.isFavorite)
 async function toggleFavorite() {
   const token = localStorage.getItem('access_token')
 
-  // Kiểm tra token tồn tại và người dùng đang đăng nhập
   if (!token || !auth.isLoggedIn || !auth.currentUser) {
     toast('error', 'Vui lòng đăng nhập để sử dụng chức năng này!')
     router.push('/login')
@@ -184,9 +186,9 @@ async function toggleFavorite() {
   }
 
   try {
-    const res = await $fetch('/api/favorites/toggle', {
+    const res = await $fetch(`${apiBase}/favorites/toggle`, {
       method: 'POST',
-      body: { product_id: product.value.id },
+      body: { product_id: props.product.id },
       headers: { Authorization: `Bearer ${token}` }
     })
 
@@ -196,12 +198,7 @@ async function toggleFavorite() {
       toast('success', 'Đã xóa sản phẩm khỏi yêu thích!')
     }
 
-    // Cập nhật lại trạng thái và điều hướng
     isFavorite.value = res.favorited
-    setTimeout(() => {
-      router.push('/users/favorites')
-    }, 1000)
-
   } catch (e) {
     toast('error', e?.data?.message || 'Có lỗi xảy ra, vui lòng thử lại!')
   }
@@ -209,16 +206,20 @@ async function toggleFavorite() {
 
 
 onMounted(async () => {
-  if (!auth.isLoggedIn) return
-  try {
-    const token = localStorage.getItem('access_token')
-    const favorites = await $fetch('/favorite/list', {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-    isFavorite.value = favorites.some(f => f.product_id === props.product.id)
-  } catch (err) {
-    console.error('Lỗi khi tải trạng thái yêu thích:', err)
+  const token = localStorage.getItem('access_token')
+  if (token && !auth.isLoggedIn) {
+    try {
+      const user = await $fetch('/user', {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      auth.currentUser = user
+      auth.isLoggedIn = true
+    } catch (err) {
+      auth.currentUser = null
+      auth.isLoggedIn = false
+    }
   }
+  // ... phần kiểm tra yêu thích như cũ
 })
 
 function isOptionAvailable(attrName, value) {

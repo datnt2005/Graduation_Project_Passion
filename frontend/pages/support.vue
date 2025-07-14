@@ -60,7 +60,14 @@
         <input v-model="form.name" type="text" placeholder="Tên của bạn" class="w-full px-3 py-2 rounded border text-sm" required />
         <input v-model="form.email" type="email" placeholder="Email" class="w-full px-3 py-2 rounded border text-sm" required />
         <input v-model="form.phone" type="text" placeholder="Số điện thoại" class="w-full px-3 py-2 rounded border text-sm" />
-        <input v-model="form.subject" type="text" placeholder="Chủ đề" class="w-full px-3 py-2 rounded border text-sm" />
+        <select v-model="form.subject" class="w-full px-3 py-2 rounded border text-sm" required>
+          <option value="" disabled>Chọn chủ đề</option>
+          <option>Hỗ trợ kỹ thuật</option>
+          <option>Hỗ trợ đơn hàng</option>
+          <option>Đổi/trả hàng</option>
+          <option>Phản hồi dịch vụ</option>
+          <option>Khác</option>
+        </select>
         <textarea v-model="form.content" rows="4" placeholder="Nội dung" class="w-full px-3 py-2 rounded border text-sm" required></textarea>
         <button
           type="submit"
@@ -69,7 +76,6 @@
         >
           Gửi
         </button>
-        <div v-if="message" class="text-center text-green-600 mt-2">{{ message }}</div>
       </form>
     </div>
   </div>
@@ -80,9 +86,11 @@
 import '@fortawesome/fontawesome-svg-core/styles.css'
 import { ref } from 'vue'
 import { useRuntimeConfig } from '#app'
+import { useToast } from '~/composables/useToast'
 
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBaseUrl
+const { toast } = useToast()
 const form = ref({
   name: '',
   email: '',
@@ -91,7 +99,6 @@ const form = ref({
   content: ''
 })
 const submitting = ref(false)
-const message = ref('')
 
 const submitSupport = async () => {
   submitting.value = true
@@ -100,10 +107,10 @@ const submitSupport = async () => {
       method: 'POST',
       body: form.value
     })
-    message.value = 'Gửi hỗ trợ thành công!'
+    toast('success', 'Gửi hỗ trợ thành công!')
     form.value = { name: '', email: '', phone: '', subject: '', content: '' }
   } catch (e) {
-    message.value = 'Gửi thất bại, vui lòng thử lại.'
+    toast('error', 'Gửi thất bại, vui lòng thử lại.')
   }
   submitting.value = false
 }
