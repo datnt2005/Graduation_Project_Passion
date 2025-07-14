@@ -10,6 +10,7 @@ use App\Models\GhnSyncLog;
 use App\Models\Payout;
 use App\Models\Refund;
 use App\Models\Seller;
+use App\Models\User;
 use App\Models\Discount;
 use App\Models\DiscountUser;
 use App\Models\Shipping;
@@ -27,7 +28,6 @@ use App\Mail\OrderStatusUpdatedMail;
 use App\Mail\OrderSuccessMail;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 
 class OrderController extends Controller
@@ -778,6 +778,29 @@ public function validateBuyNow(Request $request)
             'success' => true,
             'data' => $this->formatOrderResponse($order)
         ], 200);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            Log::error('Order not found', [
+                'order_id' => $id,
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Không tìm thấy đơn hàng với ID: ' . $id
+            ], 404);
+        } catch (\Exception $e) {
+            Log::error('Order show error', [
+                'order_id' => $id,
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra khi lấy thông tin đơn hàng',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
 
@@ -970,7 +993,7 @@ public function validateBuyNow(Request $request)
                 'id' => $order->user->id,
                 'name' => $order->user->name,
                 'email' => $order->user->email
-            ] : null,
+            ],
             'address' => $order->address ? [
                 'id' => $order->address->id,
                 'name' => $order->address->name,
@@ -980,7 +1003,7 @@ public function validateBuyNow(Request $request)
                 'district_id' => $order->address->district_id,
                 'ward_code' => $order->address->ward_code,
                 'detail' => $order->address->detail,
-            ],
+            ] : null,
             'note' => $order->note ?? '',
             'status' => $order->status,
             'total_price' => (int) $order->total_price,
