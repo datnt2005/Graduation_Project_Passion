@@ -14,10 +14,18 @@ class Payout extends Model
         'order_id',
         'amount',
         'status',
+        'note',
+        'created_at',
         'transferred_at',
     ];
 
     public $timestamps = false;
+
+    protected $casts = [
+        'amount' => 'float',
+        'created_at' => 'datetime',
+        'transferred_at' => 'datetime',
+    ];
 
     public function seller()
     {

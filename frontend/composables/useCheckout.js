@@ -56,8 +56,7 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
     const storedData = localStorage.getItem('buy_now');
     if (storedData) {
       buyNowData.value = JSON.parse(storedData);
-      // Kiểm tra timestamp (30 phút)
-      const maxAge = 30 * 60 * 1000;
+      const maxAge = 30 * 60 * 1000; 
       if (Date.now() - buyNowData.value.timestamp > maxAge) {
         localStorage.removeItem('buy_now');
         buyNowData.value = null;
@@ -177,7 +176,7 @@ const cartItems = computed(() => {
     }, 0);
   });
 
-  // Shipping fee calculations
+  // Phí vận chuyển
   const rawShippingFee = computed(() => {
     const raw = shippingRef.value?.fees?.[selectedShippingMethod.value];
     return raw ? parsePrice(raw) : 0;
@@ -188,7 +187,7 @@ const cartItems = computed(() => {
     return Math.max(0, rawShippingFee.value - discount);
   });
 
-  // Final total including discounts and shipping
+  // Tổng tiền cuối cùng (sử dụng final_price từ backend nếu có)
   const finalTotal = computed(() => {
     const baseTotal = total.value;
     const productDiscount = calculateDiscount(baseTotal);

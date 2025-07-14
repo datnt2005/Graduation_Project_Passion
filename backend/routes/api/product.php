@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ProductApprovalController;
 
 // Products
 Route::prefix('products')->group(function () {
@@ -15,11 +16,21 @@ Route::prefix('products')->group(function () {
     Route::put('/{id}', [ProductController::class, 'update'])->middleware('auth:sanctum');
     Route::delete('/{id}', [ProductController::class, 'destroy']);
     Route::get('/slug/{slug}', [ProductController::class, 'showBySlug']);
+    Route::get('/sellers/{id}', [ProductController::class, 'getProductsBySellerId']);
     Route::post('/change-status/{id}', [ProductController::class, 'changeStatus'])->middleware('auth:sanctum');
     Route::get('/category/{slug}', [ProductController::class, 'getProductBySlugCategory']);
     Route::get('/search/{slug?}', [ProductController::class, 'getProducts']);
     Route::get('/sellers/trash', [ProductController::class, 'getTrashBySeller'])->middleware('auth:sanctum');
+
+
 });
+
+    Route::get('/approvals', [ProductApprovalController::class, 'index']);
+    Route::get('/approvals/rejected', [ProductApprovalController::class, 'getRejectedProducts']);
+    Route::get('/approvals/history', [ProductApprovalController::class, 'getHistoryApproval'])->middleware('auth:sanctum');
+    Route::get('/approvals/{id}', [ProductApprovalController::class, 'getProductApprovalById']);
+    Route::post('/approvals/{id}', [ProductApprovalController::class, 'approveProduct'])->middleware('auth:sanctum');
+
 // Route::prefix('products')->group(function () {
 //     Route::get('/', [ProductController::class, 'getAllProducts']);
 //     Route::get('/sellers', [ProductController::class, 'getAllProductBySellers'])->middleware('auth:sanctum');

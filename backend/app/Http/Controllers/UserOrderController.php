@@ -33,7 +33,7 @@ class UserOrderController extends Controller
                     'code' => 'ORD' . str_pad($order->id, 3, '0', STR_PAD_LEFT),
                     'status' => $order->status,
                     'final_price' => number_format((float) $order->final_price, 0, '', ',') . ' đ',
-                    'created_at' => $order->created_at->format('d/m/Y H:i:s'),
+                    'created_at' => optional($order->created_at)->format('d/m/Y H:i:s'),
                     'user' => optional($order->user)->only(['name', 'email']),
                     'address' => $order->address ? [
                         'name' => $order->address->name,

@@ -1,0 +1,169 @@
+[33mad2b4e1[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mchaufrontend[m[33m)[m Merge branch 'master' of github.com:datnt2005/Graduation_Project_Passion into chaufrontend
+[33mab5bb19[m commit all
+[33mdcb0363[m[33m ([m[1;31morigin/master[m[33m)[m Merge pull request #63 from datnt2005/dat_dev
+[33m15b2d43[m chau update
+[33m6319bcf[m Dat merge for Tai
+[33me969036[m dat merge for chau
+[33m944577c[m Merge pull request #61 from datnt2005/chuong
+[33m0be34f9[m[33m ([m[1;31morigin/chaufrontend[m[33m)[m update code
+[33mf2845a2[m update UI
+[33m8801b79[m seller customer
+[33m379cef2[m Merge pull request #60 from datnt2005/dat_dev
+[33m58bc183[m Merge branch 'master' into dat_dev
+[33m05f919d[m Merge pull request #58 from datnt2005/cuong_dev
+[33m25ab367[m Merge branch 'master' into cuong_dev
+[33m1e52533[m Merge pull request #57 from datnt2005/chaufrontend
+[33m41bb4c6[m Merge branch 'master' into chaufrontend
+[33m6b86c12[m Merge pull request #56 from datnt2005/chuong
+[33m6bd17eb[m Merge branch 'master' into chuong
+[33m14b7395[m Merge pull request #55 from datnt2005/tpaat
+[33md797bde[m datdev update category popular
+[33m18739bf[m Cập nhật Banner, Post, Support - Refund, Post_cmt, Favorite vẫn còn lỗi
+[33m77744ee[m update search
+[33m0ba2b5c[m dat update search
+[33m97b2da9[m datdev update search
+[33m055a1d3[m Notification admin/seller, reviews seller
+[33m7d9d2a7[m update search
+[33m881f4c7[m Banner, Post, Support hoàn thành, Favorite + Post_cmt + Refund dính lỗi middleware
+[33mad89909[m chau update chat but chưa có ảnh khi ấn vào chat ngay trong chi tiết sản phẩm
+[33mfa2e48b[m Update ProductController.php
+[33mb7b339a[m cuong fix checkout , sua database , done payout , dashboard
+[33m42fd4d5[m update seller
+[33m82c3d97[m test
+[33mfb61a45[m chuong update seller pro5
+[33md636984[m fix chat 2
+[33mfb48523[m chuong update
+[33m2ca09c3[m fix chat
+[33mdd3091f[m  chuong update progress seller register
+[33m16bc5a0[m update seller
+[33m94bbfcb[m update edit end thu hồi tin nhắn seller
+[33me8603fb[m update chat Real-time chat base
+[33m3cd4fa7[m update chat Real-time chat base
+[33mb807ea8[m dat_dev upadte quantity product
+[33m31e1d86[m dat_dev update discount profile seller
+[33mb916b3a[m chuong update register seller
+[33m7fc013f[m merge
+[33m09b02f0[m dat update
+[33m4534c56[m Merge pull request #54 from datnt2005/tpaat
+[33m965f5ab[m Merge pull request #53 from datnt2005/dat_cart
+[33m5149c39[m Merge branch 'master' into dat_cart
+[33mfe622ef[m datdev update seller's product
+[33mc3c2f82[m Phát update giao diện reviews mới
+[33mee7943a[m Merge pull request #52 from datnt2005/chuong
+[33maf13fb2[m chuong update header UI, API role check, and FE UI role
+[33m3a08f21[m chuong update phan quyen
+[33mfa6900a[m chuong update
+[33m8e7a8db[m chuong update
+[33m2b348b8[m Merge pull request #51 from datnt2005/chaufrontend
+[33madf3469[m Merge branch 'master' into chaufrontend
+[33m102a94e[m Merge pull request #50 from datnt2005/phat30
+[33mad11557[m phát merge complete
+[33mc4c8541[m Phát gom code
+[33m2eaee8d[m fix discount
+[33ma141d57[m Merge pull request #49 from datnt2005/dat_cart
+[33m8834642[m dat dev update sprint
+[33m973e7b6[m commit datdev
+[33m4a892c0[m Cập nhật giao diện trang order-success
+[33me7ab04f[m Merge pull request #48 from datnt2005/dat_dev
+[33m29161a1[m done luồng
+[33mf10a4e8[m Dat commit
+[33mef0fc8c[m update useDiscount
+[33m549c21f[m Merge pull request #46 from datnt2005/dat_dev
+[33m89b9ba7[m Merge branch 'master' into dat_dev
+[33m41b4003[m Merge pull request #45 from datnt2005/cuong_dev
+[33m7659a58[m Merge branch 'master' into cuong_dev
+[33m5c78ebe[m Merge pull request #44 from datnt2005/tpaat
+[33mfd6d8c3[m update checkout for cart
+[33md3925a2[m Merge pull request #43 from datnt2005/chau_checkout
+[33m11cf80e[m[33m ([m[1;31morigin/chau_checkout[m[33m)[m Merge branch 'dat_cart' into chau_checkout
+[33m4a65fdd[m push all
+[33m45a7529[m update brand
+[33m77f6d9b[m update create product by seller
+[33me3935c1[m cuong lam coupon user
+[33macd3be4[m cuong lam coupon user
+[33m6c95993[m Phat update notifications and reviews 27/6
+[33m294bd97[m phân quyền
+[33m1716f43[m tach file api de bao tri
+[33m7f8f46e[m done cart
+[33mc3a9a91[m chau update frontend page checkout
+[33m9864d97[m update order user
+[33med447bd[m dat dev update cart
+[33m176d115[m update UI admin seller
+[33m7e255ec[m update orders
+[33m3a92d0a[m update detail show order
+[33m752c82e[m update order user
+[33m83fc8e3[m ipdate
+[33m1f623d5[m fix  BUG BUI VAN CHAU
+[33m5ceb14f[m update
+[33m928fb4a[m dat update
+[33mfd8c0e4[m master marge can fix
+[33m088776d[m update test case
+[33mc4d2a0b[m update filter product
+[33mbe66bd7[m update alert
+[33mfed9c19[m update interface
+[33m384462c[m Update register.vue
+[33ma9affe2[m chau update register.vue seller and controllere sellerController
+[33m0524468[m chau update register.vue seller and controllere sellerController
+[33mb578c7d[m chauupdate code validator
+[33m38e2013[m update
+[33m2966245[m Merge master into dat_dev: resolved conflicts
+[33m2090b91[m Merge pull request #42 from datnt2005/dat_dev
+[33md5ec493[m dat update
+[33mff7e122[m Merge pull request #41 from datnt2005/chaufrontend
+[33mb8569c3[m Merge branch 'master' into chaufrontend
+[33mf3eb0be[m Update SellerController.php
+[33m44e1126[m Update register.vue
+[33m76014f0[m update register
+[33m2d8b8f9[m chau update register.vue
+[33m50726c9[m chau update register.vue seller and controllere sellerController
+[33m23695ff[m chau update register.vue seller and controllere sellerController
+[33ma489c12[m chau update register.vue seller and controllere sellerController
+[33mb5a9b35[m chau update register.vue seller and controllere sellerController
+[33me27ab0a[m chau update register.vue seller and controllere sellerController
+[33m101476d[m chau update register.vue seller and controllere sellerController
+[33m60d7f43[m chau update register.vue seller and controllere sellerController
+[33mbba23ff[m Merge pull request #40 from datnt2005/dat_dev
+[33m5efcc14[m master marge can fix
+[33ma26666b[m merge
+[33m2a9e793[m update
+[33m607caf1[m Merge pull request #39 from datnt2005/dat_dev
+[33m9dbd626[m Resolve conflict by Dat_dev
+[33m1aab66b[m Merge pull request #38 from datnt2005/chaufrontend
+[33mdadfec5[m Merge branch 'master' into chaufrontend
+[33m1a6a80d[m Merge pull request #37 from datnt2005/chuong
+[33m4b13817[m Merge branch 'master' into chuong
+[33m491087d[m Merge pull request #36 from datnt2005/cuong4
+[33m7d3e89d[m Merge branch 'master' into cuong4
+[33meb85d54[m Merge pull request #35 from datnt2005/tpaat
+[33m3e259d7[m Phat update reviews, notifications admin
+[33m13291c4[m chauupdate code validator
+[33m92f3ea7[m update test case
+[33m2e9653e[m update lai dashboard them thong bao sp ban chay v2
+[33m4ab4dfb[m update lai dashboard them thong bao sp ban chay
+[33mcb954ed[m Phat update checkout GHN and Manage Notifications
+[33m212b53b[m update lai dashboard
+[33m696a057[m update lai dashboard
+[33mf58626b[m update UI seller admin
+[33m493c27e[m merge chaufrontend
+[33m0767370[m update api seller
+[33mf255c4e[m update avatar for seller
+[33m5b338cc[m update filter product
+[33m50723e0[m update r2 cho register and update for seller
+[33m4cd1ce2[m cuong  lam dashboard
+[33m68bf209[m update UI seller
+[33m16acfcc[m add follow seller
+[33mdbc7acc[m update edit prifile seller
+[33m9a96338[m merge
+[33mae43c4a[m update layout profile seller and api update profile seller
+[33m5c9c2da[m chuong update UI
+[33mdc5c9f9[m update alert
+[33m84e25aa[m update UI
+[33mfb674b1[m update interface
+[33m2fa27ba[m tách phan xư li thanh toan
+[33m1f5ede1[m update register business
+[33mde2a06a[m Resolve conflict in SellerController.php
+[33m9c2e0cc[m Resolve merge conflict in register.vue
+[33m0399b8c[m[33m ([m[1;31morigin/chuong[m[33m)[m update seller
+[33m56330af[m merging
+[33m6e5d137[m update
+[33mb6fdfe5[m add re

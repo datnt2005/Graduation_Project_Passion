@@ -78,13 +78,18 @@
           <ul v-show="productOpen" class="pl-11 mt-1 space-y-0.5 text-gray-300 text-[13px]">
             <li>
               <NuxtLink to="/admin/products/list-product" class="block py-1 hover:text-white rounded"
-                :class="route.path.startsWith('/admin/products') ? 'text-green-400 font-bold' : ''"
+                :class="route.path.startsWith('/admin/products/list-product') ? 'text-green-400 font-bold' : ''"
                 @click="$emit('close')">Tất cả sản phẩm</NuxtLink>
             </li>
             <li>
-              <NuxtLink to="/admin/products/create-product" class="block py-1 font-semibold hover:text-white rounded"
+              <NuxtLink to="/admin/products/create-product" class="block py-1 hover:text-white rounded"
                 :class="route.path.startsWith('/admin/products/create-product') ? 'text-green-400 font-bold' : ''"
                 @click="$emit('close')">Thêm sản phẩm</NuxtLink>
+            </li>
+            <li>
+              <NuxtLink to="/admin/products/product-pending" class="block py-1 hover:text-white rounded"
+                :class="route.path.startsWith('/admin/products/product-pending') ? 'text-green-400 font-bold' : ''"
+                @click="$emit('close')">Chờ xét duyệt</NuxtLink>
             </li>
             <li>
               <NuxtLink to="/admin/attributes/list-attribute" class="block py-1 hover:text-white rounded"
@@ -128,39 +133,6 @@
             </svg>
             Chiết khấu
           </NuxtLink>
-        </li>
-
-                <!-- Đánh giá (Dropdown) -->
-        <li class="pt-2 border-t border-gray-800">
-          <button @click="toggleReview"
-            class="flex items-center w-full px-4 py-2 hover:bg-gray-800 focus:outline-none rounded"
-            :class="reviewActive ? 'bg-gray-800 text-green-400 font-bold' : ''">
-            <svg class="w-4 h-4 mr-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                d="M12 9v3m0 0v3m0-3h3m-3 0H9m6.364-7.636a9 9 0 11-12.728 12.728A9 9 0 0118.364 4.364z" />
-            </svg>
-            Đánh giá
-            <svg class="w-4 h-4 ml-auto transform transition-transform" :class="{ 'rotate-180': reviewOpen }"
-              fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-          <ul v-show="reviewOpen" class="pl-11 mt-1 space-y-0.5 text-gray-300 text-[13px]">
-            <li>
-              <NuxtLink to="/admin/reviews/list-reviews" class="block py-1 hover:text-white rounded"
-                :class="route.path.startsWith('/admin/reviews') && !route.path.startsWith('/admin/reports/reviews') ? 'text-green-400 font-bold' : ''"
-                @click="$emit('close')">
-                Tất cả đánh giá
-              </NuxtLink>
-            </li>
-            <li>
-              <NuxtLink to="/admin/reports/reviews/list-reports" class="block py-1 hover:text-white rounded"
-                :class="route.path.startsWith('/admin/reports/reviews') ? 'text-green-400 font-bold' : ''"
-                @click="$emit('close')">
-                Đánh giá bị báo cáo
-              </NuxtLink>
-            </li>
-          </ul>
         </li>
 
         <!-- Banner -->
@@ -310,6 +282,9 @@ const productOpen = ref(false)
 const toggleProduct = () => productOpen.value = !productOpen.value
 const productActive = computed(() =>
   route.path.startsWith('/admin/products')
+  || route.path.startsWith('/admin/list-product')
+  || route.path.startsWith('/admin/create-product')
+  || route.path.startsWith('/admin/list-product-pending')
   || route.path.startsWith('/admin/attributes')
   || route.path.startsWith('/admin/categories')
   || route.path.startsWith('/admin/tags')

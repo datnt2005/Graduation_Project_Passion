@@ -14,11 +14,11 @@ return new class extends Migration
         Schema::create('chat_messages', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('session_id');
-            $table->enum('sender_type', ['user', 'seller']);
             $table->unsignedBigInteger('sender_id');
-            $table->text('message')->nullable();
+            $table->enum('sender_type', ['user', 'seller']);
+            $table->text('message')->nullable()->charset('utf8mb4')->collation('utf8mb4_unicode_ci');
             $table->enum('message_type', ['text', 'image', 'product'])->default('text');
-            $table->boolean('is_read')->default(false);
+            $table->enum('status', ['normal', 'deleted'])->default('normal');
             $table->timestamps();
 
             $table->foreign('session_id')->references('id')->on('chat_sessions')->onDelete('cascade');
