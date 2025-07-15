@@ -61,7 +61,7 @@ export const useChatStore = defineStore("chat", {
 
           if (!session) {
             const { data: newSession } = await axios.post(
-              `${API}/chat/sessions`,
+              `${API}/chat/session`,
               {
                 user_id: userId,
                 seller_id: sellerId,

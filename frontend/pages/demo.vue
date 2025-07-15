@@ -1,7 +1,7 @@
 <template>
 
-  <div class="bg-[#f5f5f5] text-[#222222]">
-    <div class="max-w-[1200px] mx-auto px-2">
+  <div class="bg-[#f5f5f5] text-[#222222">
+    <div class="container mx-auto px-2">
       <!-- Top banner -->
       <div class="flex flex-wrap justify-center md:justify-between gap-4 mb-6">
         <!-- Banner trái - Slide -->
@@ -50,7 +50,7 @@
       </nav>
 
       <!-- Danh mục -->
-      <div class="max-w-7xl mx-auto mt-6 bg-white">
+      <div class="container mx-auto mt-6 bg-white">
         <div class="border-b border-gray-200 px-4 py-3">
           <h2 class="text-[#1BA0E2] text-base font-semibold uppercase tracking-wide">DANH MỤC</h2>
         </div>
@@ -67,7 +67,7 @@
         </div>
       </div>
       <!-- Flash Sale Section -->
-      <div class="mt-6 bg-white border border-gray-200 rounded-md p-3">
+      <div class=" mt-6 bg-white border border-gray-200 rounded-md p-3">
         <div class="flex justify-between items-center mb-3">
           <div class="flex items-center space-x-2">
             <div class="text-[1BA0E2] font-bold text-sm uppercase">
@@ -142,7 +142,7 @@
         </div>
       </div>
       <!-- Shopee Mall Section -->
-      <div class="max-w-[1280px] mx-auto p-4">
+      <div class="container mx-auto p-4">
         <!-- Top bar -->
         <div
           class="bg-white flex flex-wrap justify-between gap-2 items-center text-[14px] font-normal text-[#1BA0E2] border border-[#f0f0f0] rounded-sm px-4 py-2">
@@ -221,7 +221,7 @@
       </div>
 
       <!-- Best Seller Section -->
-      <div class="max-w-[1200px] mx-auto bg-white">
+      <div class="container mx-auto bg-white">
         <div class="flex justify-between items-center px-4 py-3 border-b border-[#f0f0f0]">
           <h2 class="text-[#1BA0E2] text-sm font-semibold uppercase tracking-wide">
             TÌM KIẾM HÀNG ĐẦU
