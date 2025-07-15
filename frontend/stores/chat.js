@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import axios from "axios";
 import { useRuntimeConfig } from "#app";
+const mediaBaseUrl = useRuntimeConfig().public.mediaBaseUrl || "";
 
 export const useChatStore = defineStore("chat", {
   state: () => ({
@@ -112,7 +113,7 @@ export const useChatStore = defineStore("chat", {
         if (!path) return DEFAULT_PRODUCT;
         const cleaned = path.trim().replace(/^\/+|\/+$/g, "");
         if (/^https?:\/\//.test(cleaned)) return cleaned;
-        return `https://pub-3fc809b4396849cba1c342a5b9f50be9.r2.dev/${cleaned}`;
+        return `${mediaBaseUrl}${cleaned}`;
       };
 
       const imageUrl = getImageUrl(product.image);
@@ -131,6 +132,11 @@ export const useChatStore = defineStore("chat", {
           variantId: product.variantId || null,
           productLink: product.link || window.location.href,
           file_url: imageUrl,
+          name: product.name,
+          price: product.price,
+          original_price: product.original_price || null,
+          description: product.description || "",
+          file_type: "image",
         },
       };
 

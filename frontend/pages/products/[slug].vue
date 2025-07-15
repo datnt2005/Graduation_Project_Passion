@@ -842,14 +842,12 @@ function startChatWithSeller(sellerId) {
 const chatWithShop = async () => {
   const token = localStorage.getItem("access_token");
   if (!token) {
-    toast("error", "Vui lòng đăng nhập để chat");
-    router.push("/login");
+    openLoginModal();
     return;
   }
 
   if (!product.value || !product.value.id) {
     toast("error", "Dữ liệu sản phẩm không hợp lệ");
-    console.error("Product data is missing");
     return;
   }
 
@@ -861,19 +859,16 @@ const chatWithShop = async () => {
     userId = data?.data?.id;
     if (!userId) {
       toast("error", "Không tìm thấy thông tin người dùng");
-      console.error("User ID is missing");
       return;
     }
   } catch (error) {
     toast("error", "Lỗi khi lấy thông tin người dùng");
-    console.error("❌ Lỗi khi lấy user:", error);
     return;
   }
 
   const sellerId = seller.value?.id || product.value.sellerId;
   if (!sellerId) {
     toast("error", "Không tìm thấy thông tin cửa hàng. Vui lòng thử lại sau.");
-    console.error("Seller ID is missing");
     return;
   }
 
@@ -889,10 +884,8 @@ const chatWithShop = async () => {
     avatar: seller.value.avatar,
   };
 
-  console.log("Sending product message:", productData);
   try {
     await chatStore.sendProductMessage(productData, userId, sellerId);
-    // toast("success", "Đã gửi tin nhắn sản phẩm đến cửa hàng");
     // Mở khung chat với seller
     chatRef.value?.openChatWithUser(sellerId);
   } catch (error) {
@@ -900,7 +893,6 @@ const chatWithShop = async () => {
       "error",
       "Lỗi khi gửi tin nhắn sản phẩm: " + (error.message || "Vui lòng thử lại")
     );
-    console.error("❌ Lỗi khi gửi tin nhắn:", error);
   }
 };
 
