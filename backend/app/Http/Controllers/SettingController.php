@@ -10,9 +10,10 @@ use Illuminate\Support\Facades\Log;
 
 class SettingController extends Controller
 {
-
     public function index()
     {
+        $userId = auth()->id(); // ✅ thêm dòng này
+
         $settings = Cache::remember('site_settings', 3600, function () {
             return Setting::where('is_editable', true)
                 ->whereNotNull('group')
@@ -25,6 +26,8 @@ class SettingController extends Controller
 
     public function update(Request $request)
     {
+        $userId = auth()->id(); // ✅ thêm dòng này
+
         $items = $request->all();
 
         if (!is_array($items)) {
@@ -44,7 +47,6 @@ class SettingController extends Controller
                 continue;
             }
 
-            // Validate file paths for file-type settings
             if ($setting->type === 'file' && $item['value'] && !Storage::disk('r2')->exists($item['value'])) {
                 Log::warning('File not found in R2', ['key' => $item['key'], 'value' => $item['value']]);
                 continue;
@@ -58,9 +60,10 @@ class SettingController extends Controller
         return response()->json(['message' => 'Settings updated successfully']);
     }
 
-
     public function upload(Request $request)
     {
+        $userId = auth()->id(); // ✅ thêm dòng này
+
         $request->validate([
             'file' => 'required|image|mimes:jpg,jpeg,png,webp|max:2048',
             'key'  => 'required|string',
@@ -70,25 +73,22 @@ class SettingController extends Controller
             $file = $request->file('file');
             $filename = 'settings/' . time() . '_' . $file->getClientOriginalName();
 
-            // Store file in R2
             $path = Storage::disk('r2')->put($filename, file_get_contents($file->getRealPath()), 'public');
 
             if ($path) {
                 $setting = Setting::where('key', $request->key)->first();
                 if ($setting) {
-                    // Delete old file from R2 if it exists
                     if ($setting->value && Storage::disk('r2')->exists($setting->value)) {
                         Storage::disk('r2')->delete($setting->value);
                     }
                     $setting->value = $filename;
                     $setting->save();
                 } else {
-                    // Create new setting if it doesn't exist
                     Setting::create([
                         'key' => $request->key,
                         'value' => $filename,
                         'type' => 'file',
-                        'group' => 'General', // Adjust as needed
+                        'group' => 'General',
                         'is_editable' => true,
                     ]);
                 }
@@ -110,15 +110,18 @@ class SettingController extends Controller
         }
     }
 
-
     public function backup()
     {
+        $userId = auth()->id(); // ✅ thêm dòng này
+
         $settings = Setting::all();
         return response()->json($settings);
     }
 
     public function restore(Request $request)
     {
+        $userId = auth()->id(); // ✅ thêm dòng này
+
         $request->validate([
             'file' => 'required|file|mimes:json',
         ]);
@@ -137,7 +140,6 @@ class SettingController extends Controller
                     continue;
                 }
 
-                // Validate file paths for file-type settings
                 if (isset($item['type']) && $item['type'] === 'file' && $item['value'] && !Storage::disk('r2')->exists($item['value'])) {
                     Log::warning('File not found in R2 during restore', ['key' => $item['key'], 'value' => $item['value']]);
                     continue;

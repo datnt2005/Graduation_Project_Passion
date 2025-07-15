@@ -134,7 +134,7 @@
               <template v-else-if="setting.type === 'file'">
                 <input
                   type="file"
-                  @change="uploadFile($event, setting)"
+                  @change="handleFileUpload($event, setting)"
                   class="mb-2"
                 />
                 <div v-if="setting.value">
@@ -175,25 +175,6 @@ const config = useRuntimeConfig();
 const API = config.public.apiBaseUrl;
 
 const settings = ref({});
-
-// onMounted(async () => {
-//   const { data, error } = await useFetch(`${API}/settings`);
-
-//   if (error.value) {
-//     toast("error", "Không thể tải dữ liệu cài đặt.");
-//     return;
-//   }
-
-//   if (
-//     data.value &&
-//     typeof data.value === "object" &&
-//     !Array.isArray(data.value)
-//   ) {
-//     settings.value = data.value;
-//   } else {
-//     toast("error", "⚠️ API không trả về object như mong đợi:", data.value);
-//   }
-// });
 
 onMounted(async () => {
   const fetchSettings = async (retries = 3) => {
