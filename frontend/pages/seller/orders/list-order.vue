@@ -288,58 +288,58 @@
               </div>
               <!-- Thông tin payout -->
               <div class="border border-gray-200 rounded-lg mt-4">
-                <div class="border-b px-4 py-2 font-medium text-sm bg-gray-50 text-gray-800">Thông tin thanh toán cho shop</div>
-                <div class="px-4 py-3 text-sm text-gray-700">
-                  <p>
-                    <b>Trạng thái thanh toán:</b>
-                    <span v-if="selectedOrder.payout_status === 'completed'" class="text-green-600 font-semibold">Đã chuyển khoản</span>
-                    <span v-else-if="selectedOrder.payout_status === 'pending'" class="text-yellow-600 font-semibold">Chưa thanh toán</span>
-                    <span v-else-if="selectedOrder.payout_status === 'failed'" class="text-red-600 font-semibold">Thanh toán thất bại</span>
-                    <span v-else class="text-gray-500">Chưa thanh toán</span>
-                  </p>
-                  <p>
-                    <b>Tổng tiền hàng:</b>
-                    <span>{{ formatPrice(selectedOrder.final_price) }}</span>
-                  </p>
-                  <p v-if="selectedOrder.shipping && selectedOrder.shipping.shipping_fee > 0">
-                    <b>Phí vận chuyển:</b>
-                    <span>{{ formatPrice(selectedOrder.shipping.shipping_fee) }}</span>
-                  </p>
-                  <p v-if="selectedOrder.discount_price > 0">
-                    <b>Giảm giá:</b>
-                    <span>{{ formatPrice(selectedOrder.discount_price) }}</span>
-                  </p>
-                  <p>
-                    <b>Chiết khấu admin (5%):</b>
-                    <span>
-                      {{ formatPrice(Math.max((Number(selectedOrder.final_price || 0) - Number(selectedOrder.shipping?.shipping_fee || 0)) * 0.05, 0)) }}
-                    </span>
-                  </p>
-                  <p>
-                    <b>Ước tính số tiền nhận được:</b>
-                    <span>
-                      {{ formatPrice(Math.max((Number(selectedOrder.final_price || 0) - Number(selectedOrder.shipping?.shipping_fee || 0)) * 0.95, 0)) }}
-                    </span>
-                  </p>
-                  <p>
-                    <b>Số tiền nhận được:</b>
-                    <span v-if="selectedOrder.payout_amount && selectedOrder.payout_status === 'completed'">
-                      {{ formatPrice(selectedOrder.payout_amount) }}
-                    </span>
-                    <span v-else class="text-gray-500">---</span>
-                  </p>
-                  <p>
-                    <b>Thời gian chuyển khoản:</b>
-                    <span v-if="selectedOrder.transferred_at && selectedOrder.payout_status === 'completed'">
-                      {{ formatDate(selectedOrder.transferred_at) }}
-                    </span>
-                    <span v-else class="text-gray-500">---</span>
-                  </p>
-                  <p class="text-xs text-gray-500 mt-2">
-                    Lưu ý: Số tiền nhận được là 95% tổng giá trị đơn hàng (bao gồm phí vận chuyển, đã trừ chiết khấu 5% cho admin và giảm giá nếu có). Nếu có điều chỉnh khác, admin sẽ ghi chú riêng.
-                  </p>
-                </div>
-              </div>
+  <div class="border-b px-4 py-2 font-medium text-sm bg-gray-50 text-gray-800">Thông tin thanh toán cho shop</div>
+  <div class="px-4 py-3 text-sm text-gray-700">
+    <p>
+      <b>Trạng thái thanh toán:</b>
+      <span v-if="selectedOrder.payout_status === 'completed'" class="text-green-600 font-semibold">Đã chuyển khoản</span>
+      <span v-else-if="selectedOrder.payout_status === 'pending'" class="text-yellow-600 font-semibold">Chưa thanh toán</span>
+      <span v-else-if="selectedOrder.payout_status === 'failed'" class="text-red-600 font-semibold">Thanh toán thất bại</span>
+      <span v-else class="text-gray-500">Chưa thanh toán</span>
+    </p>
+    <p>
+      <b>Tổng tiền hàng:</b>
+      <span>{{ formatPrice(selectedOrder.total_price) }}</span>
+    </p>
+    <p v-if="selectedOrder.shipping && selectedOrder.shipping.shipping_fee > 0">
+      <b>Phí vận chuyển:</b>
+      <span>{{ formatPrice(selectedOrder.shipping.shipping_fee) }}</span>
+    </p>
+    <p v-if="selectedOrder.discount_price > 0">
+      <b>Giảm giá:</b>
+      <span>{{ formatPrice(selectedOrder.discount_price) }}</span>
+    </p>
+    <p>
+      <b>Chiết khấu admin (5%):</b>
+      <span>
+        {{ formatPrice(Math.max((Number(selectedOrder.total_price || 0) - Number(selectedOrder.discount_price || 0)) * 0.05, 0)) }}
+      </span>
+    </p>
+    <p>
+      <b>Ước tính số tiền nhận được:</b>
+      <span>
+        {{ formatPrice(Math.max((Number(selectedOrder.total_price || 0) - Number(selectedOrder.discount_price || 0)) * 0.95, 0)) }}
+      </span>
+    </p>
+    <p>
+      <b>Số tiền nhận được:</b>
+      <span v-if="selectedOrder.payout_amount && selectedOrder.payout_status === 'completed'">
+        {{ formatPrice(selectedOrder.payout_amount) }}
+      </span>
+      <span v-else class="text-gray-500">---</span>
+    </p>
+    <p>
+      <b>Thời gian chuyển khoản:</b>
+      <span v-if="selectedOrder.transferred_at && selectedOrder.payout_status === 'completed'">
+        {{ formatDate(selectedOrder.transferred_at) }}
+      </span>
+      <span v-else class="text-gray-500">---</span>
+    </p>
+    <p class="text-xs text-gray-500 mt-2">
+      Lưu ý: Số tiền nhận được là 95% tổng giá trị tiền hàng (đã trừ giảm giá nếu có, không bao gồm phí vận chuyển). Nếu có điều chỉnh khác, admin sẽ ghi chú riêng.
+    </p>
+  </div>
+</div>
             </div>
           </div>
         </Teleport>

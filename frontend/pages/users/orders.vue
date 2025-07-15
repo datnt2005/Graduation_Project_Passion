@@ -56,43 +56,43 @@
           </button>
         </nav>
 
-     <!-- Loading Skeleton for Order Table -->
-<div v-if="isLoading" class="bg-white rounded-md shadow border border-gray-200 overflow-hidden animate-pulse">
-  <table class="min-w-full text-sm divide-y divide-gray-200">
-    <thead class="bg-gray-50 text-gray-600 text-xs font-semibold uppercase">
-      <tr>
-        <th class="px-4 py-3 text-left">STT</th>
-        <th class="px-4 py-3 text-left">Mã vận đơn</th>
-        <th class="px-4 py-3 text-left">Khách hàng</th>
-        <th class="px-4 py-3 text-left">SĐT</th>
-        <th class="px-4 py-3 text-left">Trạng thái</th>
-        <th class="px-4 py-3 text-left">Thao tác</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr v-for="i in 4" :key="i" class="border-t">
-        <td class="px-4 py-3">
-          <div class="w-5 h-4 bg-gray-200 rounded"></div>
-        </td>
-        <td class="px-4 py-3">
-          <div class="w-20 h-4 bg-gray-200 rounded"></div>
-        </td>
-        <td class="px-4 py-3">
-          <div class="w-40 h-4 bg-gray-200 rounded"></div>
-        </td>
-        <td class="px-4 py-3">
-          <div class="w-24 h-4 bg-gray-200 rounded"></div>
-        </td>
-        <td class="px-4 py-3">
-          <div class="w-24 h-6 bg-gray-200 rounded-full"></div>
-        </td>
-        <td class="px-4 py-3">
-          <div class="w-16 h-4 bg-gray-200 rounded"></div>
-        </td>
-      </tr>
-    </tbody>
-  </table>
-</div>
+        <!-- Loading Skeleton for Order Table -->
+        <div v-if="isLoading" class="bg-white rounded-md shadow border border-gray-200 overflow-hidden animate-pulse">
+          <table class="min-w-full text-sm divide-y divide-gray-200">
+            <thead class="bg-gray-50 text-gray-600 text-xs font-semibold uppercase">
+              <tr>
+                <th class="px-4 py-3 text-left">STT</th>
+                <th class="px-4 py-3 text-left">Mã vận đơn</th>
+                <th class="px-4 py-3 text-left">Khách hàng</th>
+                <th class="px-4 py-3 text-left">SĐT</th>
+                <th class="px-4 py-3 text-left">Trạng thái</th>
+                <th class="px-4 py-3 text-left">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="i in 4" :key="i" class="border-t">
+                <td class="px-4 py-3">
+                  <div class="w-5 h-4 bg-gray-200 rounded"></div>
+                </td>
+                <td class="px-4 py-3">
+                  <div class="w-20 h-4 bg-gray-200 rounded"></div>
+                </td>
+                <td class="px-4 py-3">
+                  <div class="w-40 h-4 bg-gray-200 rounded"></div>
+                </td>
+                <td class="px-4 py-3">
+                  <div class="w-24 h-4 bg-gray-200 rounded"></div>
+                </td>
+                <td class="px-4 py-3">
+                  <div class="w-24 h-6 bg-gray-200 rounded-full"></div>
+                </td>
+                <td class="px-4 py-3">
+                  <div class="w-16 h-4 bg-gray-200 rounded"></div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
         <!-- Orders list -->
         <div v-else>
@@ -411,7 +411,7 @@
                   </div>
                 </div>
                 <!-- Xử lý hoàn tiền -->
-                <div v-if="['failed', 'cancelled', 'returned'].includes(selectedOrder.status) && !effectiveRefund"
+                <div v-if="['failed', 'cancelled', 'returned'].includes(selectedOrder.status) && !effectiveRefund && selectedOrder.payments?.length > 0 && selectedOrder.payments.every(payment => payment.method?.toLowerCase() !== 'cod')"
                   class="border border-gray-200 rounded-lg mb-6">
                   <div class="border-b px-4 py-2 font-medium text-sm bg-gray-50 text-gray-800">Xử lý hoàn tiền</div>
                   <div class="px-4 py-3 text-sm text-gray-700">
@@ -430,6 +430,14 @@
                         class="mt-2 px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700"
                         :disabled="!refundReason" aria-label="Gửi yêu cầu hoàn tiền">Gửi yêu cầu hoàn tiền</button>
                     </div>
+                  </div>
+                </div>
+                <!-- Thông báo cho đơn hàng COD -->
+                <div v-else-if="['failed', 'cancelled', 'returned'].includes(selectedOrder.status) && !effectiveRefund && selectedOrder.payments?.some(payment => payment.method?.toLowerCase() === 'cod')"
+                  class="border border-gray-200 rounded-lg mb-6">
+                  <div class="border-b px-4 py-2 font-medium text-sm bg-gray-50 text-gray-800">Xử lý hoàn tiền</div>
+                  <div class="px-4 py-3 text-sm text-gray-700">
+                    <p>Đơn hàng sử dụng thanh toán COD, không thể yêu cầu hoàn tiền trực tuyến. Vui lòng liên hệ hỗ trợ để được xử lý.</p>
                   </div>
                 </div>
                 <div v-if="effectiveRefund" class="border border-gray-200 rounded-lg mb-6">
@@ -759,13 +767,8 @@ const viewOrder = async (id) => {
     };
 
     console.log('selectedOrder.value:', selectedOrder.value);
-
-    if (!selectedOrder.value.refund) {
-      const refund = refunds.value.find(r => r.order_id === id);
-      if (refund) {
-        selectedOrder.value.refund = refund;
-      }
-    }
+    console.log('Payments for order:', selectedOrder.value.payments);
+    console.log('Is COD:', selectedOrder.value.payments?.some(payment => payment.method?.toLowerCase() === 'cod'));
 
     if (!selectedOrder.value.refund && ['failed', 'cancelled', 'returned'].includes(selectedOrder.value.status)) {
       refundAmount.value = maxRefundAmount.value;
