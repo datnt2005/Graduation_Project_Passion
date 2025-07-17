@@ -225,33 +225,70 @@
                     <div v-if="activeTab === 'inventory'">
                       <div v-for="(variant, index) in formData.variants" :key="index" class="border p-4 rounded mb-4">
                         <h3 class="font-semibold mb-2">Biến thể {{ index + 1 }}</h3>
-                        <div v-for="(inv, invIndex) in variant.inventory" :key="invIndex" class="flex space-x-2 mb-2">
-                          <div class="flex-1">
-                            <label class="block mb-1 font-normal text-gray-700">Số lượng</label>
-                            <input v-model.number="inv.quantity" type="number" min="0"
-                              class="w-full rounded border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500" />
-                            <span v-if="errors[`variants.${index}.inventory.${invIndex}.quantity`]"
-                              class="text-red-500 text-xs mt-1">{{
-                                errors[`variants.${index}.inventory.${invIndex}.quantity`]
-                              }}</span>
-                          </div>
-                          <div class="flex-1">
-                            <label class="block mb-1 font-normal text-gray-700">Vị trí</label>
-                            <input v-model="inv.location" type="text"
-                              class="w-full rounded border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500" />
-                            <span v-if="errors[`variants.${index}.inventory.${invIndex}.location`]"
-                              class="text-red-500 text-xs mt-1">{{
-                                errors[`variants.${index}.inventory.${invIndex}.location`]
-                              }}</span>
+                        <span v-if="errors[`variants.${index}.inventory`]" class="text-red-500 text-xs mb-2 block">{{
+                          errors[`variants.${index}.inventory`]
+                        }}</span>
+                        <div v-for="(inv, invIndex) in variant.inventory" :key="invIndex" class="space-y-2 mb-4">
+                          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Số lượng -->
+                            <div class="flex-1">
+                              <label class="block mb-1 font-normal text-gray-700">Số lượng</label>
+                              <input v-model.number="inv.quantity" type="number" min="0"
+                                class="w-full rounded border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500" />
+                              <span v-if="errors[`variants.${index}.inventory.${invIndex}.quantity`]"
+                                class="text-red-500 text-xs mt-1">{{
+                                  errors[`variants.${index}.inventory.${invIndex}.quantity`]
+                                }}</span>
+                            </div>
+                            <!-- Vị trí -->
+                            <div class="flex-1">
+                              <label class="block mb-1 font-normal text-gray-700">Vị trí</label>
+                              <input v-model="inv.location" type="text"
+                                class="w-full rounded border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500" />
+                              <span v-if="errors[`variants.${index}.inventory.${invIndex}.location`]"
+                                class="text-red-500 text-xs mt-1">{{
+                                  errors[`variants.${index}.inventory.${invIndex}.location`]
+                                }}</span>
+                            </div>
+                            <!-- Mã lô -->
+                            <div class="flex-1">
+                              <label class="block mb-1 font-normal text-gray-700">Mã lô</label>
+                              <input v-model="inv.batch_number" type="text"
+                                class="w-full rounded border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500" />
+                              <span v-if="errors[`variants.${index}.inventory.${invIndex}.batch_number`]"
+                                class="text-red-500 text-xs mt-1">{{
+                                  errors[`variants.${index}.inventory.${invIndex}.batch_number`]
+                                }}</span>
+                            </div>
+                            <!-- Nguồn nhập -->
+                            <div class="flex-1">
+                              <label class="block mb-1 font-normal text-gray-700">Nguồn nhập</label>
+                              <input v-model="inv.import_source" type="text"
+                                class="w-full rounded border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500" />
+                              <span v-if="errors[`variants.${index}.inventory.${invIndex}.import_source`]"
+                                class="text-red-500 text-xs mt-1">{{
+                                  errors[`variants.${index}.inventory.${invIndex}.import_source`]
+                                }}</span>
+                            </div>
+                            <!-- Ghi chú -->
+                            <div class="flex-1 md:col-span-2">
+                              <label class="block mb-1 font-normal text-gray-700">Ghi chú</label>
+                              <input v-model="inv.note" type="text"
+                                class="w-full rounded border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500" />
+                              <span v-if="errors[`variants.${index}.inventory.${invIndex}.note`]"
+                                class="text-red-500 text-xs mt-1">{{
+                                  errors[`variants.${index}.inventory.${invIndex}.note`]
+                                }}</span>
+                            </div>
                           </div>
                           <button v-if="variant.inventory.length > 1" type="button"
-                            class="text-red-500 hover:text-red-700 text-xs mt-6"
+                            class="text-red-500 hover:text-red-700 text-xs mt-2"
                             @click="variant.inventory.splice(invIndex, 1)">
                             Xóa
                           </button>
                         </div>
                         <button type="button" class="text-blue-700 underline text-xs"
-                          @click="variant.inventory.push({ quantity: 0, location: '' })">
+                          @click="variant.inventory.push({ quantity: 0, location: '', batch_number: '', import_source: '', note: '' })">
                           Thêm kho
                         </button>
                       </div>
@@ -554,7 +591,7 @@ const formData = reactive({
       sale_price: null,
       cost_price: 0,
       attributes: [{ attribute_id: '', value_id: '' }],
-      inventory: [{ quantity: 0, location: '' }],
+      inventory: [{ quantity: 0, location: '', batch_number: '', import_source: '', note: '' }],
       thumbnail: null,
       thumbnailFile: null
     }
@@ -570,6 +607,7 @@ const panels = ref({
 const categories = ref([]);
 const tags = ref([]);
 const attributes = ref([]);
+
 // Extract array from various API response formats
 const extractArray = (data, key) => {
   if (Array.isArray(data)) return data;
@@ -599,7 +637,6 @@ const fetchCategories = async () => {
     } else {
       throw new Error('Unexpected response format for categories');
       console.log();
-
     }
   } catch (error) {
     console.error('Error fetching categories:', error);
@@ -840,7 +877,7 @@ const addVariant = () => {
     sale_price: null,
     cost_price: 0,
     attributes: [{ attribute_id: '', value_id: '' }],
-    inventory: [{ quantity: 0, location: '' }],
+    inventory: [{ quantity: 0, location: '', batch_number: '', import_source: '', note: '' }],
     thumbnail: null,
     thumbnailFile: null,
   });
@@ -873,6 +910,7 @@ const toggleTag = (tag) => {
     formData.tags.splice(index, 1);
   }
 };
+
 // Form validation
 const validateFormData = () => {
   Object.keys(errors).forEach(key => delete errors[key]);
@@ -891,6 +929,7 @@ const validateFormData = () => {
     errors.slug = 'Slug không được vượt quá 255 ký tự.';
     isValid = false;
   }
+
   formData.variants.forEach((variant, index) => {
     const attrIds = variant.attributes.map(attr => attr.attribute_id).filter(Boolean);
     const duplicateAttr = attrIds.length !== new Set(attrIds).size;
@@ -921,7 +960,43 @@ const validateFormData = () => {
       isValid = false;
     }
 
+    variant.inventory.forEach((inv, invIndex) => {
+      if (!Number.isFinite(inv.quantity) || inv.quantity < 0) {
+        errors[`variants.${index}.inventory.${invIndex}.quantity`] = 'Số lượng phải là số nguyên không âm.';
+        isValid = false;
+      }
+      if (inv.location && inv.location.length > 255) {
+        errors[`variants.${index}.inventory.${invIndex}.location`] = 'Vị trí không được vượt quá 255 ký tự.';
+        isValid = false;
+      }
+      if (inv.batch_number && inv.batch_number.length > 255) {
+        errors[`variants.${index}.inventory.${invIndex}.batch_number`] = 'Mã lô không được vượt quá 255 ký tự.';
+        isValid = false;
+      }
+      if (inv.import_source && inv.import_source.length > 255) {
+        errors[`variants.${index}.inventory.${invIndex}.import_source`] = 'Nguồn nhập không được vượt quá 255 ký tự.';
+        isValid = false;
+      }
+      if (inv.note && inv.note.length > 255) {
+        errors[`variants.${index}.inventory.${invIndex}.note`] = 'Ghi chú không được vượt quá 255 ký tự.';
+        isValid = false;
+      }
+    });
+
+    // Kiểm tra trùng lặp tổ hợp location và batch_number
+    const inventoryCombinations = variant.inventory.map(inv => `${inv.location || ''}|${inv.batch_number || ''}`).filter(Boolean);
+    if (inventoryCombinations.length > 1 && new Set(inventoryCombinations).size !== inventoryCombinations.length) {
+      variant.inventory.forEach((inv, invIndex) => {
+        const combination = `${inv.location || ''}|${inv.batch_number || ''}`;
+        if (inventoryCombinations.filter(c => c === combination).length > 1) {
+          errors[`variants.${index}.inventory.${invIndex}.location`] = 'Tổ hợp vị trí và mã lô này đã được sử dụng trong biến thể.';
+          errors[`variants.${index}.inventory.${invIndex}.batch_number`] = 'Tổ hợp vị trí và mã lô này đã được sử dụng trong biến thể.';
+          isValid = false;
+        }
+      });
+    }
   });
+
   const attributeSets = formData.variants.map((variant, index) => ({
     index: index,
     attributes: variant.attributes
@@ -956,6 +1031,7 @@ const createProduct = async () => {
   if (formData.slug) formDataToSend.append('slug', formData.slug.trim());
   formDataToSend.append('description', formData.description.trim());
   formDataToSend.append('status', formData.status);
+
   // Append categories as individual elements
   formData.categories.forEach(categoryId => {
     formDataToSend.append('categories[]', categoryId);
@@ -965,7 +1041,7 @@ const createProduct = async () => {
   formData.tags.forEach(tagId => {
     formDataToSend.append('tags[]', tagId);
   });
-  
+
   // Only include variants with valid data
   const validVariants = formData.variants.filter(variant =>
     variant.price !== null && Number.isFinite(variant.price) && variant.cost_price !== null && Number.isFinite(variant.cost_price)
@@ -994,6 +1070,15 @@ const createProduct = async () => {
       if (inv.location && inv.location.trim()) {
         formDataToSend.append(`variants[${index}][inventory][${i}][location]`, inv.location.trim());
       }
+      if (inv.batch_number && inv.batch_number.trim()) {
+        formDataToSend.append(`variants[${index}][inventory][${i}][batch_number]`, inv.batch_number.trim());
+      }
+      if (inv.import_source && inv.import_source.trim()) {
+        formDataToSend.append(`variants[${index}][inventory][${i}][import_source]`, inv.import_source.trim());
+      }
+      if (inv.note && inv.note.trim()) {
+        formDataToSend.append(`variants[${index}][inventory][${i}][note]`, inv.note.trim());
+      }
     });
 
     if (variant.thumbnailFile) {
@@ -1004,7 +1089,7 @@ const createProduct = async () => {
   formData.images.forEach((img, index) => {
     formDataToSend.append(`images[${index}]`, img.file);
   });
-  
+
   try {
     loading.value = true;
     console.log('Sending product creation request with payload:');
@@ -1015,10 +1100,10 @@ const createProduct = async () => {
     const response = await fetch(`${apiBase}/products`, {
       method: 'POST',
       body: formDataToSend,
-      headers: { 
+      headers: {
         Accept: 'application/json',
         Authorization: `Bearer ${token}`
-       }
+      }
     });
     const data = await response.json();
     console.log('Product creation response:', data);
@@ -1041,6 +1126,7 @@ const createProduct = async () => {
     loading.value = false;
   }
 };
+
 // Panel toggle
 const togglePanel = (panel) => {
   panels.value[panel] = !panels.value[panel];
@@ -1084,7 +1170,6 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
-  
   document.removeEventListener('click', closeDropdowns);
 });
 </script>

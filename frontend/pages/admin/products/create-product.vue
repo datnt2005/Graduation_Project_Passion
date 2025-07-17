@@ -225,33 +225,70 @@
                     <div v-if="activeTab === 'inventory'">
                       <div v-for="(variant, index) in formData.variants" :key="index" class="border p-4 rounded mb-4">
                         <h3 class="font-semibold mb-2">Biến thể {{ index + 1 }}</h3>
-                        <div v-for="(inv, invIndex) in variant.inventory" :key="invIndex" class="flex space-x-2 mb-2">
-                          <div class="flex-1">
-                            <label class="block mb-1 font-normal text-gray-700">Số lượng</label>
-                            <input v-model.number="inv.quantity" type="number" min="0"
-                              class="w-full rounded border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500" />
-                            <span v-if="errors[`variants.${index}.inventory.${invIndex}.quantity`]"
-                              class="text-red-500 text-xs mt-1">{{
-                                errors[`variants.${index}.inventory.${invIndex}.quantity`]
-                              }}</span>
-                          </div>
-                          <div class="flex-1">
-                            <label class="block mb-1 font-normal text-gray-700">Vị trí</label>
-                            <input v-model="inv.location" type="text"
-                              class="w-full rounded border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500" />
-                            <span v-if="errors[`variants.${index}.inventory.${invIndex}.location`]"
-                              class="text-red-500 text-xs mt-1">{{
-                                errors[`variants.${index}.inventory.${invIndex}.location`]
-                              }}</span>
+                        <span v-if="errors[`variants.${index}.inventory`]" class="text-red-500 text-xs mb-2 block">{{
+                          errors[`variants.${index}.inventory`]
+                        }}</span>
+                        <div v-for="(inv, invIndex) in variant.inventory" :key="invIndex" class="space-y-2 mb-4">
+                          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Số lượng -->
+                            <div class="flex-1">
+                              <label class="block mb-1 font-normal text-gray-700">Số lượng</label>
+                              <input v-model.number="inv.quantity" type="number" min="0"
+                                class="w-full rounded border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500" />
+                              <span v-if="errors[`variants.${index}.inventory.${invIndex}.quantity`]"
+                                class="text-red-500 text-xs mt-1">{{
+                                  errors[`variants.${index}.inventory.${invIndex}.quantity`]
+                                }}</span>
+                            </div>
+                            <!-- Vị trí -->
+                            <div class="flex-1">
+                              <label class="block mb-1 font-normal text-gray-700">Vị trí</label>
+                              <input v-model="inv.location" type="text"
+                                class="w-full rounded border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500" />
+                              <span v-if="errors[`variants.${index}.inventory.${invIndex}.location`]"
+                                class="text-red-500 text-xs mt-1">{{
+                                  errors[`variants.${index}.inventory.${invIndex}.location`]
+                                }}</span>
+                            </div>
+                            <!-- Mã lô -->
+                            <div class="flex-1">
+                              <label class="block mb-1 font-normal text-gray-700">Mã lô</label>
+                              <input v-model="inv.batch_number" type="text"
+                                class="w-full rounded border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500" />
+                              <span v-if="errors[`variants.${index}.inventory.${invIndex}.batch_number`]"
+                                class="text-red-500 text-xs mt-1">{{
+                                  errors[`variants.${index}.inventory.${invIndex}.batch_number`]
+                                }}</span>
+                            </div>
+                            <!-- Nguồn nhập -->
+                            <div class="flex-1">
+                              <label class="block mb-1 font-normal text-gray-700">Nguồn nhập</label>
+                              <input v-model="inv.import_source" type="text"
+                                class="w-full rounded border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500" />
+                              <span v-if="errors[`variants.${index}.inventory.${invIndex}.import_source`]"
+                                class="text-red-500 text-xs mt-1">{{
+                                  errors[`variants.${index}.inventory.${invIndex}.import_source`]
+                                }}</span>
+                            </div>
+                            <!-- Ghi chú -->
+                            <div class="flex-1 md:col-span-2">
+                              <label class="block mb-1 font-normal text-gray-700">Ghi chú</label>
+                              <input v-model="inv.note" type="text"
+                                class="w-full rounded border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500" />
+                              <span v-if="errors[`variants.${index}.inventory.${invIndex}.note`]"
+                                class="text-red-500 text-xs mt-1">{{
+                                  errors[`variants.${index}.inventory.${invIndex}.note`]
+                                }}</span>
+                            </div>
                           </div>
                           <button v-if="variant.inventory.length > 1" type="button"
-                            class="text-red-500 hover:text-red-700 text-xs mt-6"
+                            class="text-red-500 hover:text-red-700 text-xs mt-2"
                             @click="variant.inventory.splice(invIndex, 1)">
                             Xóa
                           </button>
                         </div>
                         <button type="button" class="text-blue-700 underline text-xs"
-                          @click="variant.inventory.push({ quantity: 0, location: '' })">
+                          @click="variant.inventory.push({ quantity: 0, location: '', batch_number: '', import_source: '', note: '' })">
                           Thêm kho
                         </button>
                       </div>
@@ -319,7 +356,7 @@
                   <div v-else-if="!categories.length" class="text-gray-500 text-xs mb-2">
                     Không có danh mục nào để hiển thị.
                   </div>
-                  <div v-else class="relative mb-3">
+                  <div class="relative mb-3">
                     <input v-model="categorySearch" type="text" placeholder="Tìm danh mục..."
                       class="w-full rounded border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                       @focus="activeDropdown = 'categories'" />
@@ -341,7 +378,7 @@
                   <div v-if="formData.categories.length" class="flex flex-wrap gap-1.5">
                     <div v-for="categoryId in formData.categories" :key="categoryId"
                       class="bg-gray-100 px-1.5 py-0.5 rounded flex items-center gap-1">
-                      <span class="text-xs">{{categories.find(c => c.id === categoryId)?.name || 'Danh mục không xác định' }}</span>
+                      <span class="text-xs">{{ categories.find(c => c.id === categoryId)?.name || 'Danh mục không xác định' }}</span>
                       <button @click="toggleCategory(categories.find(c => c.id === categoryId))"
                         class="text-gray-500 hover:text-gray-700 text-xs">
                         ×
@@ -367,7 +404,7 @@
                   <div v-else-if="!tags.length" class="text-gray-500 text-xs mb-2">
                     Không có thẻ nào để hiển thị.
                   </div>
-                  <div v-else class="relative mb-3">
+                  <div class="relative mb-3">
                     <input v-model="tagSearch" type="text" placeholder="Tìm thẻ..."
                       class="w-full rounded border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                       @focus="activeDropdown = 'tags'" />
@@ -388,7 +425,7 @@
                   <div v-if="formData.tags.length" class="flex flex-wrap gap-1.5">
                     <div v-for="tagId in formData.tags" :key="tagId"
                       class="bg-gray-100 px-1.5 py-0.5 rounded flex items-center gap-1">
-                      <span class="text-xs">{{tags.find(t => t.id === tagId)?.name || 'Thẻ không xác định'}}</span>
+                      <span class="text-xs">{{ tags.find(t => t.id === tagId)?.name || 'Thẻ không xác định' }}</span>
                       <button @click="toggleTag(tags.find(t => t.id === tagId))"
                         class="text-gray-500 hover:text-gray-700 text-xs">
                         ×
@@ -415,7 +452,7 @@
                   <div v-else-if="!sellers.length" class="text-gray-500 text-xs mb-2">
                     Không có người bán nào để hiển thị.
                   </div>
-                  <div v-else class="relative mb-3">
+                  <div class="relative mb-3">
                     <select v-model="formData.sellers"
                       class="w-full rounded border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                       @change="selectSeller">
@@ -536,7 +573,7 @@ import { useRouter } from 'vue-router';
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
 import { library } from '@fortawesome/fontawesome-svg-core';
 import { faChevronUp, faChevronDown } from '@fortawesome/free-solid-svg-icons';
-import Editor from '@tinymce/tinymce-vue'
+import Editor from '@tinymce/tinymce-vue';
 
 library.add(faChevronUp, faChevronDown);
 
@@ -553,7 +590,6 @@ const notificationType = ref('success');
 const activeDropdown = ref(null);
 const categorySearch = ref('');
 const tagSearch = ref('');
-const sellerSearch = ref(''); // Không cần nữa vì dùng select
 const errors = reactive({});
 const fileInput = ref(null);
 const config = useRuntimeConfig();
@@ -587,7 +623,7 @@ const formData = reactive({
       sale_price: null,
       cost_price: 0,
       attributes: [{ attribute_id: '', value_id: '' }],
-      inventory: [{ quantity: 0, location: '' }],
+      inventory: [{ quantity: 0, location: '', batch_number: '', import_source: '', note: '' }],
       thumbnail: null,
       thumbnailFile: null
     }
@@ -623,7 +659,6 @@ const fetchCategories = async () => {
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     const data = await response.json();
-    console.log('Categories API response:', data);
     const categoryArray = data?.data?.data || [];
     if (categoryArray.length) {
       categories.value = categoryArray.map(item => ({
@@ -631,11 +666,8 @@ const fetchCategories = async () => {
         name: item.name || item.title || 'Không có tên'
       }));
       apiErrors.categories = null;
-      console.log('Processed categories:', categories.value);
     } else {
       throw new Error('Unexpected response format for categories');
-      console.log();
-
     }
   } catch (error) {
     console.error('Error fetching categories:', error);
@@ -649,7 +681,6 @@ const fetchTags = async () => {
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     const data = await response.json();
-    console.log('Tags API response:', data);
     const tagArray = extractArray(data, 'tags');
     if (tagArray.length) {
       tags.value = tagArray.map(item => ({
@@ -657,7 +688,6 @@ const fetchTags = async () => {
         name: item.name || item.title || 'Không có tên'
       }));
       apiErrors.tags = null;
-      console.log('Processed tags:', tags.value);
     } else {
       throw new Error('Unexpected response format for tags');
     }
@@ -665,6 +695,7 @@ const fetchTags = async () => {
     console.error('Error fetching tags:', error);
   }
 };
+
 const fetchSellers = async () => {
   try {
     const response = await fetch(`${apiBase}/sellers/verified`, {
@@ -678,7 +709,6 @@ const fetchSellers = async () => {
         id: item.id,
         store_name: item.store_name || item.title || 'Không có tên'
       }));
-      // Thêm option "Passion" cho Admin
       sellers.value.unshift({ id: 'passion', store_name: 'Passion (Admin)' });
       apiErrors.sellers = null;
     } else {
@@ -696,7 +726,6 @@ const fetchAttributes = async () => {
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     const data = await response.json();
-    console.log('Attributes API response:', data);
     const attributeArray = extractArray(data, 'data');
     if (attributeArray.length) {
       attributes.value = attributeArray.map(attr => ({
@@ -704,13 +733,12 @@ const fetchAttributes = async () => {
         name: attr.name || attr.title || 'Không có tên',
         values: Array.isArray(attr.values)
           ? attr.values.map(val => ({
-            id: val.id,
-            name: val.value || val.name || 'Không có giá trị'
-          }))
+              id: val.id,
+              name: val.value || val.name || 'Không có giá trị'
+            }))
           : []
       }));
       apiErrors.attributes = null;
-      console.log('Processed attributes:', attributes.value);
     } else {
       throw new Error('Unexpected response format for attributes');
     }
@@ -722,7 +750,6 @@ const fetchAttributes = async () => {
 
 // Create new attribute
 const createAttribute = async () => {
-  // Validate form
   Object.keys(newAttributeErrors).forEach(key => delete newAttributeErrors[key]);
   let isValid = true;
 
@@ -748,7 +775,6 @@ const createAttribute = async () => {
 
   if (!isValid) return;
 
-  // Prepare data
   const attributeData = {
     name: newAttribute.name.trim(),
     values: trimmedValues.map(value => ({ value }))
@@ -756,7 +782,6 @@ const createAttribute = async () => {
 
   try {
     loading.value = true;
-    console.log('Sending attribute data:', attributeData);
     const response = await fetch(`${apiBase}/attributes`, {
       method: 'POST',
       headers: {
@@ -767,19 +792,16 @@ const createAttribute = async () => {
     });
 
     const data = await response.json();
-    console.log('Attribute creation response:', data);
-
     if (response.ok && data.success) {
-      // Add new attribute to list
       const newAttr = data.data || data;
       attributes.value.push({
         id: newAttr.id,
         name: newAttr.name,
         values: Array.isArray(newAttr.values)
           ? newAttr.values.map(val => ({
-            id: val.id,
-            name: val.value
-          }))
+              id: val.id,
+              name: val.value
+            }))
           : []
       });
       showNotificationMessage('Tạo thuộc tính thành công!', 'success');
@@ -800,7 +822,6 @@ const createAttribute = async () => {
   }
 };
 
-// Close attribute modal
 const closeAddAttributeModal = () => {
   showAddAttributeModal.value = false;
   newAttribute.name = '';
@@ -824,14 +845,6 @@ const filteredTags = computed(() => {
     removeVietnameseTones(tag.name.toLowerCase()).includes(searchTerm)
   );
 });
-
-const filteredSellers = computed(() => {
-  if (!sellerSearch.value) return sellers.value;
-  const searchTerm = removeVietnameseTones(sellerSearch.value.toLowerCase());
-  return sellers.value.filter(seller =>
-    removeVietnameseTones(seller.store_name.toLowerCase()).includes(searchTerm)
-  );
-})
 
 const getAttributeValues = (attributeId) => {
   const attribute = attributes.value.find(a => a.id === attributeId);
@@ -907,7 +920,7 @@ const addVariant = () => {
     sale_price: null,
     cost_price: 0,
     attributes: [{ attribute_id: '', value_id: '' }],
-    inventory: [{ quantity: 0, location: '' }],
+    inventory: [{ quantity: 0, location: '', batch_number: '', import_source: '', note: '' }],
     thumbnail: null,
     thumbnailFile: null,
   });
@@ -940,12 +953,12 @@ const toggleTag = (tag) => {
     formData.tags.splice(index, 1);
   }
 };
+
 const selectSeller = (event) => {
-  formData.sellers = event.target.value; // Chỉ giữ một giá trị
+  formData.sellers = event.target.value;
   if (!formData.sellers) errors.sellers = 'Vui lòng chọn người bán.';
   else delete errors.sellers;
 };
-
 
 // Form validation
 const validateFormData = () => {
@@ -970,11 +983,6 @@ const validateFormData = () => {
     errors.sellers = 'Vui lòng chọn người bán.';
     isValid = false;
   }
-
-  // if (!formData.variants.length) {
-  //   errors.variants = 'Phải có ít nhất một biến thể.';
-  //   isValid = false;
-  // }
 
   formData.variants.forEach((variant, index) => {
     const attrIds = variant.attributes.map(attr => attr.attribute_id).filter(Boolean);
@@ -1006,7 +1014,43 @@ const validateFormData = () => {
       isValid = false;
     }
 
+    variant.inventory.forEach((inv, invIndex) => {
+      if (!Number.isFinite(inv.quantity) || inv.quantity < 0) {
+        errors[`variants.${index}.inventory.${invIndex}.quantity`] = 'Số lượng phải là số nguyên không âm.';
+        isValid = false;
+      }
+      if (inv.location && inv.location.length > 255) {
+        errors[`variants.${index}.inventory.${invIndex}.location`] = 'Vị trí không được vượt quá 255 ký tự.';
+        isValid = false;
+      }
+      if (inv.batch_number && inv.batch_number.length > 255) {
+        errors[`variants.${index}.inventory.${invIndex}.batch_number`] = 'Mã lô không được vượt quá 255 ký tự.';
+        isValid = false;
+      }
+      if (inv.import_source && inv.import_source.length > 255) {
+        errors[`variants.${index}.inventory.${invIndex}.import_source`] = 'Nguồn nhập không được vượt quá 255 ký tự.';
+        isValid = false;
+      }
+      if (inv.note && inv.note.length > 255) {
+        errors[`variants.${index}.inventory.${invIndex}.note`] = 'Ghi chú không được vượt quá 255 ký tự.';
+        isValid = false;
+      }
+    });
+
+    // Kiểm tra trùng lặp tổ hợp location và batch_number
+    const inventoryCombinations = variant.inventory.map(inv => `${inv.location || ''}|${inv.batch_number || ''}`).filter(Boolean);
+    if (inventoryCombinations.length > 1 && new Set(inventoryCombinations).size !== inventoryCombinations.length) {
+      variant.inventory.forEach((inv, invIndex) => {
+        const combination = `${inv.location || ''}|${inv.batch_number || ''}`;
+        if (inventoryCombinations.filter(c => c === combination).length > 1) {
+          errors[`variants.${index}.inventory.${invIndex}.location`] = 'Tổ hợp vị trí và mã lô này đã được sử dụng trong biến thể.';
+          errors[`variants.${index}.inventory.${invIndex}.batch_number`] = 'Tổ hợp vị trí và mã lô này đã được sử dụng trong biến thể.';
+          isValid = false;
+        }
+      });
+    }
   });
+
   const attributeSets = formData.variants.map((variant, index) => ({
     index: index,
     attributes: variant.attributes
@@ -1041,18 +1085,16 @@ const createProduct = async () => {
   if (formData.slug) formDataToSend.append('slug', formData.slug.trim());
   formDataToSend.append('description', formData.description.trim());
   formDataToSend.append('status', formData.status);
-  formDataToSend.append('sellers', formData.sellers)
-  // Append categories as individual elements
+  formDataToSend.append('sellers', formData.sellers);
+
   formData.categories.forEach(categoryId => {
     formDataToSend.append('categories[]', categoryId);
   });
 
-  // Append tags as individual elements
   formData.tags.forEach(tagId => {
     formDataToSend.append('tags[]', tagId);
   });
-  
-  // Only include variants with valid data
+
   const validVariants = formData.variants.filter(variant =>
     variant.price !== null && Number.isFinite(variant.price) && variant.cost_price !== null && Number.isFinite(variant.cost_price)
   );
@@ -1064,7 +1106,6 @@ const createProduct = async () => {
     }
     formDataToSend.append(`variants[${index}][cost_price]`, variant.cost_price.toFixed(2));
 
-    // Only include valid attributes
     const validAttributes = variant.attributes.filter(attr => attr.attribute_id && attr.value_id);
     if (validAttributes.length > 0) {
       validAttributes.forEach((attr, i) => {
@@ -1073,12 +1114,20 @@ const createProduct = async () => {
       });
     }
 
-    // Only include valid inventory
     const validInventory = variant.inventory.filter(inv => Number.isFinite(inv.quantity) && inv.quantity >= 0);
     validInventory.forEach((inv, i) => {
       formDataToSend.append(`variants[${index}][inventory][${i}][quantity]`, inv.quantity);
       if (inv.location && inv.location.trim()) {
         formDataToSend.append(`variants[${index}][inventory][${i}][location]`, inv.location.trim());
+      }
+      if (inv.batch_number && inv.batch_number.trim()) {
+        formDataToSend.append(`variants[${index}][inventory][${i}][batch_number]`, inv.batch_number.trim());
+      }
+      if (inv.import_source && inv.import_source.trim()) {
+        formDataToSend.append(`variants[${index}][inventory][${i}][import_source]`, inv.import_source.trim());
+      }
+      if (inv.note && inv.note.trim()) {
+        formDataToSend.append(`variants[${index}][inventory][${i}][note]`, inv.note.trim());
       }
     });
 
@@ -1090,7 +1139,7 @@ const createProduct = async () => {
   formData.images.forEach((img, index) => {
     formDataToSend.append(`images[${index}]`, img.file);
   });
-  
+
   try {
     loading.value = true;
     console.log('Sending product creation request with payload:');
@@ -1101,10 +1150,10 @@ const createProduct = async () => {
     const response = await fetch(`${apiBase}/products`, {
       method: 'POST',
       body: formDataToSend,
-      headers: { 
+      headers: {
         Accept: 'application/json',
         Authorization: `Bearer ${token}`
-       }
+      }
     });
     const data = await response.json();
     console.log('Product creation response:', data);
@@ -1127,6 +1176,7 @@ const createProduct = async () => {
     loading.value = false;
   }
 };
+
 // Panel toggle
 const togglePanel = (panel) => {
   panels.value[panel] = !panels.value[panel];
@@ -1160,7 +1210,7 @@ onMounted(async () => {
     console.warn('Runtime config not available, using fallback API base:', apiBase);
   }
   await Promise.allSettled([fetchCategories(), fetchTags(), fetchAttributes(), fetchSellers()]).then(([catResult, tagResult, attrResult, sellerResult]) => {
-    console.log('Fetch results:', { catResult, tagResult, attrResult });
+    console.log('Fetch results:', { catResult, tagResult, attrResult, sellerResult });
     console.log('API Errors after fetch:', apiErrors);
     console.log('Categories:', categories.value.length);
     console.log('Tags:', tags.value.length);
@@ -1171,7 +1221,6 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
-  
   document.removeEventListener('click', closeDropdowns);
 });
 </script>
