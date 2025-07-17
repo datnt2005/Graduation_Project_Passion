@@ -4,13 +4,16 @@ type SecureFetchOptions = RequestInit & {
   headers?: Record<string, string>
 }
 
-const apiBaseUrl = useRuntimeConfig().public.apiBaseUrl
 
 export async function secureFetch(
   apiUrl: string,
   fetchOptions: SecureFetchOptions = {},
   allowedRoles: string[] = []
 ): Promise<Response> {
+    const config = useRuntimeConfig() // ✅ Gọi ở đây
+  const apiBaseUrl = config.public.apiBaseUrl
+
+
   const token = localStorage.getItem('access_token')
   if (!token) {
     await navigateTo('/unauthorized', { replace: true })

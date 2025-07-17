@@ -15,7 +15,7 @@ export default defineNuxtConfig({
 
   plugins: ['~/plugins/fontawesome'],
 
-  devtools: { enabled: true }, // ✅ bật devtools tại đây
+  devtools: { enabled: false }, // ✅ bật devtools tại đây
 
   postcss: {
     plugins: {
