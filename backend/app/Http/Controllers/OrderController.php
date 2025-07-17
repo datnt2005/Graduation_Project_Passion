@@ -19,11 +19,14 @@ use App\Models\Address;
 use App\Services\GHNService;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Mail\WarningEmail;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
+use App\Mail\WarningRejectedOrder;
 use App\Mail\OrderStatusUpdatedMail;
 use App\Mail\OrderSuccessMail;
 use Illuminate\Support\Facades\Mail;
@@ -180,7 +183,8 @@ class OrderController extends Controller
 
             // Cập nhật trạng thái đơn hàng
             $order->update([
-                'status' => $orderStatus
+                'status' => $orderStatus,
+                'failure_reason' => $order->failure_reason
             ]);
 
             if ($orderStatus === 'delivered' && !$order->payout_id) {
@@ -244,83 +248,83 @@ class OrderController extends Controller
     /**
      * Display a listing of the resource.
      */
-public function validateBuyNow(Request $request)
-{
-    try {
-        $validator = Validator::make($request->all(), [
-            'product_id' => 'required|exists:products,id',
-            'product_variant_id' => 'nullable|exists:product_variants,id',
-            'quantity' => 'required|integer|min:1',
-            'price' => 'required|numeric|min:0',
-        ], [
-            'product_id.required' => 'ID sản phẩm là bắt buộc',
-            'product_id.exists' => 'Sản phẩm không tồn tại',
-            'product_variant_id.exists' => 'Biến thể sản phẩm không tồn tại',
-            'quantity.required' => 'Số lượng là bắt buộc',
-            'quantity.integer' => 'Số lượng phải là số nguyên',
-            'quantity.min' => 'Số lượng phải lớn hơn 0',
-            'price.required' => 'Giá sản phẩm là bắt buộc',
-            'price.numeric' => 'Giá phải là số',
-            'price.min' => 'Giá phải lớn hơn hoặc bằng 0',
-        ]);
+    public function validateBuyNow(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'product_id' => 'required|exists:products,id',
+                'product_variant_id' => 'nullable|exists:product_variants,id',
+                'quantity' => 'required|integer|min:1',
+                'price' => 'required|numeric|min:0',
+            ], [
+                'product_id.required' => 'ID sản phẩm là bắt buộc',
+                'product_id.exists' => 'Sản phẩm không tồn tại',
+                'product_variant_id.exists' => 'Biến thể sản phẩm không tồn tại',
+                'quantity.required' => 'Số lượng là bắt buộc',
+                'quantity.integer' => 'Số lượng phải là số nguyên',
+                'quantity.min' => 'Số lượng phải lớn hơn 0',
+                'price.required' => 'Giá sản phẩm là bắt buộc',
+                'price.numeric' => 'Giá phải là số',
+                'price.min' => 'Giá phải lớn hơn hoặc bằng 0',
+            ]);
 
-        if ($validator->fails()) {
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Dữ liệu không hợp lệ',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            // Lấy dữ liệu sản phẩm
+            $product = Product::find($request->product_id);
+            $variant = $request->product_variant_id ? ProductVariant::find($request->product_variant_id) : null;
+
+            // Validate biến thể
+            if ($request->product_variant_id && !$variant) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Biến thể sản phẩm không tồn tại'
+                ], 404);
+            }
+
+            // Kiểm tra giá
+            $actualPrice = $variant ? ($variant->sale_price ?? $variant->price ?? 0) : ($variant->sale_price ?? $variant->price ?? 0);
+            if ($actualPrice <= 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Sản phẩm không có giá hợp lệ trong cơ sở dữ liệu'
+                ], 400);
+            }
+
+            if (abs($actualPrice - $request->price) > 0.01) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Giá sản phẩm không khớp với dữ liệu server'
+                ], 400);
+            }
+
+            // Kiểm tra tồn kho
+            $stock = $variant ? $variant->quantity : $product->quantity;
+            if ($request->quantity > $stock) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Số lượng vượt quá tồn kho ($stock)"
+                ], 400);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Dữ liệu buy now hợp lệ'
+            ], 200);
+        } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Dữ liệu không hợp lệ',
-                'errors' => $validator->errors()
-            ], 422);
+                'message' => 'Có lỗi xảy ra khi validate dữ liệu buy now',
+                'error' => $e->getMessage()
+            ], 500);
         }
-
-        // Lấy dữ liệu sản phẩm
-        $product = Product::find($request->product_id);
-        $variant = $request->product_variant_id ? ProductVariant::find($request->product_variant_id) : null;
-
-        // Validate biến thể
-        if ($request->product_variant_id && !$variant) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Biến thể sản phẩm không tồn tại'
-            ], 404);
-        }
-
-        // Kiểm tra giá
-        $actualPrice = $variant ? ($variant->sale_price ?? $variant->price ?? 0) : ($variant->sale_price ?? $variant->price ?? 0);
-        if ($actualPrice <= 0) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Sản phẩm không có giá hợp lệ trong cơ sở dữ liệu'
-            ], 400);
-        }
-
-        if (abs($actualPrice - $request->price) > 0.01) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Giá sản phẩm không khớp với dữ liệu server'
-            ], 400);
-        }
-
-        // Kiểm tra tồn kho
-        $stock = $variant ? $variant->quantity : $product->quantity;
-        if ($request->quantity > $stock) {
-            return response()->json([
-                'success' => false,
-                'message' => "Số lượng vượt quá tồn kho ($stock)"
-            ], 400);
-        }
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Dữ liệu buy now hợp lệ'
-        ], 200);
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Có lỗi xảy ra khi validate dữ liệu buy now',
-            'error' => $e->getMessage()
-        ], 500);
     }
-}
     public function index(Request $request)
     {
         try {
@@ -331,8 +335,8 @@ public function validateBuyNow(Request $request)
                 'address',
                 'payments.paymentMethod',
                 'shipping',
-                'refund', // Thêm quan hệ refund
-                'payout' // Thêm quan hệ payout
+                'refund',
+                'payout'
             ]);
 
             // Lọc theo trạng thái
@@ -412,10 +416,15 @@ public function validateBuyNow(Request $request)
                             'id' => $order->address->id,
                             'address' => $order->address->address,
                             'phone' => $order->address->phone,
+                            'province_id' => $order->address->province_id,
+                            'district_id' => $order->address->district_id,
+                            'ward_code' => $order->address->ward_code,
+                            'detail' => $order->address->detail,
                         ] : null,
                         'note' => $order->note ?? '',
                         'status' => $order->status,
-                        'can_delete' => in_array($order->status, ['pending', 'cancelled']),
+                        'failure_reason' => $order->failure_reason ?? null,
+                        'can_delete' => in_array($order->status, ['pending', 'cancelled', 'failed', 'failed_delivery', 'rejected_by_customer']),
                         'total_price' => (float)$order->total_price,
                         'discount_price' => (float)$order->discount_price,
                         'final_price' => (float)$order->final_price,
@@ -470,7 +479,7 @@ public function validateBuyNow(Request $request)
                 ],
             ]);
         } catch (\Exception $e) {
-            Log::error('Order index error: ' . $e->getMessage(), [
+            Log::error('Lỗi lấy danh sách đơn hàng: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
                 'request' => $request->all(),
             ]);
@@ -485,19 +494,85 @@ public function validateBuyNow(Request $request)
     /**
      * Store a newly created resource in storage.
      */
+    public function checkCodEligibility(Request $request)
+    {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['message' => 'Bạn cần đăng nhập để kiểm tra.'], 401);
+        }
+
+        $rejectedOrdersCount = Order::where('user_id', $user->id)
+            ->where('status', 'rejected_by_customer')
+            ->count();
+
+        Log::debug('COD eligibility and account status check', [
+            'user_id' => $user->id,
+            'rejected_orders_count' => $rejectedOrdersCount,
+            'orders' => Order::where('user_id', $user->id)
+                ->where('status', 'rejected_by_customer')
+                ->pluck('id')
+                ->toArray(),
+            'account_status' => $user->status,
+        ]);
+
+        if ($rejectedOrdersCount >= 3 && $user->status !== 'banned') {
+            $user->status = 'banned';
+            $user->save();
+            Log::info('User account banned', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'rejected_orders_count' => $rejectedOrdersCount,
+            ]);
+        }
+
+        return response()->json([
+            'can_use_cod' => $rejectedOrdersCount < 2,
+            'is_account_banned' => $user->status === 'banned',
+            'message' => $user->status === 'banned'
+                ? 'Tài khoản của bạn đã bị khóa do có quá nhiều đơn hàng bị từ chối nhận.'
+                : ($rejectedOrdersCount >= 2
+                    ? 'Bạn không thể sử dụng phương thức thanh toán COD vì có
+
+ quá nhiều đơn hàng bị từ chối nhận.'
+                    : 'Bạn có thể sử dụng phương thức thanh toán COD.')
+        ], 200);
+    }
+
     public function store(Request $request)
     {
-        // Debug logging
+        if (!$request->user()) {
+            return response()->json(['message' => 'Bạn cần đăng nhập để đặt hàng.'], 401);
+        }
+
+        if ($request->user()->status === 'banned') {
+            return response()->json([
+                'message' => 'Tài khoản của bạn đã bị khóa do có quá nhiều đơn hàng bị từ chối nhận.',
+                'is_account_banned' => true
+            ], 403);
+        }
+
         Log::info('Order store request', [
             'request_data' => $request->all(),
-            'user_id' => $request->user_id,
+            'user_id' => $request->user()->id,
             'items_count' => count($request->items ?? []),
             'payment_method' => $request->payment_method,
             'service_id' => $request->service_id,
         ]);
 
+        if ($request->payment_method === 'COD') {
+            $rejectedOrdersCount = Order::where('user_id', $request->user()->id)
+                ->where('status', 'rejected_by_customer')
+                ->count();
+
+            if ($rejectedOrdersCount >= 2) {
+                return response()->json([
+                    'message' => 'Bạn không thể sử dụng phương thức thanh toán COD vì có quá nhiều đơn hàng bị từ chối nhận.',
+                    'can_use_cod' => false
+                ], 403);
+            }
+        }
+
         $request->validate([
-            'user_id' => 'required|exists:users,id',
             'discount_ids' => 'nullable|array',
             'discount_ids.*' => 'exists:discounts,id',
             'note' => 'nullable|string',
@@ -512,9 +587,7 @@ public function validateBuyNow(Request $request)
             'is_buy_now' => 'nullable|boolean',
             'skip_stock_check' => 'nullable|boolean',
         ], [
-            'user_id.required' => 'ID người dùng là bắt buộc',
-            'user_id.exists' => 'ID người dùng không tồn tại',
-            'discount_id.exists' => 'ID mã giảm giá không tồn tại',
+            'discount_ids.*.exists' => 'ID mã giảm giá không tồn tại',
             'items.required' => 'Danh sách sản phẩm là bắt buộc',
             'items.array' => 'Danh sách sản phẩm phải là một mảng',
             'items.min' => 'Phải có ít nhất một sản phẩm',
@@ -541,7 +614,6 @@ public function validateBuyNow(Request $request)
         try {
             DB::beginTransaction();
 
-            // 1. Validate dữ liệu sản phẩm
             $items = $request->items;
             $products = Product::whereIn('id', collect($items)->pluck('product_id'))->get()->keyBy('id');
             foreach ($items as $item) {
@@ -560,11 +632,9 @@ public function validateBuyNow(Request $request)
                     throw new \Exception('Giá sản phẩm không khớp: ' . $item['product_id']);
                 }
 
-                // Kiểm tra tồn kho - chỉ cho ProductVariant
                 if ($variant && !($request->skip_stock_check ?? false)) {
                     $stock = $variant->quantity ?? 0;
-                    
-                    // Debug logging
+
                     Log::info('Stock check for variant', [
                         'product_id' => $item['product_id'],
                         'variant_id' => $item['product_variant_id'],
@@ -576,7 +646,6 @@ public function validateBuyNow(Request $request)
                         throw new \Exception('Số lượng vượt quá tồn kho: ' . $item['product_id'] . ' (Có: ' . $stock . ', Yêu cầu: ' . $item['quantity'] . ')');
                     }
                 } else {
-                    // Nếu không có variant hoặc bỏ qua kiểm tra tồn kho
                     Log::info('Skipping stock check', [
                         'product_id' => $item['product_id'],
                         'requested_quantity' => $item['quantity'],
@@ -586,11 +655,10 @@ public function validateBuyNow(Request $request)
                 }
             }
 
-            // 2. Nhóm sản phẩm theo seller_id (bỏ qua nếu is_buy_now = true)
             $itemsBySeller = [];
             $isBuyNow = $request->is_buy_now ?? false;
             if ($isBuyNow) {
-                $itemsBySeller[0] = $items; // Giả lập seller_id = 0 cho buyNow
+                $itemsBySeller[0] = $items;
             } else {
                 foreach ($items as $item) {
                     $product = $products[$item['product_id']];
@@ -601,11 +669,10 @@ public function validateBuyNow(Request $request)
 
             $orders = [];
             foreach ($itemsBySeller as $sellerId => $sellerItems) {
-                // 3. Tạo order
                 $order = Order::create([
-                    'user_id' => $request->user_id,
+                    'user_id' => $request->user()->id,
                     'address_id' => $request->address_id,
-                    'discount_id' => null, // sẽ cập nhật sau nếu có mã shop/admin
+                    'discount_id' => null,
                     'note' => $request->note ?? '',
                     'status' => 'pending',
                     'total_price' => 0,
@@ -614,7 +681,6 @@ public function validateBuyNow(Request $request)
                     'is_buy_now' => $isBuyNow,
                 ]);
 
-                // 4. Tạo order_items
                 $totalPrice = 0;
                 foreach ($sellerItems as $item) {
                     OrderItem::create([
@@ -627,7 +693,6 @@ public function validateBuyNow(Request $request)
                     $totalPrice += $item['price'] * $item['quantity'];
                 }
 
-                // 5. Áp dụng discount (giống Shopee)
                 $discountPrice = 0;
                 $appliedDiscountId = null;
                 $shopDiscount = null;
@@ -638,7 +703,7 @@ public function validateBuyNow(Request $request)
                         $discount = Discount::find($did);
                         if (!$discount) continue;
                         if ($discount->discount_type === 'shipping_fee' && $discount->seller_id === null) {
-                            $shippingDiscount = $discount; // Chỉ lấy voucher phí ship admin
+                            $shippingDiscount = $discount;
                         } elseif ($discount->seller_id == $sellerId && ($discount->discount_type === 'percentage' || $discount->discount_type === 'fixed')) {
                             $shopDiscount = $discount;
                         } elseif ($discount->seller_id === null && ($discount->discount_type === 'percentage' || $discount->discount_type === 'fixed')) {
@@ -646,7 +711,7 @@ public function validateBuyNow(Request $request)
                         }
                     }
                 }
-                // Áp dụng mã shop nếu có, nếu không thì mã admin (chỉ 1 voucher sản phẩm mỗi shop)
+
                 $usedDiscount = $shopDiscount ?: $adminDiscount;
                 if ($usedDiscount) {
                     $discountPrice = $usedDiscount->discount_type === 'percentage'
@@ -655,15 +720,14 @@ public function validateBuyNow(Request $request)
                     $discountPrice = min($discountPrice, $totalPrice);
                     DiscountUser::create([
                         'discount_id' => $usedDiscount->id,
-                        'user_id' => $request->user_id,
+                        'user_id' => $request->user()->id,
                         'is_used' => true,
                     ]);
                     $order->discount_id = $usedDiscount->id;
                 }
-                // Tính final_price chỉ cho sản phẩm (không bao gồm phí ship)
+
                 $finalPrice = $totalPrice - $discountPrice;
 
-                // 6. Tạo shipping
                 $address = Address::find($request->address_id);
                 $shippingFee = 0;
                 $trackingCode = null;
@@ -676,14 +740,14 @@ public function validateBuyNow(Request $request)
                     $estimatedDelivery = $ghnOrder['expected_delivery_time'] ?? null;
                 } catch (\Exception $e) {
                     Log::warning('GHN API error: ' . $e->getMessage());
-                    $shippingFee = 30000; // 30,000 VND mặc định
+                    $shippingFee = 30000;
                 }
-                // Áp dụng mã phí ship admin nếu có
+
                 if ($shippingDiscount) {
                     $shippingFee = max(0, $shippingFee - $shippingDiscount->discount_value);
                     DiscountUser::create([
                         'discount_id' => $shippingDiscount->id,
-                        'user_id' => $request->user_id,
+                        'user_id' => $request->user()->id,
                         'is_used' => true,
                     ]);
                 }
@@ -701,29 +765,27 @@ public function validateBuyNow(Request $request)
                     'status' => 'pending',
                 ]);
 
-                // 7. Cập nhật order với final_price (chỉ sản phẩm) và tạo payment với tổng tiền (bao gồm phí ship)
                 $order->update([
                     'total_price' => $totalPrice,
                     'discount_price' => $discountPrice,
-                    'final_price' => $finalPrice, // Chỉ giá sản phẩm sau discount
-                    'discount_id' => $order->discount_id, // Đảm bảo luôn lưu discount_id
+                    'final_price' => $finalPrice,
+                    'discount_id' => $order->discount_id,
                 ]);
 
-                // 8. Tạo payment với tổng tiền bao gồm phí ship
                 $paymentMethod = PaymentMethod::firstOrCreate(
                     ['name' => $request->payment_method],
                     ['status' => 'active']
                 );
 
-                $totalPaymentAmount = $finalPrice + $shippingFee; // Tổng tiền thanh toán bao gồm phí ship
+                $totalPaymentAmount = $finalPrice + $shippingFee;
 
                 Payment::create([
                     'order_id' => $order->id,
                     'payment_method_id' => $paymentMethod->id,
-                    'amount' => $totalPaymentAmount, // Lưu tổng tiền thanh toán
+                    'amount' => $totalPaymentAmount,
                     'status' => 'pending'
                 ]);
-                // 9. Gửi mail xác nhận cho COD
+
                 if ($request->payment_method === 'COD' && $order->user && $order->user->email) {
                     try {
                         Mail::to($order->user->email)->send(new OrderSuccessMail($order));
@@ -755,10 +817,6 @@ public function validateBuyNow(Request $request)
         }
     }
 
-
-    /**
-     * Display the specified resource.
-     */
     public function show($id)
     {
         try {
@@ -774,10 +832,10 @@ public function validateBuyNow(Request $request)
                 ->where('user_id', $user->id)
                 ->firstOrFail();
 
-          return response()->json([
-            'success' => true,
-            'data' => $this->formatOrderResponse($order)
-        ], 200);
+            return response()->json([
+                'success' => true,
+                'data' => $this->formatOrderResponse($order)
+            ], 200);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             Log::error('Order not found', [
                 'order_id' => $id,
@@ -803,33 +861,77 @@ public function validateBuyNow(Request $request)
         }
     }
 
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, $id)
+   public function update(Request $request, $id)
     {
         try {
-            Log::info('Updating order', [
+            // Lấy payload thô từ request
+            $rawPayload = $request->getContent();
+            Log::info('Raw request payload', [
                 'order_id' => $id,
-                'request_data' => $request->all()
+                'raw_payload' => $rawPayload,
+                'parsed_payload' => $request->all(),
+                'request_failure_reason' => $request->input('failure_reason'),
+                'request_status' => $request->input('status')
             ]);
 
-            // Validate dữ liệu đầu vào
+            // Kiểm tra xem payload có phải JSON hợp lệ không
+            $jsonPayload = json_decode($rawPayload, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                Log::error('Lỗi phân tích JSON payload', [
+                    'order_id' => $id,
+                    'json_error' => json_last_error_msg(),
+                    'raw_payload' => $rawPayload
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Payload JSON không hợp lệ',
+                    'error' => json_last_error_msg()
+                ], 400);
+            }
+
+            // Tìm đơn hàng trước để log trạng thái hiện tại
+            $order = Order::find($id);
+            if (!$order) {
+                Log::warning('Đơn hàng không tồn tại', ['order_id' => $id]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Đơn hàng không tồn tại'
+                ], 404);
+            }
+
+            // Xác thực dữ liệu
             $validator = Validator::make($request->all(), [
-                'status' => 'required|string|in:pending,processing,shipped,delivered,cancelled',
-                'note' => 'nullable|string|max:500'
+                'status' => ['required', 'string', function ($attribute, $value, $fail) use ($order) {
+                    if (!$order->isValidStatus($value)) {
+                        $fail('Trạng thái không hợp lệ.');
+                    }
+                    if (!$order->canTransitionTo($value)) {
+                        $fail("Không thể chuyển trạng thái từ '{$order->status}' sang '$value'.");
+                    }
+                }],
+                'note' => 'nullable|string|max:500',
+                'failure_reason' => ['required_if:status,failed,failed_delivery,rejected_by_customer', 'string', 'max:255'],
+                'tracking_code' => ['required_if:status,shipping', 'nullable', 'string', 'regex:/^[A-Za-z0-9]{6}$/'],
             ], [
                 'status.required' => 'Trạng thái đơn hàng là bắt buộc',
                 'status.string' => 'Trạng thái đơn hàng phải là chuỗi',
-                'status.in' => 'Trạng thái đơn hàng không hợp lệ',
                 'note.string' => 'Ghi chú phải là chuỗi ký tự',
-                'note.max' => 'Ghi chú không được vượt quá 500 ký tự'
+                'note.max' => 'Ghi chú không được vượt quá 500 ký tự',
+                'failure_reason.required_if' => 'Lý do thất bại là bắt buộc khi trạng thái là giao thất bại, giao không thành công hoặc khách từ chối nhận',
+                'failure_reason.string' => 'Lý do thất bại phải là chuỗi',
+                'failure_reason.max' => 'Lý do thất bại không được vượt quá 255 ký tự',
+                'tracking_code.required_if' => 'Mã vận đơn là bắt buộc khi trạng thái là đang giao',
+                'tracking_code.string' => 'Mã vận đơn phải là chuỗi',
+                'tracking_code.regex' => 'Mã vận đơn phải gồm 6 ký tự chữ cái hoặc số',
             ]);
 
             if ($validator->fails()) {
-                Log::warning('Validation failed', [
-                    'errors' => $validator->errors()->toArray()
+                Log::warning('Xác thực thất bại', [
+                    'order_id' => $id,
+                    'current_status' => $order->status,
+                    'requested_status' => $request->input('status'),
+                    'errors' => $validator->errors()->toArray(),
+                    'payload' => $request->all()
                 ]);
                 return response()->json([
                     'success' => false,
@@ -838,93 +940,238 @@ public function validateBuyNow(Request $request)
                 ], 422);
             }
 
-            // Tìm đơn hàng
-            $order = Order::find($id);
-
-            // Kiểm tra nếu đơn hàng không tồn tại
-            if (!$order) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Không tìm thấy đơn hàng với ID: ' . $id
-                ], 404);
-            }
-
-            // Kiểm tra logic chuyển trạng thái
-            $currentStatus = $order->status;
-            $newStatus = $request->status;
-
-            Log::info('Status transition check', [
-                'current_status' => $currentStatus,
-                'new_status' => $newStatus
-            ]);
-
-            // Kiểm tra các quy tắc chuyển trạng thái
-            $validTransitions = [
-                'pending' => ['processing', 'cancelled'],
-                'processing' => ['shipped', 'cancelled'],
-                'shipped' => ['delivered', 'cancelled'],
-                'delivered' => [],
-                'cancelled' => []
+            // Chuẩn bị dữ liệu để cập nhật
+            $updateData = [
+                'status' => $request->input('status'),
+                'note' => $request->input('note'),
+                'updated_at' => now(),
             ];
 
-            if (!isset($validTransitions[$currentStatus])) {
-                return response()->json([
-                    'success' => false,
-                    'message' => "Trạng thái hiện tại không hợp lệ: '$currentStatus'"
-                ], 422);
+            // Xử lý failure_reason
+            if (in_array($request->input('status'), ['failed', 'failed_delivery', 'rejected_by_customer'])) {
+                $failureReason = trim(strip_tags($request->input('failure_reason', '')));
+                if (empty($failureReason)) {
+                    Log::warning('failure_reason rỗng hoặc không được gửi', [
+                        'order_id' => $id,
+                        'request_data' => $request->all(),
+                        'json_payload' => $jsonPayload
+                    ]);
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Lý do thất bại là bắt buộc.',
+                        'errors' => ['failure_reason' => ['Lý do thất bại không được để trống.']]
+                    ], 422);
+                }
+                $updateData['failure_reason'] = $failureReason;
+                Log::info('Chuẩn bị cập nhật failure_reason', [
+                    'order_id' => $id,
+                    'failure_reason' => $failureReason
+                ]);
+            } else {
+                $updateData['failure_reason'] = null;
+                Log::info('Xóa failure_reason', [
+                    'order_id' => $id,
+                    'failure_reason' => null
+                ]);
             }
 
-            if (!in_array($newStatus, $validTransitions[$currentStatus])) {
-                return response()->json([
-                    'success' => false,
-                    'message' => "Không thể chuyển trạng thái từ '$currentStatus' sang '$newStatus'"
-                ], 422);
+            // Xử lý tracking_code nếu trạng thái là shipping
+            if ($request->input('status') === 'shipping' && $request->filled('tracking_code')) {
+                $order->shipping()->updateOrCreate(
+                    ['order_id' => $order->id],
+                    ['tracking_code' => $request->input('tracking_code'), 'status' => 'ready_to_pick']
+                );
+                Log::info('Cập nhật tracking_code', [
+                    'order_id' => $id,
+                    'tracking_code' => $request->input('tracking_code')
+                ]);
             }
 
-            // Cập nhật đơn hàng
-            $order->status = $newStatus;
-            if ($request->has('note')) {
-                $order->note = $request->note;
-            }
-            $order->save();
+            // Cập nhật đơn hàng bằng truy vấn SQL trực tiếp
+            $updated = DB::table('orders')
+                ->where('id', $id)
+                ->update($updateData);
+            Log::info('Kết quả cập nhật đơn hàng', [
+                'order_id' => $id,
+                'updated' => $updated,
+                'update_data' => $updateData
+            ]);
 
-            // Gửi mail thông báo cập nhật trạng thái
+            if ($updated === 0) {
+                Log::warning('Không có bản ghi nào được cập nhật', [
+                    'order_id' => $id,
+                    'update_data' => $updateData
+                ]);
+                // Thử cập nhật từng trường riêng lẻ để debug
+                $testUpdate = DB::table('orders')
+                    ->where('id', $id)
+                    ->update(['failure_reason' => $updateData['failure_reason'] ?? null]);
+                Log::info('Kết quả thử cập nhật failure_reason riêng', [
+                    'order_id' => $id,
+                    'test_update' => $testUpdate,
+                    'failure_reason' => $updateData['failure_reason'] ?? null
+                ]);
+            }
+
+            // Làm mới đối tượng $order để lấy dữ liệu mới nhất
+            $order = Order::with('user', 'shipping')->findOrFail($id);
+            Log::info('Đơn hàng sau khi cập nhật', [
+                'order_id' => $id,
+                'current_status' => $order->status,
+                'current_failure_reason' => $order->failure_reason,
+                'user_id' => $order->user_id,
+                'user_email' => $order->user ? $order->user->email : null,
+                'warning_email_sent' => $order->user ? $order->user->warning_email_sent : null
+            ]);
+
+            // Kiểm tra dữ liệu trong cơ sở dữ liệu sau khi cập nhật
+            $dbCheck = DB::table('orders')->where('id', $id)->first(['status', 'failure_reason', 'note']);
+            Log::info('Dữ liệu từ cơ sở dữ liệu sau khi cập nhật', [
+                'order_id' => $id,
+                'db_status' => $dbCheck->status,
+                'db_failure_reason' => $dbCheck->failure_reason,
+                'db_note' => $dbCheck->note
+            ]);
+
+            if (isset($updateData['failure_reason']) && $dbCheck->failure_reason !== $updateData['failure_reason']) {
+                Log::warning('failure_reason không khớp sau khi cập nhật', [
+                    'order_id' => $id,
+                    'expected_failure_reason' => $updateData['failure_reason'] ?? null,
+                    'actual_failure_reason' => $dbCheck->failure_reason
+                ]);
+            }
+
+            // Gửi email cảnh báo nếu cần
+            $warningEmailSent = false;
+            $warningEmailError = null;
+            if ($request->input('status') === 'rejected_by_customer' && $order->user) {
+                Log::info('Kiểm tra điều kiện gửi email cảnh báo', [
+                    'order_id' => $id,
+                    'user_id' => $order->user_id,
+                    'email' => $order->user->email,
+                    'warning_email_sent' => $order->user->warning_email_sent,
+                    'failure_reason' => $order->failure_reason,
+                    'rejected_orders_count' => Order::where('user_id', $order->user_id)
+                        ->where('status', 'rejected_by_customer')
+                        ->count()
+                ]);
+
+                if (!filter_var($order->user->email, FILTER_VALIDATE_EMAIL)) {
+                    Log::warning('Email không hợp lệ', [
+                        'order_id' => $id,
+                        'user_id' => $order->user_id,
+                        'email' => $order->user->email
+                    ]);
+                }
+
+                if ($order->user->warning_email_sent == 0) {
+                    // Đếm số đơn rejected_by_customer trước khi cập nhật trạng thái hiện tại
+                    $rejectedOrdersCount = Order::where('user_id', $order->user_id)
+                        ->where('status', 'rejected_by_customer')
+                        ->where('id', '!=', $id) // Loại trừ đơn hàng hiện tại
+                        ->count();
+                    Log::info('Số đơn rejected_by_customer trước khi cập nhật', [
+                        'order_id' => $id,
+                        'user_id' => $order->user_id,
+                        'rejected_orders_count' => $rejectedOrdersCount
+                    ]);
+
+                    // Nếu cập nhật thành công và đây là đơn rejected_by_customer đầu tiên
+                    if ($rejectedOrdersCount == 0 && $updated > 0) {
+                        try {
+                            Mail::to($order->user->email)->send(new WarningRejectedOrder($order->user, $order));
+                            $order->user->update(['warning_email_sent' => 1]);
+                            $warningEmailSent = true;
+                            Log::info('Gửi email cảnh báo thành công', [
+                                'user_id' => $order->user_id,
+                                'email' => $order->user->email,
+                                'order_id' => $order->id,
+                                'failure_reason' => $order->failure_reason
+                            ]);
+                        } catch (\Exception $e) {
+                            $warningEmailError = $e->getMessage();
+                            Log::warning('Lỗi gửi email cảnh báo: ' . $e->getMessage(), [
+                                'user_id' => $order->user_id,
+                                'order_id' => $order->id,
+                                'trace' => $e->getTraceAsString()
+                            ]);
+                        }
+                    } else {
+                        Log::info('Không gửi email vì không phải đơn rejected_by_customer đầu tiên hoặc cập nhật thất bại', [
+                            'order_id' => $id,
+                            'rejected_orders_count' => $rejectedOrdersCount,
+                            'updated' => $updated
+                        ]);
+                    }
+                } else {
+                    Log::info('Không gửi email do đã gửi trước đó', [
+                        'order_id' => $id,
+                        'warning_email_sent' => $order->user->warning_email_sent
+                    ]);
+                }
+            } else {
+                Log::info('Không gửi email cảnh báo vì trạng thái không phải rejected_by_customer hoặc user không tồn tại', [
+                    'order_id' => $id,
+                    'status' => $request->input('status'),
+                    'user_exists' => $order->user ? true : false
+                ]);
+            }
+
+            // Gửi email thông báo trạng thái
             try {
-                if ($order->user && $order->user->email) {
-                    Mail::to($order->user->email)->send(new OrderStatusUpdatedMail($order, $currentStatus));
+                if ($request->input('status') !== 'rejected_by_customer' && $order->user && $order->user->email) {
+                    Mail::to($order->user->email)->send(new OrderStatusUpdatedMail($order, $order->status));
+                    Log::info('Gửi email thông báo trạng thái thành công', [
+                        'order_id' => $id,
+                        'user_id' => $order->user_id,
+                        'email' => $order->user->email
+                    ]);
                 }
             } catch (\Exception $e) {
-                Log::error('Send mail error: ' . $e->getMessage());
+                Log::warning('Lỗi gửi mail thông báo trạng thái: ' . $e->getMessage(), [
+                    'order_id' => $id,
+                    'trace' => $e->getTraceAsString()
+                ]);
             }
 
-            // Tạo thông báo dựa trên trạng thái mới
             $statusMessages = [
-                'processing' => 'Đơn hàng đã được xác nhận và đang được xử lý',
+                'pending' => 'Đơn hàng đang chờ xử lý',
+                'confirmed' => 'Đơn hàng đã được xác nhận',
+                'processing' => 'Đơn hàng đang được xử lý',
                 'shipped' => 'Đơn hàng đang được giao đến bạn',
                 'delivered' => 'Đơn hàng đã được giao thành công',
-                'cancelled' => 'Đơn hàng đã bị hủy'
+                'cancelled' => 'Đơn hàng đã bị hủy',
+                'failed' => 'Đơn hàng giao thất bại',
+                'failed_delivery' => 'Đơn hàng giao không thành công',
+                'rejected_by_customer' => 'Đơn hàng bị khách từ chối nhận',
             ];
 
             $responseData = [
                 'success' => true,
                 'message' => 'Cập nhật đơn hàng thành công',
-                'status_message' => $statusMessages[$newStatus] ?? 'Trạng thái đơn hàng đã được cập nhật',
+                'status_message' => $statusMessages[$request->input('status')] ?? 'Trạng thái đơn hàng đã được cập nhật',
+                'warning_email_sent' => $warningEmailSent,
+                'warning_email_error' => $warningEmailError,
                 'data' => [
                     'id' => $order->id,
-                    'status' => $order->status,
-                    'note' => $order->note,
-                    'can_delete' => in_array($order->status, ['pending', 'cancelled']),
+                    'status' => $dbCheck->status,
+                    'note' => $dbCheck->note,
+                    'failure_reason' => $dbCheck->failure_reason,
+                    'can_delete' => in_array($dbCheck->status, ['pending', 'cancelled', 'failed', 'failed_delivery', 'rejected_by_customer']),
                     'updated_at' => $order->updated_at->format('d/m/Y H:i:s')
                 ]
             ];
 
-            Log::info('Order updated successfully', $responseData);
+            Log::info('Cập nhật đơn hàng thành công', $responseData);
             return response()->json($responseData);
         } catch (\Exception $e) {
-            Log::error('Order update error', [
+            Log::error('Lỗi cập nhật đơn hàng', [
                 'order_id' => $id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
+                'payload' => $request->all(),
+                'raw_payload' => $rawPayload,
+                'attributes' => isset($order) ? $order->getAttributes() : null
             ]);
 
             return response()->json([
@@ -934,7 +1181,6 @@ public function validateBuyNow(Request $request)
             ], 500);
         }
     }
-
     /**
      * Remove the specified resource from storage.
      */

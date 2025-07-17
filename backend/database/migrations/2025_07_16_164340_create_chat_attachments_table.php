@@ -16,7 +16,11 @@ return new class extends Migration
             $table->unsignedBigInteger('message_id');
             $table->json('attachments')->nullable();
             $table->timestamps();
-            $table->foreign('message_id')->references('id')->on('chat_messages')->onDelete('cascade');
+
+            $table->foreign('message_id')
+                  ->references('id')
+                  ->on('chat_messages')
+                  ->onDelete('cascade');
         });
     }
 

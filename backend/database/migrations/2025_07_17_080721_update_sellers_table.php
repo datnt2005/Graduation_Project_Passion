@@ -1,7 +1,9 @@
 <?php
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 class UpdateSellersTable extends Migration
 {
@@ -37,10 +39,15 @@ class UpdateSellersTable extends Migration
             if (!Schema::hasColumn('sellers', 'shipping_options')) {
                 $table->json('shipping_options')->nullable()->after('business_email');
             }
-
-            // Cứ thêm index user_id nếu chưa có
-            $table->index('user_id');
         });
+
+        // Thêm index nếu chưa có
+        $hasIndex = collect(DB::select("SHOW INDEX FROM sellers WHERE Key_name = 'sellers_user_id_index'"))->count();
+        if (!$hasIndex) {
+            Schema::table('sellers', function (Blueprint $table) {
+                $table->index('user_id');
+            });
+        }
     }
 
     public function down(): void
@@ -62,8 +69,8 @@ class UpdateSellersTable extends Migration
                 $table->renameColumn('id_card_back_url', 'cccd_back');
             }
 
-            // Bỏ index user_id
-            $table->dropIndex(['user_id']);
+            // Bỏ index nếu có
+            $table->dropIndex('sellers_user_id_index');
         });
     }
 }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
 use App\Models\User;
+use App\Models\Order;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
@@ -13,6 +14,9 @@ use Intervention\Image\Facades\Image;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Database\QueryException;
+use App\Mail\WarningEmail;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Cache;
 
 
 class UserController extends Controller
@@ -72,7 +76,95 @@ class UserController extends Controller
             'error' => 'Đã xảy ra lỗi khi xoá người dùng.'
         ], 500);
     }
-}
+}   
+
+    public function sendWarningEmail(Request $request)
+    {
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'order_id' => 'required|exists:orders,id'
+        ]);
+
+        $user = User::findOrFail($request->user_id);
+        $order = Order::with('shipping')->findOrFail($request->order_id);
+
+        // Kiểm tra trạng thái đơn hàng
+        if ($order->status !== 'rejected_by_customer') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Đơn hàng không ở trạng thái từ chối nhận'
+            ], 400);
+        }
+
+        // Kiểm tra xem email cảnh báo đã được gửi chưa
+        $cacheKey = "warning_email_sent_{$user->id}";
+        if (Cache::has($cacheKey)) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Email cảnh báo đã được gửi trước đó'
+            ]);
+        }
+
+        // Thêm thuộc tính status_text để hiển thị trạng thái thân thiện
+        $order->status_text = $this->getStatusText($order->status);
+
+        // Gửi email
+        Mail::to($user->email)->send(new WarningEmail($user, $order));
+
+        // Lưu trạng thái đã gửi email vào cache (hết hạn sau 30 ngày)
+        Cache::put($cacheKey, true, now()->addDays(30));
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Email cảnh báo đã được gửi'
+        ]);
+    }
+
+    private function getStatusText($status)
+    {
+        $statusMap = [
+            'pending' => 'Chờ xử lý',
+            'confirmed' => 'Đã xác nhận',
+            'processing' => 'Đang xử lý',
+            'shipping' => 'Đang giao hàng',
+            'delivered' => 'Đã giao hàng',
+            'cancelled' => 'Đã hủy',
+            'rejected_by_customer' => 'Khách từ chối nhận',
+            // Thêm các trạng thái khác nếu cần
+        ];
+        return $statusMap[$status] ?? $status;
+    }
+
+    public function me(Request $request)
+    {
+        try {
+            $user = $request->user();
+            if (!$user) {
+                Log::warning('Unauthorized access attempt to /me endpoint');
+                return response()->json(['error' => 'Chưa đăng nhập'], 401);
+            }
+
+            $rejectedOrdersCount = Order::where('user_id', $user->id)
+                ->where('status', 'rejected_by_customer')
+                ->count();
+
+            $userData = new UserResource($user);
+            $userDataArray = $userData->toArray($request);
+            $userDataArray['is_cod_blocked'] = $rejectedOrdersCount >= 2;
+
+            Log::info('User info retrieved', [
+                'user_id' => $user->id,
+                'is_cod_blocked' => $userDataArray['is_cod_blocked'],
+            ]);
+
+            return response()->json($userDataArray);
+        } catch (\Exception $e) {
+            Log::error('Error retrieving user info: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return response()->json(['error' => 'Có lỗi xảy ra khi lấy thông tin người dùng'], 500);
+        }
+    }
 
     public function batchAddRole(Request $request)
     {

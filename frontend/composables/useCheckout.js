@@ -5,11 +5,13 @@ import { usePayment } from '~/composables/usePayment';
 import { useDiscount } from '~/composables/useDiscount';
 import { useToast } from '~/composables/useToast';
 import { useRoute } from 'vue-router';
+import { useAuth } from '~/composables/useAuth';
 
 export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress, storeNotes) {
   const config = useRuntimeConfig();
   const route = useRoute();
   const { toast } = useToast();
+  const { logout } = useAuth();
   const {
     cart,
     loading,
@@ -39,34 +41,77 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
   } = useDiscount();
 
   const selectedPaymentMethod = ref('');
+  const canUseCod = ref(true);
+  const isAccountBanned = ref(false); // State để theo dõi trạng thái tài khoản
 
-  // Thêm state để lưu trữ discount cho từng shop
   const shopDiscounts = ref({});
-  const shopDiscountIds = ref({}); // Thêm state để lưu discountId cho từng shop
+  const shopDiscountIds = ref({});
 
-  // Kiểm tra xem có phải luồng buyNow không
   const isBuyNow = computed(() => route.query.buyNow === 'true');
-
-  // Dữ liệu buyNow từ localStorage
   const buyNowData = ref(null);
 
-  // Load dữ liệu buyNow từ localStorage
+  const filteredPaymentMethods = computed(() => {
+    if (canUseCod.value) {
+      return paymentMethods.value;
+    }
+    return paymentMethods.value.filter(method => method.name !== 'COD');
+  });
+
+  const checkCodEligibility = async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        canUseCod.value = false;
+        isAccountBanned.value = false;
+        toast('error', 'Vui lòng đăng nhập để kiểm tra.');
+        return;
+      }
+
+      const response = await fetch(`${config.public.apiBaseUrl}/orders/check-cod-eligibility`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Lỗi khi kiểm tra trạng thái.');
+      }
+
+      const { can_use_cod, is_account_banned, message } = await response.json();
+      canUseCod.value = can_use_cod;
+      isAccountBanned.value = is_account_banned;
+      if (is_account_banned) {
+        toast('error', message);
+        // Đăng xuất người dùng và chuyển hướng về trang đăng nhập
+        await logout();
+        await navigateTo('/login');
+      } else if (!can_use_cod) {
+        toast('warning', message);
+      }
+    } catch (err) {
+      console.error('Error checking COD eligibility:', err);
+      canUseCod.value = false;
+      toast('error', err.message || 'Không thể kiểm tra trạng thái.');
+    }
+  };
+
   const loadBuyNowData = () => {
-    if (typeof window === 'undefined' || !window.localStorage) return; // Chỉ chạy trên client
+    if (typeof window === 'undefined' || !window.localStorage) return;
     const storedData = localStorage.getItem('buy_now');
     if (storedData) {
       buyNowData.value = JSON.parse(storedData);
-      const maxAge = 30 * 60 * 1000; 
+      const maxAge = 30 * 60 * 1000;
       if (Date.now() - buyNowData.value.timestamp > maxAge) {
         localStorage.removeItem('buy_now');
         buyNowData.value = null;
         toast('error', 'Dữ liệu buyNow đã hết hạn. Vui lòng chọn lại sản phẩm.');
-      } else {
       }
     }
   };
 
-  // Hàm để cập nhật discount cho shop
   const updateShopDiscount = (sellerId, discount, discountId = null) => {
     shopDiscounts.value[sellerId] = discount;
     if (discountId) {
@@ -74,88 +119,83 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
     }
   };
 
-  // Hàm để lấy discount cho shop
   const getShopDiscount = (sellerId) => {
     return shopDiscounts.value[sellerId] || 0;
   };
 
-  // Hàm để lấy discountId cho shop
   const getShopDiscountId = (sellerId) => {
     return shopDiscountIds.value[sellerId] || null;
   };
 
-  // Derive cartItems từ cart hoặc buyNow
-const cartItems = computed(() => {
-  if (isBuyNow.value && buyNowData.value) {
-    const price = parsePrice(buyNowData.value.price);
-    return [{
-      seller_id: buyNowData.value.seller_id || null,
-      store_name: buyNowData.value.store_name || '',
-      store_url: buyNowData.value.store_url || '',
-      items: [{
-        id: buyNowData.value.product_id,
-        product: {
-          id: buyNowData.value.product.id,
-          name: buyNowData.value.product.name || 'Unknown Product',
-          slug: buyNowData.value.product.slug || '',
-          images: buyNowData.value.product.images || [],
-        },
-        productVariant: buyNowData.value.productVariant?.id ? {
-          id: buyNowData.value.productVariant.id,
-          sku: buyNowData.value.productVariant.sku || '',
-          thumbnail: buyNowData.value.productVariant.thumbnail || '',
-          attributes: buyNowData.value.productVariant.attributes || [],
-        } : null,
-        quantity: buyNowData.value.quantity,
-        price: price,
-        sale_price: price,
-      }],
-      store_total: price * buyNowData.value.quantity,
-      discount: getShopDiscount(buyNowData.value.seller_id),
-      selectedDiscountId: getShopDiscountId(buyNowData.value.seller_id)
-    }];
-  }
+  const cartItems = computed(() => {
+    if (isBuyNow.value && buyNowData.value) {
+      const price = parsePrice(buyNowData.value.price);
+      return [{
+        seller_id: buyNowData.value.seller_id || null,
+        store_name: buyNowData.value.store_name || '',
+        store_url: buyNowData.value.store_url || '',
+        items: [{
+          id: buyNowData.value.product_id,
+          product: {
+            id: buyNowData.value.product.id,
+            name: buyNowData.value.product.name || 'Unknown Product',
+            slug: buyNowData.value.product.slug || '',
+            images: buyNowData.value.product.images || [],
+          },
+          productVariant: buyNowData.value.productVariant?.id ? {
+            id: buyNowData.value.productVariant.id,
+            sku: buyNowData.value.productVariant.sku || '',
+            thumbnail: buyNowData.value.productVariant.thumbnail || '',
+            attributes: buyNowData.value.productVariant.attributes || [],
+          } : null,
+          quantity: buyNowData.value.quantity,
+          price: price,
+          sale_price: price,
+        }],
+        store_total: price * buyNowData.value.quantity,
+        discount: getShopDiscount(buyNowData.value.seller_id),
+        selectedDiscountId: getShopDiscountId(buyNowData.value.seller_id)
+      }];
+    }
 
-  if (!cart.value || !cart.value.stores) return [];
+    if (!cart.value || !cart.value.stores) return [];
 
-  return cart.value.stores.map((store) => {
-    const items = (store.items || [])
-      .filter((item) => item.is_selected)
-      .map((item) => ({
-        id: item.id,
-        quantity: item.quantity,
-        price: parsePrice(item.price),
-        sale_price: parsePrice(item.sale_price || item.price),
-        productVariant: item.productVariant?.id ? {
-          id: item.productVariant.id,
-          sku: item.productVariant.sku || '',
-          thumbnail: item.productVariant.thumbnail || '',
-          attributes: item.productVariant.attributes || [],
-        } : null,
-        product: item.product?.id ? {
-          id: item.product.id,
-          name: item.product.name || '',
-          slug: item.product.slug || '',
-          images: item.product.images || [],
-        } : null
-      }));
+    return cart.value.stores.map((store) => {
+      const items = (store.items || [])
+        .filter((item) => item.is_selected)
+        .map((item) => ({
+          id: item.id,
+          quantity: item.quantity,
+          price: parsePrice(item.price),
+          sale_price: parsePrice(item.sale_price || item.price),
+          productVariant: item.productVariant?.id ? {
+            id: item.productVariant.id,
+            sku: item.productVariant.sku || '',
+            thumbnail: item.productVariant.thumbnail || '',
+            attributes: item.productVariant.attributes || [],
+          } : null,
+          product: item.product?.id ? {
+            id: item.product.id,
+            name: item.product.name || '',
+            slug: item.product.slug || '',
+            images: item.product.images || [],
+          } : null
+        }));
 
-    const storeTotal = items.reduce((sum, item) => sum + item.sale_price * item.quantity, 0);
+      const storeTotal = items.reduce((sum, item) => sum + item.sale_price * item.quantity, 0);
 
-    return {
-      seller_id: store.seller_id,
-      store_name: store.store_name || '',
-      store_url: store.store_url || '',
-      items,
-      store_total: storeTotal,
-      discount: getShopDiscount(store.seller_id), // Sử dụng discount từ shopDiscounts
-      selectedDiscountId: getShopDiscountId(store.seller_id)
-    };
+      return {
+        seller_id: store.seller_id,
+        store_name: store.store_name || '',
+        store_url: store.store_url || '',
+        items,
+        store_total: storeTotal,
+        discount: getShopDiscount(store.seller_id),
+        selectedDiscountId: getShopDiscountId(store.seller_id)
+      };
+    });
   });
-});
 
-
-  // Total dựa trên cartItems hoặc buyNow
   const total = computed(() => {
     if (isBuyNow.value && buyNowData.value) {
       const price = parsePrice(buyNowData.value.price);
@@ -176,7 +216,6 @@ const cartItems = computed(() => {
     }, 0);
   });
 
-  // Phí vận chuyển
   const rawShippingFee = computed(() => {
     const raw = shippingRef.value?.fees?.[selectedShippingMethod.value];
     return raw ? parsePrice(raw) : 0;
@@ -187,12 +226,10 @@ const cartItems = computed(() => {
     return Math.max(0, rawShippingFee.value - discount);
   });
 
-  // Tổng tiền cuối cùng (sử dụng final_price từ backend nếu có)
   const finalTotal = computed(() => {
     const baseTotal = total.value;
     const productDiscount = calculateDiscount(baseTotal);
     
-    // Tính tổng discount của tất cả shop
     const shopDiscountsTotal = cartItems.value.reduce((sum, shop) => {
       return sum + (shop.discount || 0);
     }, 0);
@@ -200,7 +237,6 @@ const cartItems = computed(() => {
     return Math.max(0, baseTotal - productDiscount - shopDiscountsTotal + finalShippingFee.value);
   });
 
-  // Formatted price utilities
   const formatPrice = (price) => {
     const parsed = parsePrice(price);
     return parsed.toLocaleString('vi-VN', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -210,7 +246,6 @@ const cartItems = computed(() => {
   const formattedFinalTotal = computed(() => `${formatPrice(finalTotal.value)} đ`);
   const formattedFinalShippingFee = computed(() => `${formatPrice(finalShippingFee.value)} đ`);
 
-  // Payment method label
   const getPaymentMethodLabel = (methodName) => {
     switch (methodName) {
       case 'COD':
@@ -225,6 +260,11 @@ const cartItems = computed(() => {
   };
 
   const placeOrder = async () => {
+    if (isAccountBanned.value) {
+      toast('error', 'Tài khoản của bạn đã bị khóa do có quá nhiều đơn hàng bị từ chối nhận.');
+      return;
+    }
+
     if (!cartItems.value.length) {
       toast('error', 'Giỏ hàng trống hoặc chưa chọn sản phẩm');
       return;
@@ -272,7 +312,6 @@ const cartItems = computed(() => {
       const { data: userData } = await userResponse.json();
       if (!userData?.id) throw new Error('Không tìm thấy thông tin người dùng');
 
-      // Chuẩn bị dữ liệu đơn hàng - flatten tất cả items từ các stores
       const allItems = [];
       cartItems.value.forEach(store => {
         if (store.items && Array.isArray(store.items)) {
@@ -290,27 +329,15 @@ const cartItems = computed(() => {
         }
       });
 
-      // Chuẩn bị notes cho từng seller
       const notesBySeller = storeNotes?.value || {};
-
-      // Tạo mảng discount_ids bao gồm cả voucher shop và voucher admin/ship
       const discountIds = [];
-      
-      // Thêm voucher shop (từ shopDiscounts)
       cartItems.value.forEach(shop => {
-        if (shop.selectedDiscountId) {
-          discountIds.push(shop.selectedDiscountId);
-        }
+        if (shop.selectedDiscountId) discountIds.push(shop.selectedDiscountId);
       });
-      
-      // Thêm voucher admin/ship (từ selectedDiscounts)
       selectedDiscounts.value.forEach(discount => {
-        if (!discountIds.includes(discount.id)) {
-          discountIds.push(discount.id);
-        }
+        if (!discountIds.includes(discount.id)) discountIds.push(discount.id);
       });
 
-      // Khi gửi order, truyền notesBySeller lên backend
       const orderData = {
         user_id: userData.id,
         address_id: selectedAddress.value.id,
@@ -319,13 +346,13 @@ const cartItems = computed(() => {
         receiver_phone: selectedAddress.value.phone || 'Chưa cung cấp số điện thoại',
         payment_method: selectedPaymentMethod.value,
         service_id: selectedShippingMethod.value,
-        discount_ids: discountIds, // Gửi mảng id mã giảm giá bao gồm cả shop và admin/ship
+        discount_ids: discountIds,
         items: allItems,
         ward_id: selectedAddress.value.ward_id,
         district_id: selectedAddress.value.district_id,
         province_id: selectedAddress.value.province_id,
         is_buy_now: isBuyNow.value,
-        skip_stock_check: true, // Tạm thời bỏ qua kiểm tra tồn kho
+        skip_stock_check: true,
         store_notes: notesBySeller,
       };
 
@@ -341,19 +368,26 @@ const cartItems = computed(() => {
 
       if (!orderResponse.ok) {
         const errorData = await orderResponse.json();
+        if (errorData.message.includes('COD') && errorData.can_use_cod === false) {
+          canUseCod.value = false;
+          toast('error', 'Bạn không thể sử dụng COD do có quá nhiều đơn hàng bị từ chối.');
+          return;
+        }
+        if (errorData.message.includes('khóa') && errorData.is_account_banned) {
+          isAccountBanned.value = true;
+          toast('error', errorData.message);
+          await logout();
+          await navigateTo('/login');
+          return;
+        }
         throw new Error(errorData.message || 'Lỗi khi tạo đơn hàng');
       }
 
       const { orders } = await orderResponse.json();
-
       if (!orders || !orders.length) throw new Error('Không nhận được đơn hàng từ server');
 
-      // Xóa items đã đặt hàng khỏi giỏ hàng
       await removeOrderedItems(allItems);
-
-      if (isBuyNow.value) {
-        localStorage.removeItem('buy_now');
-      }
+      if (isBuyNow.value) localStorage.removeItem('buy_now');
 
       if (orders.length === 1) {
         localStorage.setItem('lastOrderId', orders[0].id);
@@ -384,7 +418,7 @@ const cartItems = computed(() => {
         return;
       }
 
-      const orderIds = orders.map((o) => o.id);
+      const orderIds = orders.map(o => o.id);
       localStorage.setItem('lastOrderIds', orderIds.join(','));
       if (selectedPaymentMethod.value === 'COD') {
         await navigateTo(`/order-success?ids=${orderIds.join(',')}`);
@@ -419,16 +453,11 @@ const cartItems = computed(() => {
     }
   };
 
-  // Gọi loadBuyNowData khi khởi tạo
-  loadBuyNowData();
-
-  // Hàm xóa items đã đặt hàng khỏi giỏ hàng
   const removeOrderedItems = async (orderedItems) => {
     try {
       const token = localStorage.getItem('access_token');
       if (!token) return;
 
-      // Lấy danh sách cart items hiện tại
       const cartResponse = await fetch(`${config.public.apiBaseUrl}/cart`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -441,7 +470,6 @@ const cartItems = computed(() => {
       const cartData = await cartResponse.json();
       const cartItems = cartData.data?.stores || [];
 
-      // Tìm và xóa các items đã đặt hàng
       for (const orderedItem of orderedItems) {
         for (const store of cartItems) {
           const itemToRemove = store.items?.find(item => 
@@ -450,7 +478,6 @@ const cartItems = computed(() => {
           );
 
           if (itemToRemove) {
-            // Xóa item khỏi giỏ hàng
             await fetch(`${config.public.apiBaseUrl}/cart/${itemToRemove.id}`, {
               method: 'DELETE',
               headers: {
@@ -462,13 +489,13 @@ const cartItems = computed(() => {
         }
       }
 
-      // Refresh cart data
       await fetchCart();
     } catch (error) {
       console.error('Error removing ordered items from cart:', error);
-      // Không throw error vì việc xóa giỏ hàng không quan trọng bằng việc tạo order
     }
   };
+
+  loadBuyNowData();
 
   return {
     cartItems,
@@ -481,7 +508,7 @@ const cartItems = computed(() => {
     formattedFinalShippingFee,
     loading,
     error,
-    paymentMethods,
+    paymentMethods: filteredPaymentMethods,
     paymentLoading,
     paymentError,
     discounts,
@@ -497,7 +524,7 @@ const cartItems = computed(() => {
     getShippingDiscount,
     formatPrice,
     parsePrice,
-    getPaymentMethodLabel,  
+    getPaymentMethodLabel,
     placeOrder,
     selectStoreItems,
     removeOrderedItems,
@@ -506,5 +533,8 @@ const cartItems = computed(() => {
     updateShopDiscount,
     getShopDiscount,
     getShopDiscountId,
+    canUseCod,
+    isAccountBanned,
+    checkCodEligibility,
   };
 }

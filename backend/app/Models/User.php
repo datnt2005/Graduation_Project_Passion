@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -24,6 +23,7 @@ class User extends Authenticatable
         'otp',
         'otp_expired_at',
         'is_verified',
+        'warning_email_sent',
     ];
 
     protected $hidden = [
@@ -38,13 +38,14 @@ class User extends Authenticatable
         'is_verified' => 'boolean',
         'role' => 'string',
         'status' => 'string',
+        'warning_email_sent' => 'boolean',
     ];
-
 
     public function seller()
     {
-        return $this->hasOne(Seller::class , 'user_id', 'id');
+        return $this->hasOne(Seller::class, 'user_id', 'id');
     }
+
     public function discounts()
     {
         return $this->belongsToMany(Discount::class, 'discount_users', 'user_id', 'discount_id');
@@ -60,6 +61,7 @@ class User extends Authenticatable
         return $this->belongsToMany(Seller::class, 'seller_followers')
             ->withTimestamps();
     }
+
     public function isFollowingSeller($sellerId)
     {
         return $this->followedSellers()->where('seller_id', $sellerId)->exists();
@@ -75,6 +77,7 @@ class User extends Authenticatable
         $users = User::select('id', 'name', 'email', 'role')->get();
         return response()->json($users);
     }
+
     public function approvals()
     {
         return $this->hasMany(ProductApproval::class, 'admin_id');
