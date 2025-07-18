@@ -455,6 +455,7 @@
 import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import Pagination from '~/components/Pagination.vue';
+import { secureFetch } from '@/utils/secureFetch' 
 
 
 definePageMeta({
@@ -512,12 +513,12 @@ const fetchProductCounts = async () => {
     inStockProducts.value = allProducts.filter(p => getStockStatus(p) === 'instock').length;
 
     // Fetch trashed products to get trash count
-    const trashResponse = await fetch(`${apiBase}/products/trash`, {
+    const trashResponse = await secureFetch(`${apiBase}/products/trash`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json'
       }
-    });
+    },['admin']);
     const trashData = await trashResponse.json();
     const trashProductsList = trashData.data?.data || trashData.data || [];
     trashProducts.value = trashData.data?.total || trashProductsList.length || 0;
@@ -535,10 +536,10 @@ const fetchProducts = async (page = 1) => {
     const endpoint = filterTrash.value === 'trash'
       ? `${apiBase}/products/trash?page=${page}&per_page=${perPage}`
       : `${apiBase}/products?page=${page}&per_page=${perPage}`;
-    const response = await fetch(endpoint, {
+    const response = await secureFetch(endpoint, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' }
-    });
+    },['admin']);
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     const data = await response.json();
     products.value = data.data?.data || data.data || data || [];
@@ -603,7 +604,6 @@ const fetchTags = async () => {
     });
     const data = await response.json();
     tags.value = data.data.tags || [];
-    console.log('tags', tags.value);
 
   } catch (error) {
     console.error('Error fetching tags:', error);
@@ -673,13 +673,13 @@ const applyBulkAction = async () => {
         try {
           loading.value = true;
           const deletePromises = selectedProducts.value.map(id =>
-            fetch(`${apiBase}/products/${id}`, {
+            secureFetch(`${apiBase}/products/${id}`, {
               method: 'DELETE',
               headers: {
                 'Content-Type': 'application/json'
 
               }
-            })
+            } , ['admin'])
           );
 
           const responses = await Promise.all(deletePromises);
@@ -707,16 +707,14 @@ const applyBulkAction = async () => {
       const status = selectedAction.value === 'active' ? 'active' :
         selectedAction.value === 'inactive' ? 'inactive' :
           selectedAction.value === 'trash' ? 'trash' : 'active';
-      const token = localStorage.getItem('access_token');
       const updatePromises = selectedProducts.value.map(id =>
-        fetch(`${apiBase}/products/change-status/${id}`, {
+        secureFetch(`${apiBase}/products/change-status/${id}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({ status })
-        })
+        } , ['admin'])
       );
 
       const responses = await Promise.all(updatePromises);
@@ -750,21 +748,19 @@ const editProduct = (id) => {
 
 // Move to trash
 const moveToTrash = async (product) => {
-  const token = localStorage.getItem('access_token');
   showConfirmationDialog(
     'Xác nhận chuyển vào thùng rác',
     `Bạn có chắc chắn muốn chuyển sản phẩm "${product.name}" vào thùng rác?`,
 
     async () => {
       try {
-        const response = await fetch(`${apiBase}/products/change-status/${product.id}`, {
+        const response = await secureFetch(`${apiBase}/products/change-status/${product.id}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({ status: 'trash' })
-        });
+        } , ['admin']);
 
         if (response.ok) {
           showNotificationMessage('Đã chuyển sản phẩm vào thùng rác!', 'success');
@@ -783,20 +779,18 @@ const moveToTrash = async (product) => {
 
 // Restore product
 const restoreProduct = async (product) => {
-  const token = localStorage.getItem('access_token');
   showConfirmationDialog(
     'Xác nhận khôi phục',
     `Bạn có chắc chắn muốn khôi phục sản phẩm "${product.name}"?`,
     async () => {
       try {
-        const response = await fetch(`${apiBase}/products/change-status/${product.id}`, {
+        const response = await secureFetch(`${apiBase}/products/change-status/${product.id}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({ status: 'active' })
-        });
+        } , ['admin']);
 
         if (response.ok) {
           showNotificationMessage('Khôi phục sản phẩm thành công!', 'success');
@@ -820,14 +814,12 @@ const confirmDelete = async (product) => {
     `Bạn có chắc chắn muốn xóa vĩnh viễn sản phẩm "${product.name}" không?`,
     async () => {
       try {
-        const token = localStorage.getItem('access_token');
-        const response = await fetch(`${apiBase}/products/${product.id}`, {
+        const response = await secureFetch(`${apiBase}/products/${product.id}`, {
           method: 'DELETE',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
           }
-        });
+        } , ['admin']);
 
         if (response.ok) {
           showNotificationMessage('Xóa vĩnh viễn sản phẩm thành công!', 'success');
@@ -976,13 +968,12 @@ const approvalHistory = ref([]);
 // Fetch approval history từ API
 const fetchApprovalHistory = async () => {
   try {
-    const response = await fetch(`${apiBase}/approvals/history`, {
+    const response = await secureFetch(`${apiBase}/approvals/history`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
       },
-    });
+    } , ['admin']);
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     const data = await response.json();
     approvalHistory.value = data.data || [];

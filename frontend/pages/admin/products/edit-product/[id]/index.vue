@@ -71,12 +71,8 @@
 
                 <!-- Description -->
                 <label for="description" class="block text-sm text-gray-700 mb-1">Mô tả</label>
-                <Editor v-model="formData.description" api-key="rlas5j7eqa6dogiwnt1ld8iilzj3q074o4rw75lsxcygu1zd" :init="{
-                  height: 300,
-                  menubar: false,
-                  plugins: 'lists link image preview code help table',
-                  toolbar: 'undo redo | formatselect | bold italic underline | alignjustify alignleft aligncenter alignright | bullist numlist | removeformat | preview | link image | code | h1 h2 h3 h4 h5 h6',
-                }" />
+                <TiptapEditor v-model="formData.description"
+                  class="w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-sm placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500" />
                 <span v-if="errors.description" class="text-red-500 text-xs mt-1">{{ errors.description }}</span>
 
                 <!-- Tabbed Content -->
@@ -575,7 +571,8 @@ import { useRouter, useRoute } from 'vue-router';
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
 import { library } from '@fortawesome/fontawesome-svg-core';
 import { faChevronUp, faChevronDown } from '@fortawesome/free-solid-svg-icons';
-import Editor from '@tinymce/tinymce-vue';
+import TiptapEditor from '@/components/TiptapEditor.vue'
+import { secureFetch } from '@/utils/secureFetch' 
 
 library.add(faChevronUp, faChevronDown);
 
@@ -661,13 +658,11 @@ const extractArray = (data, key) => {
 const fetchProduct = async () => {
   try {
     loading.value = true;
-    const token = localStorage.getItem('access_token');
-    const response = await fetch(`${apiBase}/products/${route.params.id}`, {
+    const response = await secureFetch(`${apiBase}/products/${route.params.id}`, {
       headers: {
         Accept: 'application/json',
-        Authorization: `Bearer ${token}`
       }
-    });
+    } , ['admin']);
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
@@ -739,13 +734,11 @@ const fetchProduct = async () => {
 // Fetch data with error handling
 const fetchCategories = async () => {
   try {
-    const token = localStorage.getItem('access_token');
-    const response = await fetch(`${apiBase}/categories`, {
+    const response = await secureFetch(`${apiBase}/categories`, {
       headers: {
         Accept: 'application/json',
-        Authorization: `Bearer ${token}`
       }
-    });
+    } , ['admin']);
     if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     const data = await response.json();
     const categoryArray = extractArray(data, 'data') || extractArray(data, 'categories');
@@ -766,13 +759,11 @@ const fetchCategories = async () => {
 
 const fetchTags = async () => {
   try {
-    const token = localStorage.getItem('access_token');
-    const response = await fetch(`${apiBase}/tags`, {
+    const response = await secureFetch(`${apiBase}/tags`, {
       headers: {
         Accept: 'application/json',
-        Authorization: `Bearer ${token}`
       }
-    });
+    } , ['admin']);
     if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     const data = await response.json();
     const tagArray = extractArray(data, 'tags');
@@ -793,13 +784,11 @@ const fetchTags = async () => {
 
 const fetchAttributes = async () => {
   try {
-    const token = localStorage.getItem('access_token');
-    const response = await fetch(`${apiBase}/attributes`, {
+    const response = await secureFetch(`${apiBase}/attributes`, {
       headers: {
         Accept: 'application/json',
-        Authorization: `Bearer ${token}`
       }
-    });
+    } , ['admin']);
     if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     const data = await response.json();
     const attributeArray = extractArray(data, 'data') || extractArray(data, 'attributes');
@@ -826,13 +815,11 @@ const fetchAttributes = async () => {
 
 const fetchSellers = async () => {
   try {
-    const token = localStorage.getItem('access_token');
-    const response = await fetch(`${apiBase}/sellers/verified`, {
+    const response = await secureFetch(`${apiBase}/sellers/verified`, {
       headers: {
         Accept: 'application/json',
-        Authorization: `Bearer ${token}`
       }
-    });
+    } , ['admin']);
     if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     const data = await response.json();
     const sellerArray = extractArray(data, 'sellers');
@@ -886,16 +873,14 @@ const createAttribute = async () => {
 
   try {
     loading.value = true;
-    const token = localStorage.getItem('access_token');
-    const response = await fetch(`${apiBase}/attributes`, {
+    const response = await secureFetch(`${apiBase}/attributes`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
-        Authorization: `Bearer ${token}`
       },
       body: JSON.stringify(attributeData)
-    });
+    } , ['admin']);
 
     const data = await response.json();
     if (response.ok && data.success) {
@@ -1278,15 +1263,13 @@ const updateProduct = async () => {
 
   try {
     loading.value = true;
-    const token = localStorage.getItem('access_token');
-    const response = await fetch(`${apiBase}/products/${formData.id}`, {
+    const response = await secureFetch(`${apiBase}/products/${formData.id}`, {
       method: 'POST',
       body: formDataToSend,
       headers: {
         Accept: 'application/json',
-        Authorization: `Bearer ${token}`
       }
-    });
+    } , ['admin']);
     const data = await response.json();
 
     if (response.ok && data.success) {

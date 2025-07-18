@@ -71,12 +71,8 @@
 
                 <!-- Description -->
                 <label for="description" class="block text-sm text-gray-700 mb-1">Mô tả</label>
-                <Editor v-model="formData.description" api-key="rlas5j7eqa6dogiwnt1ld8iilzj3q074o4rw75lsxcygu1zd" :init="{
-                  height: 300,
-                  menubar: false,
-                  plugins: 'lists link image preview code help table',
-                  toolbar: 'undo redo | formatselect | bold italic underline |alignjustify alignleft aligncenter alignright | bullist numlist |  | removeformat | preview | link image | code  | h1 h2 h3 h4 h5 h6  ',
-                }" />
+                <TiptapEditor v-model="formData.description"
+                  class="w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-sm placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500" />
                 <span v-if="errors.description" class="text-red-500 text-xs mt-1">{{ errors.description }}</span>
 
                 <!-- Tabbed Content -->
@@ -545,7 +541,8 @@ import { useRouter, useRoute } from 'vue-router';
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
 import { library } from '@fortawesome/fontawesome-svg-core';
 import { faChevronUp, faChevronDown } from '@fortawesome/free-solid-svg-icons';
-import Editor from '@tinymce/tinymce-vue';
+import { secureFetch } from '@/utils/secureFetch' 
+import TiptapEditor from '@/components/TiptapEditor.vue'
 
 library.add(faChevronUp, faChevronDown);
 
@@ -627,18 +624,15 @@ const extractArray = (data, key) => {
 const fetchProduct = async () => {
   try {
     loading.value = true;
-    const token = localStorage.getItem('access_token');
-    const response = await fetch(`${apiBase}/products/${route.params.id}`, {
+    const response = await secureFetch(`${apiBase}/products/${route.params.id}`, {
       headers: {
         Accept: 'application/json',
-        Authorization: `Bearer ${token}`
       }
-    });
+    } , ['seller']);
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
     const data = await response.json();
-    console.log('Product data:', data.data);
     const product = data.data || data || {};
 
     if (!product.id) {
@@ -659,7 +653,6 @@ const fetchProduct = async () => {
         url: `${mediaBase}${img.imagePath}`,
         file: null
       })) : [];
-    console.log('Processed images:', formData.images);
 
     formData.variants = product.product_variants?.length ?
       product.product_variants.map(variant => ({
@@ -705,16 +698,13 @@ const fetchProduct = async () => {
 // Fetch data with error handling
 const fetchCategories = async () => {
   try {
-    const token = localStorage.getItem('access_token');
-    const response = await fetch(`${apiBase}/categories`, {
+    const response = await secureFetch(`${apiBase}/categories`, {
       headers: {
         Accept: 'application/json',
-        Authorization: `Bearer ${token}`
       }
-    });
+    } , ['seller']);
     if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     const data = await response.json();
-    console.log('Categories API response:', data);
     const categoryArray = extractArray(data, 'data');
     if (categoryArray.length) {
       categories.value = categoryArray.map(item => ({
@@ -722,7 +712,6 @@ const fetchCategories = async () => {
         name: item.name || item.title || 'Không có tên'
       }));
       apiErrors.categories = null;
-      console.log('Processed categories:', categories.value);
     } else {
       throw new Error('Unexpected response format for categories');
     }
@@ -734,16 +723,13 @@ const fetchCategories = async () => {
 
 const fetchTags = async () => {
   try {
-    const token = localStorage.getItem('access_token');
-    const response = await fetch(`${apiBase}/tags`, {
+    const response = await secureFetch(`${apiBase}/tags`, {
       headers: {
         Accept: 'application/json',
-        Authorization: `Bearer ${token}`
       }
-    });
+    } , ['seller']);
     if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     const data = await response.json();
-    console.log('Tags API response:', data);
     const tagArray = extractArray(data, 'tags');
     if (tagArray.length) {
       tags.value = tagArray.map(item => ({
@@ -751,7 +737,6 @@ const fetchTags = async () => {
         name: item.name || item.title || 'Không có tên'
       }));
       apiErrors.tags = null;
-      console.log('Processed tags:', tags.value);
     } else {
       throw new Error('Unexpected response format for tags');
     }
@@ -763,16 +748,13 @@ const fetchTags = async () => {
 
 const fetchAttributes = async () => {
   try {
-    const token = localStorage.getItem('access_token');
-    const response = await fetch(`${apiBase}/attributes`, {
+    const response = await secureFetch(`${apiBase}/attributes`, {
       headers: {
         Accept: 'application/json',
-        Authorization: `Bearer ${token}`
       }
-    });
+    } , ['seller']);
     if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     const data = await response.json();
-    console.log('Attributes API response:', data);
     const attributeArray = extractArray(data, 'data');
     if (attributeArray.length) {
       attributes.value = attributeArray.map(attr => ({
@@ -786,7 +768,6 @@ const fetchAttributes = async () => {
           : []
       }));
       apiErrors.attributes = null;
-      console.log('Processed attributes:', attributes.value);
     } else {
       throw new Error('Unexpected response format for attributes');
     }
@@ -830,20 +811,16 @@ const createAttribute = async () => {
 
   try {
     loading.value = true;
-    console.log('Sending attribute data:', attributeData);
-    const token = localStorage.getItem('access_token');
-    const response = await fetch(`${apiBase}/attributes`, {
+    const response = await secureFetch(`${apiBase}/attributes`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
-        Authorization: `Bearer ${token}`
       },
       body: JSON.stringify(attributeData)
-    });
+    } , ['seller']);
 
     const data = await response.json();
-    console.log('Attribute creation response:', data);
 
     if (response.ok && data.success) {
       const newAttr = data.data || data;
@@ -954,7 +931,6 @@ const triggerFileInput = () => {
 const removeProductImage = (index, id) => {
   if (id) {
     removedImages.value.push(id);
-    console.log('Removed Images:', removedImages.value);
   }
   formData.images.splice(index, 1);
   if (!formData.images.length) delete errors.images;
@@ -1211,17 +1187,14 @@ const updateProduct = async () => {
 
   try {
     loading.value = true;
-    const token = localStorage.getItem('access_token');
-    const response = await fetch(`${apiBase}/products/${formData.id}`, {
+    const response = await secureFetch(`${apiBase}/products/${formData.id}`, {
       method: 'POST',
       body: formDataToSend,
       headers: {
         Accept: 'application/json',
-        Authorization: `Bearer ${token}`
       }
-    });
+    } , ['seller']);
     const data = await response.json();
-    console.log('Product update response:', data);
 
     if (response.ok && data.success) {
       showNotificationMessage('Cập nhật sản phẩm thành công!', 'success');
@@ -1277,7 +1250,6 @@ onMounted(async () => {
     router.push('/seller/products/list-product');
     return;
   }
-  console.log('Fetching product with ID:', route.params.id);
   formData.id = route.params.id;
   await Promise.allSettled([fetchProduct(), fetchCategories(), fetchTags(), fetchAttributes()]).then(([prodResult, catResult, tagResult, attrResult]) => {
     console.log('Fetch results:', { prodResult, catResult, tagResult, attrResult });

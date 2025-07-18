@@ -71,12 +71,8 @@
 
                 <!-- Description -->
                 <label for="description" class="block text-sm text-gray-700 mb-1">Mô tả</label>
-                <Editor v-model="formData.description" api-key="rlas5j7eqa6dogiwnt1ld8iilzj3q074o4rw75lsxcygu1zd" :init="{
-                  height: 300,
-                  menubar: false,
-                  plugins: 'lists link image preview',
-                  toolbar: 'undo redo | formatselect | bold italic underline |alignjustify alignleft aligncenter alignright | bullist numlist |  | removeformat | preview | link image | code  | h1 h2 h3 h4 h5 h6  ',
-                }" />
+                <TiptapEditor v-model="formData.description"
+                  class="w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-sm placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500" />
                 <span v-if="errors.description" class="text-red-500 text-xs mt-1">{{ errors.description }}</span>
 
                 <!-- Tabbed Content -->
@@ -573,7 +569,8 @@ import { useRouter } from 'vue-router';
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
 import { library } from '@fortawesome/fontawesome-svg-core';
 import { faChevronUp, faChevronDown } from '@fortawesome/free-solid-svg-icons';
-import Editor from '@tinymce/tinymce-vue';
+import TiptapEditor from '@/components/TiptapEditor.vue'
+import { secureFetch } from '@/utils/secureFetch' 
 
 library.add(faChevronUp, faChevronDown);
 
@@ -654,9 +651,9 @@ const extractArray = (data, key) => {
 // Fetch data with error handling
 const fetchCategories = async () => {
   try {
-    const response = await fetch(`${apiBase}/categories`, {
+    const response = await secureFetch(`${apiBase}/categories`, {
       headers: { Accept: 'application/json' }
-    });
+    } , ['admin']);
     if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     const data = await response.json();
     const categoryArray = data?.data?.data || [];
@@ -676,9 +673,9 @@ const fetchCategories = async () => {
 
 const fetchTags = async () => {
   try {
-    const response = await fetch(`${apiBase}/tags`, {
+    const response = await secureFetch(`${apiBase}/tags`, {
       headers: { Accept: 'application/json' }
-    });
+    } , ['admin']);
     if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     const data = await response.json();
     const tagArray = extractArray(data, 'tags');
@@ -782,14 +779,14 @@ const createAttribute = async () => {
 
   try {
     loading.value = true;
-    const response = await fetch(`${apiBase}/attributes`, {
+    const response = await secureFetch(`${apiBase}/attributes`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json'
       },
       body: JSON.stringify(attributeData)
-    });
+    } , ['admin', 'seller']);
 
     const data = await response.json();
     if (response.ok && data.success) {
@@ -1142,21 +1139,17 @@ const createProduct = async () => {
 
   try {
     loading.value = true;
-    console.log('Sending product creation request with payload:');
     for (let [key, value] of formDataToSend.entries()) {
       console.log(`${key}: ${value instanceof File ? value.name : value}`);
     }
-    const token = localStorage.getItem('access_token');
-    const response = await fetch(`${apiBase}/products`, {
+    const response = await secureFetch(`${apiBase}/products`, {
       method: 'POST',
       body: formDataToSend,
       headers: {
         Accept: 'application/json',
-        Authorization: `Bearer ${token}`
       }
-    });
+    } , ['admin']);
     const data = await response.json();
-    console.log('Product creation response:', data);
 
     if (response.ok && data.success) {
       showNotificationMessage('Tạo sản phẩm thành công!', 'success');

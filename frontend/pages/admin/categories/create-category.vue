@@ -205,6 +205,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
 import { useRouter, useRuntimeConfig } from '#app';
+import { secureFetch } from '@/utils/secureFetch';
 
 definePageMeta({
   layout: 'default-admin'
@@ -235,7 +236,12 @@ const formData = reactive({
 // Fetch categories for parent category dropdown
 const fetchCategories = async () => {
   try {
-    const response = await fetch(`${apiBase}/categories`);
+    const response = await secureFetch(`${apiBase}/categories`, {
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json'
+      }
+    }, ['admin']);
     const data = await response.json();
     categories.value = data.data.data || [];
   } catch (error) {
@@ -297,10 +303,10 @@ const createCategory = async () => {
 
   try {
     loading.value = true;
-    const response = await fetch(`${apiBase}/categories`, {
+    const response = await secureFetch(`${apiBase}/categories`, {
       method: 'POST',
       body: form
-    });
+    } , ['admin']);
 
     const data = await response.json();
 

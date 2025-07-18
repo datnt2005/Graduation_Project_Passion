@@ -192,6 +192,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue';
 import { useRouter, useRoute, useRuntimeConfig } from '#app';
+import { secureFetch } from '@/utils/secureFetch' 
 
 definePageMeta({
   layout: 'default-admin'
@@ -234,7 +235,12 @@ const fetchTag = async () => {
 
   try {
     console.log('Fetching tag with ID:', route.params.id);
-    const response = await fetch(`${apiBase}/tags/${route.params.id}`);
+    const response = await secureFetch(`${apiBase}/tags/${route.params.id}` , {
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json'
+      }
+    }, ['admin']);
     const data = await response.json();
     console.log('tag API response:', data);
 
@@ -320,10 +326,10 @@ const updateTag = async () => {
   try {
     loading.value = true;
     console.log('Updating tag with ID:', route.params.id);
-    const response = await fetch(`${apiBase}/tags/${route.params.id}`, {
+    const response = await secureFetch(`${apiBase}/tags/${route.params.id}`, {
       method: 'POST', // Use POST with _method=PATCH for method spoofing
       body: form
-    });
+    } , ['admin']);
     const data = await response.json();
     console.log('Update API response:', data);
 
