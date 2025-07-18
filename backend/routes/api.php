@@ -26,11 +26,13 @@ Route::get('/settings', [SettingController::class, 'index']);
     Route::post('/settings/restore', [SettingController::class, 'restore']);
 
 // api chat user width seller
+// api chat user width seller
 Route::prefix('chat')->group(function () {
-    Route::post('/send-message', [ChatController::class, 'sendMessage']);
-    Route::get('/messages/{sessionId}', [ChatController::class, 'getMessages']);
+    Route::post('/session', [ChatController::class, 'createSession']);
     Route::get('/sessions', [ChatController::class, 'getSessions']);
-    Route::put('/messages/{id}/action', [ChatController::class, 'updateMessage']);
+    Route::post('/message', [ChatController::class, 'sendMessage']);
+    Route::get('/messages/{sessionId}', [ChatController::class, 'getMessages']);
+    Route::post('/messages/{sessionId}/read', [ChatController::class, 'markAsRead']);
 });
 
 // // Category

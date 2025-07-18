@@ -17,7 +17,11 @@ class PayoutController extends Controller
     {
         try {
             $user = Auth::user();
+            if ($user->role === 'admin' && $request->has('seller_id')) {
+                $seller = Seller::findOrFail($request->seller_id);
+            } else {
             $seller = Seller::where('user_id', $user->id)->firstOrFail();
+            }
             $payouts = Payout::where('seller_id', $seller->id)
                 ->with(['order', 'order.shipping'])
                 ->orderBy('created_at', 'desc')
@@ -259,7 +263,9 @@ class PayoutController extends Controller
                 ->where('status', 'completed')
                 ->orderByDesc('transferred_at');
 
-            if ($user->role === 'seller') {
+            if ($user->role === 'admin' && $request->has('seller_id')) {
+                $query->where('seller_id', $request->seller_id);
+            } elseif ($user->role === 'seller') {
                 $seller = Seller::where('user_id', $user->id)->firstOrFail();
                 $query->where('seller_id', $seller->id);
             }

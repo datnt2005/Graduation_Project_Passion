@@ -9,8 +9,42 @@ class DashboardController extends Controller
     /**
      * Thống kê dashboard cho admin
      */
-    public function stats()
+    public function stats(Request $request)
     {
+        $user = $request->user();
+        $sellerId = $request->input('seller_id');
+        if ($user && $user->role === 'admin' && $sellerId) {
+            // Lấy stats cho 1 seller cụ thể
+            $payoutOrderIds = \App\Models\Payout::where('seller_id', $sellerId)
+                ->where('status', 'completed')
+                ->pluck('order_id')
+                ->unique()
+                ->filter();
+            $soldOrdersCount = \App\Models\Order::whereIn('id', $payoutOrderIds)->where('status', 'delivered')->count();
+            $totalRevenue = \App\Models\Order::whereIn('id', $payoutOrderIds)->where('status', 'delivered')->sum('final_price');
+            $deliveredOrderIds = \App\Models\Order::whereIn('id', $payoutOrderIds)->where('status', 'delivered')->pluck('id');
+            $orderItems = \App\Models\OrderItem::whereIn('order_id', $deliveredOrderIds)->get();
+            $variantIds = $orderItems->pluck('product_variant_id')->unique();
+            $variants = \App\Models\ProductVariant::whereIn('id', $variantIds)->get()->keyBy('id');
+            $totalCost = 0;
+            foreach ($orderItems as $item) {
+                $variant = $variants[$item->product_variant_id] ?? null;
+                if ($variant) {
+                    $totalCost += $variant->cost_price * $item->quantity;
+                }
+            }
+            $totalProfit = $totalRevenue - $totalCost;
+            $totalLoss = $totalProfit < 0 ? abs($totalProfit) : 0;
+            if ($totalProfit < 0) $totalProfit = 0;
+            return response()->json([
+                'total_orders' => \App\Models\Order::whereIn('id', $payoutOrderIds)->count(),
+                'sold_orders' => $soldOrdersCount,
+                'total_revenue' => $totalRevenue,
+                'total_cost' => $totalCost,
+                'total_profit' => $totalProfit,
+                'total_loss' => $totalLoss,
+            ]);
+        }
         // Tổng người dùng
         $totalUsers = \App\Models\User::count();
         // Tổng đơn hàng

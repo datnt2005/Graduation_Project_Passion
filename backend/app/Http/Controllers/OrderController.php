@@ -774,11 +774,10 @@ class OrderController extends Controller
             ])->where('id', $id)
                 ->where('user_id', $user->id)
                 ->firstOrFail();
-
-            return response()->json([
-                'success' => true,
-                'data' => $this->formatOrderResponse($order)
-            ], 200);
+          return response()->json([
+            'success' => true,
+            'data' => $this->formatOrderResponse($order)
+        ], 200);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             Log::error('Order not found', [
                 'order_id' => $id,
@@ -1003,6 +1002,7 @@ class OrderController extends Controller
                 'province_id' => $order->address->province_id,
                 'district_id' => $order->address->district_id,
                 'ward_code' => $order->address->ward_code,
+                'detail' => $order->address->detail,
             ] : null,
             'note' => $order->note ?? '',
             'status' => $order->status,

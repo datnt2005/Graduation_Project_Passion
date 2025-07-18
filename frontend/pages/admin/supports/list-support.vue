@@ -82,6 +82,9 @@
           </tr>
         </tbody>
       </table>
+
+      <!-- Pagination Component -->
+      <Pagination :currentPage="currentPage" :lastPage="lastPage" @change="fetchSupports" />
     </div>
 
     <!-- Notification Popup -->
@@ -179,10 +182,15 @@ const showConfirmDialog = ref(false)
 const confirmDialogTitle = ref('')
 const confirmDialogMessage = ref('')
 const confirmAction = ref(null)
+const currentPage = ref(1)
+const lastPage = ref(1)
+const perPage = 10
 
-const fetchSupports = async () => {
-  const res = await $fetch(`${apiBase}/supports`)
-  supports.value = Array.isArray(res.data) ? res.data : []
+const fetchSupports = async (page = 1) => {
+  const res = await $fetch(`${apiBase}/supports?page=${page}&per_page=${perPage}`)
+  supports.value = res.data.data || res.data || []
+  currentPage.value = res.data.current_page || 1
+  lastPage.value = res.data.last_page || 1
 }
 
 const startEdit = (item) => {
@@ -257,5 +265,5 @@ const handleConfirmAction = async () => {
   closeConfirmDialog()
 }
 
-onMounted(fetchSupports)
+onMounted(() => fetchSupports())
 </script>

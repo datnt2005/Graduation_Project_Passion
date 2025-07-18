@@ -185,6 +185,7 @@
 <script setup>
 import { ref, reactive } from 'vue';
 import { useRouter, useRuntimeConfig } from '#app';
+import { secureFetch } from '@/utils/secureFetch' 
 
 definePageMeta({
   layout: 'default-admin'
@@ -256,13 +257,13 @@ const createAttribute = async () => {
 
   try {
     loading.value = true;
-    const response = await fetch(`${apiBase}/attributes`, {
+    const response = await secureFetch(`${apiBase}/attributes`, {
       method: 'POST',
       body: form,
       headers: {
         Accept: 'application/json'
       }
-    });
+    } , ['admin']);
 
     const data = await response.json();
     console.log('API response:', data); // Debug log
