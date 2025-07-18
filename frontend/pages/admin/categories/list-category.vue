@@ -378,7 +378,7 @@ import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { useRuntimeConfig } from '#app';
 import Pagination from '~/components/Pagination.vue';
-
+import { secureFetch } from '@/utils/secureFetch' 
 
 definePageMeta({
   layout: 'default-admin'
@@ -415,7 +415,12 @@ const fetchCategories = async (page = 1) => {
     loading.value = true;
     currentPage.value = page;
 
-    const response = await fetch(`${apiBase}/categories?page=${page}&per_page=${perPage}`);
+    const response = await secureFetch(`${apiBase}/categories?page=${page}&per_page=${perPage}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json'
+      }
+    }, ['admin']);
     const result = await response.json();
 
     // ✅ Kiểm tra cấu trúc phản hồi hợp lệ
@@ -461,12 +466,12 @@ const applyBulkAction = async () => {
         try {
           loading.value = true;
           const deletePromises = selectedCategories.value.map(id => 
-            fetch(`${apiBase}/categories/${id}`, {
+            secureFetch(`${apiBase}/categories/${id}`, {
               method: 'DELETE',
               headers: {
                 'Content-Type': 'application/json'
               }
-            })
+            } , ['admin'])
           );
 
           await Promise.all(deletePromises);
@@ -498,12 +503,12 @@ const confirmDelete = async (category) => {
     `Bạn có chắc chắn muốn xóa danh mục "${category.name}" không?`,
     async () => {
       try {
-        const response = await fetch(`${apiBase}/categories/${category.id}`, {
+        const response = await secureFetch(`${apiBase}/categories/${category.id}`, {
           method: 'DELETE',
           headers: {
             'Content-Type': 'application/json'
           }
-        });
+        } , ['admin']);
 
         if (response.ok) {
           showNotificationMessage('Xóa danh mục thành công!' , 'success');

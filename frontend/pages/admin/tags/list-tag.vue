@@ -238,6 +238,7 @@ import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { useRuntimeConfig } from '#app';
 import Pagination from '~/components/Pagination.vue';
+import { secureFetch } from '@/utils/secureFetch' 
 
 definePageMeta({
   layout: 'default-admin'
@@ -274,7 +275,12 @@ const fetchTags = async (page = 1) => {
     loading.value = true;
     currentPage.value = page;
 
-    const response = await fetch(`${apiBase}/tags?page=${page}&per_page=${perPage}`);
+    const response = await secureFetch(`${apiBase}/tags?page=${page}&per_page=${perPage}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json'
+      }
+    }, ['admin']);
     const result = await response.json();
 
     // ✅ Kiểm tra đúng cấu trúc mới
@@ -319,12 +325,12 @@ const applyBulkAction = async () => {
         try {
           loading.value = true;
           const deletePromises = selectedTags.value.map(id =>
-            fetch(`${apiBase}/tags/${id}`, {
+            secureFetch(`${apiBase}/tags/${id}`, {
               method: 'DELETE',
               headers: {
                 'Content-Type': 'application/json'
               }
-            })
+            } , ['admin'])
           );
 
           const responses = await Promise.all(deletePromises);
@@ -361,12 +367,12 @@ const confirmDelete = async (tag) => {
     `Bạn có chắc chắn muốn xóa thẻ "${tag.name}" không?`,
     async () => {
       try {
-        const response = await fetch(`${apiBase}/tags/${tag.id}`, {
+        const response = await secureFetch(`${apiBase}/tags/${tag.id}`, {
           method: 'DELETE',
           headers: {
             'Content-Type': 'application/json'
           }
-        });
+        } , ['admin']);
 
         if (response.ok) {
           showNotificationMessage('Xóa thẻ thành công!', 'success');

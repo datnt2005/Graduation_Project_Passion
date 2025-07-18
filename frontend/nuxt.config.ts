@@ -10,7 +10,7 @@ export default defineNuxtConfig({
 
   modules: [
     '@pinia/nuxt',
-    '@nuxt/devtools' // ⬅ nếu bạn muốn khai báo rõ ràng (tự động nếu đã cài)
+    '@nuxt/devtools' 
   ],
 
   plugins: ['~/plugins/fontawesome'],
