@@ -11,3 +11,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/address/{id}', [AddressController::class, 'update']);
     Route::delete('/address/{id}', [AddressController::class, 'destroy']);
 });
+
+

@@ -1,95 +1,100 @@
+```vue
 <template>
-  <div class="grid grid-cols-1 lg:grid-cols-2 min-h-screen bg-white relative">
-      <div class="absolute top-0 left-0 right-0 z-10 px-6 pt-6 bg-white">
-      <RegisterSteps :currentStep="1" />
+  <div class="min-h-screen bg-gradient-to-b from-white to-blue-50 px-4 py-10 flex items-start justify-center relative">
+    <div class="absolute top-0 left-0 right-0 z-10 px-6 pt-6 bg-white">
+      <RegisterSteps :currentStep="2" />
     </div>
-    <!-- Cột trái -->
-    <div class="hidden lg:flex items-center justify-center bg-gray-50">
-      
-      <img src="/images/SellerCenter2.png" alt="Đăng ký bán hàng" class="max-h-[500px] rounded-xl shadow-md" />
-      
-    </div>
+    <div class="w-full max-w-2xl text-center space-y-6 pt-24">
+      <div class="flex flex-col items-center gap-2">
+        <div class="bg-blue-100 text-blue-600 rounded-full p-3">
+          <i class="fas fa-truck fa-lg"></i>
+        </div>
+        <h2 class="text-2xl font-bold text-blue-700">Phương thức vận chuyển</h2>
+        <p class="text-gray-600 text-sm">
+          Chọn các phương thức vận chuyển mà cửa hàng của bạn hỗ trợ.
+        </p>
+      </div>
 
-    <!-- Cột phải -->
-    <div class="flex flex-col justify-center p-8 max-w-md w-full mx-auto">
-      
-      <h2 class="text-2xl font-bold text-blue-600 mb-2">Chọn dịch vụ vận chuyển</h2>
-      <p class="text-gray-600 mb-6">Chọn các dịch vụ vận chuyển phù hợp với cửa hàng của bạn</p>
+      <div class="bg-white rounded-xl shadow p-5 space-y-4">
+        <div class="space-y-2">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              v-model="form.shipping_options.express"
+              :value="true"
+              class="h-5 w-5 text-blue-600 rounded border-gray-300"
+            />
+            <span class="text-gray-700">Giao hàng nhanh (Express)</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              v-model="form.shipping_options.standard"
+              :value="true"
+              class="h-5 w-5 text-blue-600 rounded border-gray-300"
+            />
+            <span class="text-gray-700">Giao hàng tiêu chuẩn (Standard)</span>
+          </label>
+        </div>
+      </div>
 
-      <form @submit.prevent="submitStep2" class="space-y-6">
-        <!-- GHN -->
-        <div
-          class="relative border rounded-xl p-5 space-y-2 cursor-pointer transition"
-          :class="selected ? 'border-blue-500 bg-blue-50 shadow' : 'border-gray-300 hover:border-blue-400'"
-          @click="toggleOption"
+      <div class="flex justify-center gap-4 pt-2">
+        <button
+          @click="router.push('/seller/RegisterSellerSteps/step1')"
+          class="px-6 py-2 rounded-lg border border-blue-500 text-blue-600 font-medium hover:bg-blue-50"
         >
-          <div class="absolute -top-2 left-4 bg-blue-500 text-white text-xs px-2 py-[2px] rounded-md">
-            Phổ biến
-          </div>
-
-          <div class="flex items-start gap-3">
-            <input type="checkbox" class="mt-1 accent-blue-600" :checked="selected" />
-            <div>
-              <div class="flex items-center gap-2 font-semibold text-gray-800">
-                <i class="fas fa-bolt text-blue-600"></i>
-                Giao hàng nhanh (GHN)
-              </div>
-              <div class="text-sm text-gray-500">Giao hàng trong 1-2 ngày làm việc</div>
-              <div class="flex gap-2 mt-2 flex-wrap">
-                <span class="tag">Giao hàng 1-2 ngày</span>
-                <span class="tag">Theo dõi đơn hàng</span>
-                <span class="tag">Hỗ trợ 24/7</span>
-              </div>
-            </div>
-          </div>
-        </div>
-        <!-- Nút -->
-        <div class="flex justify-between items-center mt-6">
-          <button type="button" @click="goBack" class="text-blue-600 underline">← Quay lại</button>
-          <button type="submit" class="btn btn-primary w-32 h-11">Tiếp theo</button>
-        </div>
-      </form>
+          <i class="fas fa-arrow-left mr-1"></i> Quay lại
+        </button>
+        <button
+          @click="saveAndNext"
+          class="px-6 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700"
+        >
+          <i class="fas fa-arrow-right mr-1"></i> Tiếp tục
+        </button>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import RegisterSteps from '@/components/RegisterSteps.vue'
+import { ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
+import { useToast } from '~/composables/useToast';
+import RegisterSteps from '@/components/RegisterSteps.vue';
 
-const selected = ref(true)
-const router = useRouter()
+const router = useRouter();
+const { toast } = useToast();
+const form = ref({
+  shipping_options: {
+    express: false,
+    standard: false,
+  },
+});
 
 onMounted(() => {
-  const saved = localStorage.getItem('register_step2')
-  if (saved) {
-    const parsed = JSON.parse(saved)
-    selected.value = !!parsed.express
+  const savedData = localStorage.getItem('register_step2');
+  if (savedData) {
+    form.value = JSON.parse(savedData);
   }
-})
+});
 
-
-const toggleOption = () => {
-  selected.value = !selected.value
-}
-
-const submitStep2 = () => {
-  localStorage.setItem('register_step2', JSON.stringify({ express: selected.value }))
-  router.push('/seller/RegisterSellerSteps/step3')
-}
-
-
-const goBack = () => {
-  router.push('/seller/RegisterSellerSteps/step1')
-}
+const saveAndNext = () => {
+  if (!form.value.shipping_options.express && !form.value.shipping_options.standard) {
+    toast('error', 'Vui lòng chọn ít nhất một phương thức vận chuyển.');
+    return;
+  }
+  localStorage.setItem('register_step2', JSON.stringify(form.value));
+  router.push('/seller/RegisterSellerSteps/step3');
+};
 </script>
 
 <style scoped>
 .btn-primary {
-  @apply bg-blue-600 text-white rounded-lg py-2 hover:bg-blue-700 transition;
+  @apply bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700;
 }
-.tag {
-  @apply text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full;
+
+.btn-outline {
+  @apply border border-gray-300 text-gray-700 px-6 py-2 rounded hover:bg-gray-100;
 }
 </style>
+```

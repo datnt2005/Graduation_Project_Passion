@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 class ChatController extends Controller
 {
@@ -32,33 +33,62 @@ class ChatController extends Controller
     // 2️⃣ Lấy danh sách các phiên chat của user hoặc seller
     public function getSessions(Request $request)
     {
-        $request->validate([
-            'user_id' => 'required|integer',
-            'type'    => 'required|in:user,seller',
-        ]);
+        $userId = $request->query('user_id');
+        $type = $request->query('type');
 
-        $relations = [
-            'messages' => function ($q) {
-                $q->latest('created_at')->limit(10);
-            },
-        ];
+        try {
+            // Xác thực đầu vào
+            if (!$userId || !in_array($type, ['user', 'seller'])) {
+                Log::warning('Invalid parameters for chat sessions', [
+                    'user_id' => $userId,
+                    'type' => $type
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Tham số không hợp lệ'
+                ], 400);
+            }
 
-        if ($request->type === 'seller') {
-            $relations['user'] = fn($q) => $q->select('id', 'name', 'avatar');
-        } else {
-            $relations['seller'] = fn($q) => $q->select('id', 'store_name', 'user_id');
-            $relations['seller.user'] = fn($q) => $q->select('id', 'avatar');
+            $sessions = ChatSession::where('user_id', $userId)
+                ->orderByDesc(function ($query) {
+                    $query->select('created_at')
+                        ->from('messages')
+                        ->where('messages.chat_session_id', '=', DB::raw('chat_sessions.id'))
+                        ->orderByDesc('created_at')
+                        ->limit(1);
+                })
+                ->orWhereNotExists(function ($query) {
+                    $query->select(DB::raw(1))
+                        ->from('messages')
+                        ->where('messages.chat_session_id', '=', DB::raw('chat_sessions.id'));
+                })
+                ->orderByDesc('created_at') // Sắp xếp theo created_at của chat_sessions nếu không có tin nhắn
+                ->get(['id', 'user_id', 'seller_id', 'created_at', 'updated_at']);
+
+            Log::info('Chat sessions retrieved', [
+                'user_id' => $userId,
+                'type' => $type,
+                'sessions' => $sessions->toArray()
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'data' => $sessions
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Lỗi khi lấy chat sessions', [
+                'user_id' => $userId,
+                'type' => $type,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra khi lấy chat sessions',
+                'error' => $e->getMessage()
+            ], 500);
         }
-
-        // ✅ Truy vấn trực tiếp, bỏ qua cache để dễ debug
-        $sessions = ChatSession::with($relations)
-            ->where($request->type . '_id', $request->user_id)
-            ->orderByDesc('last_message_at')
-            ->get(['id', 'user_id', 'seller_id', 'last_message', 'last_message_at', 'created_at', 'updated_at']);
-
-        return response()->json([
-            'data' => $sessions
-        ]);
     }
 
 

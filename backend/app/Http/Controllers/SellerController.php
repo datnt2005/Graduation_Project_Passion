@@ -9,6 +9,7 @@ use App\Models\Discount;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Http; 
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Storage;
 use Google\Cloud\Vision\V1\ImageAnnotatorClient;
@@ -25,52 +26,88 @@ class SellerController extends Controller
         return response()->json($sellers);
     }
 
+    public function show($sellerId)
+    {
+        try {
+            $seller = Seller::findOrFail($sellerId);
+            return response()->json([
+                'data' => [
+                    'id' => $seller->id,
+                    'district_id' => $seller->district_id,
+                    'ward_id' => $seller->ward_id, // Sử dụng ward_id
+                    'province_id' => $seller->province_id,
+                    'address' => $seller->address,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            Log::error("Lỗi khi lấy thông tin seller {$sellerId}: {$e->getMessage()}");
+            return response()->json(['message' => 'Không thể lấy thông tin cửa hàng'], 500);
+        }
+    }
 
 
     public function getMySellerInfo()
-    {
-        $user = auth()->user();
+{
+    $user = auth()->user();
 
-        // Kiểm tra user có phải seller không
-        $seller = Seller::with(['user:id,name,email,avatar'])
-            ->where('user_id', auth()->id())
-            ->first();
+    // Kiểm tra user có phải seller không
+    $seller = Seller::with(['user:id,name,email,avatar'])
+        ->where('user_id', auth()->id())
+        ->first();
 
-        if (!$seller) {
-            return response()->json([
-                'message' => 'Bạn không phải là người bán (seller).'
-            ], 403); // Hoặc 404 nếu muốn ẩn thông tin
-        }
-        $avatarFile = $seller->user->avatar;
-        $avatarUrl = $avatarFile
-            ? env('R2_AVATAR_URL') . $avatarFile
-            : env('R2_AVATAR_URL') . 'default.jpg';
-
-        // Gắn vào response
-        $seller->user->avatar_url = $avatarUrl;
-
+    if (!$seller) {
         return response()->json([
-            'seller' => $seller
-        ]);
+            'message' => 'Bạn không phải là người bán (seller).'
+        ], 403);
     }
-    public function update(Request $request)
-    {
-        $user = auth()->user();
-        $seller = Seller::where('user_id', $user->id)->firstOrFail();
 
-        $validator = Validator::make($request->all(), [
-            'store_name' => 'nullable|string|max:255',
-            'bio' => 'nullable|string',
-            'phone_number' => 'nullable|string|max:20',
-            'pickup_address' => 'nullable|string',
-            'document' => 'nullable|file|mimes:jpg,png,pdf|max:4048',
-        ], [
-            'store_name.max' => 'Tên cửa hàng không được vượt quá 255 ký tự.',
-            'phone_number.max' => 'Số điện thoại không được vượt quá 20 ký tự.',
-            'document.file' => 'Tài liệu phải là tệp hợp lệ.',
-            'document.mimes' => 'Tài liệu phải có định dạng: jpg, png, hoặc pdf.',
-            'document.max' => 'Tài liệu không được vượt quá 4MB.',
-        ]);
+    $avatarUrl = $seller->user->avatar
+        ? env('R2_AVATAR_URL') . $seller->user->avatar
+        : env('R2_AVATAR_URL') . 'default.jpg';
+
+    return response()->json([
+        'seller' => [
+            'id' => $seller->id,
+            'store_name' => $seller->store_name,
+            'province_id' => $seller->province_id,
+            'district_id' => $seller->district_id,
+            'ward_id' => $seller->ward_id,
+            'address' => $seller->address,
+            'ghn_shop_id' => $seller->ghn_shop_id,
+            'user' => [
+                'id' => $seller->user->id,
+                'name' => $seller->user->name,
+                'email' => $seller->user->email,
+                'avatar_url' => $avatarUrl,
+            ],
+        ],
+    ], 200);
+}
+public function update(Request $request)
+{
+    $user = auth()->user();
+    $seller = Seller::where('user_id', $user->id)->firstOrFail();
+
+    $validator = Validator::make($request->all(), [
+        'store_name' => 'nullable|string|max:255',
+        'bio' => 'nullable|string',
+        'phone_number' => 'nullable|string|max:20',
+        'pickup_address' => 'nullable|string',
+        'document' => 'nullable|file|mimes:jpg,png,pdf|max:4048',
+    ], [
+        'store_name.max' => 'Tên cửa hàng không được vượt quá 255 ký tự.',
+        'phone_number.max' => 'Số điện thoại không được vượt quá 20 ký tự.',
+        'document.file' => 'Tài liệu phải là tệp hợp lệ.',
+        'document.mimes' => 'Tài liệu phải có định dạng: jpg, png, hoặc pdf.',
+        'document.max' => 'Tài liệu không được vượt quá 4MB.',
+    ]);
+
+    if ($validator->fails()) {
+        return response()->json([
+            'message' => 'Dữ liệu không hợp lệ',
+            'errors' => $validator->errors()
+        ], 422);
+    }
 
         if ($validator->fails()) {
             return response()->json([
@@ -420,100 +457,219 @@ class SellerController extends Controller
     {
         $user = Auth::user();
         if (!$user) {
+            Log::warning('Unauthorized access attempt in registerFull');
             return response()->json(['message' => 'Chưa xác thực người dùng.'], 401);
         }
 
-        $validator = Validator::make($request->all(), [
-            // Bước 1
-            'store_name' => 'required|string|max:255|unique:sellers,store_name',
-            'phone_number' => 'required|regex:/^[0-9\-\+\s\(\)]+$/|min:10|max:11|unique:sellers,phone_number',
-            'pickup_address' => 'required|string',
+        // Chuẩn hóa dữ liệu đầu vào
+        $data = $request->all();
+        $data['province_id'] = (int) $request->input('province_id'); // Chuyển thành số nguyên
+        $data['district_id'] = (int) $request->input('district_id'); // Chuyển thành số nguyên
 
-            // Bước 2
-            'shipping_options' => 'required|array',
+        // Log dữ liệu đầu vào để debug
+        Log::info('FormData received in registerFull:', ['data' => $data]);
 
-            // Bước 3
+        // Validation rules
+        $rules = [
+            'store_name' => 'required|string|max:255|unique:sellers,store_name,' . $user->id . ',user_id',
+            'phone_number' => 'required|string|max:20|regex:/^[0-9]{10,11}$/|unique:sellers,phone_number,' . $user->id . ',user_id',
+            'province_id' => 'required|integer',
+            'district_id' => 'required|integer',
+            'ward_id' => 'required|string',
+            'address' => 'required|string|max:255',
+            'shipping_options' => 'required|json',
             'seller_type' => 'required|in:personal,business',
-            'tax_code' => 'required|string|max:20|unique:sellers,tax_code',
+            'tax_code' => 'required|string|max:20|unique:sellers,tax_code,' . $user->id . ',user_id',
             'business_name' => 'nullable|string|max:255',
-            'business_email' => 'nullable|email',
+            'business_email' => 'nullable|email|max:255',
             'identity_card_file' => 'required_if:seller_type,business|file|mimes:jpg,jpeg,png,pdf|max:4096',
-
-            // Bước 4
-            'identity_card_number' => 'required|string|max:20|unique:sellers,identity_card_number',
+            'identity_card_number' => 'required|string|regex:/^[0-9]{12}$/|unique:sellers,identity_card_number,' . $user->id . ',user_id',
             'date_of_birth' => 'required|date|before_or_equal:' . now()->subYears(18)->format('Y-m-d'),
-            'personal_address' => 'required|string',
+            'personal_address' => 'required|string|max:255',
             'id_card_front_url' => 'required|file|mimes:jpg,jpeg,png|max:4096',
             'id_card_back_url' => 'required|file|mimes:jpg,jpeg,png|max:4096',
-        ], [
-            // Thông báo lỗi tùy chỉnh
+        ];
+
+        // Custom error messages
+        $messages = [
             'store_name.required' => 'Vui lòng nhập tên cửa hàng.',
             'store_name.unique' => 'Tên cửa hàng đã được sử dụng.',
             'store_name.max' => 'Tên cửa hàng không được vượt quá 255 ký tự.',
-
             'phone_number.required' => 'Vui lòng nhập số điện thoại.',
-            'phone_number.regex' => 'Số điện thoại không hợp lệ.',
-            'phone_number.min' => 'Số điện thoại phải có ít nhất 10 số.',
-            'phone_number.max' => 'Số điện thoại không được vượt quá 11 số.',
+            'phone_number.regex' => 'Số điện thoại phải có 10 hoặc 11 chữ số.',
+            'phone_number.max' => 'Số điện thoại không được vượt quá 20 ký tự.',
             'phone_number.unique' => 'Số điện thoại đã tồn tại.',
-
-            'pickup_address.required' => 'Vui lòng nhập địa chỉ lấy hàng.',
-
+            'province_id.required' => 'Vui lòng chọn tỉnh/thành phố.',
+            'province_id.integer' => 'Tỉnh/thành phố không hợp lệ.',
+            'district_id.required' => 'Vui lòng chọn quận/huyện.',
+            'district_id.integer' => 'Quận/huyện không hợp lệ.',
+            'ward_id.required' => 'Vui lòng chọn phường/xã.',
+            'ward_id.string' => 'Phường/xã không hợp lệ.',
+            'address.required' => 'Vui lòng nhập địa chỉ chi tiết.',
+            'address.max' => 'Địa chỉ không được vượt quá 255 ký tự.',
             'shipping_options.required' => 'Vui lòng chọn ít nhất một phương thức vận chuyển.',
-            'shipping_options.array' => 'Dữ liệu vận chuyển không hợp lệ.',
-
+            'shipping_options.json' => 'Dữ liệu vận chuyển không hợp lệ, phải là chuỗi JSON.',
             'seller_type.required' => 'Vui lòng chọn loại hình người bán.',
-            'seller_type.in' => 'Loại hình người bán không hợp lệ.',
-
+            'seller_type.in' => 'Loại hình người bán phải là cá nhân hoặc doanh nghiệp.',
             'tax_code.required' => 'Vui lòng nhập mã số thuế.',
             'tax_code.unique' => 'Mã số thuế đã tồn tại.',
             'tax_code.max' => 'Mã số thuế không được vượt quá 20 ký tự.',
-
             'business_name.max' => 'Tên doanh nghiệp không được vượt quá 255 ký tự.',
             'business_email.email' => 'Email doanh nghiệp không hợp lệ.',
-
             'identity_card_number.required' => 'Vui lòng nhập số CCCD.',
-            'identity_card_number.max' => 'Số CCCD không được vượt quá 20 ký tự.',
+            'identity_card_number.regex' => 'Số CCCD phải có đúng 12 chữ số.',
             'identity_card_number.unique' => 'Số CCCD đã được đăng ký.',
-
             'date_of_birth.required' => 'Vui lòng nhập ngày sinh.',
             'date_of_birth.date' => 'Ngày sinh không hợp lệ.',
             'date_of_birth.before_or_equal' => 'Bạn phải đủ 18 tuổi trở lên.',
-
             'personal_address.required' => 'Vui lòng nhập địa chỉ cá nhân.',
-
+            'personal_address.max' => 'Địa chỉ cá nhân không được vượt quá 255 ký tự.',
             'id_card_front_url.required' => 'Vui lòng tải lên ảnh mặt trước CCCD.',
-            'id_card_front_url.file' => 'Ảnh mặt trước CCCD không hợp lệ.',
             'id_card_front_url.mimes' => 'Ảnh mặt trước phải là file JPG, JPEG hoặc PNG.',
             'id_card_front_url.max' => 'Ảnh mặt trước CCCD không được vượt quá 4MB.',
-
-            'identity_card_file.required_if' => 'Vui lòng tải lên giấy tờ xác minh cho doanh nghiệp.',
-            'identity_card_file.file' => 'File xác minh không hợp lệ.',
-            'identity_card_file.mimes' => 'File xác minh phải là JPG, JPEG, PNG hoặc PDF.',
-            'identity_card_file.max' => 'File xác minh không được vượt quá 4MB.',
-
             'id_card_back_url.required' => 'Vui lòng tải lên ảnh mặt sau CCCD.',
-            'id_card_back_url.file' => 'Ảnh mặt sau CCCD không hợp lệ.',
             'id_card_back_url.mimes' => 'Ảnh mặt sau phải là file JPG, JPEG hoặc PNG.',
             'id_card_back_url.max' => 'Ảnh mặt sau CCCD không được vượt quá 4MB.',
-        ]);
+            'identity_card_file.required_if' => 'Vui lòng tải lên giấy tờ xác minh cho doanh nghiệp.',
+            'identity_card_file.mimes' => 'File xác minh phải là JPG, JPEG, PNG hoặc PDF.',
+            'identity_card_file.max' => 'File xác minh không được vượt quá 4MB.',
+        ];
 
-
+        // Validate request
+        $validator = Validator::make($data, $rules, $messages);
         if ($validator->fails()) {
+            Log::warning('Validation failed in registerFull: ', ['errors' => $validator->errors(), 'request_data' => $data]);
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        // Tạo slug
-        $slug = Str::slug($request->store_name) . '-' . Str::random(4) . '-' . uniqid();
+        // Validate shipping_options content
+        $shippingOptions = json_decode($request->input('shipping_options'), true);
+        if (!is_array($shippingOptions) || empty($shippingOptions)) {
+            Log::warning('Invalid shipping_options: ', ['shipping_options' => $request->input('shipping_options')]);
+            return response()->json([
+                'errors' => ['shipping_options' => ['Dữ liệu vận chuyển không hợp lệ, phải chứa ít nhất một phương thức.']]
+            ], 422);
+        }
 
-        // Tạo hoặc cập nhật seller
-        $seller = Seller::updateOrCreate(
-            ['user_id' => $user->id],
-            [
+        // Validate allowed shipping options
+        $allowedOptions = ['express', 'standard'];
+        foreach ($shippingOptions as $key => $value) {
+            if (!in_array($key, $allowedOptions) || $value !== true) {
+                Log::warning('Invalid shipping option: ', ['key' => $key, 'value' => $value]);
+                return response()->json([
+                    'errors' => ['shipping_options' => ['Phương thức vận chuyển không hợp lệ: ' . $key]]
+                ], 422);
+            }
+        }
+
+        // Validate province_id, district_id, ward_id with GHN API
+        try {
+            $ghnToken = env('GHN_TOKEN');
+            if (empty($ghnToken)) {
+                Log::error('GHN_TOKEN is not configured in .env');
+                return response()->json(['errors' => ['api' => ['Thiếu cấu hình GHN_TOKEN.']]], 500);
+            }
+
+            // Validate province_id
+            $provinceResponse = Http::withHeaders(['Token' => $ghnToken])
+                ->get('https://dev-online-gateway.ghn.vn/shiip/public-api/master-data/province');
+            if (!$provinceResponse->successful()) {
+                Log::error('GHN API error for provinces: ', ['response' => $provinceResponse->json()]);
+                return response()->json(['errors' => ['province_id' => ['Lỗi khi kiểm tra tỉnh/thành phố với GHN.']]], 500);
+            }
+            $provinces = $provinceResponse->json()['data'] ?? [];
+            if (!collect($provinces)->contains('ProvinceID', $data['province_id'])) {
+                Log::warning('Invalid province_id: ', ['province_id' => $data['province_id']]);
+                return response()->json(['errors' => ['province_id' => ['Tỉnh/thành phố không hợp lệ.']]], 422);
+            }
+
+            // Validate district_id
+            $districtResponse = Http::withHeaders(['Token' => $ghnToken])
+                ->get('https://dev-online-gateway.ghn.vn/shiip/public-api/master-data/district', [
+                    'province_id' => $data['province_id'],
+                ]);
+            if (!$districtResponse->successful()) {
+                Log::error('GHN API error for districts: ', ['response' => $districtResponse->json()]);
+                return response()->json(['errors' => ['district_id' => ['Lỗi khi kiểm tra quận/huyện với GHN.']]], 500);
+            }
+            $districts = $districtResponse->json()['data'] ?? [];
+            if (!collect($districts)->contains('DistrictID', $data['district_id'])) {
+                Log::warning('Invalid district_id: ', ['district_id' => $data['district_id']]);
+                return response()->json(['errors' => ['district_id' => ['Quận/huyện không hợp lệ.']]], 422);
+            }
+
+            // Validate ward_id
+            $wardResponse = Http::withHeaders(['Token' => $ghnToken])
+                ->get('https://dev-online-gateway.ghn.vn/shiip/public-api/master-data/ward', [
+                    'district_id' => $data['district_id'],
+                ]);
+            if (!$wardResponse->successful()) {
+                Log::error('GHN API error for wards: ', ['response' => $wardResponse->json()]);
+                return response()->json(['errors' => ['ward_id' => ['Lỗi khi kiểm tra phường/xã với GHN.']]], 500);
+            }
+            $wards = $wardResponse->json()['data'] ?? [];
+            if (!collect($wards)->contains('WardCode', $request->ward_id)) {
+                Log::warning('Invalid ward_id: ', ['ward_id' => $request->ward_id]);
+                return response()->json(['errors' => ['ward_id' => ['Phường/xã không hợp lệ.']]], 422);
+            }
+        } catch (\Exception $e) {
+            Log::error('GHN API exception: ', [
+                'error' => $e->getMessage(),
+                'request_data' => $data,
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return response()->json(['errors' => ['api' => ['Lỗi khi kiểm tra địa chỉ với GHN: ' . $e->getMessage()]]], 500);
+        }
+
+        try {
+            // Tạo slug
+            $slug = Str::slug($request->store_name) . '-' . Str::random(4) . '-' . uniqid();
+
+            // Lưu ảnh và file
+            $idCardFrontPath = null;
+            $idCardBackPath = null;
+            $identityCardFilePath = null;
+
+            if ($request->hasFile('id_card_front_url')) {
+                try {
+                    $idCardFrontPath = $request->file('id_card_front_url')->store('seller-documents/cccd-front', 'r2');
+                    Log::info('Uploaded id_card_front_url: ', ['path' => $idCardFrontPath]);
+                } catch (\Exception $e) {
+                    Log::error('Error uploading id_card_front_url: ', ['error' => $e->getMessage()]);
+                    return response()->json(['errors' => ['id_card_front_url' => ['Lỗi khi tải lên ảnh mặt trước CCCD: ' . $e->getMessage()]]], 500);
+                }
+            }
+
+            if ($request->hasFile('id_card_back_url')) {
+                try {
+                    $idCardBackPath = $request->file('id_card_back_url')->store('seller-documents/cccd-back', 'r2');
+                    Log::info('Uploaded id_card_back_url: ', ['path' => $idCardBackPath]);
+                } catch (\Exception $e) {
+                    Log::error('Error uploading id_card_back_url: ', ['error' => $e->getMessage()]);
+                    return response()->json(['errors' => ['id_card_back_url' => ['Lỗi khi tải lên ảnh mặt sau CCCD: ' . $e->getMessage()]]], 500);
+                }
+            }
+
+            if ($request->hasFile('identity_card_file')) {
+                try {
+                    $identityCardFilePath = $request->file('identity_card_file')->store('seller-documents/business-proof', 'r2');
+                    Log::info('Uploaded identity_card_file: ', ['path' => $identityCardFilePath]);
+                } catch (\Exception $e) {
+                    Log::error('Error uploading identity_card_file: ', ['error' => $e->getMessage()]);
+                    return response()->json(['errors' => ['identity_card_file' => ['Lỗi khi tải lên giấy tờ xác minh: ' . $e->getMessage()]]], 500);
+                }
+            }
+
+            // Log dữ liệu trước khi lưu vào database
+            $sellerData = [
+                'user_id' => $user->id,
                 'store_name' => $request->store_name,
                 'store_slug' => $slug,
                 'phone_number' => $request->phone_number,
-                'pickup_address' => $request->pickup_address,
+                'province_id' => $data['province_id'], // Số nguyên
+                'district_id' => $data['district_id'], // Số nguyên
+                'ward_id' => $request->ward_id, // Chuỗi
+                'address' => $request->address,
                 'shipping_options' => $request->shipping_options,
                 'seller_type' => $request->seller_type,
                 'tax_code' => $request->tax_code,
@@ -522,32 +678,39 @@ class SellerController extends Controller
                 'identity_card_number' => $request->identity_card_number,
                 'date_of_birth' => $request->date_of_birth,
                 'personal_address' => $request->personal_address,
+                'id_card_front_url' => $idCardFrontPath,
+                'id_card_back_url' => $idCardBackPath,
+                'identity_card_file' => $identityCardFilePath,
                 'verification_status' => 'pending',
-            ]
-        );
+            ];
+            Log::info('Data to save in sellers table:', ['sellerData' => $sellerData]);
 
-        // Upload ảnh CCCD
-        if ($request->hasFile('id_card_front_url')) {
-            $frontPath = $request->file('id_card_front_url')->store('seller-documents/cccd-front', 'r2');
-            $seller->id_card_front_url = $frontPath;
+            // Tạo hoặc cập nhật seller
+            $seller = Seller::updateOrCreate(
+                ['user_id' => $user->id],
+                $sellerData
+            );
+
+            Log::info('Seller registered successfully: ', ['seller_id' => $seller->id, 'user_id' => $user->id]);
+
+            return response()->json([
+                'message' => 'Đã hoàn tất đăng ký người bán.',
+                'data' => [
+                    'seller_id' => $seller->id,
+                ],
+            ], 201);
+        } catch (\Exception $e) {
+            Log::error('Error in registerFull: ', [
+                'error' => $e->getMessage(),
+                'request_data' => $data,
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return response()->json([
+                'message' => 'Lỗi khi đăng ký người bán: ' . $e->getMessage(),
+            ], 500);
         }
-
-        if ($request->hasFile('identity_card_file')) {
-            $identityFilePath = $request->file('identity_card_file')->store('seller-documents/business-proof', 'r2');
-            $seller->identity_card_file = $identityFilePath;
-        }
-
-        if ($request->hasFile('id_card_back_url')) {
-            $backPath = $request->file('id_card_back_url')->store('seller-documents/cccd-back', 'r2');
-            $seller->id_card_back_url = $backPath;
-        }
-
-        $seller->save();
-
-        return response()->json([
-            'message' => 'Đã hoàn tất đăng ký người bán.'
-        ]);
     }
+
     public function getDiscounts(Request $request, $slug)
     {
         $seller = Seller::where('store_slug', $slug)->first();

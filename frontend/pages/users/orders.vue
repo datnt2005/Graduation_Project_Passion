@@ -55,6 +55,10 @@
           </button>
         </nav>
 
+        <!-- Blocked account message -->
+        <div v-if="user && user.is_blocked" class="bg-red-100 text-red-700 p-4 rounded-md text-center mb-6">
+          Tài khoản của bạn đã bị khóa do có quá nhiều đơn hàng bị từ chối. Vui lòng liên hệ hỗ trợ để biết thêm chi tiết.
+        </div>
         <!-- Loading Skeleton for Order Table -->
         <div v-if="isLoading" class="bg-white rounded-md shadow border border-gray-200 overflow-hidden animate-pulse">
           <table class="min-w-full text-sm divide-y divide-gray-200">
@@ -291,19 +295,19 @@
                   <div class="h-1 w-8 bg-gray-300 rounded"></div>
                   <div class="flex flex-col items-center">
                     <i class="fas fa-cogs text-2xl"
-                      :class="['processing', 'shipped', 'delivered'].includes(selectedOrder?.status) ? 'text-blue-600' : 'text-gray-400'"
+                      :class="['processing', 'shipping', 'delivered'].includes(selectedOrder?.status) ? 'text-blue-600' : 'text-gray-400'"
                       aria-hidden="true"></i>
                     <span class="text-xs mt-1"
-                      :class="['processing', 'shipped', 'delivered'].includes(selectedOrder?.status) ? 'text-blue-600 font-semibold' : 'text-gray-400'">Đã
+                      :class="['processing', 'shipping', 'delivered'].includes(selectedOrder?.status) ? 'text-blue-600 font-semibold' : 'text-gray-400'">Đã
                       xử lý</span>
                   </div>
                   <div class="h-1 w-8 bg-gray-300 rounded"></div>
                   <div class="flex flex-col items-center">
                     <i class="fas fa-shipping-fast text-2xl"
-                      :class="['shipped', 'delivered'].includes(selectedOrder?.status) ? 'text-blue-600' : 'text-gray-400'"
+                      :class="['shipping', 'delivered'].includes(selectedOrder?.status) ? 'text-blue-600' : 'text-gray-400'"
                       aria-hidden="true"></i>
                     <span class="text-xs mt-1"
-                      :class="['shipped', 'delivered'].includes(selectedOrder?.status) ? 'text-blue-600 font-semibold' : 'text-gray-400'">Đang
+                      :class="['shipping', 'delivered'].includes(selectedOrder?.status) ? 'text-blue-600 font-semibold' : 'text-gray-400'">Đang
                       giao</span>
                   </div>
                   <div class="h-1 w-8 bg-gray-300 rounded"></div>
@@ -342,6 +346,10 @@
                       <span :class="statusClass(selectedOrder?.status)" class="text-xs px-2 py-1 rounded-full">
                         {{ statusText(selectedOrder?.status) }}
                       </span>
+                    </p>
+                    <p v-if="['failed', 'failed_delivery', 'rejected_by_customer'].includes(selectedOrder?.status)" class="flex gap-1 pb-2">
+                      <span class="min-w-[90px] text-gray-500">Lý do thất bại:</span>
+                      <span class="text-black">{{ selectedOrder?.failure_reason || 'Chưa có lý do' }}</span>
                     </p>
                     <p class="flex gap-1 pb-2">
                       <span class="min-w-[90px] text-gray-500">Tổng tiền:</span>
@@ -420,11 +428,11 @@
                   </div>
                 </div>
                 <!-- Xử lý hoàn tiền -->
-                <div v-if="['failed', 'cancelled', 'returned'].includes(selectedOrder.status) && !effectiveRefund"
+                <div v-if="['failed', 'cancelled', 'returned', 'failed_delivery', 'rejected_by_customer'].includes(selectedOrder.status) && !effectiveRefund && selectedOrder.payments?.length > 0 && selectedOrder.payments.every(payment => payment.method?.toLowerCase() !== 'cod')"
                   class="border border-gray-200 rounded-lg mb-6">
                   <div class="border-b px-4 py-2 font-medium text-sm bg-gray-50 text-gray-800">Xử lý hoàn tiền</div>
                   <div class="px-4 py-3 text-sm text-gray-700">
-                    <p><b>Lý do hiện tại:</b> {{ selectedOrder.note || 'Chưa có ghi chú' }}</p>
+                    <p><b>Lý do hiện tại:</b> {{ selectedOrder.failure_reason || selectedOrder.note || 'Chưa có ghi chú' }}</p>
                     <div class="mt-2">
                       <label class="block mb-1" for="refund-amount">Số tiền hoàn (VND):</label>
                       <input v-model.number="refundAmount" id="refund-amount" type="number" min="0"
@@ -439,6 +447,14 @@
                         class="mt-2 px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700"
                         :disabled="!refundReason" aria-label="Gửi yêu cầu hoàn tiền">Gửi yêu cầu hoàn tiền</button>
                     </div>
+                  </div>
+                </div>
+                <!-- Thông báo cho đơn hàng COD -->
+                <div v-else-if="['failed', 'cancelled', 'returned', 'failed_delivery', 'rejected_by_customer'].includes(selectedOrder.status) && !effectiveRefund && selectedOrder.payments?.some(payment => payment.method?.toLowerCase() === 'cod')"
+                  class="border border-gray-200 rounded-lg mb-6">
+                  <div class="border-b px-4 py-2 font-medium text-sm bg-gray-50 text-gray-800">Xử lý hoàn tiền</div>
+                  <div class="px-4 py-3 text-sm text-gray-700">
+                    <p>Đơn hàng sử dụng thanh toán COD, không thể yêu cầu hoàn tiền trực tuyến. Vui lòng liên hệ hỗ trợ để được xử lý.</p>
                   </div>
                 </div>
                 <div v-if="effectiveRefund" class="border border-gray-200 rounded-lg mb-6">
@@ -526,9 +542,11 @@ const tabs = ref([
   { label: 'Tất cả', value: 'all', count: 0 },
   { label: 'Chờ xử lý', value: 'pending', count: 0 },
   { label: 'Đang xử lý', value: 'processing', count: 0 },
-  { label: 'Đã gửi hàng', value: 'shipped', count: 0 },
+  { label: 'Đang giao hàng', value: 'shipping', count: 0 },
   { label: 'Đã giao hàng', value: 'delivered', count: 0 },
-  { label: 'Đã huỷ', value: 'cancelled', count: 0 },
+  { label: 'Đã hủy', value: 'cancelled', count: 0 },
+  { label: 'Giao không thành công', value: 'failed_delivery', count: 0 },
+  { label: 'Khách từ chối', value: 'rejected_by_customer', count: 0 },
   { label: 'Yêu cầu hoàn tiền', value: 'refunds', count: 0 }
 ]);
 
@@ -539,7 +557,7 @@ const statusText = (status) => ({
   shipping: 'Đang giao hàng',
   shipped: 'Đã gửi hàng',
   delivered: 'Đã giao hàng',
-  cancelled: 'Đã huỷ',
+  cancelled: 'Đã hủy',
   completed: 'Đã thanh toán',
   failed: 'Thất bại',
   refunded: 'Đã hoàn tiền',
@@ -549,17 +567,22 @@ const statusText = (status) => ({
   unpaid: 'Chưa thanh toán',
   waiting: 'Đang chờ',
   error: 'Lỗi',
+  failed_delivery: 'Giao không thành công',
+  rejected_by_customer: 'Khách từ chối nhận'
 })[status] || (status ? status : 'Không xác định');
 
 const statusClass = (status) => ({
   pending: 'bg-yellow-100 text-yellow-700',
   processing: 'bg-indigo-100 text-indigo-700',
+  shipping: 'bg-blue-100 text-blue-700',
   shipped: 'bg-blue-100 text-blue-700',
   delivered: 'bg-green-100 text-green-700',
   cancelled: 'bg-red-100 text-red-700',
   refunded: 'bg-orange-100 text-orange-700',
   returned: 'bg-orange-100 text-orange-700',
-  failed: 'bg-red-100 text-red-700'
+  failed: 'bg-red-100 text-red-700',
+  failed_delivery: 'bg-red-100 text-red-700',
+  rejected_by_customer: 'bg-red-100 text-red-700'
 })[status] || 'bg-gray-100 text-gray-700';
 
 const refundStatusText = (status) => ({
@@ -653,49 +676,68 @@ const debouncedSearch = debounce((value) => {
 
 // API calls
 const fetchOrders = async (forceRefresh = false) => {
-  const cacheKey = `user_orders_page_${page.value}`;
-  if (!forceRefresh) {
-    const cache = localStorage.getItem(cacheKey);
-    if (cache) {
-      const cachedData = JSON.parse(cache);
-      if (cachedData.expiry > Date.now()) {
-        orders.value = cachedData.orders;
-        user.value = cachedData.user;
-        updateTabCounts();
-        isLoading.value = false;
-        return;
-      }
+    const cacheKey = `user_orders_page_${page.value}`;
+    if (!forceRefresh) {
+        const cache = localStorage.getItem(cacheKey);
+        if (cache) {
+            const cachedData = JSON.parse(cache);
+            if (cachedData.expiry > Date.now()) {
+                orders.value = cachedData.orders;
+                user.value = cachedData.user || null;
+                updateTabCounts();
+                isLoading.value = false;
+                return;
+            }
+        }
     }
-  }
-  isLoading.value = true;
-  try {
-    const token = localStorage.getItem('access_token');
-    if (!token) throw new Error('Chưa đăng nhập');
+    isLoading.value = true;
+    try {
+        const token = localStorage.getItem('access_token');
+        if (!token) throw new Error('Chưa đăng nhập');
 
-    const [userRes, ordersRes] = await Promise.all([
-      axios.get(`${apiBase}/me`, { headers: { Authorization: `Bearer ${token}` } }),
-      axios.get(`${apiBase}/user/orders?page=${page.value}&per_page=${perPage}`, { headers: { Authorization: `Bearer ${token}` } })
-    ]);
+        const [userRes, ordersRes] = await Promise.all([
+            axios.get(`${apiBase}/me`, { headers: { Authorization: `Bearer ${token}` } }),
+            axios.get(`${apiBase}/user/orders?page=${page.value}&per_page=${perPage}`, { headers: { Authorization: `Bearer ${token}` } })
+        ]);
 
-    console.log('fetchOrders API response:', { user: userRes.data, orders: ordersRes.data });
+        console.log('fetchOrders API response:', { user: userRes.data, orders: ordersRes.data });
 
-    user.value = userRes.data;
-    orders.value = Array.isArray(ordersRes.data.data) ? ordersRes.data.data.map(order => ({
-      ...order,
-      refund: order.refund || null
-    })) : [];
-    localStorage.setItem(cacheKey, JSON.stringify({
-      orders: orders.value,
-      user: user.value,
-      expiry: Date.now() + 1000 * 60 * 5 // Cache 5 phút
-    }));
-    updateTabCounts();
-  } catch (err) {
-    console.error('fetchOrders error:', err);
-    toast('error', 'Không thể tải đơn hàng!');
-  } finally {
-    isLoading.value = false;
-  }
+        user.value = {
+            ...userRes.data,
+            is_cod_blocked: userRes.data.is_cod_blocked || false,
+            is_blocked: userRes.data.is_blocked || false
+        };
+
+        orders.value = Array.isArray(ordersRes.data.data) ? ordersRes.data.data.map(order => ({
+            ...order,
+            refund: order.refund || null,
+            shipping: order.shipping || null,
+            failure_reason: order.failure_reason || null
+        })) : [];
+
+        if (user.value.is_blocked) {
+            toast('error', 'Tài khoản của bạn đã bị khóa do vi phạm chính sách!');
+            router.push('/login');
+            return;
+        }
+
+        // Xóa logic gửi email cảnh báo vì đã được xử lý trong backend
+        localStorage.setItem(cacheKey, JSON.stringify({
+            orders: orders.value,
+            user: user.value,
+            expiry: Date.now() + 1000 * 60 * 5 // Cache 5 phút
+        }));
+        updateTabCounts();
+    } catch (err) {
+        console.error('fetchOrders error:', err);
+        toast('error', 'Không thể tải đơn hàng!');
+        if (err.response?.status === 401) {
+            localStorage.removeItem('access_token');
+            router.push('/login');
+        }
+    } finally {
+        isLoading.value = false;
+    }
 };
 
 const fetchRefunds = async (forceRefresh = false) => {
@@ -786,19 +828,15 @@ const viewOrder = async (id) => {
       user: orderData.user || {},
       order_items: Array.isArray(orderData.order_items) ? orderData.order_items : [],
       payments: Array.isArray(orderData.payments) ? orderData.payments : [],
-      shipping: orderData.shipping || null
+      shipping: orderData.shipping || null,
+      failure_reason: orderData.failure_reason || null
     };
 
     console.log('selectedOrder.value:', selectedOrder.value);
+    console.log('Payments for order:', selectedOrder.value.payments);
+    console.log('Is COD:', selectedOrder.value.payments?.some(payment => payment.method?.toLowerCase() === 'cod'));
 
-    if (!selectedOrder.value.refund) {
-      const refund = refunds.value.find(r => r.order_id === id);
-      if (refund) {
-        selectedOrder.value.refund = refund;
-      }
-    }
-
-    if (!selectedOrder.value.refund && ['failed', 'cancelled', 'returned'].includes(selectedOrder.value.status)) {
+    if (!selectedOrder.value.refund && ['failed', 'cancelled', 'returned', 'failed_delivery', 'rejected_by_customer'].includes(selectedOrder.value.status)) {
       refundAmount.value = maxRefundAmount.value;
       toast('info', `Số tiền hoàn đã được tự động điền: ${formatPrice(refundAmount.value * 1000)}`);
     } else {
@@ -929,6 +967,10 @@ const requestRefund = async (order) => {
 };
 
 const reorderToCart = async (order) => {
+  if (user.value?.is_cod_blocked) {
+    toast('error', 'Bạn đã bị cấm sử dụng thanh toán COD do từ chối nhận hàng!');
+    return;
+  }
   const token = localStorage.getItem('access_token');
   const item = order.order_items[0];
 
@@ -948,12 +990,14 @@ const reorderToCart = async (order) => {
       product_id: item.product.id,
       product_variant_id: item.variant?.id || undefined,
       quantity: item.quantity,
+      payment_method: user.value?.is_cod_blocked ? 'online' : undefined // Ngăn COD nếu bị cấm
     }, {
       headers: { Authorization: `Bearer ${token}` }
     });
 
     router.push('/cart');
   } catch (err) {
+    console.error('reorderToCart error:', err);
     toast('error', 'Không thể thêm sản phẩm vào giỏ hàng!');
   }
 };
