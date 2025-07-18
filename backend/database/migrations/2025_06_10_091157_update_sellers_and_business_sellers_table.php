@@ -11,7 +11,6 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Update bảng sellers
         Schema::table('sellers', function (Blueprint $table) {
             if (!Schema::hasColumn('sellers', 'seller_type')) {
                 $table->enum('seller_type', ['personal', 'business'])->default('personal')->after('store_slug');
@@ -45,39 +44,6 @@ return new class extends Migration
                 $table->softDeletes();
             }
         });
-
-
-        // Update bảng business_sellers
-        Schema::table('business_sellers', function (Blueprint $table) {
-
-            if (!Schema::hasColumn('business_sellers', 'representative_name')) {
-                $table->string('representative_name')->nullable()->after('business_license');
-            }
-
-            if (!Schema::hasColumn('business_sellers', 'representative_phone')) {
-                $table->string('representative_phone', 20)->nullable()->after('representative_name');
-            }
-
-            if (!Schema::hasColumn('business_sellers', 'province')) {
-                $table->string('province', 100)->nullable()->after('company_address');
-            }
-
-            if (!Schema::hasColumn('business_sellers', 'district')) {
-                $table->string('district', 100)->nullable()->after('province');
-            }
-
-            if (!Schema::hasColumn('business_sellers', 'status')) {
-                $table->enum('status', ['active', 'inactive', 'revoked'])->default('active')->after('representative_phone');
-            }
-
-            if (!Schema::hasColumn('business_sellers', 'business_license_file')) {
-                $table->string('business_license_file')->nullable()->after('business_license');
-            }
-
-            if (!Schema::hasColumn('business_sellers', 'deleted_at')) {
-                $table->softDeletes();
-            }
-        });
     }
 
     /**
@@ -85,33 +51,17 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Rollback bảng sellers
-        // Schema::table('sellers', function (Blueprint $table) {
-        //     $table->dropColumn([
-        //         'seller_type',
-        //         'identity_card_number',
-        //         'date_of_birth',
-        //         'personal_address',
-        //         'phone_number',
-        //         'identity_card_file',
-        //         'verified_at',
-        //         'deleted_at',
-        //     ]);
-            // $table->renameColumn('identity_card_file', 'document');
-        // });
-
-        // Rollback bảng business_sellers
-        Schema::table('business_sellers', function (Blueprint $table) {
+        Schema::table('sellers', function (Blueprint $table) {
             $table->dropColumn([
-                'representative_name',
-                'representative_phone',
-                'province',
-                'district',
-                'status',
-                'business_license_file',
+                'seller_type',
+                'identity_card_number',
+                'date_of_birth',
+                'personal_address',
+                'phone_number',
+                'identity_card_file',
+                'verified_at',
                 'deleted_at',
             ]);
-            // $table->renameColumn('business_license_file', 'business_license');
         });
     }
 };

@@ -187,7 +187,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
 import { useRouter, useRoute, useRuntimeConfig } from '#app';
-
+import { secureFetch } from '@/utils/secureFetch'; 
 definePageMeta({
   layout: 'default-admin'
 });
@@ -243,11 +243,11 @@ const fetchAttribute = async () => {
   const id = route.params.id;
   try {
     loading.value = true;
-    const response = await fetch(`${apiBase}/attributes/${id}`, {
+    const response = await secureFetch(`${apiBase}/attributes/${id}`, {
       headers: {
         Accept: 'application/json'
       }
-    });
+    } , ['admin']);
     const data = await response.json();
     console.log('Fetch attribute response:', data);
 
@@ -292,13 +292,13 @@ const updateAttribute = async () => {
   try {
     loading.value = true;
     const id = route.params.id;
-    const response = await fetch(`${apiBase}/attributes/${id}`, {
+    const response = await secureFetch(`${apiBase}/attributes/${id}`, {
       method: 'POST',
       body: form,
       headers: {
         Accept: 'application/json'
       }
-    });
+    } , ['admin']);
 
     const data = await response.json();
     console.log('Update attribute response:', data);

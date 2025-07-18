@@ -1,14 +1,18 @@
 <template>
-  <main class="bg-[#F5F5FA] py-2">
-    <div class="container mx-auto flex gap-4 px-4">
+  <main class="bg-[#f5f5f5] text-[#222222] mb-6">
+    <div class="max-w-[1200px] mx-auto px-2">
       <!-- Sidebar -->
-      <Sidebar />
+
       <!-- Main content -->
       <section class="flex-1 space-y-6">
         <!-- Banner -->
-        <Banner />      
+        <Banner />
         <!-- Brands -->
-        <Brands />
+        <categories />
+        <!-- // giảm giá -->
+        <Sale />
+
+        <ProductSearch />
         <!-- Products -->
         <Products />
       </section>

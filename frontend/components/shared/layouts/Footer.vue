@@ -1,74 +1,65 @@
 <template>
-  <footer class="bg-white text-gray-700 pt-10 pb-6 border-t border-gray-200">
-    <!-- Thương hiệu -->
+  <FooterBrands />
+
+  <FooterSearch />
+
+  <FooterCategories />
+  <footer
+    class="bg-[#f0f2f5] text-gray-700 pt-10 pb-6 border-t border-gray-200 text-sm"
+  >
     <div class="max-w-6xl mx-auto px-4">
-      <div class="text-center mb-10">
-        <h2 class="text-3xl font-bold text-gray-800 tracking-widest">
+      <!-- Logo và giới thiệu -->
+      <div class="text-center mb-10 px-4">
+        <h2 class="text-2xl sm:text-3xl font-bold text-gray-800 tracking-wide">
           {{ contactName }}
         </h2>
-        <p class="text-sm text-gray-600 mt-2">
+        <p class="mt-2 text-gray-600 text-sm sm:text-base leading-relaxed">
           Nền tảng thương mại điện tử kết nối đam mê và chất lượng đến từng
           khách hàng.
         </p>
       </div>
-      <!-- Footer main -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 text-sm">
+
+      <!-- Nội dung chính -->
+      <div
+        class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6 sm:gap-10 text-[15px]"
+      >
         <!-- Hỗ trợ khách hàng -->
         <div>
-          <h2 class="text-lg font-semibold mb-4">Hỗ Trợ Khách Hàng</h2>
+          <h2 class="text-base font-semibold mb-4 text-gray-800">
+            Hỗ Trợ Khách Hàng
+          </h2>
           <ul class="space-y-2">
+            <li><a href="#" class="hover:underline">Trung tâm trợ giúp</a></li>
             <li>
-              <a href="#" class="hover:underline flex items-center gap-1">
-                <span>Trung tâm trợ giúp</span>
-              </a>
-            </li>
-            <li>
-              <NuxtLink
-                to="/contact"
-                class="hover:underline flex items-center gap-1"
+              <NuxtLink to="/contact" class="hover:underline"
+                >Liên hệ khách hàng</NuxtLink
               >
-                <span>Liên hệ khách hàng</span>
-              </NuxtLink>
             </li>
             <li>
-              <NuxtLink
-                to="/support"
-                class="hover:underline flex items-center gap-1"
+              <NuxtLink to="/support" class="hover:underline"
+                >Hỗ trợ khách hàng</NuxtLink
               >
-                <span>Hỗ trợ khách hàng</span>
-              </NuxtLink>
             </li>
-            <li>
-              <a href="#" class="hover:underline flex items-center gap-1">
-                <span>An toàn mua bán</span>
-              </a>
-            </li>
+            <li><a href="#" class="hover:underline">An toàn mua bán</a></li>
           </ul>
         </div>
+
         <!-- Về chúng tôi -->
         <div>
-          <h2 class="text-lg font-semibold mb-4">Về Chúng Tôi</h2>
+          <h2 class="text-base font-semibold mb-4 text-gray-800">
+            Về Chúng Tôi
+          </h2>
           <ul class="space-y-2">
             <li>
-              <NuxtLink
-                to="/post"
-                class="hover:underline flex items-center gap-1"
-              >
-                <span>Bài viết</span>
-              </NuxtLink>
+              <NuxtLink to="/post" class="hover:underline">Bài viết</NuxtLink>
             </li>
             <li>
-              <NuxtLink
-                to="/introduce"
-                class="hover:underline flex items-center gap-1"
+              <NuxtLink to="/introduce" class="hover:underline"
+                >Giới Thiệu</NuxtLink
               >
-                <span>Giới Thiệu</span>
-              </NuxtLink>
             </li>
           </ul>
-          <h3 class="font-semibold text-base mt-6 mb-2">
-            Đối Tác &amp; Bán Hàng
-          </h3>
+          <h3 class="font-semibold mt-6 mb-2">Đối Tác &amp; Bán Hàng</h3>
           <ul class="space-y-1">
             <li><a href="#" class="hover:underline">Đăng ký bán hàng</a></li>
             <li><a href="#" class="hover:underline">Quy định bán hàng</a></li>
@@ -78,9 +69,12 @@
             </li>
           </ul>
         </div>
-        <!-- Tài nguyên & tin tức -->
+
+        <!-- Tin tức -->
         <div>
-          <h2 class="text-lg font-semibold mb-4">Tài Nguyên & Tin Tức</h2>
+          <h2 class="text-base font-semibold mb-4 text-gray-800">
+            Tài Nguyên & Tin Tức
+          </h2>
           <ul class="space-y-2">
             <li><a href="#" class="hover:underline">Blog</a></li>
             <li><a href="#" class="hover:underline">Tin khuyến mãi</a></li>
@@ -88,39 +82,39 @@
             <li><a href="#" class="hover:underline">Tải app Passion</a></li>
           </ul>
         </div>
-        <!-- Kết nối với chúng tôi -->
+
+        <!-- Kết nối -->
         <div>
-          <h2 class="text-lg font-semibold mb-4">Kết Nối Với Chúng Tôi</h2>
-          <ul class="space-y-2">
+          <h2 class="text-base font-semibold mb-4 text-gray-800">
+            Kết Nối Với Chúng Tôi
+          </h2>
+          <ul class="space-y-3">
             <li>
-              <a href="#" class="hover:underline flex items-center">
-                <i class="fab fa-facebook mr-2 text-blue-600"></i> Facebook
-                Passion
+              <a href="#" class="hover:underline flex items-center gap-2">
+                <i class="fab fa-facebook text-blue-600"></i> Facebook Passion
               </a>
             </li>
             <li>
-              <a href="#" class="hover:underline flex items-center">
-                <i class="fab fa-instagram mr-2 text-pink-500"></i> Instagram
+              <a href="#" class="hover:underline flex items-center gap-2">
+                <i class="fab fa-instagram text-pink-500"></i> Instagram
               </a>
             </li>
             <li>
               <a
                 href="mailto:hotro@passion.vn"
-                class="hover:underline flex items-center"
+                class="hover:underline flex items-center gap-2"
               >
-                <i class="fas fa-envelope mr-2 text-gray-500"></i>
-                {{ contactEmail }}
+                <i class="fas fa-envelope text-gray-500"></i> {{ contactEmail }}
               </a>
             </li>
-            <li>
-              <span class="flex items-center">
-                <i class="fas fa-phone mr-2 text-green-600"></i> Hotline:
-                {{ contactHotline }}
-              </span>
+            <li class="flex items-center gap-2">
+              <i class="fas fa-phone text-green-600"></i>
+              <span>Hotline: {{ contactHotline }}</span>
             </li>
           </ul>
         </div>
       </div>
+
       <!-- Copyright -->
       <div class="mt-10 border-t pt-4 text-center text-xs text-gray-500">
         © 2025 Passion. All rights reserved.
@@ -131,6 +125,9 @@
 
 <script setup>
 import { useSettings } from "~/composables/useSettings";
+import FooterCategories from "~/components/shared/layouts/FooterCategories.vue";
+import FooterSearch from "~/components/shared/layouts/FooterSearch.vue";
+import FooterBrands from "~/components/shared/layouts/FooterBrands.vue";
 
 const { settings } = useSettings();
 

@@ -4,53 +4,42 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductApprovalController;
 
-// Products
 Route::prefix('products')->group(function () {
+    // ✅ Public routes (ai cũng xem được)
     Route::get('/', [ProductController::class, 'index']);
-    Route::get('/sellers', [ProductController::class, 'getAllProductBySellers'])->middleware('auth:sanctum');
-    Route::get('/trash', [ProductController::class, 'getTrash']);
     Route::get('/shop', [ProductController::class, 'getAllProducts']);
-    Route::get('/{id}', [ProductController::class, 'show']);
-    Route::post('/', [ProductController::class, 'store'])->middleware('auth:sanctum');
-    Route::post('/import', [ProductController::class, 'import']);
-    Route::put('/{id}', [ProductController::class, 'update'])->middleware('auth:sanctum');
-    Route::delete('/{id}', [ProductController::class, 'destroy']);
-    Route::get('/slug/{slug}', [ProductController::class, 'showBySlug']);
-    Route::get('/sellers/{id}', [ProductController::class, 'getProductsBySellerId']);
-    Route::post('/change-status/{id}', [ProductController::class, 'changeStatus'])->middleware('auth:sanctum');
-    Route::get('/category/{slug}', [ProductController::class, 'getProductBySlugCategory']);
     Route::get('/search/{slug?}', [ProductController::class, 'getProducts']);
-    Route::get('/sellers/trash', [ProductController::class, 'getTrashBySeller'])->middleware('auth:sanctum');
+    Route::get('/category/{slug}', [ProductController::class, 'getProductBySlugCategory']);
+    Route::get('/slug/{slug}', [ProductController::class, 'showBySlug']);
 
+    // ⚠️ Route động phải có điều kiện whereNumber để không nuốt nhầm các route tĩnh như /trash
+    Route::get('/{id}', [ProductController::class, 'show'])->whereNumber('id');
 
+    // ✅ Seller/Admin: các route yêu cầu đăng nhập 
+    Route::middleware('auth:sanctum')->group(function () {
+        // Seller hoặc Admin đều có thể gọi
+        Route::middleware('checkRole:admin,seller')->group(function () {
+            Route::get('/sellers', [ProductController::class, 'getAllProductBySellers']);
+            Route::get('/sellers/{id}', [ProductController::class, 'getProductsBySellerId'])->whereNumber('id');
+            Route::get('/sellers/trash', [ProductController::class, 'getTrashBySeller']);
+            Route::get('/trash', [ProductController::class, 'getTrash']);
+
+            Route::post('/', [ProductController::class, 'store']);
+            Route::post('/import', [ProductController::class, 'import']);
+            Route::post('/change-status/{id}', [ProductController::class, 'changeStatus'])->whereNumber('id');
+            Route::put('/{id}', [ProductController::class, 'update'])->whereNumber('id');
+            Route::delete('/{id}', [ProductController::class, 'destroy'])->whereNumber('id');
+        });
+    });
 });
 
-    Route::get('/approvals', [ProductApprovalController::class, 'index']);
-    Route::get('/approvals/rejected', [ProductApprovalController::class, 'getRejectedProducts']);
-    Route::get('/approvals/history', [ProductApprovalController::class, 'getHistoryApproval'])->middleware('auth:sanctum');
-    Route::get('/approvals/{id}', [ProductApprovalController::class, 'getProductApprovalById']);
-    Route::post('/approvals/{id}', [ProductApprovalController::class, 'approveProduct'])->middleware('auth:sanctum');
-
-// Route::prefix('products')->group(function () {
-//     Route::get('/', [ProductController::class, 'getAllProducts']);
-//     Route::get('/sellers', [ProductController::class, 'getAllProductBySellers'])->middleware('auth:sanctum');
-//     Route::get('/trash', [ProductController::class, 'getTrash'])->middleware(['auth:sanctum', 'admin']);
-//     Route::get('/{id}', [ProductController::class, 'show']);
-//     Route::post('/', [ProductController::class, 'store'])->middleware('auth:sanctum');
-//     Route::post('/import', [ProductController::class, 'import'])->middleware(['auth:sanctum', 'admin']);
-//     Route::put('/{id}', [ProductController::class, 'update'])->middleware('auth:sanctum');
-//     Route::delete('/{id}', [ProductController::class, 'destroy'])->middleware(['auth:sanctum', 'admin']);
-//     Route::get('/slug/{slug}', [ProductController::class, 'showBySlug']);
-//     Route::post('/change-status/{id}', [ProductController::class, 'changeStatus'])->middleware('auth:sanctum');
-//     Route::get('/category/{slug}', [ProductController::class, 'getProductBySlugCategory']);
-    
-//     Route::prefix('search')->group(function () {
-//         Route::get('/history', [ProductController::class, 'getSearchHistory'])->middleware('auth:sanctum');
-//         Route::post('/clear-history', [ProductController::class, 'clearSearchHistory'])->middleware('auth:sanctum');
-//         Route::post('/track-click', [ProductController::class, 'trackProductClick'])->middleware('auth:sanctum');
-//         Route::get('/suggestions', [ProductController::class, 'getSearchSuggestions']);
-//         Route::get('/analytics', [ProductController::class, 'getSearchAnalytics'])->middleware(['auth:sanctum', 'admin']);
-//         Route::get('/sellers/trash', [ProductController::class, 'getTrashBySeller'])->middleware('auth:sanctum');
-//         Route::get('/{keyword?}', [ProductController::class, 'getProducts']); // Public route
-//     });
-// });
+// ✅ Route cho admin duyệt sản phẩm
+Route::middleware(['auth:sanctum', 'checkRole:admin'])->group(function () {
+    Route::prefix('approvals')->group(function () {
+        Route::get('/', [ProductApprovalController::class, 'index']);
+        Route::get('/rejected', [ProductApprovalController::class, 'getRejectedProducts']);
+        Route::get('/history', [ProductApprovalController::class, 'getHistoryApproval']);
+        Route::get('/{id}', [ProductApprovalController::class, 'getProductApprovalById'])->whereNumber('id');
+        Route::post('/{id}', [ProductApprovalController::class, 'approveProduct'])->whereNumber('id');
+    });
+});

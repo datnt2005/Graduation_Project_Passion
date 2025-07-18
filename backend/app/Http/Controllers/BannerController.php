@@ -228,7 +228,6 @@ class BannerController extends Controller
             'data' => $banners
         ]);
     }
-
     // Thêm API lấy popup active
     public function getActivePopups(): JsonResponse
     {

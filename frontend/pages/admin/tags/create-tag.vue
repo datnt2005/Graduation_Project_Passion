@@ -192,6 +192,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
 import { useRouter, useRuntimeConfig } from '#app';
+import { secureFetch } from '@/utils/secureFetch' 
 
 definePageMeta({
   layout: 'default-admin'
@@ -269,10 +270,10 @@ const createTag = async () => {
 
   try {
     loading.value = true;
-    const response = await fetch(`${apiBase}/tags`, {
+    const response = await secureFetch(`${apiBase}/tags`, {
       method: 'POST',
       body: form
-    });
+    } , ['admin']);
 
     const data = await response.json();
 
