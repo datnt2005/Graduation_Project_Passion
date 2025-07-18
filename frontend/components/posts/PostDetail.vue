@@ -7,6 +7,7 @@
         <span class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mb-2"></span>
         Đang tải bài viết...
       </div>
+      <div v-else-if="error" class="text-center text-red-500 py-16 text-lg">{{ error }}</div>
       <div v-else-if="!post" class="text-center text-gray-500 py-16 text-lg">Không tìm thấy bài viết.</div>
 
       <div v-else>
@@ -40,14 +41,11 @@
             #{{ tag }}
           </span>
         </div>
-
-       
       </div>
     </div>
 
     <!-- Sidebar -->
    
-    
   </main>
 </template>
 
@@ -55,22 +53,16 @@
 import { ref, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useRuntimeConfig } from '#app'
-import { useToast } from '~/composables/useToast'
-import CommentSection from '~/components/posts/CommentSection.vue'
 import PostSidebar from '~/components/posts/PostSidebar.vue'
 
-const { toast } = useToast()
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBaseUrl
 const route = useRoute()
 
 const post = ref(null)
 const loading = ref(true)
-const relatedPosts = ref([])
-const relatedLoading = ref(true)
-const latestPosts = ref([])
-const topicPosts = ref([])
-const currentUserId = ref(null)
+const error = ref(null)
+const postSlug = ref(route.params.slug)
 
 const formatDate = (dateStr) => {
   const date = new Date(dateStr)
@@ -82,77 +74,31 @@ const formatDate = (dateStr) => {
 
 const fetchPost = async () => {
   loading.value = true
+  error.value = null
   try {
-    const res = await $fetch(`${apiBase}/posts/${route.params.id}`)
-    post.value = res.data
+    const res = await $fetch(`${apiBase}/posts/slug/${route.params.slug}`, {
+      headers: { 'Accept': 'application/json' }
+    })
+    if (res.success && res.data) {
+      post.value = res.data
+    } else {
+      throw new Error('Dữ liệu không đúng định dạng từ API')
+    }
   } catch (e) {
+    error.value = `Không tìm thấy bài viết hoặc có lỗi từ server: ${e.message}`
     post.value = null
   } finally {
     loading.value = false
   }
 }
 
-const fetchLatestPosts = async () => {
-  try {
-    const res = await $fetch(`${apiBase}/posts?limit=5`)
-    latestPosts.value = res.data?.filter(p => p.id !== post.value?.id) || []
-  } catch {
-    latestPosts.value = []
-  }
-}
-
-const fetchTopicPosts = async () => {
-  if (!post.value?.category?.id) return topicPosts.value = []
-  try {
-    const res = await $fetch(`${apiBase}/posts?category_id=${post.value.category.id}&limit=5`)
-    topicPosts.value = res.data?.filter(p => p.id !== post.value?.id) || []
-  } catch {
-    topicPosts.value = []
-  }
-}
-
-const fetchRelatedPosts = async () => {
-  relatedLoading.value = true
-  try {
-    let url = `${apiBase}/posts?status=published`
-    if (post.value?.category?.id) url += `&category_id=${post.value.category.id}`
-    const res = await $fetch(url)
-    relatedPosts.value = res.data.filter(p => p.id !== post.value.id) || []
-  } catch {
-    relatedPosts.value = []
-  } finally {
-    relatedLoading.value = false
-  }
-}
-
-const fetchCurrentUser = async () => {
-  try {
-    const token = localStorage.getItem('access_token')
-    if (token) {
-      const user = await $fetch(`${apiBase}/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      currentUserId.value = user?.id || null
-    }
-  } catch {
-    currentUserId.value = null
-  }
-}
-
 onMounted(async () => {
   await fetchPost()
-  await fetchCurrentUser()
-  fetchRelatedPosts()
-  fetchLatestPosts()
-  fetchTopicPosts()
 })
 
-watch(route.params, async () => {
+watch(() => route.params.slug, async (newSlug) => {
+  postSlug.value = newSlug
   await fetchPost()
-  await fetchCurrentUser()
-  fetchRelatedPosts()
-  fetchLatestPosts()
-  fetchTopicPosts()
 })
 </script>
 

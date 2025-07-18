@@ -1,13 +1,13 @@
 <template>
-  <h1 class="text-xl font-semibold text-gray-800 px-6 pt-6">Thêm Banner mới</h1>
-  <div class="px-6 pb-4">
-    <NuxtLink to="/admin/banners/list-banner" class="text-gray-600 hover:underline text-sm">
-      Danh sách banner
-    </NuxtLink>
-    <span class="text-gray-600 text-sm"> / Thêm banner</span>
-  </div>
   <div class="flex min-h-screen bg-gray-100">
     <main class="flex-1 p-6 bg-gray-100">
+      <h1 class="text-xl font-semibold text-gray-800 px-6 pt-6">Thêm Banner mới</h1>
+      <div class="px-6 pb-4">
+        <NuxtLink to="/admin/banners/list-banner" class="text-gray-600 hover:underline text-sm">
+          Danh sách banner
+        </NuxtLink>
+        <span class="text-gray-600 text-sm"> / Thêm banner</span>
+      </div>
       <div class="max-w-[900px] mx-auto">
         <form @submit.prevent="submitBanner">
           <div class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4">
@@ -75,7 +75,7 @@
                   <div v-if="errorImage" class="text-red-500 text-xs mt-1">{{ errorImage }}</div>
                 </div>
               </section>
-              <!-- Button Lưu + Thông báo -->
+              <!-- Button Lưu -->
               <div class="bg-white border border-gray-300 rounded-md shadow-sm p-4">
                 <div class="flex justify-end gap-2">
                   <NuxtLink
@@ -96,20 +96,91 @@
                     {{ loading ? 'Đang lưu...' : 'Lưu' }}
                   </button>
                 </div>
-                <div v-if="error" class="mt-4 text-red-600">{{ error }}</div>
-                <div v-if="success" class="mt-4 text-green-600">{{ success }}</div>
               </div>
             </aside>
           </div>
         </form>
       </div>
     </main>
+
+    <!-- Notification Popup -->
+    <Teleport to="body">
+      <Transition
+        enter-active-class="transition ease-out duration-200"
+        enter-from-class="transform opacity-0 scale-95"
+        enter-to-class="transform opacity-100 scale-100"
+        leave-active-class="transition ease-in duration-100"
+        leave-from-class="transform opacity-100 scale-100"
+        leave-to-class="transform opacity-0 scale-95"
+      >
+        <div
+          v-if="showNotification"
+          class="fixed bottom-4 right-4 bg-white rounded-lg shadow-xl border border-gray-200 p-4 flex items-center space-x-3 z-50"
+        >
+          <div class="flex-shrink-0">
+            <svg
+              class="h-6 w-6"
+              :class="notificationType === 'success' ? 'text-green-400' : 'text-red-500'"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                v-if="notificationType === 'success'"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+              <path
+                v-if="notificationType === 'error'"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              />
+            </svg>
+          </div>
+          <div class="flex-1">
+            <p class="text-sm font-medium text-gray-900">
+              {{ notificationMessage }}
+            </p>
+          </div>
+          <div class="flex-shrink-0">
+            <button
+              @click="showNotification = false"
+              class="inline-flex text-gray-400 hover:text-gray-500 focus:outline-none"
+            >
+              <svg
+                class="h-6 w-6"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useRuntimeConfig } from '#app'
+
+const config = useRuntimeConfig()
+const apiBase = config.public.apiBaseUrl
 
 definePageMeta({
   layout: 'default-admin',
@@ -120,12 +191,13 @@ const description = ref('')
 const status = ref('active')
 const image = ref(null)
 const preview = ref(null)
-const error = ref('')
 const errorImage = ref('')
-const success = ref('')
 const loading = ref(false)
 const router = useRouter()
 const fileInput = ref(null)
+const showNotification = ref(false)
+const notificationMessage = ref('')
+const notificationType = ref('success')
 
 const onFileChange = (e) => {
   const file = e.target.files[0]
@@ -154,13 +226,18 @@ const removeImage = () => {
   errorImage.value = ''
 }
 
+const showNotificationMessage = (message, type = 'success') => {
+  notificationMessage.value = message
+  notificationType.value = type
+  showNotification.value = true
+  setTimeout(() => (showNotification.value = false), 3000)
+}
+
 const submitBanner = async () => {
-  error.value = ''
-  success.value = ''
   loading.value = true
 
   if (!title.value || !image.value) {
-    error.value = 'Vui lòng nhập tiêu đề và chọn hình ảnh.'
+    showNotificationMessage('Vui lòng nhập tiêu đề và chọn hình ảnh.', 'error')
     loading.value = false
     return
   }
@@ -173,7 +250,7 @@ const submitBanner = async () => {
     formData.append('status', status.value)
 
     const token = localStorage.getItem('access_token')
-    await $fetch('http://localhost:8000/api/banners', {
+    await $fetch(`${apiBase}/banners`, {
       method: 'POST',
       body: formData,
       headers: {
@@ -181,14 +258,14 @@ const submitBanner = async () => {
       },
     })
 
-    success.value = 'Thêm banner thành công!'
+    showNotificationMessage('Thêm banner thành công!', 'success')
     setTimeout(() => router.push('/admin/banners/list-banner'), 1200)
   } catch (err) {
+    let errorMessage = 'Có lỗi xảy ra khi thêm banner.'
     if (err?.data?.errors) {
-      error.value = Object.values(err.data.errors).flat().join(', ')
-    } else {
-      error.value = 'Có lỗi xảy ra khi thêm banner.'
+      errorMessage = Object.values(err.data.errors).flat().join(', ')
     }
+    showNotificationMessage(errorMessage, 'error')
     console.error(err)
   } finally {
     loading.value = false

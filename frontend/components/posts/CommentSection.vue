@@ -255,7 +255,7 @@ const fetchComments = async () => {
     const res = await $fetch(`${apiBase}/posts/${props.postId}/comments`)
     comments.value = (res.data || []).map(c => ({
       ...c,
-      isLiked: false
+      isLiked: c.isLiked || false
     }))
     if (comments.value.length) {
       const sum = comments.value.reduce((acc, c) => acc + (c.rating || 0), 0)
@@ -288,7 +288,7 @@ const resetMedia = () => {
 const edit = (c) => {
   editingId.value = c.id
   commentContent.value = c.content
-  userRating.value = c.rating
+  userRating.value = c.rating || 0
   resetMedia()
 }
 
@@ -308,28 +308,26 @@ const submitComment = async () => {
   try {
     let url, method, body, headers
     if (editingId.value) {
-      // Update (chưa hỗ trợ update media)
       url = `${apiBase}/posts/${props.postId}/comments/${editingId.value}`
       method = 'PUT'
-      body = { content: commentContent.value, rating: userRating.value }
+      body = new FormData()
+      body.append('content', commentContent.value)
+      body.append('rating', userRating.value)
+      rawImages.value.forEach((file, i) => body.append(`images[${i}]`, file))
+      rawVideos.value.forEach((file, i) => body.append(`videos[${i}]`, file))
       headers = { Authorization: `Bearer ${token}` }
     } else {
-      // Create mới (có media)
       url = `${apiBase}/posts/${props.postId}/comments`
       method = 'POST'
       body = new FormData()
       body.append('content', commentContent.value)
       body.append('rating', userRating.value)
-      rawImages.value.forEach((file, i) => {
-        body.append(`images[${i}]`, file)
-      })
-      rawVideos.value.forEach((file, i) => {
-        body.append(`videos[${i}]`, file)
-      })
+      rawImages.value.forEach((file, i) => body.append(`images[${i}]`, file))
+      rawVideos.value.forEach((file, i) => body.append(`videos[${i}]`, file))
       headers = { Authorization: `Bearer ${token}` }
     }
 
-    await $fetch(url, { method, headers, body })
+    const res = await $fetch(url, { method, headers, body })
     cancelEdit()
     await fetchComments()
     toast('success', editingId.value ? 'Đã cập nhật' : 'Đã gửi bình luận')
@@ -374,6 +372,11 @@ const handleClickOutside = (event) => {
 
 // Báo cáo
 const handleReport = (id) => {
+  const comment = comments.value.find(c => c.id === id)
+  if (comment && comment.user.id === props.currentUserId) {
+    toast('error', 'Bạn không thể báo cáo bình luận của chính mình')
+    return
+  }
   showReportDialog.value = id
   showMenu.value = null
 }
@@ -426,7 +429,7 @@ const likeComment = async (comment) => {
     const data = await res.json()
     if (!res.ok) throw new Error(data.message)
     comment.isLiked = !comment.isLiked
-    comment.likes_count = data.likes
+    comment.likes_count = data.likes // Cập nhật số lượt like từ API
   } catch (err) {
     toast('error', err.message)
   }

@@ -28,6 +28,21 @@
             </NuxtLink>
           </li>
           <li>
+              <NuxtLink to="/faq" class="hover:underline flex items-center gap-1">
+                <span>Các câu hỏi thường gặp</span>
+              </NuxtLink>
+            </li>
+            <li>
+              <NuxtLink to="/check-policy" class="hover:underline flex items-center gap-1">
+                <span>Chính sách kiểm hàng</span>
+              </NuxtLink>
+            </li>
+            <li>
+              <NuxtLink to="/return-policy" class="hover:underline flex items-center gap-1">
+                <span>Chính sách đổi trả</span>
+              </NuxtLink>
+            </li>
+          <li>
             <a href="#" class="hover:underline flex items-center gap-1">
               <span>An toàn mua bán</span>
             </a>

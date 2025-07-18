@@ -108,6 +108,8 @@
           </tr>
         </tbody>
       </table>
+      <!-- Pagination Component -->
+      <Pagination :currentPage="currentPage" :lastPage="lastPage" @change="fetchCategories" class="mt-4" />
     </div>
   </div>
 
@@ -169,18 +171,24 @@ const showConfirmDialog = ref(false)
 const confirmDialogTitle = ref('')
 const confirmDialogMessage = ref('')
 const confirmAction = ref(null)
+const currentPage = ref(1)
+const lastPage = ref(1)
+const perPage = 10
 
-const fetchCategories = async () => {
+const fetchCategories = async (page = 1) => {
   try {
     const token = localStorage.getItem('access_token')
-    const res = await $fetch(`${apiBase}/post-categories`, {
+    const response = await $fetch(`${apiBase}/post-categories?page=${page}&per_page=${perPage}`, {
       headers: { Authorization: `Bearer ${token}` }
     })
-    categories.value = res.data || []
+    categories.value = response.data.data || []
+    currentPage.value = response.current_page || 1
+    lastPage.value = response.last_page || 1
   } catch (e) {
     showNotificationMessage('Không thể tải danh mục.', 'error')
   }
 }
+
 
 const toggleDropdown = (id) => {
   activeDropdown.value = activeDropdown.value === id ? null : id

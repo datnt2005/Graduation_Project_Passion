@@ -4,8 +4,10 @@
         <div class="flex items-center justify-between">
             <h1 class="text-lg font-normal leading-tight">{{ product.name }}</h1>
             <button @click="toggleFavorite" class="text-red-500 text-xl focus:outline-none">
+                <!-- Thêm logic để hiển thị màu nút yêu thích dựa trên trạng thái -->
                 <i :class="[isFavorite ? 'fas' : 'far', 'fa-heart']"></i>
             </button>
+
         </div>
         <!-- Rating and sold -->
         <div class="flex items-center text-xs text-[#222222] space-x-2">
@@ -137,7 +139,6 @@ import { computed } from 'vue';
 import { useToast } from '@/composables/useToast';
 import { useRouter } from "vue-router";
 import { useAuthStore } from "~/stores/auth";
-import Swal from 'sweetalert2';
 import { useRuntimeConfig } from '#app'
 
 const auth = useAuthStore();
@@ -177,50 +178,66 @@ const emit = defineEmits([
 const isFavorite = ref(props.isFavorite)
 
 async function toggleFavorite() {
-  const token = localStorage.getItem('access_token')
+    const token = localStorage.getItem('access_token');
 
-  if (!token || !auth.isLoggedIn || !auth.currentUser) {
-    toast('error', 'Vui lòng đăng nhập để sử dụng chức năng này!')
-    router.push('/login')
-    return
-  }
-
-  try {
-    const res = await $fetch(`${apiBase}/favorites/toggle`, {
-      method: 'POST',
-      body: { product_id: props.product.id },
-      headers: { Authorization: `Bearer ${token}` }
-    })
-
-    if (res.favorited) {
-      toast('success', 'Đã thêm sản phẩm vào yêu thích!')
-    } else {
-      toast('success', 'Đã xóa sản phẩm khỏi yêu thích!')
+    if (!token || !auth.isLoggedIn || !auth.currentUser) {
+        toast('error', 'Vui lòng đăng nhập để sử dụng chức năng này!');
+        router.push('/login');
+        return;
     }
 
-    isFavorite.value = res.favorited
-  } catch (e) {
-    toast('error', e?.data?.message || 'Có lỗi xảy ra, vui lòng thử lại!')
-  }
+    try {
+        // Gọi API để thêm hoặc xóa sản phẩm khỏi danh sách yêu thích
+        const res = await $fetch(`${apiBase}/favorites/toggle`, {
+            method: 'POST',
+            body: { product_id: props.product.id },
+            headers: { Authorization: `Bearer ${token}` },
+        });
+
+        // Cập nhật trạng thái yêu thích sau khi toggle
+        isFavorite.value = res.favorited;
+
+        if (res.favorited) {
+            toast('success', 'Đã thêm sản phẩm vào yêu thích!');
+        } else {
+            toast('success', 'Đã xóa sản phẩm khỏi yêu thích!');
+        }
+    } catch (e) {
+        toast('error', e?.data?.message || 'Có lỗi xảy ra, vui lòng thử lại!');
+    }
 }
 
 
+
 onMounted(async () => {
-  const token = localStorage.getItem('access_token')
-  if (token && !auth.isLoggedIn) {
-    try {
-      const user = await $fetch('/user', {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      auth.currentUser = user
-      auth.isLoggedIn = true
-    } catch (err) {
-      auth.currentUser = null
-      auth.isLoggedIn = false
+    const token = localStorage.getItem('access_token');
+    if (token && !auth.isLoggedIn) {
+        try {
+            const user = await $fetch('/user', {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            auth.currentUser = user;
+            auth.isLoggedIn = true;
+        } catch (err) {
+            auth.currentUser = null;
+            auth.isLoggedIn = false;
+        }
     }
-  }
-  // ... phần kiểm tra yêu thích như cũ
-})
+
+    // Kiểm tra trạng thái yêu thích khi reload trang
+    if (auth.isLoggedIn) {
+        try {
+            const res = await $fetch(`${apiBase}/favorites`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            const favoriteProductIds = res.data.map(item => item.product.id);
+            isFavorite.value = favoriteProductIds.includes(props.product.id);
+        } catch (e) {
+            console.error('Không thể tải danh sách yêu thích:', e);
+        }
+    }
+});
+
 
 function isOptionAvailable(attrName, value) {
     const otherSelections = { ...props.selectedOptions };
