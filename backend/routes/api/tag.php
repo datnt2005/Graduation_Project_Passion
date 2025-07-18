@@ -12,5 +12,8 @@ Route::prefix('tags')->group(function () {
     Route::put('/{id}', [TagController::class, 'update']);
     Route::patch('/{id}', [TagController::class, 'update']);
     Route::delete('/{id}', [TagController::class, 'destroy']);
+
+Route::get('/{slug}/products', [TagController::class, 'productsBySlug']);
+
 });
 
