@@ -36,18 +36,23 @@ class SupportController extends Controller
     }
 
     // Admin lấy danh sách yêu cầu hỗ trợ
-    public function index()
+    public function index(Request $request)
     {
+        $page = $request->get('page', 1);
+        $perPage = $request->get('per_page', 10);
+
+        $supports = Support::orderByDesc('created_at')->paginate($perPage);
+
         return response()->json([
             'success' => true,
-            'data' => Support::orderByDesc('created_at')->get()
+            'data' => $supports
         ]);
     }
 
     // Admin lấy chi tiết yêu cầu hỗ trợ
     public function show($id)
     {
-        $support = Support::findOrFail($id);
+        $support = Support::findOrFail($id);    
         return response()->json(['success' => true, 'data' => $support]);
     }
     // Admin đánh dấu đã xử lý

@@ -14,12 +14,17 @@ class BannerController extends Controller
 {
     public function index(): JsonResponse
     {
-        try {
-            $query = Banner::orderByDesc('id');
-            if (request()->has('status')) {
-                $query->where('status', request('status'));
-            }
-            $banners = $query->get();
+       try {
+        $page = request()->get('page', 1); // Default page is 1
+        $perPage = request()->get('per_page', 10); // Default per_page is 10
+
+        // Query with pagination and optional filtering by status
+        $query = Banner::orderByDesc('id');
+        if (request()->has('status')) {
+            $query->where('status', request('status'));
+        }
+
+        $banners = $query->paginate($perPage, ['*'], 'page', $page);
 
             foreach ($banners as $banner) {
                 $banner->image_url = Storage::disk('r2')->url($banner->image);
