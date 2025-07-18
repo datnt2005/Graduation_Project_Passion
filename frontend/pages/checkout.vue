@@ -361,80 +361,90 @@
               </section>
 
               <!-- Order Summary -->
-              <section class="bg-white rounded-lg p-5 text-sm text-gray-700 border border-gray-200 space-y-4">
-                <div class="flex justify-between items-center">
-                  <h3 class="text-base font-semibold text-gray-900">Thông tin đơn hàng</h3>
-                  <NuxtLink to="/cart" class="text-blue-600 text-sm font-medium hover:underline">Thay đổi</NuxtLink>
-                </div>
-                <div class="space-y-3">
-                  <div class="text-sm">
-                    {{ cartItems.length }} sản phẩm.
-                  </div>
-                  <hr />
-                  <div v-for="store in cartItems" :key="store.seller_id" class="bg-white rounded shadow p-4 mb-4">
-                    <div v-for="item in store.items" :key="item.id"
-                      class="flex items-center border-b last:border-b-0 py-2">
-                      <img
-                        :src="item.productVariant?.thumbnail ? mediaBaseUrl + item.productVariant.thumbnail : '/images/default-product.jpg'"
-                        :alt="item.product?.name" class="w-12 h-12 object-cover rounded mr-3" />
-                      <div class="flex-1">
-                        <div class="font-semibold">{{ item.product?.name }}</div>
-                        <div class="text-xs text-gray-500">{{item.productVariant?.attributes?.map(attr =>
-                          attr.value).join(' - ')
-                          }}</div>
-                        <div class="text-xs text-gray-500">Số lượng: x{{ item.quantity }}</div>
-                      </div>
-                      <div class="font-semibold">{{ formatPrice(item.sale_price) }} đ</div>
-                    </div>
-                    <div class="flex justify-end font-semibold mt-2">
-                      <template v-if="store.discount > 0">
-                        <div class="text-right">
-                          <div class="text-xs text-gray-500 line-through">{{ formatPrice(store.store_total) }} đ</div>
-                          <div class="text-green-600">{{ formatPrice(store.store_total - store.discount) }} đ</div>
-                          <div class="text-xs text-green-600">(Giảm {{ formatPrice(store.discount) }} đ)</div>
-                        </div>
-                      </template>
-                      <template v-else>
-                        Tổng tiền: {{ formatPrice(store.store_total) }} đ
-                      </template>
-                    </div>
-                  </div>
-                  <div class="flex justify-between">
-                    <span class="text-[14px]">Tổng tiền hàng</span>
-                    <span class="text-[14px] text-gray-800">{{ formattedTotal }}</span>
-                  </div>
-                  <div class="flex justify-between">
-                    <span class="text-[14px]">Phí vận chuyển</span>
-                    <span class="text-[14px] text-gray-800">{{ formatPrice(totalShippingFee) }}</span>
-                  </div>
-                  <div class="flex justify-between">
-                    <span class="text-[14px]">Giảm giá phí ship</span>
-                    <span class="text-green-600">- {{ formatPrice(totalShippingDiscount) }}</span>
-                  </div>
-                  <div v-if="calculateDiscount(total) > 0" class="flex justify-between">
-                    <span class="text-[14px]">Giảm giá khuyến mãi</span>
-                    <span class="text-green-600">- {{ formatPrice(calculateDiscount(total)) }}</span>
-                  </div>
-                  <div v-for="storeItem in shopsWithDiscount" :key="storeItem.seller_id" class="flex justify-between">
-                    <span class="text-[14px]">Giảm giá {{ storeItem.store_name }}</span>
-                    <span class="text-green-600">- {{ formatPrice(storeItem.discount) }}</span>
-                  </div>
-                  <div class="flex justify-between pt-3 border-t border-gray-200 text-base font-semibold">
-                    <span class="text-[14px]">Tổng thanh toán</span>
-                    <span class="text-[15px] text-lg">{{ formatPrice(realFinalTotal) }}</span>
-                  </div>
-                  <p class="text-xs text-gray-500 italic text-right mt-1 leading-snug">
-                    (Giá đã bao gồm thuế GTGT, phí đóng gói, phí vận chuyển và chi phí phát sinh khác)
-                  </p>
-                </div>
-                <div class="pt-2">
-                  <button @click="placeOrder"
-                    class="w-full bg-red-500 text-white py-3 rounded-md font-bold text-base hover:bg-red-600 transition"
-                    :disabled="!cartItems.length || loading || isAccountBanned">
-                    Đặt hàng
-                  </button>
-                </div>
-              </section>
+<section class="bg-white rounded-lg p-5 text-sm text-gray-700 border border-gray-200 space-y-4">
+  <div class="flex justify-between items-center">
+    <h3 class="text-base font-semibold text-gray-900">Thông tin đơn hàng</h3>
+    <NuxtLink to="/cart" class="text-blue-600 text-sm font-medium hover:underline">Thay đổi</NuxtLink>
+  </div>
+  <div class="space-y-3">
+    <div class="text-sm">
+      {{ cartItems.length }} sản phẩm từ {{ shopCount }} cửa hàng.
+    </div>
+    <hr />
+    <div v-for="store in cartItems" :key="store.seller_id" class="bg-white rounded shadow p-4 mb-4">
+      <div class="font-semibold text-gray-800 mb-2">{{ store.store_name }}</div>
+      <div v-for="item in store.items" :key="item.id" class="flex items-center border-b last:border-b-0 py-2">
+        <img
+          :src="item.productVariant?.thumbnail ? mediaBaseUrl + item.productVariant.thumbnail : '/images/default-product.jpg'"
+          :alt="item.product?.name"
+          class="w-12 h-12 object-cover rounded mr-3"
+        />
+        <div class="flex-1">
+          <div class="font-semibold">{{ item.product?.name }}</div>
+          <div class="text-xs text-gray-500">
+            {{ item.productVariant?.attributes?.map(attr => attr.value).join(' - ') }}
+          </div>
+          <div class="text-xs text-gray-500">Số lượng: x{{ item.quantity }}</div>
+        </div>
+        <div class="font-semibold">{{ formatPrice(item.sale_price) }} đ</div>
+      </div>
+      <div class="space-y-2 mt-2">
+        <div class="flex justify-between">
+          <span class="text-sm">Tổng tiền hàng</span>
+          <span class="font-semibold">{{ formatPrice(store.store_total) }} đ</span>
+        </div>
+        <div v-if="store.discount > 0" class="flex justify-between">
+          <span class="text-sm">Giảm giá {{ store.store_name }}</span>
+          <span class="text-green-600">- {{ formatPrice(store.discount) }} đ</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-sm">Phí vận chuyển</span>
+          <span class="font-semibold">{{ formatPrice(store.shipping_fee || 0) }} đ</span>
+        </div>
+        <div class="flex justify-end font-semibold">
+          <span>Tổng cộng: {{ formatPrice(store.store_total - (store.discount || 0) + (store.shipping_fee || 0)) }} đ</span>
+        </div>
+      </div>
+    </div>
+    <hr />
+    <div class="flex justify-between">
+      <span class="text-[14px]">Tổng tiền hàng</span>
+      <span class="text-[14px] text-gray-800">{{ formattedTotal }}</span>
+    </div>
+    <div class="flex justify-between">
+      <span class="text-[14px]">Tổng phí vận chuyển</span>
+      <span class="text-[14px] text-gray-800">{{ formatPrice(totalShippingFee) }}</span>
+    </div>
+    <div class="flex justify-between">
+      <span class="text-[14px]">Giảm giá phí ship</span>
+      <span class="text-green-600">- {{ formatPrice(totalShippingDiscount) }}</span>
+    </div>
+    <div v-if="calculateDiscount(total) > 0" class="flex justify-between">
+      <span class="text-[14px]">Giảm giá khuyến mãi</span>
+      <span class="text-green-600">- {{ formatPrice(calculateDiscount(total)) }}</span>
+    </div>
+    <div v-for="storeItem in shopsWithDiscount" :key="storeItem.seller_id" class="flex justify-between">
+      <span class="text-[14px]">Giảm giá {{ storeItem.store_name }}</span>
+      <span class="text-green-600">- {{ formatPrice(storeItem.discount) }}</span>
+    </div>
+    <div class="flex justify-between pt-3 border-t border-gray-200 text-base font-semibold">
+      <span class="text-[14px]">Tổng thanh toán</span>
+      <span class="text-[15px] text-lg">{{ formatPrice(realFinalTotal) }}</span>
+    </div>
+    <p class="text-xs text-gray-500 italic text-right mt-1 leading-snug">
+      (Giá đã bao gồm thuế GTGT, phí đóng gói, phí vận chuyển và chi phí phát sinh khác)
+    </p>
+  </div>
+  <div class="pt-2">
+    <button
+      @click="placeOrder"
+      class="w-full bg-red-500 text-white py-3 rounded-md font-bold text-base hover:bg-red-600 transition"
+      :disabled="!cartItems.length || loading || isAccountBanned"
+    >
+      Đặt hàng
+    </button>
+  </div>
+</section>
             </div>
           </div>
         </div>
@@ -521,7 +531,7 @@ const {
   formattedTotal,
   finalTotal,
   formattedFinalTotal,
-  finalShippingFee,
+  totalShippingFee, // Sử dụng totalShippingFee thay vì finalShippingFee
   formattedFinalShippingFee,
   loading,
   error,
@@ -550,6 +560,7 @@ const {
   getShopDiscount,
   isAccountBanned,
   checkCodEligibility,
+  loadShippingFees, // Thêm loadShippingFees
 } = useCheckout(shippingRef, selectedShippingMethod, selectedAddress, storeNotes);
 
 const { fetchMyVouchers, fetchDiscounts: fetchPublicDiscounts, fetchSellerDiscounts, discounts: publicDiscounts } = useDiscount();
@@ -576,17 +587,13 @@ const uniqueShippingDiscounts = computed(() => {
 });
 
 const shopCount = computed(() => cartItems.value.length);
-const totalShippingFee = computed(() => {
-  if (shopCount.value <= 1) return finalShippingFee.value;
-  return finalShippingFee.value * shopCount.value;
-});
 
 const totalShippingDiscount = computed(() => {
   return typeof getShippingDiscount === 'function' ? getShippingDiscount(total.value) : 0;
 });
 
 const realShippingFee = computed(() => {
-  return Math.max(0, finalShippingFee.value);
+  return Math.max(0, totalShippingFee.value - totalShippingDiscount.value);
 });
 
 const realFinalTotal = computed(() => {
@@ -640,24 +647,36 @@ const loadSelectedAddress = async () => {
     let res;
     if (address_id) {
       res = await axios.get(`${apiBase}/address/${address_id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
       selectedAddress.value = res.data?.data || null;
     } else {
       res = await axios.get(`${apiBase}/address`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
       const addresses = res.data?.data || [];
       selectedAddress.value = addresses.find(addr => addr.is_default === 1) || addresses[0] || null;
     }
 
     if (selectedAddress.value) {
+      // Đảm bảo gán đầy đủ các trường
+      selectedAddress.value = {
+        id: selectedAddress.value.id,
+        user_id: selectedAddress.value.user_id,
+        name: selectedAddress.value.name,
+        phone: selectedAddress.value.phone,
+        province_id: selectedAddress.value.province_id,
+        district_id: selectedAddress.value.district_id,
+        ward_code: selectedAddress.value.ward_code, // Hoặc ward_id tùy theo API GHN
+        detail: selectedAddress.value.detail,
+        is_default: selectedAddress.value.is_default,
+        address_type: selectedAddress.value.address_type,
+      };
+      console.log('Địa chỉ đã chọn:', JSON.stringify(selectedAddress.value, null, 2));
+
       await loadDistricts(selectedAddress.value.province_id);
       await loadWards(selectedAddress.value.district_id);
+      await loadShippingFees();
     } else {
       toast('error', 'Không tìm thấy địa chỉ giao hàng phù hợp');
     }
@@ -778,6 +797,13 @@ watch(paymentError, (val) => {
 watch(discountError, (val) => {
   if (val) toast('error', val);
 });
+
+// Gọi loadShippingFees khi selectedAddress thay đổi
+watch(selectedAddress, async () => {
+  if (selectedAddress.value) {
+    await loadShippingFees();
+  }
+}, { deep: true });
 
 onMounted(async () => {
   try {

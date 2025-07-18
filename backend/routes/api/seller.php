@@ -24,4 +24,6 @@ Route::middleware(['auth:sanctum'])->prefix('register')->group(function () {
     Route::get('/store/{slug}/discounts', [SellerController::class, 'getDiscounts']);
     Route::get('/verified', [SellerController::class, 'getVerifiedSellers']);
 
+    Route::get('/{seller_id}', [SellerController::class, 'show']);
+
 });
