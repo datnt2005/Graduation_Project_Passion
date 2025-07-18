@@ -96,4 +96,16 @@ class Product extends Model
     {
         return $this->hasOne(ProductApproval::class)->latest();
     }
+
+    // chuong change
+    public function mainVariant()
+{
+    return $this->hasOne(ProductVariant::class, 'product_id')->orderByRaw('CASE WHEN sale_price IS NOT NULL THEN 0 ELSE 1 END');
+}
+public function variants()
+{
+    return $this->hasMany(ProductVariant::class, 'product_id');
+}
+
+
 }

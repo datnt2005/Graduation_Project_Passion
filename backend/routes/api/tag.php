@@ -9,6 +9,14 @@ Route::prefix('tags')->group(function () {
     // ✅ Public routes (ai cũng xem được)
     Route::get('/', [TagController::class, 'index']);
     Route::get('/{id}', [TagController::class, 'show']);
+    Route::post('/', [TagController::class, 'store']);
+    Route::put('/{id}', [TagController::class, 'update']);
+    Route::patch('/{id}', [TagController::class, 'update']);
+    Route::delete('/{id}', [TagController::class, 'destroy']);
+
+Route::get('/{slug}/products', [TagController::class, 'productsBySlug']);
+
+});
 
     //Admin: các route yêu cầu đăng nhập 
     Route::middleware('auth:sanctum')->group(function () {

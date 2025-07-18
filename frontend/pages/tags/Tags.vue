@@ -50,7 +50,8 @@ const fetchTags = async () => {
   try {
     const response = await fetch(`${apiBase}/tags`)
     const data = await response.json()
-    tags.value = data.tags
+    tags.value = data.data.tags
+    console.log(tags.value)
   } catch (err) {
     console.error('Lỗi khi fetch tags:', err)
   }

@@ -89,8 +89,8 @@
                 @click="$emit('close')">Thêm sản phẩm</NuxtLink>
             </li>
             <li>
-              <NuxtLink to="/admin/inventory/inventory" class="block py-1 hover:text-white rounded"
-                :class="route.path.startsWith('/admin/inventory') ? 'text-green-400 font-bold' : ''" @click="$emit('close')">
+              <NuxtLink to="/seller/inventory/inventory" class="block py-1 hover:text-white rounded"
+                :class="route.path.startsWith('/seller/inventory') ? 'text-green-400 font-bold' : ''" @click="$emit('close')">
                Quản lý kho</NuxtLink>
             </li>
           </ul>
@@ -106,6 +106,19 @@
                 d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2 9m13-9l2 9m-5-9v5m-4-5v5" />
             </svg>
             Đơn hàng
+          </NuxtLink>
+        </li>
+
+        <!-- đổi trả -->
+        <li class="pt-2 border-t border-gray-800">
+          <NuxtLink to="/seller/return/list-return" class="flex items-center px-4 py-2 hover:bg-gray-800 gap-3 rounded"
+            :class="route.path.startsWith('/seller/return') ? 'bg-gray-800 text-green-400 font-bold' : 'text-white'"
+            @click="$emit('close')">
+            <svg class="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M12 9v3m0 0v3m0-3h3m-3 0H9m6.364-7.636a9 9 0 11-12.728 12.728A9 9 0 0118.364 4.364z" />
+            </svg>
+            Đổi trả
           </NuxtLink>
         </li>
 

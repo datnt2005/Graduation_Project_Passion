@@ -5,9 +5,14 @@
 
       <!-- Main content -->
       <section class="flex-1 space-y-6">
+       
         <!-- Banner -->
         <Banner />
         <!-- Brands -->
+         <Tags />
+
+
+        <Brands />
         <categories />
         <!-- // giảm giá -->
         <Sale />
@@ -49,7 +54,7 @@
 <script setup>
 import Sidebar from '~/components/shared/layouts/Sidebar.vue'
 import Banner from '~/components/shared/Banner.vue'
-import Brands from '~/components/shared/Tags.vue'
+import Tags from '~/pages/tags/Tags.vue'
 import Products from '~/components/shared/Products.vue'
 import { ref, onMounted } from 'vue'
 import { useRuntimeConfig } from '#app'

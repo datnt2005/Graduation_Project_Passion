@@ -1,4 +1,3 @@
-```vue
 <template>
   <section class="bg-[#f5f7fa] font-sans text-[#1a1a1a] min-h-screen">
     <div class="flex flex-col md:flex-row max-w-screen-2xl mx-auto px-4 sm:px-6 py-6 gap-6">
@@ -56,43 +55,43 @@
           </button>
         </nav>
 
-     <!-- Loading Skeleton for Order Table -->
-<div v-if="isLoading" class="bg-white rounded-md shadow border border-gray-200 overflow-hidden animate-pulse">
-  <table class="min-w-full text-sm divide-y divide-gray-200">
-    <thead class="bg-gray-50 text-gray-600 text-xs font-semibold uppercase">
-      <tr>
-        <th class="px-4 py-3 text-left">STT</th>
-        <th class="px-4 py-3 text-left">Mã vận đơn</th>
-        <th class="px-4 py-3 text-left">Khách hàng</th>
-        <th class="px-4 py-3 text-left">SĐT</th>
-        <th class="px-4 py-3 text-left">Trạng thái</th>
-        <th class="px-4 py-3 text-left">Thao tác</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr v-for="i in 4" :key="i" class="border-t">
-        <td class="px-4 py-3">
-          <div class="w-5 h-4 bg-gray-200 rounded"></div>
-        </td>
-        <td class="px-4 py-3">
-          <div class="w-20 h-4 bg-gray-200 rounded"></div>
-        </td>
-        <td class="px-4 py-3">
-          <div class="w-40 h-4 bg-gray-200 rounded"></div>
-        </td>
-        <td class="px-4 py-3">
-          <div class="w-24 h-4 bg-gray-200 rounded"></div>
-        </td>
-        <td class="px-4 py-3">
-          <div class="w-24 h-6 bg-gray-200 rounded-full"></div>
-        </td>
-        <td class="px-4 py-3">
-          <div class="w-16 h-4 bg-gray-200 rounded"></div>
-        </td>
-      </tr>
-    </tbody>
-  </table>
-</div>
+        <!-- Loading Skeleton for Order Table -->
+        <div v-if="isLoading" class="bg-white rounded-md shadow border border-gray-200 overflow-hidden animate-pulse">
+          <table class="min-w-full text-sm divide-y divide-gray-200">
+            <thead class="bg-gray-50 text-gray-600 text-xs font-semibold uppercase">
+              <tr>
+                <th class="px-4 py-3 text-left">STT</th>
+                <th class="px-4 py-3 text-left">Mã vận đơn</th>
+                <th class="px-4 py-3 text-left">Khách hàng</th>
+                <th class="px-4 py-3 text-left">SĐT</th>
+                <th class="px-4 py-3 text-left">Trạng thái</th>
+                <th class="px-4 py-3 text-left">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="i in 4" :key="i" class="border-t">
+                <td class="px-4 py-3">
+                  <div class="w-5 h-4 bg-gray-200 rounded"></div>
+                </td>
+                <td class="px-4 py-3">
+                  <div class="w-20 h-4 bg-gray-200 rounded"></div>
+                </td>
+                <td class="px-4 py-3">
+                  <div class="w-40 h-4 bg-gray-200 rounded"></div>
+                </td>
+                <td class="px-4 py-3">
+                  <div class="w-24 h-4 bg-gray-200 rounded"></div>
+                </td>
+                <td class="px-4 py-3">
+                  <div class="w-24 h-6 bg-gray-200 rounded-full"></div>
+                </td>
+                <td class="px-4 py-3">
+                  <div class="w-16 h-4 bg-gray-200 rounded"></div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
         <!-- Orders list -->
         <div v-else>
@@ -139,7 +138,7 @@
 
           <!-- Desktop table for orders -->
           <div v-if="filteredOrders.length > 0 && selectedTab !== 'refunds'"
-            class="hidden md:block bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
+            class="hidden md:block bg-white rounded-lg shadow border border-gray-200 overflow-visible ">
             <table class="min-w-full divide-y divide-gray-200 text-sm">
               <thead class="bg-gray-50 text-xs font-semibold text-gray-600 uppercase text-left">
                 <tr>
@@ -163,36 +162,46 @@
                       {{ statusText(order.status) }}
                     </span>
                   </td>
+
                   <td class="px-4 py-3 text-center">
-                    <div class="flex flex-col sm:flex-row justify-center gap-2">
-                      <button class="text-xs px-3 py-1 text-blue-600 hover:bg-blue-50 flex items-center gap-1"
-                        @click="viewOrder(order.id)" aria-label="Xem chi tiết đơn hàng">
-                        <i class="fas fa-eye"></i> Chi tiết
+                    <div class="relative inline-block text-left data-dropdown">
+                      <button @click="toggleDropdown(order.id)"
+                        class="text-xs px-3 py-1 border rounded hover:bg-gray-100">
+                        Tuỳ chọn <i class="fas fa-chevron-down ml-1 text-xs"></i>
                       </button>
-                      <button v-if="order.can_delete"
-                        class="text-xs px-3 py-1 text-red-500 hover:bg-red-50 flex items-center gap-1"
-                        @click="confirmCancel(order.id)" aria-label="Hủy đơn hàng">
-                        <i class="fas fa-times-circle"></i> Hủy
-                      </button>
-                      <button v-if="order.status === 'cancelled'" @click="reorderToCart(order)"
-                        class="text-xs px-3 py-1 text-orange-600 hover:bg-orange-50 flex items-center gap-1"
-                        aria-label="Mua lại đơn hàng">
-                        <i class="fas fa-undo-alt"></i> Mua lại
-                      </button>
-                      <div v-if="order.status === 'delivered'" class="flex gap-2">
-                        <button @click="printOrder(order.id)"
-                          class="text-xs px-3 py-1 text-gray-600 hover:bg-gray-50 flex items-center gap-1"
-                          aria-label="In hóa đơn">
-                          <i class="fas fa-print"></i> In hóa đơn
-                        </button>
-                        <button @click="downloadPDF(order.id)"
-                          class="text-xs px-3 py-1 text-blue-600 hover:bg-blue-50 flex items-center gap-1"
-                          aria-label="Tải hóa đơn PDF">
-                          <i class="fas fa-file-pdf"></i> Tải PDF
-                        </button>
+
+                      <div v-show="openDropdownId === order.id"
+                        class="origin-top-right absolute right-0 mt-1 w-36 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50">
+                        <div class="py-1 text-sm text-gray-700">
+                          <button @click="viewOrder(order.id)" class="w-full px-4 py-2 hover:bg-gray-50 text-left">
+                            <i class="fas fa-eye mr-1"></i> Chi tiết
+                          </button>
+                          <button v-if="order.can_delete" @click="confirmCancel(order.id)"
+                            class="w-full px-4 py-2 hover:bg-gray-50 text-left text-red-500">
+                            <i class="fas fa-times-circle mr-1"></i> Hủy
+                          </button>
+                          <button v-if="order.status === 'cancelled'" @click="reorderToCart(order)"
+                            class="w-full px-4 py-2 hover:bg-gray-50 text-left text-orange-500">
+                            <i class="fas fa-undo-alt mr-1"></i> Mua lại
+                          </button>
+                          <button v-if="order.status === 'delivered'" @click="returnOrder(order)"
+                            class="w-full px-4 py-2 hover:bg-gray-50 text-left text-orange-500">
+                            <i class="fas fa-undo-alt mr-1"></i> Trả hàng
+                          </button>
+                          <button v-if="order.status === 'delivered'" @click="printOrder(order.id)"
+                            class="w-full px-4 py-2 hover:bg-gray-50 text-left">
+                            <i class="fas fa-print mr-1"></i> In hóa đơn
+                          </button>
+                          <button v-if="order.status === 'delivered'" @click="downloadPDF(order.id)"
+                            class="w-full px-4 py-2 hover:bg-gray-50 text-left text-blue-600">
+                            <i class="fas fa-file-pdf mr-1"></i> Tải PDF
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </td>
+
+
                 </tr>
               </tbody>
             </table>
@@ -204,7 +213,7 @@
               class="bg-white rounded-lg shadow border border-gray-200 p-4">
               <div class="flex justify-between items-center mb-2">
                 <span class="text-sm text-gray-500 font-medium">Mã vận đơn: {{ order.shipping?.tracking_code || '-'
-                }}</span>
+                  }}</span>
                 <span :class="statusClass(order.status)"
                   class="px-2 py-1 text-xs rounded-full font-medium whitespace-nowrap">
                   {{ statusText(order.status) }}
@@ -452,6 +461,9 @@
       </main>
     </div>
   </section>
+
+  <ReturnModal v-if="isReturnModalOpen" :order="selectedReturnOrder" @close="isReturnModalOpen = false" />
+
 </template>
 
 <script setup>
@@ -463,6 +475,8 @@ import 'sweetalert2/dist/sweetalert2.min.css';
 import { useCartStore } from '~/stores/cart';
 import { useRouter, useHead } from '#app';
 import { debounce } from 'lodash';
+import { secureFetch } from '@/utils/secureFetch' 
+
 
 // State
 const orders = ref([]);
@@ -489,6 +503,23 @@ const refundReason = ref('');
 const showPayments = ref(false);
 const page = ref(1);
 const perPage = 10;
+const isReturnModalOpen = ref(false)
+const selectedReturnOrder = ref(null)
+//  dropdown
+const openDropdownId = ref(null)
+
+function toggleDropdown(id) {
+  openDropdownId.value = openDropdownId.value === id ? null : id
+}
+
+
+
+const returnReason = ref('')
+
+function returnOrder(order) {
+  selectedReturnOrder.value = order
+  isReturnModalOpen.value = true
+}
 
 // Tabs configuration
 const tabs = ref([
@@ -1117,6 +1148,7 @@ onMounted(async () => {
     ]
   });
   await Promise.all([fetchOrders(true), fetchRefunds(true)]);
+
 });
 
 watch(selectedTab, async () => {
@@ -1139,4 +1171,3 @@ watch(page, async () => {
   opacity: 0;
 }
 </style>
-```
