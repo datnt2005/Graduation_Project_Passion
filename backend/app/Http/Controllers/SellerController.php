@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
+
 use Illuminate\Http\Request;
 use App\Models\Seller;
 use App\Models\User;
@@ -108,40 +109,47 @@ public function update(Request $request)
         ], 422);
     }
 
-    $data = $request->only([
-        'store_name',
-        'bio',
-        'phone_number',
-        'pickup_address',
-    ]);
-
-    // Nếu có file document mới thì xử lý upload
-    if ($request->hasFile('document') && $request->file('document')->isValid()) {
-        if ($seller->document) {
-            Storage::disk('r2')->delete($seller->document);
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Dữ liệu không hợp lệ',
+                'errors' => $validator->errors()
+            ], 422);
         }
 
-        $file = $request->file('document');
-        $filename = 'seller-documents/personal/' . time() . '_' . Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) . '.' . $file->getClientOriginalExtension();
+        $data = $request->only([
+            'store_name',
+            'bio',
+            'phone_number',
+            'pickup_address',
+        ]);
 
-        if (Storage::disk('r2')->put($filename, file_get_contents($file))) {
-            $data['document'] = $filename;
-        } else {
-            throw new \Exception('Không thể upload file giấy tờ lên R2.');
+        // Nếu có file document mới thì xử lý upload
+        if ($request->hasFile('document') && $request->file('document')->isValid()) {
+            if ($seller->document) {
+                Storage::disk('r2')->delete($seller->document);
+            }
+
+            $file = $request->file('document');
+            $filename = 'seller-documents/personal/' . time() . '_' . Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) . '.' . $file->getClientOriginalExtension();
+
+            if (Storage::disk('r2')->put($filename, file_get_contents($file))) {
+                $data['document'] = $filename;
+            } else {
+                throw new \Exception('Không thể upload file giấy tờ lên R2.');
+            }
         }
+
+        $seller->update($data);
+
+        $seller = Seller::with('user:id,name,email')->findOrFail($seller->id);
+
+        return response()->json([
+            'message' => 'Cập nhật thông tin thành công.',
+            'seller' => $seller
+        ]);
     }
 
-    $seller->update($data);
-
-    $seller = Seller::with('user:id,name,email')->findOrFail($seller->id);
-
-    return response()->json([
-        'message' => 'Cập nhật thông tin thành công.',
-        'seller' => $seller
-    ]);
-}
-
-public function showStore($slug)
+    public function showStore($slug)
     {
         try {
             // Validate slug
@@ -161,7 +169,6 @@ public function showStore($slug)
             // Fetch seller with relationships and paginate products
             $seller = Seller::with([
                 'user',
-                'business',
                 'products' => function ($query) use ($page, $perPage, $search, $category) {
                     $query->where('status', 'active')
                         ->with(['productVariants', 'productPic', 'categories', 'tags', 'reviews']);
@@ -280,11 +287,11 @@ public function showStore($slug)
                 'member_since' => $seller->created_at ? $seller->created_at->format('Y') : 'N/A',
                 'cancellation_rate' => $cancellationRate,
                 'return_rate' => $returnRate,
-                'business' => $seller->business ? [
-                    'name' => $seller->business->name ?? 'N/A',
-                    'address' => $seller->business->company_address  ?? 'N/A',
-                    'description' => $seller->business->description ?? 'N/A',
-                    'tax_code' => $seller->business->tax_code ?? 'N/A',
+                'business' => $seller->seller_type === 'business' ? [
+                    'name' => $seller->business_name ?? 'N/A',
+                    'address' => $seller->pickup_address  ?? 'N/A',
+                    'description' => $seller->bio ?? 'N/A',
+                    'tax_code' => $seller->tax_code ?? 'N/A',
                 ] : null,
                 'followers_count' => $seller->followers()->count(),
                 'is_following' => $isFollowing,
@@ -705,49 +712,49 @@ public function showStore($slug)
     }
 
     public function getDiscounts(Request $request, $slug)
-{
-    $seller = Seller::where('store_slug', $slug)->first();
+    {
+        $seller = Seller::where('store_slug', $slug)->first();
 
-    if (!$seller) {
+        if (!$seller) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không tìm thấy cửa hàng.'
+            ], 404);
+        }
+
+        // Lấy các voucher/discounts của shop
+        $discounts = Discount::with(['products:id,name', 'categories:id,name', 'users:id,name'])
+            ->where('seller_id', $seller->id)
+            ->orderByDesc('created_at')
+            ->get();
+
+        // Nếu có user đăng nhập, lấy danh sách voucher đã lưu
+        $savedCodes = [];
+        if ($request->user()) {
+            $savedCodes = $request->user()->savedVouchers()->pluck('code')->toArray();
+        }
+
+        $data = $discounts->map(function ($voucher) use ($savedCodes) {
+            return [
+                'id' => $voucher->id,
+                'code' => $voucher->code,
+                'discount_type' => $voucher->discount_type,
+                'discount_value' => $voucher->discount_value,
+                'max_discount' => $voucher->max_discount,
+                'min_order_value' => $voucher->min_order_value,
+                'end_date' => $voucher->end_date,
+                'is_saved' => in_array($voucher->code, $savedCodes),
+                'products' => $voucher->products->map(fn($p) => ['id' => $p->id, 'name' => $p->name]),
+                'categories' => $voucher->categories->map(fn($c) => ['id' => $c->id, 'name' => $c->name]),
+                'users' => $voucher->users->map(fn($u) => ['id' => $u->id, 'name' => $u->name]),
+                'usage_limit' => $voucher->usage_limit,
+                'used_count' => $voucher->used_count,
+            ];
+        });
+
         return response()->json([
-            'success' => false,
-            'message' => 'Không tìm thấy cửa hàng.'
-        ], 404);
+            'success' => true,
+            'data' => $data
+        ]);
     }
-
-    // Lấy các voucher/discounts của shop
-    $discounts = Discount::with(['products:id,name', 'categories:id,name', 'users:id,name'])
-        ->where('seller_id', $seller->id)
-        ->orderByDesc('created_at')
-        ->get();
-
-    // Nếu có user đăng nhập, lấy danh sách voucher đã lưu
-    $savedCodes = [];
-    if ($request->user()) {
-        $savedCodes = $request->user()->savedVouchers()->pluck('code')->toArray();
-    }
-
-    $data = $discounts->map(function ($voucher) use ($savedCodes) {
-        return [
-            'id' => $voucher->id,
-            'code' => $voucher->code,
-            'discount_type' => $voucher->discount_type,
-            'discount_value' => $voucher->discount_value,
-            'max_discount' => $voucher->max_discount,
-            'min_order_value' => $voucher->min_order_value,
-            'end_date' => $voucher->end_date,
-            'is_saved' => in_array($voucher->code, $savedCodes),
-            'products' => $voucher->products->map(fn($p) => ['id' => $p->id, 'name' => $p->name]),
-            'categories' => $voucher->categories->map(fn($c) => ['id' => $c->id, 'name' => $c->name]),
-            'users' => $voucher->users->map(fn($u) => ['id' => $u->id, 'name' => $u->name]),
-            'usage_limit' => $voucher->usage_limit,
-            'used_count' => $voucher->used_count,
-        ];
-    });
-
-    return response()->json([
-        'success' => true,
-        'data' => $data
-    ]);
-}
 }

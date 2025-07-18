@@ -383,6 +383,7 @@
 import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import Pagination from '~/components/Pagination.vue';
+import { secureFetch } from '@/utils/secureFetch' 
 
 definePageMeta({
   layout: 'default-seller'
@@ -441,28 +442,24 @@ const getStatusLabel = (status) => {
 // Fetch product counts (total, instock, trash)
 const fetchProductCounts = async () => {
   try {
-    const token = localStorage.getItem('access_token');
-    // Fetch all products to get total count
-    const productsResponse = await fetch(`${apiBase}/products/sellers`, {
+    const productsResponse = await secureFetch(`${apiBase}/products/sellers`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
       }
-    });
+    } , ['seller']);
     const productsData = await productsResponse.json();
     const allProducts = productsData.data?.data || productsData.data || [];
     totalProducts.value = productsData.data?.total || allProducts.length || 0;
     inStockProducts.value = allProducts.filter(p => getStockStatus(p) === 'instock').length;
 
     // Fetch trashed products to get trash count
-    const trashResponse = await fetch(`${apiBase}/products/sellers/trash`, {
+    const trashResponse = await secureFetch(`${apiBase}/products/sellers/trash`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
       }
-    });
+    } , ['seller']);
     const trashData = await trashResponse.json();
     const trashProductsList = trashData.data?.data || trashData.data || [];
     trashProducts.value = trashData.data?.total || trashProductsList.length || 0;
@@ -477,18 +474,16 @@ const fetchProducts = async (page = 1) => {
   try {
     loading.value = true;
     currentPage.value = page;
-    const token = localStorage.getItem('access_token');
 
     const endpoint = filterTrash.value === 'trash'
       ? `${apiBase}/products/sellers/trash?page=${page}&per_page=${perPage}`
       : `${apiBase}/products/sellers?page=${page}&per_page=${perPage}`;
-    const response = await fetch(endpoint, {
+    const response = await secureFetch(endpoint, {
       method: 'GET',
       headers: { 
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
       }
-    });
+    } , ['seller']);
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     const data = await response.json();
     products.value = data.data?.data || data.data || data || [];
@@ -588,15 +583,13 @@ const applyBulkAction = async () => {
       async () => {
         try {
           loading.value = true;
-          const token = localStorage.getItem('access_token');
           const deletePromises = selectedProducts.value.map(id =>
-            fetch(`${apiBase}/products/${id}`, {
+            secureFetch(`${apiBase}/products/${id}`, {
               method: 'DELETE',
               headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
               }
-            })
+            } , ['seller'])
           );
 
           const responses = await Promise.all(deletePromises);
@@ -621,17 +614,15 @@ const applyBulkAction = async () => {
   } else if (['active', 'inactive', 'trash', 'restore'].includes(selectedAction.value)) {
     try {
       loading.value = true;
-      const status = selectedAction.value ===住院
-      const token = localStorage.getItem('access_token');
+      const status = selectedAction.value === 'active' ? 'active' : selectedAction.value === 'inactive' ? 'inactive' : selectedAction.value === 'trash' ? 'trash' : 'active';
       const updatePromises = selectedProducts.value.map(id =>
-        fetch(`${apiBase}/products/change-status/${id}`, {
+        secureFetch(`${apiBase}/products/change-status/${id}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({ status })
-        })
+        } , ['seller'])
       );
 
       const responses = await Promise.all(updatePromises);
@@ -665,20 +656,18 @@ const editProduct = (id) => {
 
 // Move to trash
 const moveToTrash = async (product) => {
-  const token = localStorage.getItem('access_token');
   showConfirmationDialog(
     'Xác nhận chuyển vào thùng rác',
     `Bạn có chắc chắn muốn chuyển sản phẩm "${product.name}" vào thùng rác?`,
     async () => {
       try {
-        const response = await fetch(`${apiBase}/products/change-status/${product.id}`, {
+        const response = await secureFetch(`${apiBase}/products/change-status/${product.id}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({ status: 'trash' })
-        });
+        } , ['seller']);
 
         if (response.ok) {
           showNotificationMessage('Đã chuyển sản phẩm vào thùng rác!', 'success');
@@ -697,20 +686,18 @@ const moveToTrash = async (product) => {
 
 // Restore product
 const restoreProduct = async (product) => {
-  const token = localStorage.getItem('access_token');
   showConfirmationDialog(
     'Xác nhận khôi phục',
     `Bạn có chắc chắn muốn khôi phục sản phẩm "${product.name}"?`,
     async () => {
       try {
-        const response = await fetch(`${apiBase}/products/change-status/${product.id}`, {
+        const response = await secureFetch(`${apiBase}/products/change-status/${product.id}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({ status: 'active' })
-        });
+        } , ['seller']);
 
         if (response.ok) {
           showNotificationMessage('Khôi phục sản phẩm thành công!', 'success');
@@ -734,14 +721,12 @@ const confirmDelete = async (product) => {
     `Bạn có chắc chắn muốn xóa vĩnh viễn sản phẩm "${product.name}" không?`,
     async () => {
       try {
-        const token = localStorage.getItem('access_token');
-        const response = await fetch(`${apiBase}/products/${product.id}`, {
+        const response = await secureFetch(`${apiBase}/products/${product.id}`, {
           method: 'DELETE',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
           }
-        });
+        } , ['seller']);
 
         if (response.ok) {
           showNotificationMessage('Xóa vĩnh viễn sản phẩm thành công!', 'success');

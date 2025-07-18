@@ -14,26 +14,30 @@
 
       <!-- Nút chuyển đổi -->
       <div class="flex gap-2 mb-4 px-4 pt-4">
-        <button @click="showPayoutList = false; showLogs = false; showRefunds = false"
-          :class="['px-4 py-2 rounded', !showPayoutList && !showLogs && !showRefunds ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700']">
+        <button @click="activeTab = 'orders'"
+          :class="['px-4 py-2 rounded', activeTab === 'orders' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700']">
           Đơn hàng
         </button>
-        <button @click="showPayoutList = true; showLogs = false; showRefunds = false; fetchPayoutData()"
-          :class="['px-4 py-2 rounded', showPayoutList && !showLogs && !showRefunds ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700']">
+        <button @click="activeTab = 'payouts'; fetchPayoutData()"
+          :class="['px-4 py-2 rounded', activeTab === 'payouts' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700']">
           Thanh toán đã cập nhật
         </button>
-        <button @click="showPayoutList = false; showLogs = true; showRefunds = false; fetchLogs()"
-          :class="['px-4 py-2 rounded', showLogs && !showRefunds ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700']">
+        <button @click="activeTab = 'logs'; fetchLogs()"
+          :class="['px-4 py-2 rounded', activeTab === 'logs' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700']">
           Nhật ký đồng bộ
         </button>
-        <button @click="showPayoutList = false; showLogs = false; showRefunds = true; fetchRefunds()"
-          :class="['px-4 py-2 rounded', showRefunds ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700']">
+        <button @click="activeTab = 'refunds'; fetchRefunds()"
+          :class="['px-4 py-2 rounded', activeTab === 'refunds' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700']">
           Yêu cầu hoàn tiền
+        </button>
+        <button @click="activeTab = 'withdraw'; fetchWithdrawList()"
+          :class="['px-4 py-2 rounded', activeTab === 'withdraw' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700']">
+          Yêu cầu rút tiền
         </button>
       </div>
 
       <!-- Tab Đơn hàng -->
-      <div v-if="!showPayoutList && !showLogs && !showRefunds">
+      <div v-if="activeTab === 'orders'">
         <!-- Filter Bar -->
         <div class="bg-gray-200 px-4 py-3 flex flex-wrap items-center gap-3 text-sm text-gray-700">
           <div class="flex items-center gap-2">
@@ -178,7 +182,7 @@
       </div>
 
       <!-- Tab Nhật ký đồng bộ GHN -->
-      <div v-if="showLogs" class="bg-white p-6 rounded shadow w-full overflow-x-auto">
+      <div v-else-if="activeTab === 'logs'" class="bg-white p-6 rounded shadow w-full">
         <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
           <span>📜</span> Nhật ký đồng bộ GHN
         </h2>
@@ -216,70 +220,68 @@
       </div>
 
       <!-- Tab Payout -->
-      <div v-if="showPayoutList">
-        <div class="bg-white p-6 rounded shadow w-full overflow-x-auto">
-          <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
-            <span>💸</span> Danh sách thanh toán đã cập nhật
-          </h2>
-          <div class="flex flex-wrap gap-3 mb-4">
-            <input v-model="payoutTrackingKeyword" type="text" placeholder="Tìm theo mã vận đơn (tracking_code)"
-              class="border p-2 rounded flex-1 min-w-[180px] placeholder-gray-400">
-            <select v-model="payoutSortOption" class="border p-2 rounded min-w-[160px]">
-              <option value="transferred_desc">Mới nhất (ngày chuyển khoản)</option>
-              <option value="created_desc">Gần đây nhất (ngày tạo)</option>
-              <option value="created_asc">Cũ nhất</option>
-            </select>
-          </div>
-          <div v-if="payoutLoading" class="text-center text-gray-400 py-10">Đang tải dữ liệu...</div>
-          <div v-else-if="payoutError" class="text-center text-red-500 py-10">{{ payoutError }}</div>
-          <div v-else-if="!payoutTrackingFilteredData.length" class="text-center text-gray-400 py-10">Không có payout
-            nào</div>
-          <div v-else class="mt-4">
-            <table class="w-full table-auto divide-y divide-gray-200">
-              <thead>
-                <tr>
-                  <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">Mã payout</th>
-                  <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">Mã vận đơn</th>
-                  <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">Số tiền</th>
-                  <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">Ngày yêu cầu</th>
-                  <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">Ngày duyệt</th>
-                  <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">Trạng thái</th>
-                  <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">Ghi chú</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="item in payoutTrackingPaginatedData" :key="item.id" class="hover:bg-blue-50 transition">
-                  <td class="px-4 py-3 whitespace-nowrap text-sm font-semibold text-blue-700">{{ item.id }}</td>
-                  <td class="px-4 py-3 whitespace-nowrap text-sm font-semibold text-blue-700">{{
-                    getTrackingCode(item.order_id) }}</td>
-                  <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ formatPrice(item.amount) }}</td>
-                  <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ formatDate(item.created_at) }}</td>
-                  <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ formatDate(item.transferred_at) }}
-                  </td>
-                  <td class="px-4 py-3 whitespace-nowrap text-sm">
-                    <span :class="payoutStatusClass(item.status)">{{ payoutStatusLabel(item.status) }}</span>
-                  </td>
-                  <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.note }}</td>
-                </tr>
-              </tbody>
-            </table>
-            <div v-if="payoutTrackingTotalPages > 1" class="flex justify-center mt-4">
-              <button @click="payoutTrackingPage--" :disabled="payoutTrackingPage === 1"
-                class="px-3 py-1 mx-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50">
-                <
-              </button>
-              <button v-for="p in payoutTrackingTotalPages" :key="p" @click="payoutTrackingPage = p"
-                :class="['px-3 py-1 mx-1 rounded border', payoutTrackingPage === p ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-gray-700 border-gray-300']">{{
-                p }}</button>
-              <button @click="payoutTrackingPage++" :disabled="payoutTrackingPage === payoutTrackingTotalPages"
-                class="px-3 py-1 mx-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50">></button>
-            </div>
+      <div v-else-if="activeTab === 'payouts'" class="bg-white p-6 rounded shadow w-full">
+        <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+          <span>💸</span> Danh sách thanh toán đã cập nhật
+        </h2>
+        <div class="flex flex-wrap gap-3 mb-4">
+          <input v-model="payoutTrackingKeyword" type="text" placeholder="Tìm theo mã vận đơn (tracking_code)"
+            class="border p-2 rounded flex-1 min-w-[180px] placeholder-gray-400">
+          <select v-model="payoutSortOption" class="border p-2 rounded min-w-[160px]">
+            <option value="transferred_desc">Mới nhất (ngày chuyển khoản)</option>
+            <option value="created_desc">Gần đây nhất (ngày tạo)</option>
+            <option value="created_asc">Cũ nhất</option>
+          </select>
+        </div>
+        <div v-if="payoutLoading" class="text-center text-gray-400 py-10">Đang tải dữ liệu...</div>
+        <div v-else-if="payoutError" class="text-center text-red-500 py-10">{{ payoutError }}</div>
+        <div v-else-if="!payoutTrackingFilteredData.length" class="text-center text-gray-400 py-10">Không có payout
+          nào</div>
+        <div v-else class="mt-4">
+          <table class="w-full table-auto divide-y divide-gray-200">
+            <thead>
+              <tr>
+                <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">Mã payout</th>
+                <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">Mã vận đơn</th>
+                <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">Số tiền</th>
+                <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">Ngày yêu cầu</th>
+                <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">Ngày duyệt</th>
+                <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">Trạng thái</th>
+                <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">Ghi chú</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in payoutTrackingPaginatedData" :key="item.id" class="hover:bg-blue-50 transition">
+                <td class="px-4 py-3 whitespace-nowrap text-sm font-semibold text-blue-700">{{ item.id }}</td>
+                <td class="px-4 py-3 whitespace-nowrap text-sm font-semibold text-blue-700">{{
+                  getTrackingCode(item.order_id) }}</td>
+                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ formatPrice(item.amount) }}</td>
+                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ formatDate(item.created_at) }}</td>
+                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ formatDate(item.transferred_at) }}
+                </td>
+                <td class="px-4 py-3 whitespace-nowrap text-sm">
+                  <span :class="payoutStatusClass(item.status)">{{ payoutStatusLabel(item.status) }}</span>
+                </td>
+                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.note }}</td>
+              </tr>
+            </tbody>
+          </table>
+          <div v-if="payoutTrackingTotalPages > 1" class="flex justify-center mt-4">
+            <button @click="payoutTrackingPage--" :disabled="payoutTrackingPage === 1"
+              class="px-3 py-1 mx-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50">
+              <
+            </button>
+            <button v-for="p in payoutTrackingTotalPages" :key="p" @click="payoutTrackingPage = p"
+              :class="['px-3 py-1 mx-1 rounded border', payoutTrackingPage === p ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-gray-700 border-gray-300']">{{
+              p }}</button>
+            <button @click="payoutTrackingPage++" :disabled="payoutTrackingPage === payoutTrackingTotalPages"
+              class="px-3 py-1 mx-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50">></button>
           </div>
         </div>
       </div>
 
       <!-- Tab Yêu cầu hoàn tiền -->
-      <div v-if="showRefunds" class="bg-white p-6 rounded shadow w-full overflow-x-auto">
+      <div v-else-if="activeTab === 'refunds'" class="bg-white p-6 rounded shadow w-full">
         <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
           <span>💰</span> Danh sách yêu cầu hoàn tiền
         </h2>
@@ -362,6 +364,82 @@
         </div>
       </div>
 
+      <!-- Tab Yêu cầu rút tiền -->
+      <div v-else-if="activeTab === 'withdraw'" class="bg-white p-6 rounded shadow w-full">
+        <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+          <span>🏦</span> Danh sách yêu cầu rút tiền
+        </h2>
+        <!-- Thanh filter đặt ở trên -->
+        <div class="flex flex-wrap gap-2 mb-4 items-end">
+          <input v-model="withdrawSearch" placeholder="Tìm kiếm theo số tiền" class="border rounded px-2 py-1" />
+          <select v-model="withdrawSortDate" class="border rounded px-2 py-1">
+            <option value="desc">Mới nhất</option>
+            <option value="asc">Cũ nhất</option>
+          </select>
+          <select v-model="withdrawSortAmount" class="border rounded px-2 py-1">
+            <option value="desc">Giá cao → thấp</option>
+            <option value="asc">Giá thấp → cao</option>
+          </select>
+        </div>
+        <div v-if="withdrawLoading" class="text-center text-gray-400 py-10">Đang tải dữ liệu...</div>
+        <div v-else-if="withdrawError" class="text-center text-red-500 py-10">{{ withdrawError }}</div>
+        <div v-else-if="!withdrawList.length" class="text-center text-gray-400 py-10">Không có yêu cầu rút tiền nào</div>
+        <div v-else class="mt-4">
+          <table class="w-full table-auto divide-y divide-gray-200">
+            <thead>
+              <tr>
+                <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase whitespace-normal break-words">Số tiền</th>
+                <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase whitespace-normal break-words">Ngân hàng</th>
+                <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase whitespace-normal break-words">Số tài khoản</th>
+                <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase whitespace-normal break-words">Tên chủ tài khoản</th>
+                <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase whitespace-normal break-words">Trạng thái</th>
+                <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase whitespace-normal break-words">Ngày gửi</th>
+                <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase whitespace-normal break-words">Ngày duyệt</th>
+                <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase whitespace-normal break-words">Ghi chú</th>
+                <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase whitespace-normal break-words">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in withdrawListFiltered" :key="item.id" class="hover:bg-blue-50 transition">
+                <td class="px-4 py-3 text-sm text-gray-900 break-words whitespace-normal">{{ formatPrice(item.amount) }}</td>
+                <td class="px-4 py-3 text-sm break-words whitespace-normal">{{ item.bank_name }}</td>
+                <td class="px-4 py-3 text-sm break-words whitespace-normal">{{ item.bank_account }}</td>
+                <td class="px-4 py-3 text-sm break-words whitespace-normal">{{ item.bank_account_name }}</td>
+                <td class="px-4 py-3 text-sm break-words whitespace-normal">
+                  <span :class="payoutStatusClass(item.status)">{{ payoutStatusLabel(item.status) }}</span>
+                </td>
+                <td class="px-4 py-3 text-sm break-words whitespace-normal">{{ formatDate(item.created_at) }}</td>
+                <td class="px-4 py-3 text-sm break-words whitespace-normal">{{ item.approved_at ? formatDate(item.approved_at) : '-' }}</td>
+                <td class="px-4 py-3 text-sm break-words whitespace-normal">{{ item.note || '-' }}</td>
+                <td class="px-4 py-3 text-sm relative break-words whitespace-normal">
+                  <button @click="toggleWithdrawDropdown(item.id)" class="p-2 rounded hover:bg-gray-100 focus:outline-none">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+                  </button>
+                  <div v-if="activeWithdrawDropdown === item.id" class="absolute right-0 mt-2 w-40 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50" style="overflow-y: visible; max-height: none;">
+                    <div class="py-1">
+                      <button v-if="item.status === 'pending'" @click="approveWithdraw(item); closeWithdrawDropdown()" class="w-full text-left px-4 py-2 text-sm text-green-700 hover:bg-green-50">Duyệt rút tiền</button>
+                      <button @click="openWithdrawDetail(item)" class="w-full text-left px-4 py-2 text-sm text-blue-700 hover:bg-blue-50">Xem chi tiết</button>
+                      <button v-if="item.status === 'pending'" @click="openRejectWithdraw(item)" class="w-full text-left px-4 py-2 text-sm text-red-700 hover:bg-red-50">Từ chối</button>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div v-if="withdrawTotalPages > 1" class="flex justify-center mt-4">
+          <button @click="withdrawPage--" :disabled="withdrawPage === 1"
+            class="px-3 py-1 mx-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50">
+            <
+          </button>
+          <button v-for="p in withdrawTotalPages" :key="p" @click="withdrawPage = p"
+            :class="['px-3 py-1 mx-1 rounded border', withdrawPage === p ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-gray-700 border-gray-300']">{{
+            p }}</button>
+          <button @click="withdrawPage++" :disabled="withdrawPage === withdrawTotalPages"
+            class="px-3 py-1 mx-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50">></button>
+        </div>
+      </div>
+
       <!-- Modal chi tiết đơn hàng -->
       <div v-if="selectedOrder" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
         <div class="bg-white rounded-lg shadow-lg max-w-2xl w-full p-6 relative">
@@ -402,9 +480,8 @@
               </div>
             </div>
             <!-- Thông tin thanh toán cho shop -->
-            <div class="border border-gray-200 rounded-lg">
-              <div class="border-b px-4 py-2 font-medium text-sm bg-gray-50 text-gray-800">Thông tin thanh toán cho shop
-              </div>
+            <div class="border border-gray-200 rounded-lg mt-4">
+              <div class="border-b px-4 py-2 font-medium text-sm bg-gray-50 text-gray-800">Thông tin thanh toán cho shop</div>
               <div class="px-4 py-3 text-sm text-gray-700">
                 <p><b>Trạng thái thanh toán:</b> <span :class="payoutStatusClass(selectedOrder?.payout_status)">{{
                   payoutStatusText(selectedOrder?.payout_status) || 'Chưa có' }}</span></p>
@@ -431,6 +508,16 @@
                   class="mt-2">
                   <button @click="approvePayout(selectedOrder)"
                     class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Duyệt payout</button>
+                </p>
+                <p class="text-xs text-gray-500 mt-2">
+                  Lưu ý: Số tiền nhận được là 95% tổng giá trị đơn hàng (bao gồm phí vận chuyển, đã trừ chiết khấu 5% cho admin và giảm giá nếu có).
+                  <span v-if="selectedOrder.payments?.[0]?.method === 'COD'" class="text-red-500 font-semibold">
+                    Đơn hàng COD có thể bị trừ thêm phí thu hộ, phí chuyển khoản của đơn vị vận chuyển. Số tiền thực nhận sẽ được đối soát theo thực tế.
+                  </span>
+                  <span v-else-if="selectedOrder.payments?.[0]?.method === 'VNPAY' || selectedOrder.payments?.[0]?.method === 'MOMO'" class="text-green-600 font-semibold">
+                    Đơn hàng thanh toán online (VNPAY/MOMO) shop sẽ nhận đúng số tiền như hệ thống ước tính.
+                  </span>
+                  Nếu có điều chỉnh khác, admin sẽ ghi chú riêng.
                 </p>
               </div>
             </div>
@@ -567,6 +654,58 @@
           </div>
         </Transition>
       </Teleport>
+
+      <!-- Teleport/modal xem chi tiết: -->
+      <Teleport to="body">
+        <div v-if="showWithdrawDetailModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6 relative">
+            <button @click="closeWithdrawDetail" class="absolute top-4 right-4 text-gray-400 hover:text-black text-lg">✕</button>
+            <h2 class="text-xl font-bold mb-4 text-gray-800">Chi tiết yêu cầu rút tiền</h2>
+            <div v-if="withdrawDetailItem">
+              <p><b>Số tiền:</b> {{ formatPrice(withdrawDetailItem.amount) }}</p>
+              <p><b>Ngân hàng:</b> {{ withdrawDetailItem.bank_name }}</p>
+              <p><b>Số tài khoản:</b> {{ withdrawDetailItem.bank_account }}</p>
+              <p><b>Tên chủ tài khoản:</b> {{ withdrawDetailItem.bank_account_name }}</p>
+              <p><b>Trạng thái:</b> <span :class="payoutStatusClass(withdrawDetailItem.status)">{{ payoutStatusLabel(withdrawDetailItem.status) }}</span></p>
+              <p><b>Ngày gửi:</b> {{ formatDate(withdrawDetailItem.created_at) }}</p>
+              <p><b>Ngày duyệt:</b> {{ withdrawDetailItem.approved_at ? formatDate(withdrawDetailItem.approved_at) : '-' }}</p>
+              <p><b>Ghi chú:</b> {{ withdrawDetailItem.note || '-' }}</p>
+              <div v-if="withdrawDetailItem.seller">
+                <hr class="my-3" />
+                <h3 class="font-semibold mb-2">Thông tin cửa hàng</h3>
+                <p v-if="withdrawDetailItem.seller.shop_name"><b>Tên shop:</b> {{ withdrawDetailItem.seller.shop_name }}</p>
+                <p v-if="withdrawDetailItem.seller.name"><b>Tên tài khoản:</b> {{ withdrawDetailItem.seller.name }}</p>
+                <p v-if="withdrawDetailItem.seller.email"><b>Email:</b> {{ withdrawDetailItem.seller.email }}</p>
+                <p v-if="withdrawDetailItem.seller.phone"><b>Số điện thoại:</b> {{ withdrawDetailItem.seller.phone }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Teleport>
+
+      <!-- Teleport/modal từ chối: -->
+      <Teleport to="body">
+        <div v-if="showRejectWithdrawModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6 relative">
+            <button @click="closeRejectWithdraw" class="absolute top-4 right-4 text-gray-400 hover:text-black text-lg">✕</button>
+            <h2 class="text-xl font-bold mb-4 text-gray-800">Từ chối yêu cầu rút tiền</h2>
+            <div v-if="rejectWithdrawItem">
+              <p><b>Số tiền:</b> {{ formatPrice(rejectWithdrawItem.amount) }}</p>
+              <p><b>Ngân hàng:</b> {{ rejectWithdrawItem.bank_name }}</p>
+              <p><b>Số tài khoản:</b> {{ rejectWithdrawItem.bank_account }}</p>
+              <p><b>Tên chủ tài khoản:</b> {{ rejectWithdrawItem.bank_account_name }}</p>
+            </div>
+            <div class="mb-4 mt-4">
+              <label class="block mb-1 font-medium">Lý do từ chối</label>
+              <textarea v-model="rejectWithdrawReason" class="w-full border rounded px-3 py-2" rows="2" placeholder="Nhập lý do từ chối"></textarea>
+            </div>
+            <div class="flex gap-2 justify-end">
+              <button type="button" @click="closeRejectWithdraw" class="px-4 py-2 bg-gray-200 rounded">Huỷ</button>
+              <button type="button" @click="submitRejectWithdraw" :disabled="rejectWithdrawLoading" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">Xác nhận từ chối</button>
+            </div>
+          </div>
+        </div>
+      </Teleport>
     </div>
   </div>
 </template>
@@ -592,9 +731,7 @@ const perPage = ref(10);
 const totalItems = ref(0);
 const totalPages = ref(1);
 const activeDropdown = ref(null);
-const showPayoutList = ref(false);
-const showLogs = ref(false);
-const showRefunds = ref(false);
+const activeTab = ref('orders');
 const payoutLoading = ref(false);
 const payoutError = ref('');
 const payoutData = ref([]);
@@ -618,6 +755,39 @@ const showEditRefundModal = ref(false);
 const refundToEdit = ref(null);
 const config = useRuntimeConfig();
 const apiBase = config.public.apiBaseUrl;
+const showWithdrawTab = ref(false);
+const withdrawLoading = ref(false);
+const withdrawError = ref('');
+const withdrawList = ref([]);
+const activeWithdrawDropdown = ref(null);
+const showWithdrawDetailModal = ref(false);
+const withdrawDetailItem = ref(null);
+const showRejectWithdrawModal = ref(false);
+const rejectWithdrawItem = ref(null);
+const rejectWithdrawReason = ref('');
+const rejectWithdrawLoading = ref(false);
+// Thêm biến filter cho danh sách yêu cầu rút tiền
+const withdrawSearch = ref('');
+const withdrawSortDate = ref('desc'); // 'desc' = mới nhất, 'asc' = cũ nhất
+const withdrawSortAmount = ref('desc'); // 'desc' = cao->thấp, 'asc' = thấp->cao
+
+const withdrawListFiltered = computed(() => {
+  let arr = [...withdrawList.value];
+  if (withdrawSearch.value) {
+    const kw = withdrawSearch.value.replace(/\D/g, '');
+    arr = arr.filter(item => String(item.amount).includes(kw));
+  }
+  // Sắp xếp theo ngày
+  arr = arr.sort((a, b) => {
+    const da = new Date(a.created_at), db = new Date(b.created_at);
+    return withdrawSortDate.value === 'desc' ? db - da : da - db;
+  });
+  // Sắp xếp theo số tiền
+  arr = arr.sort((a, b) => {
+    return withdrawSortAmount.value === 'desc' ? b.amount - a.amount : a.amount - b.amount;
+  });
+  return arr;
+});
 
 // Computed
 const hasAbnormalOrders = computed(() => {
@@ -1603,6 +1773,124 @@ const deleteOrder = async (orderId) => {
   }
 };
 
+const fetchWithdrawList = async () => {
+  withdrawLoading.value = true;
+  withdrawError.value = '';
+  try {
+    const token = localStorage.getItem('access_token');
+    if (!token) throw new Error('Không tìm thấy access token. Vui lòng đăng nhập lại.');
+    const res = await fetch(`${apiBase}/admin/withdraw-requests`, {
+      headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+    });
+    const data = await res.json();
+    if (res.ok) {
+      withdrawList.value = Array.isArray(data.data) ? data.data : [];
+    } else {
+      throw new Error(data.message || 'Lỗi khi tải danh sách rút tiền');
+    }
+  } catch (e) {
+    withdrawError.value = e.message;
+    withdrawList.value = [];
+  } finally {
+    withdrawLoading.value = false;
+  }
+};
+
+const approveWithdraw = async (item) => {
+  const result = await Swal.fire({
+    title: 'Xác nhận duyệt rút tiền',
+    text: `Bạn có chắc chắn muốn duyệt yêu cầu rút ${formatPrice(item.amount)} cho ${item.bank_account_name}?`,
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonText: 'Duyệt',
+    cancelButtonText: 'Hủy',
+    confirmButtonColor: '#16a34a',
+    cancelButtonColor: '#6b7280'
+  });
+  if (!result.isConfirmed) return;
+  try {
+    withdrawLoading.value = true;
+    const token = localStorage.getItem('access_token');
+    if (!token) throw new Error('Không tìm thấy access token. Vui lòng đăng nhập lại.');
+    const res = await fetch(`${apiBase}/admin/withdraw-requests/${item.id}/approve`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      showNotification('Duyệt rút tiền thành công', true);
+      await fetchWithdrawList();
+    } else {
+      throw new Error(data.message || 'Lỗi khi duyệt rút tiền');
+    }
+  } catch (e) {
+    showNotification(`Lỗi khi duyệt rút tiền: ${e.message}`, false);
+  } finally {
+    withdrawLoading.value = false;
+  }
+};
+
+function toggleWithdrawDropdown(id) {
+  activeWithdrawDropdown.value = activeWithdrawDropdown.value === id ? null : id;
+}
+
+function closeWithdrawDropdown() {
+  activeWithdrawDropdown.value = null;
+}
+
+function openWithdrawDetail(item) {
+  withdrawDetailItem.value = item;
+  showWithdrawDetailModal.value = true;
+  closeWithdrawDropdown();
+}
+
+function closeWithdrawDetail() {
+  showWithdrawDetailModal.value = false;
+  withdrawDetailItem.value = null;
+}
+
+function openRejectWithdraw(item) {
+  rejectWithdrawItem.value = item;
+  rejectWithdrawReason.value = '';
+  showRejectWithdrawModal.value = true;
+  closeWithdrawDropdown();
+}
+
+function closeRejectWithdraw() {
+  showRejectWithdrawModal.value = false;
+  rejectWithdrawItem.value = null;
+  rejectWithdrawReason.value = '';
+}
+
+async function submitRejectWithdraw() {
+  if (!rejectWithdrawItem.value || !rejectWithdrawReason.value) {
+    showNotification('Vui lòng nhập lý do từ chối!', false);
+    return;
+  }
+  try {
+    rejectWithdrawLoading.value = true;
+    const token = localStorage.getItem('access_token');
+    if (!token) throw new Error('Không tìm thấy access token. Vui lòng đăng nhập lại.');
+    const res = await fetch(`${apiBase}/admin/withdraw-requests/${rejectWithdrawItem.value.id}/reject`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ note: rejectWithdrawReason.value })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      showNotification('Đã từ chối yêu cầu rút tiền', true);
+      await fetchWithdrawList();
+      closeRejectWithdraw();
+    } else {
+      throw new Error(data.message || 'Lỗi khi từ chối rút tiền');
+    }
+  } catch (e) {
+    showNotification(`Lỗi khi từ chối rút tiền: ${e.message}`, false);
+  } finally {
+    rejectWithdrawLoading.value = false;
+  }
+}
+
 // Lifecycle hooks
 onMounted(() => {
   fetchOrders();
@@ -1610,6 +1898,7 @@ onMounted(() => {
   fetchPayoutData();
   fetchLogs();
   fetchRefunds();
+  fetchWithdrawList();
   const closeDropdown = (e) => {
     if (!e.target.closest('.relative')) {
       activeDropdown.value = null;

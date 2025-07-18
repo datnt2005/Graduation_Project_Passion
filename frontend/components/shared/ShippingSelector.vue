@@ -506,7 +506,7 @@ const filteredVouchersSearched = computed(() => {
 const toast = (icon, title) => {
   Swal.fire({
     toast: true,
-    position: 'top',
+    position: 'top-end',
     icon,
     title,
     width: '350px',

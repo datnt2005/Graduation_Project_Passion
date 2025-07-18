@@ -80,8 +80,8 @@ class OrderController extends Controller
                 'Content-Type' => 'application/json',
                 'ShopId' => env('GHN_SHOP_ID')
             ])->post(env('GHN_API_URL') . '/v2/shipping-order/detail', [
-                'order_code' => $request->tracking_code
-            ]);
+                        'order_code' => $request->tracking_code
+                    ]);
 
             if ($ghnResponse->failed()) {
                 $errorMessage = $ghnResponse->json()['message'] ?? 'Không xác định';
@@ -139,8 +139,8 @@ class OrderController extends Controller
                     'Content-Type' => 'application/json',
                     'ShopId' => env('GHN_SHOP_ID')
                 ])->post(env('GHN_API_URL') . '/v2/shipping-order/detail', [
-                    'order_code' => $request->tracking_code
-                ]);
+                            'order_code' => $request->tracking_code
+                        ]);
                 if ($verifyResponse->failed() || $verifyResponse->json()['data']['status'] !== 'delivered') {
                     GhnSyncLog::create([
                         'order_id' => $orderId,
@@ -379,7 +379,7 @@ class OrderController extends Controller
             $query->orderBy($sortBy, $sortOrder);
 
             // Phân trang
-            $perPage = (int)$request->input('per_page', 10);
+            $perPage = (int) $request->input('per_page', 10);
             $perPage = max(1, min(100, $perPage));
             $orders = $query->paginate($perPage);
 
@@ -404,7 +404,7 @@ class OrderController extends Controller
                         'shipping' => $order->shipping ? [
                             'tracking_code' => $order->shipping->tracking_code,
                             'status' => $order->shipping->status,
-                            'shipping_fee' => (float)$order->shipping->shipping_fee,
+                            'shipping_fee' => (float) $order->shipping->shipping_fee,
                             'estimated_delivery' => $order->shipping->estimated_delivery ? $order->shipping->estimated_delivery->toISOString() : null,
                         ] : null,
                         'user' => $order->user ? [
@@ -447,15 +447,15 @@ class OrderController extends Controller
                                     'name' => $item->productVariant->name,
                                 ] : null,
                                 'quantity' => $item->quantity,
-                                'price' => (float)$item->price,
-                                'total' => (float)($item->price * $item->quantity),
+                                'price' => (float) $item->price,
+                                'total' => (float) ($item->price * $item->quantity),
                             ];
                         }),
                         'payments' => $order->payments->map(function ($payment) {
                             return [
                                 'id' => $payment->id,
                                 'method' => $payment->paymentMethod ? $payment->paymentMethod->name : null,
-                                'amount' => (float)$payment->amount,
+                                'amount' => (float) $payment->amount,
                                 'status' => $payment->status,
                                 'created_at' => $payment->created_at ? $payment->created_at->toISOString() : null,
                             ];
@@ -464,7 +464,7 @@ class OrderController extends Controller
                             'id' => $order->refund->id,
                             'order_id' => $order->refund->order_id,
                             'user_id' => $order->refund->user_id,
-                            'amount' => (float)$order->refund->amount,
+                            'amount' => (float) $order->refund->amount,
                             'status' => $order->refund->status,
                             'reason' => $order->refund->reason,
                             'created_at' => $order->refund->created_at ? $order->refund->created_at->toISOString() : null,
@@ -634,7 +634,6 @@ class OrderController extends Controller
 
                 if ($variant && !($request->skip_stock_check ?? false)) {
                     $stock = $variant->quantity ?? 0;
-
                     Log::info('Stock check for variant', [
                         'product_id' => $item['product_id'],
                         'variant_id' => $item['product_variant_id'],
@@ -701,7 +700,8 @@ class OrderController extends Controller
                 if ($request->discount_ids && is_array($request->discount_ids)) {
                     foreach ($request->discount_ids as $did) {
                         $discount = Discount::find($did);
-                        if (!$discount) continue;
+                        if (!$discount)
+                            continue;
                         if ($discount->discount_type === 'shipping_fee' && $discount->seller_id === null) {
                             $shippingDiscount = $discount;
                         } elseif ($discount->seller_id == $sellerId && ($discount->discount_type === 'percentage' || $discount->discount_type === 'fixed')) {
@@ -831,11 +831,10 @@ class OrderController extends Controller
             ])->where('id', $id)
                 ->where('user_id', $user->id)
                 ->firstOrFail();
-
-            return response()->json([
-                'success' => true,
-                'data' => $this->formatOrderResponse($order)
-            ], 200);
+          return response()->json([
+            'success' => true,
+            'data' => $this->formatOrderResponse($order)
+        ], 200);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             Log::error('Order not found', [
                 'order_id' => $id,
@@ -1259,7 +1258,9 @@ class OrderController extends Controller
             'created_at' => $order->created_at->format('d/m/Y H:i:s'),
             'updated_at' => $order->updated_at->format('d/m/Y H:i:s'),
             'order_items' => $order->orderItems->map(function ($item) {
+                $price = (float) ($item->price ?? 0);
                 return [
+                    'id' => $item->id,
                     'product' => [
                         'id' => $item->product->id,
                         'name' => $item->product->name,
@@ -1272,12 +1273,12 @@ class OrderController extends Controller
                         'name' => $item->productVariant->name,
                         'thumbnail' => $item->productVariant->thumbnail ?? null,
                     ] : null,
-                    'price' => (float)$item->price,
                     'quantity' => $item->quantity,
-                    'price' => (int) $item->price,
-                    'total' => (int) ($item->price * $item->quantity),
+                    'price' => $price,
+                    'total' => $price * $item->quantity,
                 ];
             })->toArray(),
+
             'payments' => $order->payments->map(function ($payment) {
                 return [
                     'id' => $payment->id,
@@ -1290,7 +1291,7 @@ class OrderController extends Controller
             'refund' => $order->refund ? [
                 'id' => $order->refund->id,
                 'order_id' => $order->refund->order_id,
-                'amount' => (float)$order->refund->amount,
+                'amount' => (float) $order->refund->amount,
                 'reason' => $order->refund->reason,
                 'status' => $order->refund->status,
                 'created_at' => $order->refund->created_at ? $order->refund->created_at->format('d/m/Y H:i') : null
@@ -1335,7 +1336,7 @@ class OrderController extends Controller
             'data' => [
                 'id' => $refund->id,
                 'order_id' => $refund->order_id,
-                'amount' => (float)$refund->amount,
+                'amount' => (float) $refund->amount,
                 'reason' => $refund->reason,
                 'status' => $refund->status,
                 'created_at' => $refund->created_at ? $refund->created_at->format('d/m/Y H:i') : null

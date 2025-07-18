@@ -34,8 +34,8 @@
               {{ mode === 'create' ? 'Nhập kho mới' : mode === 'edit' ? 'Cập nhật tồn kho' : 'Xác Nhận' }}
             </h2>
             <p class="text-sm text-gray-600 mt-1">
-              {{ mode === 'create' ? 'Thêm sản phẩm mới vào kho' : mode === 'edit' ? 'Cập nhật số lượng tồn kho' : 
-              'Đánh dấu sản phẩm bị lỗi' }}
+              {{ mode === 'create' ? 'Thêm sản phẩm mới vào kho' : mode === 'edit' ? 'Cập nhật số lượng tồn kho' :
+                'Xuất/Trả sản phẩm lỗi' }}
             </p>
           </div>
         </div>
@@ -70,7 +70,7 @@
                 <h4 class="font-semibold text-gray-900">{{ selectedVariantInfo.product_name }}</h4>
                 <div class="flex gap-2 text-xs mt-1">
                   <span class="bg-gray-100 px-2 py-1 rounded font-mono text-gray-600">{{ selectedVariantInfo.sku
-                    }}</span>
+                  }}</span>
                   <span v-if="selectedVariantInfo.current_stock != null"
                     class="bg-gray-100 px-2 py-1 rounded text-gray-600">Tồn
                     kho: {{ selectedVariantInfo.current_stock }}</span>
@@ -83,7 +83,7 @@
         <!-- Số lượng -->
         <div>
           <label class="block text-sm font-medium text-gray-700">Số lượng *</label>
-          <input type="number" v-model.number="quantity" min="1"
+          <input type="number" v-model.number="quantity" min="1" required
             class="flex min-h-[40px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" />
         </div>
 
@@ -151,7 +151,7 @@
               {{
                 isSubmitting
                   ? (mode === 'create' ? 'Đang nhập...' : mode === 'edit' ? 'Đang cập nhật...' : 'Đang đánh dấu...')
-                  : (mode === 'create' ? 'Nhập kho' : mode === 'edit' ? 'Cập nhật' : 'Đánh dấu lỗi')
+                  : (mode === 'create' ? 'Nhập kho' : mode === 'edit' ? 'Cập nhật' : 'Lưu')
               }}
             </span>
           </button>
@@ -169,6 +169,8 @@ import { ref, computed, onMounted } from 'vue';
 import { useToast } from '@/composables/useToast';
 import { secureAxios } from '@/utils/secureAxios';
 import { nextTick } from 'vue';
+import { useNotification } from '~/composables/useNotification'
+const { showNotification } = useNotification()
 
 const props = defineProps({
   mode: String, // 'create' | 'edit' | 'damage'
@@ -186,7 +188,7 @@ const note = ref('');
 const location = ref('');
 const batchNumber = ref('');
 const importSource = ref('');
-const actionType = ref(''); // 👈 Cho dropdown export | damage
+const actionType = ref(''); 
 
 const productVariants = ref([]);
 const selectedVariantId = ref('');
@@ -209,7 +211,7 @@ onMounted(async () => {
       const { data } = await secureAxios(`${apiBase}/product-variants`, { method: 'GET' }, ['admin', 'seller']);
       productVariants.value = data;
     } catch (e) {
-      alert('Không thể tải danh sách biến thể sản phẩm');
+      showNotification('Không thể tải danh sách biến thể sản phẩm. Vui lòng thử lại sau.', 'error');
     }
   }
 });
@@ -219,10 +221,8 @@ const handleSubmit = async () => {
   isSubmitting.value = true;
 
   try {
-    // ✅ Nhập kho mới
     if (props.mode === 'create') {
       if (!selectedVariantId.value) {
-        alert('Vui lòng chọn biến thể sản phẩm');
         isSubmitting.value = false;
         return;
       }
@@ -240,7 +240,6 @@ const handleSubmit = async () => {
       }, ['admin', 'seller']);
     }
 
-    // ✅ Cập nhật tồn kho
     if (props.mode === 'edit') {
       await secureAxios(`${apiBase}/inventories/${props.inventory.id}`, {
         method: 'PUT',
@@ -251,10 +250,9 @@ const handleSubmit = async () => {
       }, ['admin', 'seller']);
     }
 
-    // ✅ Đánh dấu lỗi / xuất kho
     if (props.mode === 'damage') {
       if (!actionType.value) {
-        alert('Vui lòng chọn hành động: Xuất kho hoặc Trả hàng lỗi');
+        showNotification('Vui lòng chọn hành động (Xuất kho hoặc Trả hàng lỗi).', 'error');
         isSubmitting.value = false;
         return;
       }
@@ -269,12 +267,24 @@ const handleSubmit = async () => {
       }, ['admin', 'seller']);
     }
 
-    alert('Thao tác thành công!');
+    showNotification(
+      props.mode === 'create'
+        ? 'Nhập kho thành công!'
+        : props.mode === 'edit'
+          ? 'Cập nhật tồn kho thành công!'
+          : 'Đánh dấu lỗi thành công!',
+      'success'
+    )
+
     await nextTick();
     emit('submitted');
     emit('close');
   } catch (e) {
-    alert('Thất bại: ' + (e.response?.data?.error || e.message));
+    showNotification(
+      e.response?.data?.message || 'Đã xảy ra lỗi. Vui lòng thử lại sau.',
+      'error'
+    );
+
   } finally {
     isSubmitting.value = false;
   }

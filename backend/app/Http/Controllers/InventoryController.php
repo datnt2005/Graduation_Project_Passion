@@ -289,126 +289,130 @@ class InventoryController extends Controller
 
 
 
-  public function markDamagedOrExport(Request $request, Inventory $inventory)
-{
-    $user = $request->user();
-    if (!$user || !in_array($user->role, ['admin', 'seller'])) {
-        return response()->json(['error' => 'Bạn không có quyền thực hiện thao tác này.'], 403);
+    public function markDamagedOrExport(Request $request, Inventory $inventory)
+    {
+        $user = $request->user();
+        if (!$user || !in_array($user->role, ['admin', 'seller'])) {
+            return response()->json(['error' => 'Bạn không có quyền thực hiện thao tác này.'], 403);
+        }
+
+        $validated = $request->validate([
+            'quantity' => 'required|integer|min:1',
+            'note' => 'nullable|string',
+            'action_type' => 'required|in:damage,export', // 👈 Xác định loại hành động
+        ]);
+
+        if ($inventory->quantity < $validated['quantity']) {
+            return response()->json(['error' => 'Không đủ số lượng để thực hiện thao tác'], 400);
+        }
+
+        // Trừ số lượng tồn kho
+        $inventory->decrement('quantity', $validated['quantity']);
+        $inventory->last_updated = now();
+        $inventory->save();
+
+        // Cập nhật tồn kho tổng cho product_variant
+        $variant = $inventory->productVariant;
+        if ($variant) {
+            $variant->quantity = $variant->inventories()->sum('quantity');
+            $variant->save();
+        }
+
+        // Lưu lịch sử biến động kho
+        StockMovement::create([
+            'product_variant_id' => $inventory->product_variant_id,
+            'action_type' => $validated['action_type'], // 👈 damage hoặc export
+            'quantity' => $validated['quantity'],
+            'note' => $validated['note'] ?? ($validated['action_type'] === 'damage' ? 'Hàng lỗi' : 'Xuất kho'),
+            'created_by' => $user->id,
+            'created_by_type' => $user->role,
+        ]);
+
+        return response()->json([
+            'message' => $validated['action_type'] === 'damage'
+                ? 'Đã đánh dấu hàng lỗi'
+                : 'Đã xuất kho thành công'
+        ]);
     }
 
-    $validated = $request->validate([
-        'quantity' => 'required|integer|min:1',
-        'note' => 'nullable|string',
-        'action_type' => 'required|in:damage,export', // 👈 Xác định loại hành động
-    ]);
 
-    if ($inventory->quantity < $validated['quantity']) {
-        return response()->json(['error' => 'Không đủ số lượng để thực hiện thao tác'], 400);
-    }
 
-    // Trừ số lượng tồn kho
-    $inventory->decrement('quantity', $validated['quantity']);
-    $inventory->last_updated = now();
-    $inventory->save();
+    public function import(Request $request)
+    {
+        $validated = $request->validate([
+            'product_variant_id' => 'required|exists:product_variants,id',
+            'quantity' => 'required|integer|min:1',
+            'note' => 'nullable|string',
+            'location' => 'nullable|string|max:255',
+            'batch_number' => 'nullable|string|max:255',
+            'import_source' => 'nullable|string|max:255',
+        ]);
 
-    // Cập nhật tồn kho tổng cho product_variant
-    $variant = $inventory->variant;
-    if ($variant) {
+        $user = $request->user();
+        $createdBy = $user?->id ?? 'system';
+        $createdByType = $user && $user->role === 'seller' ? 'seller' : 'admin';
+        $importedByName = $user?->name ?? 'system';
+
+        // Tìm hoặc tạo inventory
+// 📝 Tìm inventory cũ khớp cả 3: variant + location + batch_number
+        $inventory = Inventory::where('product_variant_id', $validated['product_variant_id'])
+            ->where('location', $validated['location'] ?? 'Kho mặc định')
+            ->where('batch_number', $validated['batch_number'] ?? null)
+            ->where('status', 'available')
+            ->where('is_locked', false)
+            ->first();
+
+        if ($inventory) {
+            // 📝 Nếu tìm thấy => cập nhật số lượng và thông tin
+            $inventory->increment('quantity', $validated['quantity']);
+            $inventory->last_updated = now();
+            $inventory->imported_at = now();
+            $inventory->imported_by = $importedByName;
+
+            if (isset($validated['note'])) {
+                $inventory->note = $validated['note'];
+            }
+            if (isset($validated['import_source'])) {
+                $inventory->import_source = $validated['import_source'];
+            }
+
+            $inventory->save();
+        } else {
+            // 📝 Nếu không có => tạo inventory mới
+            $inventory = Inventory::create([
+                'product_variant_id' => $validated['product_variant_id'],
+                'quantity' => $validated['quantity'],
+                'location' => $validated['location'] ?? 'Kho mặc định',
+                'batch_number' => $validated['batch_number'] ?? null,
+                'import_source' => $validated['import_source'] ?? null,
+                'note' => $validated['note'] ?? null,
+                'status' => 'available',
+                'is_locked' => false,
+                'imported_by' => $importedByName,
+                'imported_at' => now(),
+                'last_updated' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        // Cập nhật tổng tồn kho cho biến thể sản phẩm
+        $variant = ProductVariant::findOrFail($validated['product_variant_id']);
         $variant->quantity = $variant->inventories()->sum('quantity');
         $variant->save();
-    }
 
-    // Lưu lịch sử biến động kho
-    StockMovement::create([
-        'product_variant_id' => $inventory->product_variant_id,
-        'action_type' => $validated['action_type'], // 👈 damage hoặc export
-        'quantity' => $validated['quantity'],
-        'note' => $validated['note'] ?? ($validated['action_type'] === 'damage' ? 'Hàng lỗi' : 'Xuất kho'),
-        'created_by' => $user->id,
-        'created_by_type' => $user->role,
-    ]);
-
-    return response()->json([
-        'message' => $validated['action_type'] === 'damage'
-            ? 'Đã đánh dấu hàng lỗi'
-            : 'Đã xuất kho thành công'
-    ]);
-}
-
-
-
-public function import(Request $request)
-{
-    $validated = $request->validate([
-        'product_variant_id' => 'required|exists:product_variants,id',
-        'quantity' => 'required|integer|min:1',
-        'note' => 'nullable|string',
-        'location' => 'nullable|string|max:255',
-        'batch_number' => 'nullable|string|max:255',
-        'import_source' => 'nullable|string|max:255',
-    ]);
-
-    $user = $request->user();
-    $createdBy = $user?->id ?? 'system';
-    $createdByType = $user && $user->role === 'seller' ? 'seller' : 'admin';
-    $importedByName = $user?->name ?? 'system';
-
-    // Tìm hoặc tạo inventory
-    $inventory = Inventory::firstOrCreate(
-        [
+        // Lưu lịch sử nhập kho
+        StockMovement::create([
             'product_variant_id' => $validated['product_variant_id'],
-            'status' => 'available',
-            'is_locked' => false,
-        ],
-        [
-            'quantity' => 0,
-            'location' => $validated['location'] ?? 'Kho mặc định',
-            'created_at' => now(),
-        ]
-    );
+            'action_type' => 'import',
+            'quantity' => $validated['quantity'],
+            'note' => $validated['note'] ?? 'Nhập kho',
+            'created_by' => $createdBy,
+            'created_by_type' => $createdByType,
+        ]);
 
-    // Cập nhật số lượng và các trường liên quan
-    $inventory->increment('quantity', $validated['quantity']);
-    $inventory->last_updated = now();
-    $inventory->updated_at = now();
-    $inventory->imported_at = now();
-    $inventory->imported_by = $importedByName;
-
-    // Ghi đè các trường nếu có dữ liệu
-    if (isset($validated['location'])) {
-        $inventory->location = $validated['location'];
+        return response()->json(['message' => 'Nhập kho thành công!']);
     }
-    if (isset($validated['batch_number'])) {
-        $inventory->batch_number = $validated['batch_number'];
-    }
-    if (isset($validated['import_source'])) {
-        $inventory->import_source = $validated['import_source'];
-    }
-    if (isset($validated['note'])) {
-        $inventory->note = $validated['note'];
-    }
-
-    $inventory->save();
-
-    // Cập nhật tổng tồn kho cho biến thể sản phẩm
-    $variant = $inventory->variant;
-    if ($variant) {
-        $variant->quantity = $variant->inventories()->sum('quantity');
-        $variant->save();
-    }
-
-    // Lưu lịch sử nhập kho
-    StockMovement::create([
-        'product_variant_id' => $validated['product_variant_id'],
-        'action_type' => 'import',
-        'quantity' => $validated['quantity'],
-        'note' => $validated['note'] ?? 'Nhập kho',
-        'created_by' => $createdBy,
-        'created_by_type' => $createdByType,
-    ]);
-
-    return response()->json(['message' => 'Nhập kho thành công!']);
-}
 
 
 }

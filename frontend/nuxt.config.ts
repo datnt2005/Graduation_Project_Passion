@@ -10,12 +10,12 @@ export default defineNuxtConfig({
 
   modules: [
     '@pinia/nuxt',
-    '@nuxt/devtools' // ⬅ nếu bạn muốn khai báo rõ ràng (tự động nếu đã cài)
+    '@nuxt/devtools' 
   ],
 
   plugins: ['~/plugins/fontawesome'],
 
-  devtools: { enabled: true }, // ✅ bật devtools tại đây
+  devtools: { enabled: false }, // ✅ bật devtools tại đây
 
   postcss: {
     plugins: {
