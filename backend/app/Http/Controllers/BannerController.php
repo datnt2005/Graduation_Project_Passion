@@ -63,17 +63,6 @@ class BannerController extends Controller
             if ($request->hasFile('image')) {
                 $file = $request->file('image');
 
-                // Kiểm tra kích thước banner tiêu chuẩn (ví dụ: 1200x400)
-                [$width, $height] = getimagesize($file);
-                if ($width !== 1200 || $height !== 400) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Ảnh banner phải có kích thước 1200x400 pixel.',
-                        'errors' => [
-                            'image' => ['Ảnh banner phải có kích thước 1200x400 pixel.']
-                        ]
-                    ], 422);
-                }
 
                 $filename = 'banners/' . time() . '_' . $file->getClientOriginalName();
                 Storage::disk('r2')->put($filename, file_get_contents($file));

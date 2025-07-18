@@ -1,18 +1,38 @@
 <template>
   <div>
-    <!-- Thanh trên cùng -->
+    <!-- Thanh trên cùng (Responsive) -->
     <header class="bg-[#1BA0E2] text-white text-sm py-2">
-      <div class="container mx-auto flex justify-end items-center px-4">
-        <div class="hidden sm:flex items-center space-x-4">
-          <!-- THÔNG BÁO DROPDOWN -->
-          <div class="relative group inline-block">
+      <!-- DESKTOP & MOBILE -->
+      <div
+        class="flex flex-wrap sm:flex-nowrap justify-between items-center px-6 gap-2"
+      >
+        <!-- BÊN TRÁI - Desktop only -->
+        <div
+          class="hidden sm:flex items-center flex-wrap gap-x-6 text-white text-sm"
+        >
+          <div class="flex items-center gap-1">
+            <i class="fa-solid fa-phone"></i>
+            <span
+              >Hỗ trợ: <strong>{{ contactHotline }}</strong></span
+            >
+          </div>
+          <div class="flex items-center gap-1">
+            <i class="fa-solid fa-bullhorn"></i>
+            <span>Ưu đãi: Freeship toàn quốc đơn từ 99K</span>
+          </div>
+        </div>
+
+        <!-- BÊN PHẢI -->
+        <div class="flex items-center flex-wrap gap-4 ml-auto">
+          <!-- THÔNG BÁO -->
+          <div class="relative group hidden sm:block">
             <div
-              class="cursor-pointer hover:text-blue-600 transition-colors duration-200 tracking-wide flex items-center"
+              class="cursor-pointer hover:text-white transition-colors duration-200 flex items-center"
               @click="toggleNotificationDropdown"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                class="size-6"
+                class="w-5 h-7"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -26,14 +46,16 @@
               </svg>
               <span
                 v-if="unreadCount > 0"
-                class="absolute top-0 right-0 -mt-1 -mr-1 bg-red-500 text-white text-xs rounded-full px-1.5 min-w-[20px] text-center leading-tight shadow"
+                class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1.5 min-w-[20px] text-center shadow"
               >
                 {{ unreadCount }}
               </span>
             </div>
+
+            <!-- DROPDOWN -->
             <div
               v-if="notificationDropdownOpen"
-              class="absolute right-0 top-full mt-2 w-96 bg-white border border-gray-200 rounded shadow-lg z-50 text-sm max-h-96 overflow-auto"
+              class="absolute right-0 top-full mt-2 w-96 max-w-[90vw] bg-white border border-gray-200 rounded shadow-lg z-50 text-sm max-h-96 overflow-auto"
             >
               <div
                 v-if="notifications.length === 0"
@@ -45,7 +67,7 @@
                 <li
                   v-for="item in notifications"
                   :key="item.id"
-                  class="relative p-3 hover:bg-gray-50 flex gap-3 items-start transition group"
+                  class="p-3 hover:bg-gray-50 flex gap-3 items-start transition group"
                   :class="{
                     'opacity-60': item.is_read === 1,
                     'cursor-pointer': true,
@@ -56,11 +78,10 @@
                       : openNotificationModal(item)
                   "
                 >
-                  <!-- Hình ảnh -->
                   <img
                     v-if="item.image_url"
                     :src="item.image_url"
-                    alt="Hình thông báo"
+                    alt="Ảnh"
                     class="w-12 h-12 object-cover rounded"
                   />
                   <div class="flex-1 min-w-0">
@@ -76,7 +97,6 @@
                         class="w-2 h-2 bg-blue-500 rounded-full inline-block"
                       ></span>
                     </div>
-
                     <p
                       class="text-gray-500 text-sm mt-1 break-words line-clamp-2"
                     >
@@ -86,11 +106,10 @@
                       class="text-gray-500 text-xs mt-1 flex justify-between items-center"
                     >
                       <span>{{ item.time_ago || "Vừa xong" }}</span>
-                      <!-- Nút xem chi tiết nếu có link -->
                       <button
                         v-if="item.link"
                         @click.stop="openNotificationModal(item)"
-                        class="text-blue-600 hover:underline text-xs font-medium transition duration-150"
+                        class="text-blue-600 hover:underline text-xs font-medium"
                       >
                         Xem chi tiết
                       </button>
@@ -101,17 +120,16 @@
             </div>
           </div>
 
-          <template v-if="isLoggedIn">
-            <span class="font-medium"
+          <!-- NGƯỜI DÙNG - Desktop only -->
+          <template v-if="isLoggedIn" class="hidden sm:inline-flex">
+            <span class="font-medium whitespace-nowrap hidden sm:inline"
               >Xin chào, <strong>{{ userName }}</strong></span
             >
             <button
               @click="logout"
-              class="hover:underline inline-flex items-center gap-1 text-white"
+              class="hover:underline inline-flex items-center gap-1 text-white hidden sm:inline"
             >
-              <i
-                ><font-awesome-icon :icon="['fas', 'arrow-right-from-bracket']"
-              /></i>
+              <font-awesome-icon :icon="['fas', 'arrow-right-from-bracket']" />
               Đăng xuất
             </button>
           </template>
@@ -119,67 +137,71 @@
             <NuxtLink
               to="#"
               @click.prevent="openLogin"
-              class="hover:underline inline-flex items-center gap-1"
+              class="hover:underline inline-flex items-center gap-1 hidden sm:inline"
             >
-              <i><font-awesome-icon :icon="['fas', 'right-to-bracket']" /></i>
+              <font-awesome-icon :icon="['fas', 'right-to-bracket']" />
               Đăng nhập
             </NuxtLink>
             <NuxtLink
               to="#"
               @click.prevent="openRegister"
-              class="hover:underline inline-flex items-center gap-1"
+              class="hover:underline inline-flex items-center gap-1 hidden sm:inline"
             >
-              <i><font-awesome-icon :icon="['fas', 'plus']" /></i>
+              <font-awesome-icon :icon="['fas', 'plus']" />
               Đăng ký
             </NuxtLink>
           </template>
-          <Teleport to="body">
-            <transition name="fade">
-              <div
-                v-if="showNotificationModal"
-                class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
-              >
-                <div
-                  class="bg-white rounded-lg shadow-lg max-w-md w-full p-6 relative"
-                >
-                  <button
-                    @click="showNotificationModal = false"
-                    class="absolute top-3 right-3 text-gray-400 hover:text-gray-600"
-                  >
-                    ✕
-                  </button>
-
-                  <!-- Tiêu đề -->
-                  <h3 class="text-lg font-semibold text-gray-800 mb-2">
-                    {{ currentNotification?.title || "Không có tiêu đề" }}
-                  </h3>
-
-                  <!-- Hình ảnh -->
-                  <div v-if="currentNotification?.image_url" class="mb-4">
-                    <img
-                      :src="currentNotification.image_url"
-                      alt="Ảnh thông báo"
-                      class="w-full h-auto rounded-md border object-cover max-h-64 mx-auto"
-                    />
-                  </div>
-
-                  <!-- Nội dung -->
-                  <div
-                    class="prose prose-sm text-gray-700 max-h-80 overflow-y-auto mb-4"
-                    v-html="currentNotification?.content || 'Không có nội dung'"
-                  ></div>
-
-                  <!-- Thời gian -->
-                  <div class="text-xs text-gray-400">
-                    Gửi:
-                    {{ currentNotification?.time_ago || "Không rõ thời gian" }}
-                  </div>
-                </div>
-              </div>
-            </transition>
-          </Teleport>
         </div>
       </div>
+
+      <!-- MOBILE / IPAD DÒNG BỔ SUNG -->
+      <div
+        class="sm:hidden relative px-4 text-white text-sm mt-2 h-8 flex items-center justify-center"
+      >
+        <!-- Ưu đãi: luôn hiển thị và căn giữa -->
+        <div class="flex items-center gap-1 justify-center">
+          <i class="fa-solid fa-bullhorn"></i>
+          <span>Ưu đãi: Freeship toàn quốc đơn từ 99K</span>
+        </div>
+      </div>
+
+      <!-- MODAL -->
+      <Teleport to="body">
+        <transition name="fade">
+          <div
+            v-if="showNotificationModal"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 px-2"
+          >
+            <div
+              class="bg-white rounded-lg shadow-lg max-w-md w-full p-6 relative"
+            >
+              <button
+                @click="showNotificationModal = false"
+                class="absolute top-3 right-3 text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+              <h3 class="text-lg font-semibold text-gray-800 mb-2">
+                {{ currentNotification?.title || "Không có tiêu đề" }}
+              </h3>
+              <div v-if="currentNotification?.image_url" class="mb-4">
+                <img
+                  :src="currentNotification.image_url"
+                  alt="Ảnh"
+                  class="w-full h-auto rounded-md border object-cover max-h-64 mx-auto"
+                />
+              </div>
+              <div
+                class="prose prose-sm text-gray-700 max-h-80 overflow-y-auto mb-4"
+                v-html="currentNotification?.content || 'Không có nội dung'"
+              ></div>
+              <div class="text-xs text-gray-400">
+                Gửi: {{ currentNotification?.time_ago || "Không rõ thời gian" }}
+              </div>
+            </div>
+          </div>
+        </transition>
+      </Teleport>
     </header>
 
     <!-- Auth Modal -->
@@ -193,123 +215,148 @@
     <!-- Thanh giữa -->
     <div class="bg-white shadow-sm">
       <div
-        class="container mx-auto flex items-center justify-between px-4 py-3"
+        class="max-w-7xl mx-auto px-2 flex items-center gap-6 justify-between px-2 py-3"
       >
-        <div class="flex items-center space-x-4">
-          <div
-            class="w-16 h-16 rounded text-center text-xs flex items-center justify-center"
-          >
-            <NuxtLink to="/">
-              <img :src="getLogoUrl()" alt="Logo" class="h-12" />
-            </NuxtLink>
-          </div>
-        </div>
-
-        <div class="relative group hidden md:block">
-          <a
-            href="#"
-            class="flex items-center gap-1 text-gray-700 hover:text-blue-600 font-semibold"
-          >
-            Danh mục
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke-width="1.5"
-              stroke="currentColor"
-              class="w-5 h-5"
+        <!-- Logo + Danh mục -->
+        <div class="flex items-center gap-3 w-[250px]">
+          <NuxtLink to="/" class="flex-shrink-0">
+            <img
+              :src="getLogoUrl()"
+              alt="Logo"
+              class="h-12 w-12 object-contain"
+            />
+          </NuxtLink>
+          <!-- Danh mục (ẩn dropdown trên mobile) -->
+          <div class="relative group hidden sm:block">
+            <a
+              href="#"
+              class="flex items-center gap-1 text-gray-700 hover:text-blue-600 font-semibold"
             >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
-              />
-            </svg>
-          </a>
-          <div
-            class="absolute left-0 mt-2 w-[1200px] bg-white border border-gray-200 shadow-lg rounded-md opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 p-6 grid grid-cols-5 gap-6"
-          >
-            <div>
-              <h4 class="font-bold mb-2 text-gray-800">Sản phẩm nổi bật</h4>
-              <ul class="text-gray-700 space-y-1">
-                <li>
-                  <NuxtLink to="/shop/new" class="hover:underline"
-                    >Sản phẩm mới</NuxtLink
-                  >
-                </li>
-                <li>
-                  <NuxtLink to="/shop/sale" class="hover:underline"
-                    >Khuyến mãi</NuxtLink
-                  >
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h4 class="font-bold mb-2 text-gray-800">Danh mục sản phẩm</h4>
-              <ul class="text-gray-700 space-y-2">
-                <li v-for="(item, index) in categories" :key="index">
-                  <NuxtLink
-                    :to="`/shop/${item.slug}`"
-                    class="flex items-center gap-2 hover:underline"
-                  >
-                    <img
-                      :src="`${mediaBase}${item.image}`"
-                      :alt="item.name"
-                      class="w-6 h-6 object-contain rounded-full"
-                    />
-                    <span class="text-sm font-medium">{{ item.name }}</span>
-                  </NuxtLink>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h4 class="font-bold mb-2 text-gray-800">Hợp tác</h4>
-              <ul class="text-gray-700 space-y-2">
-                <li>
-                  <NuxtLink
-                    to="/sell-together-passion"
-                    class="flex items-center gap-2 hover:underline"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      class="h-5 w-5 text-[#1BA0E2]"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      stroke-width="1.8"
+              Danh mục
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="currentColor"
+                class="w-5 h-5"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
+                />
+              </svg>
+            </a>
+
+            <!-- Dropdown danh mục (ẩn trên mobile) -->
+            <div
+              class="absolute left-0 mt-2 w-[90vw] max-w-[1000px] bg-white border border-gray-200 shadow-lg rounded-md opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 p-3 sm:p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-5 overflow-hidden"
+            >
+              <!-- Cột 1 -->
+              <div>
+                <h4 class="font-bold mb-2 text-gray-800 text-sm sm:text-base">
+                  Sản phẩm nổi bật
+                </h4>
+                <ul class="text-gray-700 space-y-1">
+                  <li>
+                    <NuxtLink to="/shop/new" class="hover:underline text-sm"
+                      >Sản phẩm mới</NuxtLink
                     >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        d="M6.5 14.5l2.8 2.8c.6.6 1.4.9 2.2.9h.1c.9 0 1.8-.4 2.4-1.1l3.4-3.6a1.7 1.7 0 00-2.4-2.4l-.9.9-2.2-2.2a1.7 1.7 0 00-2.4 0 1.7 1.7 0 000 2.4l2.2 2.2-.9.9-1.7-1.7"
+                  </li>
+                  <li>
+                    <NuxtLink to="/shop/sale" class="hover:underline text-sm"
+                      >Khuyến mãi</NuxtLink
+                    >
+                  </li>
+                </ul>
+              </div>
+
+              <!-- Cột 2 -->
+              <div>
+                <h4 class="font-bold mb-2 text-gray-800 text-sm sm:text-base">
+                  Danh mục sản phẩm
+                </h4>
+                <ul class="text-gray-700 space-y-2">
+                  <li v-for="(item, index) in categories" :key="index">
+                    <NuxtLink
+                      :to="`/shop/${item.slug}`"
+                      class="flex items-center gap-2 hover:underline"
+                    >
+                      <img
+                        :src="`${mediaBase}${item.image}`"
+                        :alt="item.name"
+                        class="w-6 h-6 object-contain rounded-full"
                       />
-                    </svg>
-                    <span class="text-sm font-medium"
-                      >Bán hàng cùng Passion</span
+                      <span class="text-sm font-medium">{{ item.name }}</span>
+                    </NuxtLink>
+                  </li>
+                </ul>
+              </div>
+
+              <!-- Cột 3 -->
+              <div>
+                <h4 class="font-bold mb-2 text-gray-800 text-sm sm:text-base">
+                  Hợp tác
+                </h4>
+                <ul class="text-gray-700 space-y-2">
+                  <li>
+                    <NuxtLink
+                      to="/sell-together-passion"
+                      class="flex items-center gap-2 hover:underline"
                     >
-                  </NuxtLink>
-                </li>
-              </ul>
-            </div>
-            <div class="col-span-2 grid grid-cols-2 gap-4">
-              <img
-                src="https://media.canifa.com/mega_menu/item/Nam-1-menu-05Mar.webp"
-                alt="Sản phẩm 1"
-                class="rounded-md object-cover w-full h-48"
-              />
-              <img
-                src="https://media.canifa.com/mega_menu/item/Nu-2-menu-05Mar.webp"
-                alt="Sản phẩm 2"
-                class="rounded-md object-cover w-full h-48"
-              />
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        class="h-5 w-5 text-[#1BA0E2]"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="M6.5 14.5l2.8 2.8c.6.6 1.4.9 2.2.9h.1c.9 0 1.8-.4 2.4-1.1l3.4-3.6a1.7 1.7 0 00-2.4-2.4l-.9.9-2.2-2.2a1.7 1.7 0 00-2.4 0 1.7 1.7 0 000 2.4l2.2 2.2-.9.9-1.7-1.7"
+                        />
+                      </svg>
+                      <span class="text-sm font-medium"
+                        >Bán hàng cùng Passion</span
+                      >
+                    </NuxtLink>
+                  </li>
+                </ul>
+              </div>
+
+              <!-- Cột 4-5 hình ảnh -->
+              <div class="col-span-1 md:col-span-2 grid grid-cols-2 gap-4">
+                <img
+                  src="https://media.canifa.com/mega_menu/item/Nam-1-menu-05Mar.webp"
+                  alt="Sản phẩm 1"
+                  class="rounded-md object-cover w-full h-32 sm:h-36 md:h-48"
+                />
+                <img
+                  src="https://media.canifa.com/mega_menu/item/Nu-2-menu-05Mar.webp"
+                  alt="Sản phẩm 2"
+                  class="rounded-md object-cover w-full h-32 sm:h-36 md:h-48"
+                />
+              </div>
             </div>
           </div>
         </div>
 
-        <SearchBar />
+        <!-- Search bar -->
+        <div class="hidden md:flex flex-grow max-w-xl">
+          <SearchBar />
+        </div>
 
+        <div class="md:hidden flex justify-center">
+          <div class="w-full max-w-sm px-2">
+            <SearchBar />
+          </div>
+        </div>
+        <!-- Biểu tượng bên phải -->
         <div
-          class="hidden sm:flex items-center gap-x-6 text-sm font-medium text-gray-700"
+          class="hidden sm:flex items-center gap-x-6 text-sm font-medium text-gray-700 flex-shrink-0"
         >
           <NuxtLink
             href="/"
@@ -332,6 +379,7 @@
             Trang chủ
           </NuxtLink>
 
+          <!-- Tài khoản dropdown -->
           <div class="relative group inline-block">
             <div
               class="cursor-pointer hover:text-blue-600 transition-colors duration-200 tracking-wide flex items-center gap-1"
@@ -391,6 +439,7 @@
             </ul>
           </div>
 
+          <!-- Giỏ hàng -->
           <NuxtLink
             href="/cart"
             class="hover:text-blue-600 transition-colors duration-200 tracking-wide flex items-center gap-1 relative"
@@ -421,6 +470,7 @@
           </NuxtLink>
         </div>
 
+        <!-- Nút menu mobile -->
         <div class="sm:hidden">
           <button @click="isMobileMenuOpen = true">
             <svg
@@ -441,12 +491,15 @@
         </div>
       </div>
     </div>
+    <hr />
 
     <div
       v-if="isMobileMenuOpen"
       class="fixed inset-0 z-[9999] bg-black bg-opacity-50 flex items-start justify-end sm:hidden"
     >
-      <div class="w-3/4 bg-white shadow-md h-full p-4 relative">
+      <div
+        class="w-[80%] sm:w-[400px] h-full bg-white shadow-md p-4 relative animate-slide-in-right"
+      >
         <button
           @click="isMobileMenuOpen = false"
           class="absolute top-4 right-4 text-gray-600 hover:text-black"
@@ -679,6 +732,13 @@ const getLogoUrl = () => {
     : "/default-logo.png";
 };
 
+const contactHotline = computed(() => {
+  return (
+    settings.value?.contact?.find((s) => s.key === "hotline_number")?.value ||
+    "Chưa cấu hình"
+  );
+});
+
 // Fetch categories for mega menu
 const fetchCategories = async () => {
   try {
@@ -804,6 +864,13 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+details > summary {
+  list-style: none;
+}
+details > summary::-webkit-details-marker {
+  display: none;
+}
+
 .fade-slide-enter-active,
 .fade-slide-leave-active {
   transition: all 0.2s cubic-bezier(0.68, -0.55, 0.265, 1.55);

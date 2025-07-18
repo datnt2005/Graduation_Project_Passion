@@ -1,55 +1,170 @@
 <template>
-  <div class=" text-sm text-gray-700 px-6 py-2 flex justify-center rounded-lg shadow-sm">
-    <!-- Desktop: hiển thị tất cả -->
-    <div class="hidden md:flex flex-wrap gap-4 text-center items-center">
-      <span
-        v-for="(item, index) in items"
-        :key="index"
-        class="pl-2 border-l border-gray-300 flex items-center gap-1 whitespace-nowrap"
+  <div
+    class="text-base text-gray-800 px-6 py-3 flex justify-center rounded-lg shadow-sm bg-white"
+  >
+    <!-- Desktop -->
+    <div
+      class="hidden md:flex flex-wrap justify-center gap-4 items-center text-xs sm:text-sm md:text-sm lg:text-base"
+    >
+      <NuxtLink
+        to="/commitment"
+        class="pl-2 border-l border-gray-300 flex items-center gap-1 max-w-[150px] truncate whitespace-nowrap hover:underline"
       >
-        {{ item }}
-      </span>
+        Cam kết
+        <i
+          class="fa-solid fa-check text-[#1BA9FF] w-4 h-4 text-xs inline-block"
+        ></i>
+        100% hàng thật
+      </NuxtLink>
+
+      <NuxtLink
+        to="/commitment"
+        class="pl-2 border-l border-gray-300 flex items-center gap-2 whitespace-nowrap hover:underline"
+      >
+        <i
+          class="fa-solid fa-truck-fast text-[#1BA9FF] w-5 h-5 text-base inline-block"
+        ></i>
+        Freeship mọi đơn
+      </NuxtLink>
+
+      <NuxtLink
+        to="/hoan-tien"
+        class="pl-2 border-l border-gray-300 flex items-center gap-2 whitespace-nowrap hover:underline"
+      >
+        <i
+          class="fa-solid fa-right-left text-[#1BA9FF] w-5 h-5 text-base inline-block"
+        ></i>
+        Hoàn 200% nếu hàng giả
+      </NuxtLink>
+
+      <NuxtLink
+        to="/commitment"
+        class="pl-2 border-l border-gray-300 flex items-center gap-2 whitespace-nowrap hover:underline"
+      >
+        <i
+          class="fa-solid fa-rotate-left text-[#1BA9FF] w-5 h-5 text-base inline-block"
+        ></i>
+        30 ngày đổi trả
+      </NuxtLink>
+
+      <NuxtLink
+        to="/giao-nhanh"
+        class="pl-2 border-l border-gray-300 flex items-center gap-2 whitespace-nowrap hover:underline"
+      >
+        <i
+          class="fa-solid fa-bolt-lightning text-[#1BA9FF] w-5 h-5 text-base inline-block"
+        ></i>
+        Giao hàng nhanh 2h
+      </NuxtLink>
+
+      <NuxtLink
+        to="/commitment"
+        class="pl-2 border-l border-gray-300 flex items-center gap-2 whitespace-nowrap hover:underline"
+      >
+        <i
+          class="fa-solid fa-money-bill text-[#1BA9FF] w-5 h-5 text-base inline-block"
+        ></i>
+        Giá siêu rẻ
+      </NuxtLink>
     </div>
 
-    <!-- Mobile: chỉ hiển thị từng cái, auto chuyển -->
-    <div class="md:hidden text-center min-h-[24px] flex items-center justify-center relative w-full">
+    <!-- Mobile -->
+    <div
+      class="md:hidden text-center min-h-[28px] flex items-center justify-center relative w-full"
+    >
       <transition name="fade" mode="out-in">
-        <span
-          :key="currentIndex"
-          class="pl-2 border-l border-gray-300 flex items-center gap-1 absolute left-1/2 -translate-x-1/2"
+        <NuxtLink
+          v-if="currentIndex === 0"
+          to="/commitment"
+          key="0"
+          class="pl-2 border-l border-gray-300 flex items-center gap-2 absolute left-1/2 -translate-x-1/2 hover:underline"
         >
-          {{ items[currentIndex] }}
-        </span>
+          Cam kết
+          <i
+            class="fa-solid fa-check text-[#1BA9FF] w-5 h-5 text-base inline-block"
+          ></i>
+          100% hàng thật
+        </NuxtLink>
+
+        <NuxtLink
+          v-else-if="currentIndex === 2"
+          to="/commitment"
+          key="2"
+          class="pl-2 border-l border-gray-300 flex items-center gap-2 absolute left-1/2 -translate-x-1/2 hover:underline"
+        >
+          <i
+            class="fa-solid fa-truck-fast text-[#1BA9FF] w-5 h-5 text-base inline-block"
+          ></i>
+          Freeship mọi đơn
+        </NuxtLink>
+
+        <NuxtLink
+          v-else-if="currentIndex === 3"
+          to="/commitment"
+          key="3"
+          class="pl-2 border-l border-gray-300 flex items-center gap-2 absolute left-1/2 -translate-x-1/2 hover:underline"
+        >
+          <i
+            class="fa-solid fa-right-left text-[#1BA9FF] w-5 h-5 text-base inline-block"
+          ></i>
+          Hoàn 200% nếu hàng giả
+        </NuxtLink>
+
+        <NuxtLink
+          v-else-if="currentIndex === 4"
+          to="/commitment"
+          key="4"
+          class="pl-2 border-l border-gray-300 flex items-center gap-2 absolute left-1/2 -translate-x-1/2 hover:underline"
+        >
+          <i
+            class="fa-solid fa-rotate-left text-[#1BA9FF] w-5 h-5 text-base inline-block"
+          ></i>
+          30 ngày đổi trả
+        </NuxtLink>
+
+        <NuxtLink
+          v-else-if="currentIndex === 5"
+          to="/commitment"
+          key="5"
+          class="pl-2 border-l border-gray-300 flex items-center gap-2 absolute left-1/2 -translate-x-1/2 hover:underline"
+        >
+          <i
+            class="fa-solid fa-bolt-lightning text-[#1BA9FF] w-5 h-5 text-base inline-block"
+          ></i>
+          Giao hàng nhanh 2h
+        </NuxtLink>
+
+        <NuxtLink
+          v-else
+          to="/commitment"
+          key="6"
+          class="pl-2 border-l border-gray-300 flex items-center gap-2 absolute left-1/2 -translate-x-1/2 hover:underline"
+        >
+          <i
+            class="fa-solid fa-money-bill text-[#1BA9FF] w-5 h-5 text-base inline-block"
+          ></i>
+          Giá siêu rẻ
+        </NuxtLink>
       </transition>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from "vue";
 
-const items = [
-  ' Cam kết',
-  '✅ 100% hàng thật',
-  '🚚 Freeship mọi đơn',
-  '💯 Hoàn 200% nếu hàng giả',
-  '🔄 30 ngày đổi trả',
-  '⚡ Giao hàng nhanh 2h',
-  '💸 Giá siêu rẻ',
-]
-
-const currentIndex = ref(0)
-let intervalId = null
+const currentIndex = ref(0);
+let intervalId = null;
 
 onMounted(() => {
   intervalId = setInterval(() => {
-    currentIndex.value = (currentIndex.value + 1) % items.length
-  }, 2500) // 2.5s để người dùng đọc kịp
-})
+    currentIndex.value = (currentIndex.value + 1) % 7;
+  }, 2500);
+});
 
 onUnmounted(() => {
-  clearInterval(intervalId)
-})
+  clearInterval(intervalId);
+});
 </script>
 
 <style scoped>
