@@ -23,7 +23,10 @@ class ReturnRequest extends Model
         'amount' => 'decimal:2',
     ];
 
-
+public function images()
+{
+    return $this->hasMany(ReturnRequestImage::class);
+}
     public function orderItem()
     {
         return $this->belongsTo(OrderItem::class);

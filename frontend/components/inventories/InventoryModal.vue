@@ -188,7 +188,7 @@ const note = ref('');
 const location = ref('');
 const batchNumber = ref('');
 const importSource = ref('');
-const actionType = ref(''); // 👈 Cho dropdown export | damage
+const actionType = ref(''); 
 
 const productVariants = ref([]);
 const selectedVariantId = ref('');

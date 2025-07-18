@@ -11,9 +11,7 @@
             <p><b>Ngày đặt:</b> {{ formatDate(order?.created_at) || '-' }}</p>
             <p>
               <b>Trạng thái:</b>
-              <span :class="statusClass(order?.status)">
-                {{ statusText(order?.status) }}
-              </span>
+              <span :class="statusClass(order?.status)">{{ statusText(order?.status) }}</span>
             </p>
           </div>
 
@@ -34,15 +32,12 @@
         <!-- Danh sách sản phẩm -->
         <div class="border border-gray-200 rounded-md mb-6">
           <div class="border-b px-4 py-2 font-medium text-sm bg-gray-50 text-gray-800">Sản phẩm trong đơn</div>
-          <div v-for="(item, index) in order?.order_items || []" :key="index"
-            class="flex items-center justify-between px-4 py-3 border-b last:border-0">
+          <div v-for="(item, index) in order?.order_items || []" :key="index" class="flex items-center justify-between px-4 py-3 border-b last:border-0">
             <div class="flex items-center gap-3">
-              <img :src="resolveImage(item.variant?.thumbnail || item.product?.thumbnail)" alt="Sản phẩm"
-                class="w-12 h-12 object-cover rounded border" />
+              <img :src="resolveImage(item.variant?.thumbnail || item.product?.thumbnail)" alt="Sản phẩm" class="w-12 h-12 object-cover rounded border" />
               <div>
                 <p class="text-gray-800 font-medium">{{ item.product?.name || '---' }}</p>
-                <p class="text-xs text-gray-500" v-if="item.variant && item.variant.name">Phân loại: {{
-                  item.variant.name }}</p>
+                <p class="text-xs text-gray-500" v-if="item.variant && item.variant.name">Phân loại: {{ item.variant.name }}</p>
                 <p class="text-xs text-gray-500">{{ formatPrice(item.price || 0) }} × {{ item.quantity }}</p>
               </div>
             </div>
@@ -52,24 +47,55 @@
 
         <!-- Lý do trả hàng -->
         <label class="block mb-1 font-medium">Lý do trả hàng</label>
-        <textarea v-model="reason" class="w-full border rounded px-3 py-2 mb-4" rows="4"
-          placeholder="Nhập lý do trả hàng..." />
+        <select v-model="reason" class="w-full border rounded px-3 py-2 mb-4">
+          <option disabled value="">-- Chọn lý do trả hàng --</option>
+          <option>Nhận sai sản phẩm</option>
+          <option>Sản phẩm bị lỗi/hỏng</option>
+          <option>Không đúng mô tả</option>
+          <option>Không còn nhu cầu</option>
+          <option>Khác</option>
+        </select>
 
-          <div class="mb-4">
-        <label class="block mb-1 font-medium">Ảnh minh họa (nếu có)</label>
-        <input type="file" multiple accept="image/*" @change="handleFileUpload"
-          class="block w-full border rounded px-3 py-2 text-sm" />
-        <div class="mt-2 flex flex-wrap gap-2">
-          <img v-for="(img, i) in previewImages" :key="i" :src="img" class="w-20 h-20 object-cover rounded border" />
+        <label class="block mb-1 font-medium">Lý do bổ sung (nếu có)</label>
+        <textarea v-model="additionalReason" class="w-full border rounded px-3 py-2 mb-4" rows="3" placeholder="Nhập lý do bổ sung..." />
+
+        <div class="mb-4">
+          <label class="block mb-1 font-medium">Ảnh minh họa (tùy chọn)</label>
+          <label for="image-upload" class="flex flex-col items-center justify-center border border-dashed rounded-md px-6 py-8 text-center text-sm text-gray-500 hover:border-blue-500 cursor-pointer transition">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 mb-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4-4m0 0l-4 4m4-4v12" />
+            </svg>
+            <span>Nhấp để tải lên hoặc kéo thả ảnh vào đây</span>
+            <span class="text-xs text-gray-400 mt-1">PNG, JPG, GIF tối đa 10MB</span>
+          </label>
+          <input id="image-upload" type="file" multiple accept="image/*" @change="handleFileUpload" class="hidden" />
+          <div class="mt-4 flex flex-wrap gap-2">
+            <img v-for="(img, i) in previewImages" :key="i" :src="img" class="w-20 h-20 object-cover rounded border" />
+          </div>
         </div>
-      </div>
+
+        <p v-if="isReturnExpired" class="text-red-600 text-sm mb-2">Đã quá thời gian đổi trả (14 ngày kể từ ngày đặt hàng).</p>
+        <p v-else-if="remainingDays > 0" class="text-sm text-gray-500 mb-2">Bạn còn {{ remainingDays }} ngày để đổi trả.</p>
+        <p v-if="hasSubmittedRequest" class="text-red-600 text-sm mb-2">Bạn đã gửi yêu cầu đổi/trả cho sản phẩm này.</p>
 
         <div class="flex justify-end gap-2">
           <button @click="$emit('close')" class="px-4 py-2 bg-gray-200 rounded">Hủy</button>
-          <button @click="submit" :disabled="isLoading"
-            class="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700">
-            Gửi yêu cầu
-          </button>
+
+          <template v-if="!hasSubmittedRequest && !isReturnExpired">
+            <button @click="submit" :disabled="isLoading" class="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 flex items-center gap-2">
+              <span v-if="isLoading">
+                <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                </svg>
+              </span>
+              <span>Gửi yêu cầu</span>
+            </button>
+          </template>
+
+          <template v-else>
+            <button disabled class="px-4 py-2 bg-gray-400 text-white rounded cursor-not-allowed">Không thể gửi</button>
+          </template>
         </div>
       </div>
     </div>
@@ -77,19 +103,103 @@
 </template>
 
 <script setup>
-const props = defineProps({
-  order: Object
-})
-
+import { ref, computed, onMounted } from 'vue'
+const props = defineProps({ order: Object })
 const emit = defineEmits(['close'])
+import Swal from 'sweetalert2'
 
 const reason = ref('')
-const type = ref('return') 
+const additionalReason = ref('')
+const type = ref('return')
 const isLoading = ref(false)
 const selectedItemId = ref(props.order?.order_items?.[0]?.id || null)
-
 const imageFiles = ref([])
 const previewImages = ref([])
+const hasSubmittedRequest = ref(false)
+const config = useRuntimeConfig();
+const apiBase = config.public.apiBaseUrl;
+
+const createdDate = computed(() => {
+  const created = props.order?.created_at
+  if (!created) return null
+  const d = new Date(created.split(' ')[0])
+  d.setHours(0, 0, 0, 0)
+  return d
+})
+
+const remainingDays = computed(() => {
+  if (!createdDate.value) return 0
+  const deadline = new Date(createdDate.value)
+  deadline.setDate(deadline.getDate() + 14)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const diff = (deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+  return Math.max(0, Math.floor(diff))
+})
+
+const isReturnExpired = computed(() => remainingDays.value <= 0)
+
+onMounted(() => {
+  checkIfAlreadySubmitted()
+})
+
+async function checkIfAlreadySubmitted() {
+  if (!selectedItemId.value) return
+  try {
+    const res = await secureFetch(`${apiBase}/return-requests/check/${selectedItemId.value}`)
+    const data = await res.json()
+    hasSubmittedRequest.value = data?.exists === true
+  } catch (e) {
+    console.error('Lỗi khi kiểm tra:', e)
+  }
+}
+
+function handleFileUpload(event) {
+  const files = Array.from(event.target.files || [])
+  imageFiles.value = files
+  previewImages.value = files.map(file => URL.createObjectURL(file))
+}
+
+async function submit() {
+  if (!selectedItemId.value) return toast('error', 'Vui lòng chọn sản phẩm muốn trả!')
+  if (!reason.value.trim()) return toast('error', 'Vui lòng chọn lý do trả hàng!')
+  isLoading.value = true
+  try {
+    const form = new FormData()
+    form.append('order_item_id', selectedItemId.value)
+    form.append('reason', reason.value)
+    form.append('additional_reason', additionalReason.value || '')
+    form.append('type', type.value)
+    imageFiles.value.forEach(file => form.append('images[]', file))
+    await secureFetch(`${apiBase}/returns`, { method: 'POST', body: form })
+    toast('success', 'Yêu cầu trả hàng đã được gửi!')
+    emit('close')
+  } catch (err) {
+    console.error(err)
+    toast('error', 'Có lỗi xảy ra khi gửi yêu cầu!')
+  } finally {
+    isLoading.value = false
+  }
+}
+
+function toast(icon = 'info', title = 'Thông báo') {
+  Swal.fire({
+    toast: true,
+    position: 'top-end',
+    icon,
+    title,
+    width: '350px',
+    padding: '10px 20px',
+    customClass: { popup: 'text-sm rounded-md shadow-md' },
+    showConfirmButton: false,
+    timer: 1500,
+    timerProgressBar: true,
+    didOpen: (el) => {
+      el.addEventListener('mouseenter', () => Swal.stopTimer())
+      el.addEventListener('mouseleave', () => Swal.resumeTimer())
+    }
+  })
+}
 
 function formatDate(date) {
   if (!date) return '-'
@@ -97,9 +207,7 @@ function formatDate(date) {
 }
 
 function formatPrice(price) {
-  const number = typeof price === 'string'
-    ? Number.parseFloat(price.replace(/,/g, ''))
-    : price
+  const number = typeof price === 'string' ? Number.parseFloat(price.replace(/,/g, '')) : price
   return isNaN(number)
     ? '0 ₫'
     : new Intl.NumberFormat('vi-VN', {
@@ -108,6 +216,11 @@ function formatPrice(price) {
         minimumFractionDigits: 0,
         maximumFractionDigits: 0,
       }).format(Math.round(number))
+}
+
+function resolveImage(path) {
+  if (!path) return 'https://via.placeholder.com/150'
+  return `https://pub-3fc809b4396849cba1c342a5b9f50be9.r2.dev/${path}`
 }
 
 function statusText(status) {
@@ -128,54 +241,4 @@ function statusClass(status) {
     default: return 'text-gray-600'
   }
 }
-
-function resolveImage(path) {
-  if (!path) return 'https://via.placeholder.com/150'
-  return `https://pub-3fc809b4396849cba1c342a5b9f50be9.r2.dev/${path}`
-}
-
-function handleFileUpload(event) {
-  const files = Array.from(event.target.files || [])
-  imageFiles.value = files
-  previewImages.value = files.map(file => URL.createObjectURL(file))
-}
-
-async function submit() {
-  if (!selectedItemId.value) {
-    alert('Vui lòng chọn sản phẩm muốn trả!')
-    return
-  }
-
-  if (!reason.value.trim()) {
-    alert('Vui lòng nhập lý do trả hàng!')
-    return
-  }
-
-  isLoading.value = true
-
-  try {
-    const form = new FormData()
-    form.append('order_item_id', selectedItemId.value)
-    form.append('reason', reason.value)
-    form.append('type', type.value)
-
-    imageFiles.value.forEach((file) => {
-      form.append('images[]', file)
-    })
-
-    await secureFetch('http://localhost:8000/api/returns', {
-      method: 'POST',
-      body: form,
-    })
-
-    alert('Yêu cầu trả hàng đã được gửi!')
-    emit('close')
-  } catch (err) {
-    console.error(err)
-    alert('Có lỗi xảy ra khi gửi yêu cầu!')
-  } finally {
-    isLoading.value = false
-  }
-}
-
 </script>

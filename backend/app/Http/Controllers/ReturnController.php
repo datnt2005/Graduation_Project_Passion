@@ -17,11 +17,12 @@ public function store(Request $request)
     $user = $request->user();
 
     $validator = Validator::make($request->all(), [
-        'order_item_id' => 'required|exists:order_items,id',
-        'reason' => 'required|string',
-        'type' => 'required|in:return,exchange',
-        'images' => 'nullable|array',
-        'images.*' => 'file|max:10240', // cho phép ảnh hoặc video
+        'order_item_id'     => 'required|exists:order_items,id',
+        'reason'            => 'required|string',
+        'additional_reason' => 'nullable|string',
+        'type'              => 'required|in:return,exchange',
+        'images'            => 'nullable|array',
+        'images.*'          => 'file|max:10240', // tối đa 10MB mỗi file
     ]);
 
     if ($validator->fails()) {
@@ -30,32 +31,54 @@ public function store(Request $request)
 
     $item = OrderItem::with('order')->find($request->order_item_id);
 
-    if (!$item || $item->order->user_id !== $user->id || $item->order->status !== 'delivered') {
+    // Kiểm tra quyền đổi trả
+    if (
+        !$item ||
+        $item->order->user_id !== $user->id ||
+        $item->order->status !== 'delivered'
+    ) {
         return response()->json(['message' => 'Không hợp lệ hoặc không đủ điều kiện đổi trả'], 403);
     }
 
+    // Giới hạn 14 ngày kể từ ngày đặt hàng
+    $orderCreatedAt = \Carbon\Carbon::parse($item->order->created_at);
+    if (now()->diffInDays($orderCreatedAt) > 14) {
+        return response()->json(['message' => 'Đã quá hạn đổi trả (quá 14 ngày)'], 410);
+    }
+
+    // Không cho gửi trùng
     if (ReturnRequest::where('order_item_id', $item->id)->exists()) {
-        return response()->json(['message' => 'Đã gửi yêu cầu đổi/trả cho sản phẩm này'], 409);
+        return response()->json(['message' => 'Đã gửi yêu cầu đổi/trả trước đó'], 409);
     }
 
-    // Lưu đúng 1 ảnh/video duy nhất dưới dạng chuỗi
-    $path = null;
-    if ($request->hasFile('images') && count($request->file('images')) > 0) {
-     $path = $request->file('images')[0]->store('return-requests', 'r2'); // ra: return-requests/abc.webp
-    }
-
+    // Tạo yêu cầu đổi trả
     $return = ReturnRequest::create([
-        'order_item_id' => $item->id,
-        'user_id' => $user->id,
-        'reason' => $request->reason,
-        'type' => $request->type,
-            'status' => 'pending',
-             'images' => $path,
-        ]);
+        'user_id'           => $user->id,
+        'order_item_id'     => $item->id,
+        'reason'            => $request->reason,
+        'additional_reason' => $request->additional_reason,
+        'type'              => $request->type,
+        'status'            => 'pending',
+    ]);
 
-    return response()->json(['message' => 'Đã gửi yêu cầu trả hàng', 'data' => $return]);
+    // Upload ảnh lên R2
+    if ($request->hasFile('images')) {
+        foreach ($request->file('images') as $file) {
+            // Tạo tên file ngẫu nhiên để tránh trùng
+            $filename = uniqid('return_') . '.' . $file->getClientOriginalExtension();
+
+            // Upload lên R2
+            $path = $file->storeAs('return_images', $filename, 'r2');
+
+            // Lưu path hoặc URL
+            $return->images()->create([
+                'path' => $path, // hoặc: Storage::disk('r2')->url($path)
+            ]);
+        }
+    }
+
+    return response()->json(['message' => 'Yêu cầu đổi/trả đã được gửi thành công!']);
 }
-
 
     // ADMIN duyệt hoặc từ chối
     public function update(Request $request, ReturnRequest $returnRequest)
@@ -98,13 +121,25 @@ public function store(Request $request)
     }
 
     public function myRequests(Request $request)
-{
-    $returns = ReturnRequest::with(['orderItem.product'])
-        ->where('user_id', $request->user()->id)
-        ->latest()
-        ->get();
+    {
+        $returns = ReturnRequest::with(['orderItem.product'])
+            ->where('user_id', $request->user()->id)
+            ->latest()
+            ->get();
 
-    return response()->json($returns);
-}
+        return response()->json($returns);
+    }
+    public function check(Request $request, $orderItemId)
+    {
+        $user = $request->user();
+
+        $item = OrderItem::with('order')->find($orderItemId);
+        if (!$item || $item->order->user_id !== $user->id) {
+            return response()->json(['message' => 'Không hợp lệ'], 403);
+        }
+
+        $exists = ReturnRequest::where('order_item_id', $orderItemId)->exists();
+        return response()->json(['exists' => $exists]);
+    }
 
 }
