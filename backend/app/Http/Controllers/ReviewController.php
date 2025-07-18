@@ -460,18 +460,25 @@ class ReviewController extends Controller
     }
 
 
-
-    public function adminIndex()
+    // 1. Controller chỉnh lại cho seller
+    public function sellerIndex(Request $request)
     {
         try {
+            $userId = auth()->id();
+
             $reviews = Review::with([
-                'product:id,name',
+                'product:id,name,seller_id',
                 'product.pics:id,product_id,imagePath',
                 'media',
                 'reply'
             ])
+                ->whereHas('product', function ($q) use ($userId) {
+                    $q->whereHas('seller', function ($sub) use ($userId) {
+                        $sub->where('user_id', $userId);
+                    });
+                })
+                ->whereNull('parent_id') // chỉ lấy đánh giá gốc
                 ->withCount('likes')
-                ->whereNull('parent_id')
                 ->latest()
                 ->get()
                 ->map(function ($review) {
@@ -496,6 +503,7 @@ class ReviewController extends Controller
                         ] : null,
                     ];
                 });
+
             return response()->json(['data' => $reviews]);
         } catch (\Exception $e) {
             Log::error('Review fetch failed: ' . $e->getMessage());
@@ -504,11 +512,18 @@ class ReviewController extends Controller
     }
 
 
-    public function adminShow($id)
+    public function sellerShow($id)
     {
         try {
-            $review = Review::with(['media', 'reply', 'product', 'user']) // 👈 Thêm 'user'
+            $userId = auth()->id();
+
+            $review = Review::with(['media', 'reply', 'product', 'user'])
                 ->withCount('likes')
+                ->whereHas('product', function ($q) use ($userId) {
+                    $q->whereHas('seller', function ($s) use ($userId) {
+                        $s->where('user_id', $userId);
+                    });
+                })
                 ->findOrFail($id);
 
             return response()->json([
@@ -516,7 +531,7 @@ class ReviewController extends Controller
                 'product_id' => $review->product_id,
                 'product_name' => optional($review->product)->name ?? 'Không rõ',
                 'user_id' => $review->user_id,
-                'user_name' => optional($review->user)->name ?? 'Không rõ', // 👈 THÊM DÒNG NÀY
+                'user_name' => optional($review->user)->name ?? 'Không rõ',
                 'content' => $review->content,
                 'rating' => $review->rating,
                 'status' => $review->status,
@@ -540,38 +555,35 @@ class ReviewController extends Controller
                 'created_at' => $review->created_at->toDateTimeString(),
             ]);
         } catch (\Exception $e) {
-            Log::error('adminShow error: ' . $e->getMessage());
+            Log::error('sellerShow error: ' . $e->getMessage());
             return response()->json(['error' => 'Không tìm thấy đánh giá'], 404);
         }
     }
 
 
-    public function adminUpdate(Request $request, $id)
+    public function sellerUpdate(Request $request, $id)
     {
-        $review = Review::with('media', 'reply')->findOrFail($id);
+        $userId = auth()->id();
+
+        $review = Review::with('reply')->whereHas('product', function ($q) use ($userId) {
+            $q->whereHas('seller', function ($s) use ($userId) {
+                $s->where('user_id', $userId);
+            });
+        })->findOrFail($id);
 
         $validator = Validator::make($request->all(), [
-            'content' => 'required|string|min:10|max:1000',
-            'rating' => 'required|integer|min:1|max:5',
             'status' => 'required|in:approved,pending,rejected',
             'reply' => 'nullable|string|max:1000',
-            'kept_images' => 'nullable|array',
-            'kept_images.*' => 'integer',
-            'images.*' => 'nullable|image|max:2048',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        // Cập nhật đánh giá chính
         $review->update([
-            'content' => $request->content,
-            'rating' => $request->rating,
             'status' => $request->status,
         ]);
 
-        // Xử lý phản hồi
         if ($request->filled('reply')) {
             if ($review->reply) {
                 $review->reply->update([
@@ -580,52 +592,37 @@ class ReviewController extends Controller
             } else {
                 $review->reply()->create([
                     'content' => $request->input('reply'),
-                    'user_id' => auth()->id() ?? 1,
+                    'user_id' => $userId,
                     'status' => 'approved',
-                    'product_id' => $review->product_id,   // ✅ THÊM
+                    'product_id' => $review->product_id,
                     'parent_id' => $review->id,
-                    'rating' => 0         // ✅ THÊM
+                    'rating' => 0,
                 ]);
             }
         }
 
-        // Xử lý ảnh bị xoá
-        $kept = $request->input('kept_images', []);
-        $review->media()->where('media_type', 'image')
-            ->whereNotIn('id', $kept)
-            ->each(function ($m) {
-                Storage::disk('r2')->delete($m->media_url);
-                $m->delete();
-            });
-
-        // Thêm ảnh mới
-        if ($files = $request->file('images')) {
-            foreach ($files as $file) {
-                $path = 'reviews/' . uniqid() . '.' . $file->extension();
-                Storage::disk('r2')->put($path, file_get_contents($file));
-                $review->media()->create([
-                    'media_url' => $path,
-                    'media_type' => 'image',
-                ]);
-            }
-        }
-
-        return response()->json(['message' => 'Cập nhật đánh giá thành công']);
+        return response()->json(['message' => 'Phản hồi đánh giá và trạng thái đã được cập nhật.']);
     }
 
 
-    public function adminDestroy($id)
+    public function sellerDestroy($id)
     {
         try {
-            $review = Review::with('media', 'reply')->findOrFail($id);
+            $userId = auth()->id();
 
-            // Xóa media
+            $review = Review::with(['media', 'reply'])
+                ->whereHas('product', function ($q) use ($userId) {
+                    $q->whereHas('seller', function ($s) use ($userId) {
+                        $s->where('user_id', $userId);
+                    });
+                })
+                ->findOrFail($id);
+
             foreach ($review->media as $media) {
                 Storage::disk('r2')->delete($media->media_url);
                 $media->delete();
             }
 
-            // Xóa reply nếu có
             if ($review->reply) {
                 $review->reply->delete();
             }

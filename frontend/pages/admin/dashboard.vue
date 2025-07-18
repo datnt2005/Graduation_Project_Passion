@@ -1,101 +1,68 @@
 <template>
-  <!-- Cảnh báo sản phẩm gần hết hàng và hết hàng -->
-  <div v-if="showLowStockAlert && lowStockProducts.length" class="mb-4">
-    <!-- Sản phẩm hết hàng -->
-    <div v-if="outOfStockProducts.length" class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-2 rounded relative">
-      <button @click="showLowStockAlert = false" class="absolute top-2 right-2 text-red-700 hover:text-red-900" aria-label="Đóng thông báo">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-        </svg>
-      </button>
-      <div class="font-semibold mb-2">Cảnh báo: Có {{ outOfStockProducts.length }} sản phẩm đã hết hàng!</div>
-      <ul class="list-disc pl-5">
-        <li v-for="item in outOfStockProducts" :key="item.id">
-          {{ item.product_name }} <span v-if="item.variant_name">({{ item.variant_name }})</span> - <b class="text-red-700">Hết hàng</b>
-        </li>
-      </ul>
-    </div>
-    <!-- Sản phẩm gần hết hàng -->
-    <div v-if="lowStockProductsFiltered.length" class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded relative">
-      <button @click="showLowStockAlert = false" class="absolute top-2 right-2 text-yellow-700 hover:text-yellow-900" aria-label="Đóng thông báo">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-        </svg>
-      </button>
-      <div class="font-semibold mb-2">Cảnh báo: Có {{ lowStockProductsFiltered.length }} sản phẩm gần hết hàng!</div>
-      <ul class="list-disc pl-5">
-        <li v-for="item in lowStockProductsFiltered" :key="item.id">
-          {{ item.product_name }} <span v-if="item.variant_name">({{ item.variant_name }})</span> - Số lượng còn: <b>{{ item.quantity }}</b>
-        </li>
-      </ul>
-    </div>
-  </div>
-
-  <div class="overflow-x-auto">
-    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 min-w-full">
-      <!-- Thẻ thống kê động -->
-      <div v-if="loadingStats" class="col-span-6 text-center py-8 text-gray-400">Đang tải thống kê...</div>
-      <div v-else-if="statsError" class="col-span-6 text-center py-8 text-red-500">{{ statsError }}</div>
-      <template v-else>
-        <div v-for="stat in dashboardStats.stats" :key="stat.key" class="bg-white p-4 rounded shadow text-center">
-          <!-- Nếu là Tổng Người Dùng, dùng thẻ <a> -->
-          <a
-            v-if="stat.key === 'total_users'"
-            href="/admin/users/list-user"
-            class="block hover:bg-gray-100 transition"
-          >
-            <h3 class="text-gray-500 text-sm">{{ stat.label }}</h3>
-            <p class="text-xl font-bold">{{ formatNumber(stat.value) }}</p>
-          </a>
-          <!-- Các mục khác giữ nguyên -->
-          <div v-else>
-            <h3 class="text-gray-500 text-sm">{{ stat.label }}</h3>
-            <p class="text-xl font-bold">{{ formatNumber(stat.value) }}</p>
-          </div>
-        </div>
-      </template>
-    </div>
-  </div>
-
-  <!-- Bảng Tổng Lỗ riêng -->
+  <!-- Box tổng chiết khấu admin -->
   <div class="bg-white p-4 rounded shadow mt-6 w-full max-w-md mx-auto">
-    <h3 class="text-lg font-semibold text-red-600 mb-2">Tổng Lỗ</h3>
-    <div v-if="dashboardStats.lossStats && dashboardStats.lossStats.length">
-      <div v-for="loss in dashboardStats.lossStats" :key="loss.key" class="text-center">
-        <span class="text-2xl font-bold text-red-600">{{ formatNumber(loss.value) }}</span>
+    <h3 class="text-lg font-semibold text-blue-600 mb-2">Tổng chiết khấu admin đã thu</h3>
+    <div v-if="adminCommissionLoading" class="text-gray-400">Đang tải...</div>
+    <div v-else-if="adminCommissionError" class="text-red-500">{{ adminCommissionError }}</div>
+    <div v-else class="text-2xl font-bold text-blue-700">{{ formatNumber(adminCommission) }} đ</div>
+  </div>
+
+  <!-- Shop selector for admin -->
+  <div class="bg-white p-4 rounded shadow mt-6 w-full max-w-4xl mx-auto flex flex-wrap gap-4 items-center">
+    <label class="font-semibold text-gray-700">Chọn shop:</label>
+    <select v-model="selectedSellerId" @change="onSellerChange" class="border border-gray-300 rounded px-3 py-2 min-w-[200px]">
+      <option value="">Tất cả shop</option>
+      <option v-for="seller in sellers" :key="seller.id" :value="seller.id">
+        {{ seller.store_name || seller.user?.name || seller.user?.email || 'Shop #' + seller.id }}
+      </option>
+    </select>
+  </div>
+
+  <!-- Shop stats for admin -->
+  <div v-if="selectedSellerId && shopStats" class="bg-white p-4 rounded shadow mt-4 w-full max-w-4xl mx-auto">
+    <h3 class="text-lg font-semibold text-blue-700 mb-2">Thống kê doanh thu shop</h3>
+    <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+      <div>
+        <div class="text-gray-500 text-xs">Tổng đơn hàng</div>
+        <div class="text-xl font-bold">{{ formatNumber(shopStats.total_orders) }}</div>
+      </div>
+      <div>
+        <div class="text-gray-500 text-xs">Đơn đã bán</div>
+        <div class="text-xl font-bold">{{ formatNumber(shopStats.sold_orders) }}</div>
+      </div>
+      <div>
+        <div class="text-gray-500 text-xs">Tổng doanh thu</div>
+        <div class="text-xl font-bold text-green-700">{{ formatNumber(shopStats.total_revenue) }} đ</div>
+      </div>
+      <div>
+        <div class="text-gray-500 text-xs">Tổng vốn đã bán</div>
+        <div class="text-xl font-bold">{{ formatNumber(shopStats.total_cost) }} đ</div>
+      </div>
+      <div>
+        <div class="text-gray-500 text-xs">Tổng lợi nhuận</div>
+        <div class="text-xl font-bold text-blue-700">{{ formatNumber(shopStats.total_profit) }} đ</div>
+      </div>
+      <div>
+        <div class="text-gray-500 text-xs">Tổng lỗ</div>
+        <div class="text-xl font-bold text-red-600">{{ formatNumber(shopStats.total_loss) }} đ</div>
       </div>
     </div>
-    <div v-else class="text-gray-400">Không có dữ liệu lỗ</div>
   </div>
 
-  <!-- Biểu đồ doanh thu + lợi nhuận -->
+  <!-- Biểu đồ doanh thu chiết khấu admin -->
   <div class="bg-white p-4 sm:p-6 rounded shadow mt-6 w-full overflow-x-auto">
     <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
-      <h2 class="text-lg sm:text-xl font-semibold text-gray-700">Biểu đồ Doanh Thu & Lợi Nhuận</h2>
+      <h2 class="text-lg sm:text-xl font-semibold text-gray-700">Biểu đồ Doanh Thu Chiết Khấu Admin</h2>
       <div class="mt-2 md:mt-0 flex flex-wrap items-center gap-2">
         <label for="filter" class="text-sm text-gray-600">Lọc theo:</label>
         <select
           id="filter"
           v-model="chartType"
           class="border border-gray-300 rounded px-3 py-1 text-sm focus:outline-none focus:ring focus:ring-blue-200"
-          :disabled="orderChartMode === 'inventory'"
         >
           <option value="day">Ngày</option>
-          <option value="week">Tuần</option>
           <option value="month">Tháng</option>
           <option value="year">Năm</option>
-        </select>
-        <label for="chartMode" class="text-sm text-gray-600 ml-4">Biểu đồ:</label>
-        <select
-          id="chartMode"
-          v-model="orderChartMode"
-          class="border border-gray-300 rounded px-3 py-1 text-sm focus:outline-none focus:ring focus:ring-blue-200"
-        >
-          <option value="revenue">Doanh Thu</option>
-          <option value="profit">Lợi Nhuận</option>
-          <option value="all">Doanh thu và Lợi nhuận</option>
-          <option value="inventory">Tồn Kho</option>
-          <option value="orders">Tổng Đơn Hàng</option>
         </select>
         <label for="chartTypeMode" class="text-sm text-gray-600 ml-4">Kiểu biểu đồ:</label>
         <select
@@ -116,115 +83,45 @@
     </div>
   </div>
 
-  <!-- Bảng xếp hạng sản phẩm -->
-  <div class="bg-white p-4 sm:p-6 rounded shadow mt-6 w-full overflow-x-auto">
-    <!-- Nút chuyển đổi -->
-    <div class="flex gap-2 mb-4">
-      <button @click="showInventoryList" :class="['px-4 py-2 rounded', !showBestSellers ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700']">Danh sách tồn kho</button>
-      <button @click="showBestSellersList" :class="['px-4 py-2 rounded', showBestSellers ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700']">Danh sách sản phẩm bán chạy</button>
-    </div>
-    <!-- Bộ lọc luôn hiển thị -->
-    <div class="flex flex-wrap gap-3 mt-4">
-      <input v-model="filters.keyword" type="text" placeholder="Tìm theo tên hoặc mã SP"
-        class="border p-2 rounded flex-1 min-w-[150px] sm:min-w-[200px]">
-      <select v-model="filters.status"
-        class="border p-2 rounded flex-1 min-w-[150px] sm:min-w-[160px]">
-        <option value="">Tất cả trạng thái</option>
-        <option value="Còn hàng">Còn hàng</option>
-        <option value="Gần hết">Gần hết</option>
-        <option value="Hết hàng">Hết hàng</option>
-      </select>
-      <input v-model="filters.maxQuantity" type="number" placeholder="Tồn kho <="
-        class="border p-2 rounded flex-1 min-w-[130px]">
-      <input v-model="filters.minPrice" type="number" placeholder="Giá từ"
-        class="border p-2 rounded flex-1 min-w-[100px]">
-      <input v-model="filters.maxPrice" type="number" placeholder="Giá đến"
-        class="border p-2 rounded flex-1 min-w-[100px]">
-      <button @click="applyFilters"
-        class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 w-full sm:w-auto">Lọc</button>
-      <button @click="resetFilters"
-        class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 w-full sm:w-auto">Reset</button>
-    </div>
-    <!-- Bảng tồn kho hoặc bảng bán chạy -->
-    <div v-if="!showBestSellers">
-      <!-- Thông báo khi không có dữ liệu -->
-      <div v-if="loadingInventory" class="text-center text-gray-400 py-10">Đang tải dữ liệu...</div>
-      <div v-else-if="inventoryError" class="text-center text-red-500 py-10">{{ inventoryError }}</div>
-      <div v-else-if="!filteredData.length" class="text-center text-gray-400 py-10">Không tìm thấy sản phẩm nào</div>
-      <!-- Bảng dữ liệu -->
-      <div v-else class="overflow-x-auto mt-4">
-        <table class="min-w-[1200px] divide-y divide-gray-200">
-          <thead>
-            <tr>
-              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Tên sản phẩm</th>
-              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Danh mục</th>
-              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Số lượng tồn</th>
-              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Giá nhập TB</th>
-              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Giá bán TB</th>
-              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Trạng thái</th>
-            </tr>
-          </thead>
-          <tbody v-for="item in paginatedInventoryData" :key="item.id" class="bg-white">
-            <tr>
-              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                <NuxtLink :to="`/admin/products/edit-product/${item.id}`" class="text-blue-600 hover:text-blue-800 hover:underline">
-                  {{ item.product_name }}
-                </NuxtLink>
-              </td>
-              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.category_name }}</td>
-              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.quantity }}</td>
-              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ formatNumber(item.cost_price) }}</td>
-              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ formatNumber(item.sell_price) }}</td>
-              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.status }}</td>
-            </tr>
-          </tbody>
-        </table>
-        <div v-if="inventoryTotalPages > 1" class="flex justify-center mt-4">
-          <button @click="inventoryPage--" :disabled="inventoryPage === 1" class="px-3 py-1 mx-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50">&lt;</button>
-          <button v-for="page in inventoryTotalPages" :key="page" @click="inventoryPage = page" :class="['px-3 py-1 mx-1 rounded border', inventoryPage === page ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-gray-700 border-gray-300']">{{ page }}</button>
-          <button @click="inventoryPage++" :disabled="inventoryPage === inventoryTotalPages" class="px-3 py-1 mx-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50">&gt;</button>
-        </div>
-      </div>
-    </div>
+  <!-- Bảng danh sách các đơn hàng đã được thanh toán (payout completed) -->
+  <div class="bg-white p-4 rounded shadow mt-6 w-full max-w-4xl mx-auto">
+    <h3 class="text-lg font-semibold text-green-700 mb-2 flex items-center gap-2">
+      <span>💸</span> Đơn hàng đã thanh toán gần đây
+    </h3>
+    <div v-if="payoutListLoading" class="text-gray-400">Đang tải...</div>
+    <div v-else-if="payoutListError" class="text-red-500">{{ payoutListError }}</div>
+    <div v-else-if="!recentPayouts.length" class="text-gray-400">Không có đơn hàng đã thanh toán</div>
     <div v-else>
-      <div v-if="loadingBestSellers" class="text-center text-gray-400 py-10">Đang tải dữ liệu sản phẩm bán chạy...</div>
-      <div v-else-if="bestSellersError" class="text-center text-red-500 py-10">{{ bestSellersError }}</div>
-      <div v-else-if="!bestSellers.length" class="text-center text-gray-400 py-10">Không có sản phẩm nào bán chạy</div>
-      <div v-else class="overflow-x-auto mt-4">
-        <table class="min-w-[1200px] divide-y divide-gray-200">
-          <thead>
-            <tr>
-              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Tên sản phẩm</th>
-              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Danh mục</th>
-              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Số lượng tồn</th>
-              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Tổng bán</th>
-              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Giá nhập TB</th>
-              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Giá bán TB</th>
-              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Trạng thái</th>
-            </tr>
-          </thead>
-          <tbody v-for="item in paginatedBestSellers" :key="item.id" class="bg-white">
-            <tr class="hover:bg-gray-50">
-              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                <NuxtLink :to="`/admin/products/edit-product/${item.id}`" class="text-blue-600 hover:text-blue-800 hover:underline">
-                  {{ item.product_name }}
-                </NuxtLink>
-              </td>
-              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.category_name }}</td>
-              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ formatNumber(item.quantity) }}</td>
-              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-bold">{{ formatNumber(item.total_sold) }}</td>
-              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ formatNumber(item.cost_price) }}</td>
-              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ formatNumber(item.sell_price) }}</td>
-              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.status }}</td>
-            </tr>
-          </tbody>
-        </table>
-        <div v-if="bestSellersTotalPages > 1" class="flex justify-center mt-4">
-          <button @click="bestSellersPage--" :disabled="bestSellersPage === 1" class="px-3 py-1 mx-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50">&lt;</button>
-          <button v-for="page in bestSellersTotalPages" :key="page" @click="bestSellersPage = page" :class="['px-3 py-1 mx-1 rounded border', bestSellersPage === page ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-gray-700 border-gray-300']">{{ page }}</button>
-          <button @click="bestSellersPage++" :disabled="bestSellersPage === bestSellersTotalPages" class="px-3 py-1 mx-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50">&gt;</button>
-        </div>
-      </div>
+      <table class="w-full table-auto divide-y divide-gray-200">
+        <thead>
+          <tr>
+            <th class="px-4 py-2 text-left text-xs font-bold text-gray-600 uppercase">MÃ VẬN ĐƠN</th>
+            <th class="px-4 py-2 text-left text-xs font-bold text-gray-600 uppercase">SỐ TIỀN</th>
+            <th class="px-4 py-2 text-left text-xs font-bold text-gray-600 uppercase">NGÀY CHUYỂN KHOẢN</th>
+            <th class="px-4 py-2 text-left text-xs font-bold text-gray-600 uppercase">GHI CHÚ</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="item in recentPayouts" :key="item.id" class="hover:bg-blue-50 transition">
+            <td class="px-4 py-2 whitespace-nowrap text-sm font-semibold text-blue-700">
+              <a
+                href="#"
+                class="underline hover:text-orange-600 cursor-pointer"
+                @click.prevent="goToOrderWithTracking(getTrackingCode(item))"
+              >
+                {{ getTrackingCode(item) }}
+              </a>
+            </td>
+            <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{{ formatNumber(item.amount) }} đ</td>
+            <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{{ formatDate(item.created_at) }}</td>
+            <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{{ formatDate(item.transferred_at) }}</td>
+            <td class="px-4 py-2 whitespace-nowrap text-sm">
+              <span :class="payoutStatusClass(item.status)">{{ payoutStatusLabel(item.status) }}</span>
+            </td>
+            <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{{ item.note }}</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   </div>
 </template>
@@ -235,73 +132,219 @@ import { useRuntimeConfig } from '#imports'
 import { Bar, Line, Pie } from 'vue-chartjs'
 import { Chart as ChartJS, Title, Tooltip, Legend, BarElement, LineElement, PointElement, ArcElement, CategoryScale, LinearScale } from 'chart.js'
 import { secureFetch } from '@/utils/secureFetch' 
+import { useRouter } from 'vue-router'
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend)
 
 const config = useRuntimeConfig()
 const apiBaseUrl = config.public.apiBaseUrl
+const router = useRouter()
 
-// Thống kê dashboard
-const dashboardStats = ref({ stats: [], lossStats: [] })
-const loadingStats = ref(false)
-const statsError = ref('')
+// Shop selector state
+const sellers = ref([])
+const selectedSellerId = ref('')
 
-onMounted(async () => {
-  loadingStats.value = true
+async function fetchSellers() {
   try {
-    const res = await secureFetch(`${apiBaseUrl}/dashboard/stats-list`, {}, ['admin'])
-    if (!res.ok) throw new Error('Không lấy được dữ liệu thống kê')
-    dashboardStats.value = await res.json()
+    const token = localStorage.getItem('access_token');
+    const res = await fetch(`${apiBaseUrl}/admin/sellers`, {
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+    })
+    const data = await res.json()
+    sellers.value = Array.isArray(data) ? data : (data.data || data)
   } catch (e) {
-    console.error(e)
-    statsError.value = 'Không thể tải thống kê!'
-  } finally {
-    loadingStats.value = false
+    sellers.value = []
   }
-})
+}
 
+const shopStats = ref(null)
+const shopStatsLoading = ref(false)
+const shopStatsError = ref('')
 
-// Biểu đồ doanh thu và lợi nhuận
+async function fetchShopStats() {
+  if (!selectedSellerId.value) {
+    shopStats.value = null
+    return
+  }
+  shopStatsLoading.value = true
+  shopStatsError.value = ''
+  try {
+    const token = localStorage.getItem('access_token');
+    const res = await fetch(`${apiBaseUrl}/dashboard/stats?seller_id=${selectedSellerId.value}`, {
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+    })
+    if (!res.ok) throw new Error('Không lấy được thống kê shop')
+    const data = await res.json()
+    shopStats.value = data
+  } catch (e) {
+    shopStatsError.value = 'Không thể tải thống kê shop!'
+    shopStats.value = null
+  } finally {
+    shopStatsLoading.value = false
+  }
+}
+
+function onSellerChange() {
+  fetchAdminCommission()
+  fetchPayoutChartData(chartType.value)
+  fetchPayoutList()
+  fetchShopStats()
+}
+
+// Tổng chiết khấu admin
+const adminCommission = ref(0)
+const adminCommissionLoading = ref(false)
+const adminCommissionError = ref('')
+
+// Dữ liệu payout completed để vẽ biểu đồ chiết khấu
+const payoutChartData = ref([])
 const chartType = ref('month')
 const chartLoading = ref(false)
 const chartError = ref('')
-const chartDataApi = ref({ labels: [], revenue: [], profit: [], orderCount: [] }) 
 
-async function fetchChartData(type = 'month') {
+const payoutList = ref([])
+const payoutListLoading = ref(false)
+const payoutListError = ref('')
+const recentPayouts = computed(() => {
+  return payoutList.value
+    .filter(p => p.status === 'completed')
+    .sort((a, b) => parseVNDate(b.transferred_at || 0) - parseVNDate(a.transferred_at || 0))
+    .slice(0, 10)
+})
+
+// Map order_id -> tracking_code từ danh sách orders
+const orderMap = ref({})
+async function fetchOrderMap() {
+  try {
+    const token = localStorage.getItem('access_token');
+    const res = await fetch(`${apiBaseUrl}/orders?per_page=1000`, {
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+    })
+    const data = await res.json()
+    if (Array.isArray(data.data)) {
+      const map = {}
+      data.data.forEach(o => {
+        map[o.id] = o.shipping && o.shipping.tracking_code ? o.shipping.tracking_code : '-'
+      })
+      orderMap.value = map
+    }
+  } catch {}
+}
+
+async function fetchAdminCommission() {
+  adminCommissionLoading.value = true
+  try {
+    let url = `${apiBaseUrl}/payout/list-approved`
+    if (selectedSellerId.value) url += `?seller_id=${selectedSellerId.value}`
+    const res = await secureFetch(url, {}, ['admin'])
+    if (!res.ok) throw new Error('Không lấy được dữ liệu payout')
+    const data = await res.json()
+    const payouts = Array.isArray(data) ? data : (data.data || [])
+    let total = 0
+    payouts.forEach(p => {
+      if (p.amount) total += Number(p.amount) * 5 / 95
+    })
+    adminCommission.value = Math.round(total)
+  } catch (e) {
+    adminCommissionError.value = 'Không thể tải dữ liệu chiết khấu!'
+  } finally {
+    adminCommissionLoading.value = false
+  }
+}
+
+async function fetchPayoutChartData(type = 'month') {
   chartLoading.value = true
   chartError.value = ''
-
   try {
-    const url = new URL(`${apiBaseUrl}/dashboard/revenue-profit-chart`)
-    url.searchParams.set('type', type)
-
-    const res = await secureFetch(url.toString(), {}, ['admin'])  
-
-    if (!res.ok) throw new Error('Không lấy được dữ liệu biểu đồ')
-    chartDataApi.value = await res.json()
-
+    let url = `${apiBaseUrl}/payout/list-approved`
+    if (selectedSellerId.value) url += `?seller_id=${selectedSellerId.value}`
+    const res = await secureFetch(url, {}, ['admin'])
+    if (!res.ok) throw new Error('Không lấy được dữ liệu payout')
+    const data = await res.json()
+    const payouts = Array.isArray(data) ? data : (data.data || [])
+    // Group payout theo mốc thời gian
+    const groupMap = {};
+    payouts.forEach(p => {
+      if (!p.amount || !p.transferred_at) return;
+      const date = parseVNDate(p.transferred_at)
+      let key = ''
+      if (type === 'year') key = date.getFullYear()
+      else if (type === 'month') key = `${date.getFullYear()}-${(date.getMonth()+1).toString().padStart(2,'0')}`
+      else if (type === 'day') key = date.toISOString().slice(0,10)
+      else key = date.toISOString().slice(0,10)
+      if (!groupMap[key]) groupMap[key] = 0
+      groupMap[key] += Number(p.amount) * 5 / 95
+    })
+    // Chuyển thành mảng labels, data
+    const labels = Object.keys(groupMap).sort()
+    const dataArr = labels.map(l => Math.round(groupMap[l]))
+    payoutChartData.value = { labels, data: dataArr }
   } catch (e) {
-    console.error(e)
-    chartError.value = 'Không thể tải dữ liệu biểu đồ!'
+    chartError.value = 'Không thể tải dữ liệu biểu đồ chiết khấu!'
+    payoutChartData.value = { labels: [], data: [] }
   } finally {
     chartLoading.value = false
   }
 }
 
+function parseVNDate(dateStr) {
+  // Hỗ trợ dd/mm/yyyy hh:mm:ss
+  if (!dateStr) return null;
+  if (/^\d{2}\/\d{2}\/\d{4}/.test(dateStr)) {
+    const [d, m, yAndTime] = dateStr.split('/');
+    let y = '', time = '';
+    if (yAndTime) [y, time] = yAndTime.trim().split(' ');
+    const [h = '00', min = '00', s = '00'] = (time || '').split(':');
+    return new Date(`${y}-${m}-${d}T${h}:${min}:${s}`);
+  }
+  // ISO hoặc yyyy-mm-dd
+  return new Date(dateStr);
+}
 
+function formatDate(dateStr) {
+  const date = parseVNDate(dateStr);
+  if (!date || isNaN(date.getTime())) return '-';
+  return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function getTrackingCode(payout) {
+  // Ưu tiên lấy từ orderMap nếu có
+  if (payout.order_id && orderMap.value[payout.order_id]) return orderMap.value[payout.order_id]
+  if (payout.tracking_code) return payout.tracking_code
+  if (payout.order && payout.order.shipping && payout.order.shipping.tracking_code) return payout.order.shipping.tracking_code
+  return '-'
+}
+
+async function fetchPayoutList() {
+  payoutListLoading.value = true
+  payoutListError.value = ''
+  try {
+    let url = `${apiBaseUrl}/payout/list-approved`
+    if (selectedSellerId.value) url += `?seller_id=${selectedSellerId.value}`
+    const res = await secureFetch(url, {}, ['admin'])
+    if (!res.ok) throw new Error('Không lấy được dữ liệu payout')
+    const data = await res.json()
+    payoutList.value = Array.isArray(data) ? data : (data.data || [])
+  } catch (e) {
+    payoutListError.value = 'Không thể tải danh sách payout!'
+    payoutList.value = []
+  } finally {
+    payoutListLoading.value = false
+  }
+}
 
 onMounted(() => {
-  fetchChartData(chartType.value)
+  fetchSellers()
+  fetchAdminCommission()
+  fetchPayoutChartData(chartType.value)
+  fetchPayoutList()
+  fetchOrderMap()
+  fetchShopStats()
 })
-
 watch(chartType, (val) => {
-  fetchChartData(val)
+  fetchPayoutChartData(val)
 })
 
-const chartMode = ref('all')
 const chartTypeMode = ref('bar')
-const inventoryChartMode = ref('revenue') // 'revenue' | 'profit' | 'all' | 'inventory'
-const orderChartMode = ref('revenue') // 'revenue' | 'profit' | 'all' | 'inventory' | 'orders'
-
 const chartComponent = computed(() => {
   if (chartTypeMode.value === 'bar') return Bar
   if (chartTypeMode.value === 'line') return Line
@@ -310,61 +353,21 @@ const chartComponent = computed(() => {
 })
 
 const combinedChartData = computed(() => {
-  const labels = chartDataApi.value.labels || []
-  const datasets = []
-  if (orderChartMode.value === 'revenue' || orderChartMode.value === 'all') {
-    datasets.push({
-      label: 'Doanh Thu',
-      data: chartDataApi.value.revenue,
-      backgroundColor: chartTypeMode.value === 'pie' ? ['#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe'] : '#3b82f6',
-      borderColor: chartTypeMode.value === 'line' ? '#3b82f6' : undefined,
-      borderWidth: chartTypeMode.value === 'line' ? 2 : undefined,
-      borderRadius: chartTypeMode.value === 'bar' ? 6 : undefined,
-      barThickness: chartTypeMode.value === 'bar' ? 30 : undefined,
-      fill: chartTypeMode.value === 'line' ? false : undefined,
-    })
+  return {
+    labels: payoutChartData.value.labels || [],
+    datasets: [
+      {
+        label: 'Doanh thu chiết khấu admin',
+        data: payoutChartData.value.data || [],
+        backgroundColor: chartTypeMode.value === 'pie' ? ['#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe'] : '#3b82f6',
+        borderColor: chartTypeMode.value === 'line' ? '#3b82f6' : undefined,
+        borderWidth: chartTypeMode.value === 'line' ? 2 : undefined,
+        borderRadius: chartTypeMode.value === 'bar' ? 6 : undefined,
+        barThickness: chartTypeMode.value === 'bar' ? 30 : undefined,
+        fill: chartTypeMode.value === 'line' ? false : undefined,
+      }
+    ]
   }
-  if (orderChartMode.value === 'profit' || orderChartMode.value === 'all') {
-    datasets.push({
-      label: 'Lợi Nhuận',
-      data: chartDataApi.value.profit,
-      backgroundColor: chartTypeMode.value === 'pie' ? ['#22c55e', '#4ade80', '#86efac', '#bbf7d0'] : '#22c55e',
-      borderColor: chartTypeMode.value === 'line' ? '#22c55e' : undefined,
-      borderWidth: chartTypeMode.value === 'line' ? 2 : undefined,
-      borderRadius: chartTypeMode.value === 'bar' ? 6 : undefined,
-      barThickness: chartTypeMode.value === 'bar' ? 30 : undefined,
-      fill: chartTypeMode.value === 'line' ? false : undefined,
-    })
-  }
-  if (orderChartMode.value === 'inventory') {
-    const inventoryLabels = inventoryList.value ? inventoryList.value.map(item => item.product_name + (item.variant_name ? ' - ' + item.variant_name : '')) : []
-    const inventoryData = inventoryList.value ? inventoryList.value.map(item => item.quantity) : []
-    datasets.push({
-      label: 'Tồn kho',
-      data: inventoryData,
-      backgroundColor: '#f59e42',
-      borderColor: '#f59e42',
-      borderWidth: chartTypeMode.value === 'line' ? 2 : undefined,
-      borderRadius: chartTypeMode.value === 'bar' ? 6 : undefined,
-      barThickness: chartTypeMode.value === 'bar' ? 30 : undefined,
-      fill: chartTypeMode.value === 'line' ? false : undefined,
-    })
-    return { labels: inventoryLabels, datasets }
-  }
-  if (orderChartMode.value === 'orders') {
-    datasets.push({
-      label: 'Tổng Đơn Hàng',
-      data: chartDataApi.value.orderCount,
-      backgroundColor: '#6366f1',
-      borderColor: '#6366f1',
-      borderWidth: chartTypeMode.value === 'line' ? 2 : undefined,
-      borderRadius: chartTypeMode.value === 'bar' ? 6 : undefined,
-      barThickness: chartTypeMode.value === 'bar' ? 30 : undefined,
-      fill: chartTypeMode.value === 'line' ? false : undefined,
-    })
-    return { labels, datasets }
-  }
-  return { labels, datasets }
 })
 
 const combinedChartOptions = computed(() => {
@@ -380,25 +383,13 @@ const combinedChartOptions = computed(() => {
         callbacks: {
           label: (context) => {
             const value = context.parsed.y || context.parsed;
-            if (orderChartMode.value === 'inventory') {
-              return `${context.dataset.label}: ${value.toLocaleString('vi-VN')} sản phẩm`;
-            }
-            if (orderChartMode.value === 'orders') {
-              return `${context.dataset.label}: ${value.toLocaleString('vi-VN')} đơn hàng`;
-            }
             return `${context.dataset.label}: ${value.toLocaleString('vi-VN')} đ`;
           }
         }
       },
       title: {
         display: true,
-        text: orderChartMode.value === 'inventory'
-          ? 'Biểu Đồ Tồn Kho'
-          : orderChartMode.value === 'orders'
-            ? 'Biểu Đồ Tổng Đơn Hàng'
-            : chartMode.value === 'revenue' ? 'Biểu Đồ Doanh Thu' :
-              chartMode.value === 'profit' ? 'Biểu Đồ Lợi Nhuận' :
-              'Biểu đồ Doanh Thu & Lợi Nhuận',
+        text: 'Biểu đồ Doanh Thu Chiết Khấu Admin',
         font: { size: 16 },
         padding: { top: 10, bottom: 10 }
       }
@@ -407,113 +398,22 @@ const combinedChartOptions = computed(() => {
       y: {
         beginAtZero: true,
         ticks: {
-          callback: (value) => {
-            if (orderChartMode.value === 'inventory') {
-              return `${value.toLocaleString('vi-VN')} sản phẩm`;
-            }
-            if (orderChartMode.value === 'orders') {
-              return `${value.toLocaleString('vi-VN')} đơn hàng`;
-            }
-            return `${value.toLocaleString('vi-VN')} đ`;
-          }
+          callback: (value) => `${value.toLocaleString('vi-VN')} đ`
         },
         title: {
           display: true,
-          text: orderChartMode.value === 'inventory'
-            ? 'Số lượng'
-            : orderChartMode.value === 'orders'
-              ? 'Số đơn hàng'
-              : 'VND'
+          text: 'VND'
         }
       },
       x: {
         title: {
           display: true,
-          text: orderChartMode.value === 'inventory' || orderChartMode.value === 'orders'
-            ? 'Sản phẩm'
-            : chartType.value === 'day' ? 'Ngày' :
-              chartType.value === 'week' ? 'Tuần' :
-              chartType.value === 'month' ? 'Tháng' :
-              'Năm'
+          text: chartType.value === 'day' ? 'Ngày' : chartType.value === 'month' ? 'Tháng' : chartType.value === 'year' ? 'Năm' : 'Thời gian'
         }
       }
     }
   }
 })
-
-// Dữ liệu tồn kho
-const { data: inventoryList, pending: loadingInventory, error: inventoryError } = await useFetch(`${apiBaseUrl}/inventory/list`, {
-  default: () => []
-})
-
-const filters = ref({
-  keyword: '',
-  status: '',
-  maxQuantity: '',
-  minPrice: '',
-  maxPrice: ''
-})
-
-const filteredData = ref([])
-
-function doFilter() {
-  if (!inventoryList.value || !Array.isArray(inventoryList.value)) {
-    filteredData.value = []
-    return
-  }
-  filteredData.value = inventoryList.value.filter(item => {
-    const keyword = filters.value.keyword.toLowerCase().trim()
-    const matchKeyword = !keyword ||
-      (item.product_name?.toLowerCase() || '').includes(keyword) ||
-      (item.variant_sku?.toLowerCase() || '').includes(keyword)
-    const matchStatus = !filters.value.status ||
-      (item.status || '') === filters.value.status
-    const maxQuantity = parseFloat(filters.value.maxQuantity)
-    const matchQuantity = isNaN(maxQuantity) || item.quantity <= maxQuantity
-    const minPrice = parseFloat(filters.value.minPrice)
-    const maxPrice = parseFloat(filters.value.maxPrice)
-    const sellPrice = parseFloat(item.sell_price)
-    const matchMinPrice = isNaN(minPrice) || sellPrice >= minPrice
-    const matchMaxPrice = isNaN(maxPrice) || sellPrice <= maxPrice
-    return matchKeyword && matchStatus && matchQuantity && matchMinPrice && matchMaxPrice
-  })
-}
-
-watch(inventoryList, () => {
-  filteredData.value = inventoryList.value ? [...inventoryList.value] : []
-}, { immediate: true })
-
-function applyFilters() {
-  if (filters.value.maxQuantity && parseFloat(filters.value.maxQuantity) < 0) {
-    alert('Số lượng tồn kho tối đa không thể âm.')
-    filters.value.maxQuantity = ''
-  }
-  if (filters.value.minPrice && parseFloat(filters.value.minPrice) < 0) {
-    alert('Giá tối thiểu không thể âm.')
-    filters.value.minPrice = ''
-  }
-  if (filters.value.maxPrice && parseFloat(filters.value.maxPrice) < 0) {
-    alert('Giá tối đa không thể âm.')
-    filters.value.maxPrice = ''
-  }
-  if (filters.value.minPrice && filters.value.maxPrice && parseFloat(filters.value.minPrice) > parseFloat(filters.value.maxPrice)) {
-    alert('Giá tối thiểu không thể lớn hơn giá tối đa.')
-    filters.value.minPrice = ''
-    filters.value.maxPrice = ''
-  }
-  doFilter()
-}
-
-function resetFilters() {
-  filters.value = {
-    keyword: '',
-    status: '',
-    maxQuantity: '',
-    minPrice: '',
-    maxPrice: ''
-  }
-  filteredData.value = inventoryList.value ? [...inventoryList.value] : []
-}
 
 function formatNumber(val) {
   if (typeof val === 'number') return val.toLocaleString('vi-VN', { maximumFractionDigits: 0 })
@@ -521,96 +421,24 @@ function formatNumber(val) {
   return val || '0'
 }
 
-// Sản phẩm gần hết hàng
-const lowStockProducts = ref([])
-const loadingLowStock = ref(false)
-const lowStockError = ref('')
-const showLowStockAlert = ref(true)
-
-const outOfStockProducts = computed(() => {
-  return lowStockProducts.value.filter(product => product.quantity === 0);
-});
-
-const lowStockProductsFiltered = computed(() => {
-  return lowStockProducts.value.filter(product => product.quantity > 0 && product.quantity <= 5);
-});
-
-onMounted(async () => {
-  loadingLowStock.value = true;
-  try {
-    const res = await fetch(`${apiBaseUrl}/inventory/low-stock`);
-    if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
-    const data = await res.json();
-    lowStockProducts.value = data;
-    
-    // Nếu có sản phẩm hết hàng hoặc gần hết hàng, hiển thị thông báo
-    if (outOfStockProducts.value.length > 0 || lowStockProductsFiltered.value.length > 0) {
-      showLowStockAlert.value = true;
-    }
-  } catch (e) {
-    lowStockError.value = 'Không thể tải dữ liệu sản phẩm gần hết hàng!';
-  } finally {
-    loadingLowStock.value = false;
-  }
-});
-
-watch(lowStockProducts, (val) => {
-  if ((val && val.length > 0) && (outOfStockProducts.value.length > 0 || lowStockProductsFiltered.value.length > 0)) {
-    showLowStockAlert.value = true;
-    // Tự động ẩn thông báo sau 30 giây thay vì 10 giây
-    setTimeout(() => {
-      showLowStockAlert.value = false;
-    }, 30000);
-  }
-});
-
-// Thêm biến trạng thái và dữ liệu cho bảng bán chạy
-const showBestSellers = ref(false)
-const bestSellers = ref([])
-const loadingBestSellers = ref(false)
-const bestSellersError = ref('')
-
-async function fetchBestSellers() {
-  loadingBestSellers.value = true
-  bestSellersError.value = ''
-  try {
-    const res = await secureFetch(`${apiBaseUrl}/inventory/best-sellers`, {}, ['admin'])
-    if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`)
-    bestSellers.value = await res.json()
-  } catch (e) {
-    bestSellersError.value = 'Không thể tải dữ liệu sản phẩm bán chạy!'
-  } finally {
-    loadingBestSellers.value = false
-  }
+function goToOrderWithTracking(trackingCode) {
+  if (!trackingCode || trackingCode === '-') return;
+  router.push({ path: '/admin/orders/list-order', query: { tracking_code: trackingCode } })
 }
 
-function showInventoryList() {
-  showBestSellers.value = false
-}
-function showBestSellersList() {
-  showBestSellers.value = true
-  if (bestSellers.value.length === 0) fetchBestSellers()
+function payoutStatusClass(status) {
+  if (status === 'completed') return 'text-green-600 font-bold';
+  if (status === 'pending') return 'text-yellow-600 font-bold';
+  if (status === 'rejected') return 'text-red-600 font-bold';
+  return '';
 }
 
-// PHÂN TRANG TỒN KHO
-const inventoryPage = ref(1)
-const inventoryPageSize = 5
-const inventoryTotalPages = computed(() => Math.ceil(filteredData.value.length / inventoryPageSize))
-const paginatedInventoryData = computed(() => {
-  const start = (inventoryPage.value - 1) * inventoryPageSize
-  return filteredData.value.slice(start, start + inventoryPageSize)
-})
-watch(filteredData, () => { inventoryPage.value = 1 })
-
-// PHÂN TRANG BÁN CHẠY
-const bestSellersPage = ref(1)
-const bestSellersPageSize = 5
-const bestSellersTotalPages = computed(() => Math.ceil(bestSellers.value.length / bestSellersPageSize))
-const paginatedBestSellers = computed(() => {
-  const start = (bestSellersPage.value - 1) * bestSellersPageSize
-  return bestSellers.value.slice(start, start + bestSellersPageSize)
-})
-watch(bestSellers, () => { bestSellersPage.value = 1 })
+function payoutStatusLabel(status) {
+  if (status === 'completed') return 'Đã chuyển khoản';
+  if (status === 'pending') return 'Chờ duyệt';
+  if (status === 'rejected') return 'Từ chối';
+  return status;
+}
 
 definePageMeta({
   layout: 'default-admin'

@@ -2,11 +2,15 @@ import { defineStore } from 'pinia';
 
 export const useSearchStore = defineStore('search', {
   state: () => ({
-    query: ''
+    userId: null,
+    searchQuery: '',
   }),
   actions: {
-    updateSearch(newQuery) {
-      this.query = newQuery;
-    }
-  }
+    setUserId(id) {
+      this.userId = id;
+    },
+    updateSearch(query) {
+      this.searchQuery = query;
+    },
+  },
 });

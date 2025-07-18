@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use App\Models\User;
+use App\Models\SearchHistory;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 use App\Mail\OtpMail;
@@ -179,88 +180,139 @@ public function verifyOtp(Request $request)
     // Đăng nhập
 
 public function login(Request $request)
-{
-    try {
-        $validated = $request->validate([
-            'email' => ['required', 'email', 'max:255'],
-            'password' => ['required', 'string'],
-        ], [
-            'email.required' => 'Trường email là bắt buộc.',
-            'email.email' => 'Email không đúng định dạng.',
-            'password.required' => 'Trường mật khẩu là bắt buộc.',
-        ]);
+    {
+        try {
+            // Validate request
+            $validated = $request->validate([
+                'email' => ['required', 'email', 'max:255'],
+                'password' => ['required', 'string'],
+            ], [
+                'email.required' => 'Trường email là bắt buộc.',
+                'email.email' => 'Email không đúng định dạng.',
+                'password.required' => 'Trường mật khẩu là bắt buộc.',
+            ]);
 
-        $user = User::where('email', strtolower($validated['email']))->first();
+            // Tìm user
+            $user = User::where('email', strtolower($validated['email']))->first();
 
-        if (!$user || !Hash::check($validated['password'], $user->password)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Email hoặc mật khẩu không đúng.',
-            ], 401);
-        }
+            if (!$user || !Hash::check($validated['password'], $user->password)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Email hoặc mật khẩu không đúng.',
+                ], 401);
+            }
 
-        if (!$user->is_verified) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Tài khoản chưa được xác minh. Vui lòng kiểm tra email để xác minh OTP.',
-            ], 403);
-        }
+            if (!$user->is_verified) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Tài khoản chưa được xác minh. Vui lòng kiểm tra email để xác minh OTP.',
+                ], 403);
+            }
 
-        if ($user->status !== 'active') {
-            $messages = "";
-                 if( $user->status === 'inactive') {
-                   $messages = 'Hiện tại tài khoản của bạn đang không hoạt động. Vui lòng liên hệ quản trị viên để biết thêm chi tiết.';
-                } elseif ($user->status === 'banned') {
-                    $messages = 'Tài khoản đã bị cấm. Vui lòng liên hệ quản trị viên.';
-                } else {
-                    $messages = 'Tài khoản hiện đang ' . $user->status . '. Vui lòng liên hệ quản trị viên.';
+            if ($user->status !== 'active') {
+                $messages = match ($user->status) {
+                    'inactive' => 'Hiện tại tài khoản của bạn đang không hoạt động. Vui lòng liên hệ quản trị viên để biết thêm chi tiết.',
+                    'banned' => 'Tài khoản đã bị cấm. Vui lòng liên hệ quản trị viên.',
+                    default => 'Tài khoản hiện đang ' . $user->status . '. Vui lòng liên hệ quản trị viên.',
+                };
+                return response()->json([
+                    'success' => false,
+                    'message' => $messages,
+                ], 403);
+            }
+
+            // Thu hồi các token cũ
+            $user->tokens()->delete();
+
+            // Tạo token mới
+            $token = $user->createToken('api_token')->plainTextToken;
+
+            // Lưu thông tin phiên vào Redis
+            $redisKey = 'user:session:' . $user->id;
+            $redisData = [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'name' => $user->name,
+                'role' => $user->role,
+                'status' => $user->status,
+                'avatar' => $user->avatar,
+                'token' => $token,
+                'logged_in_at' => now()->toDateTimeString(),
+            ];
+            try {
+                $redis = Redis::connection();
+                if ($redis->ping()) {
+                    $redis->setex($redisKey, 7 * 24 * 3600, json_encode($redisData)); // TTL: 7 ngày
                 }
+            } catch (\Exception $e) {
+                Log::error('Redis error in login', ['error' => $e->getMessage()]);
+            }
+
+            // Đồng bộ lịch sử tìm kiếm từ session_id sang user_id
+            $sessionId = Session::getId();
+            try {
+                $redis = Redis::connection();
+                if ($redis->ping()) {
+                    $guestKey = "search_history:guest_{$sessionId}";
+                    $userKey = "search_history:user_{$user->id}";
+                    $history = $redis->lrange($guestKey, 0, 9);
+                    if ($history) {
+                        foreach (array_reverse($history) as $keyword) {
+                            $redis->lpush($userKey, $keyword);
+                        }
+                        $redis->ltrim($userKey, 0, 9);
+                        $redis->expire($userKey, 7 * 24 * 3600);
+                        $redis->del($guestKey);
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::error('Redis error in login sync history', ['error' => $e->getMessage()]);
+            }
+
+            // Cập nhật MySQL
+            SearchHistory::where('session_id', $sessionId)
+                ->update(['user_id' => $user->id, 'session_id' => null]);
+
+            // Giới hạn 10 bản ghi cho user_id
+            SearchHistory::where('user_id', $user->id)
+                ->orderBy('created_at', 'desc')
+                ->offset(10)
+                ->delete();
+
+            // Lưu thông tin phiên vào Laravel session
+            session([
+                'user_id' => $user->id,
+                'user_role' => $user->role,
+                'user_name' => $user->name,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Đăng nhập thành công.',
+                'token' => $token,
+                'user' => [
+                    'id' => $user->id,
+                    'email' => $user->email,
+                    'name' => $user->name,
+                    'role' => $user->role,
+                    'avatar' => $user->avatar,
+                ],
+            ]);
+        } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
-                'message' => $messages,
-            ], 403);
+                'message' => 'Dữ liệu không hợp lệ.',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Error in login', ['error' => $e->getMessage()]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi khi đăng nhập.',
+                'error' => env('APP_DEBUG', false) ? $e->getMessage() : null,
+            ], 500);
         }
-
-        $token = $user->createToken('api_token')->plainTextToken;
-
-        $redisKey = 'user:session:' . $user->id;
-        $redisData = [
-            'user_id' => $user->id,
-            'email' => $user->email,
-            'name' => $user->name,
-            'role' => $user->role,
-            'status' => $user->status,
-            'avatar' => $user->avatar,
-            'token' => $token,
-            'logged_in_at' => now()->toDateTimeString(),
-        ];
-        Redis::setex($redisKey, 7200, json_encode($redisData));
-
-        session([
-            'user_id' => $user->id,
-            'user_role' => $user->role,
-            'user_name' => $user->name,
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Đăng nhập thành công.',
-            'token' => $token,
-            'user' => $user,
-        ]);
-    } catch (ValidationException $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Dữ liệu không hợp lệ.',
-            'errors' => $e->errors(),
-        ], 422);
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Lỗi khi đăng nhập.',
-        ], 500);
     }
-}
 
 public function me(Request $request)
 {

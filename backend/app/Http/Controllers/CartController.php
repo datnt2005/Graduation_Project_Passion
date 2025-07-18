@@ -183,7 +183,7 @@ class CartController extends Controller
             if (!Auth::check()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Unauthorized. Please login.',
+                    'message' => 'Cần đăng nhập để thực hiện thao tác này',
                     'code' => 'AUTH_REQUIRED'
                 ], 401);
             }
@@ -336,28 +336,23 @@ class CartController extends Controller
 
             DB::beginTransaction();
 
-            $cartItem = CartItem::findOrFail($itemId);
-            $cart = Cart::where('id', $cartItem->cart_id)
-                ->where('user_id', Auth::id())
-                ->first();
+            // Kiểm tra cartItem thuộc cart của user và status là active
+            $cartItem = CartItem::where('id', $itemId)
+                ->whereHas('cart', function ($query) {
+                    $query->where('user_id', Auth::id())->where('status', 'active');
+                })->firstOrFail();
 
-            if (!$cart) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Không tìm thấy giỏ hàng',
-                    'code' => 'CART_NOT_FOUND'
-                ], 404);
-            }
-
+            $cartId = $cartItem->cart_id;
             $cartItem->delete();
 
             // Update selected items cache
             $userId = Auth::id();
             $selectedItemsKey = "cart_selected_items_{$userId}";
-            $selectedItemIds = Cache::store('redis')->get($selectedItemsKey, []);
+            $selectedItemIds = cache()->store('redis')->get($selectedItemsKey, []);
+
             if (in_array($itemId, $selectedItemIds)) {
                 $selectedItemIds = array_values(array_diff($selectedItemIds, [$itemId]));
-                Cache::store('redis')->put($selectedItemsKey, $selectedItemIds, 86400);
+                cache()->store('redis')->put($selectedItemsKey, $selectedItemIds, 86400);
             }
 
             // Refresh cache
@@ -388,6 +383,7 @@ class CartController extends Controller
             ], 500);
         }
     }
+
 
     public function clear()
     {

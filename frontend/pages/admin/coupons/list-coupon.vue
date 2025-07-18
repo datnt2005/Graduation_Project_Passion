@@ -1,5 +1,13 @@
 <template>
   <div class="bg-gray-100 text-gray-700 font-sans">
+    <!-- Loading Overlay -->
+    <div v-if="loading" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-lg p-6 flex flex-col items-center">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+        <p class="text-gray-700 font-medium">Đang tải danh sách...</p>
+      </div>
+    </div>
+
     <div class="max-w-full overflow-x-auto">
       <!-- Header with Create Button -->
       <div class="bg-white px-4 py-4 flex items-center justify-between border-b border-gray-200">
@@ -158,13 +166,13 @@
               {{ coupon.discount_type === 'fixed' ? 'Giảm giá cố định' : 'Giảm giá phần trăm' }}
             </td>
             <td class="border border-gray-300 px-3 py-2 text-left">
-              {{ coupon.discount_value }}{{ coupon.discount_type === 'percentage' ? '%' : 'đ' }}
+              {{ formatPrice(coupon.discount_value) }}{{ coupon.discount_type === 'percentage' ? '%' : 'đ' }}
             </td>
             <td class="border border-gray-300 px-3 py-2 text-left">
               {{ coupon.description || '–' }}
             </td>
             <td class="border border-gray-300 px-3 py-2 text-left">
-              {{ coupon.min_order_value ? formatCurrency(coupon.min_order_value) : '–' }}
+              {{ formatPrice(coupon.min_order_value) }}
             </td>
             <td class="border border-gray-300 px-3 py-2 text-left">
               {{ coupon.used_count }} / {{ coupon.usage_limit || '∞' }}
@@ -413,6 +421,7 @@
 import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { secureFetch } from '@/utils/secureFetch' 
+import { useRuntimeConfig } from '#app';
 
 definePageMeta({
   layout: 'default-admin'
@@ -438,14 +447,19 @@ const confirmDialogTitle = ref('');
 const confirmDialogMessage = ref('');
 const confirmAction = ref(null);
 
+const config = useRuntimeConfig();
+const apiBase = config.public.apiBaseUrl;
+
 // Fetch coupons from API
 const fetchCoupons = async () => {
   try {
-    const response = await secureFetch('http://localhost:8000/api/discounts', {}, ['admin']);
+    const response = await secureFetch(`${apiBase}/discounts`, {}, ['admin']);
     const data = await response.json();
-    coupons.value = data.data;
-    totalCoupons.value = data.data.length;
-    activeCoupons.value = data.data.filter(c => c.status === 'active').length;
+    // Lọc chỉ lấy coupon của admin
+    const adminCoupons = data.data.filter(c => !c.seller_id);
+    coupons.value = adminCoupons;
+    totalCoupons.value = adminCoupons.length;
+    activeCoupons.value = adminCoupons.filter(c => c.status === 'active').length;
   } catch (error) {
     console.error('Error fetching coupons:', error);
   }
@@ -484,15 +498,12 @@ const applyBulkAction = async () => {
       async () => {
         try {
           loading.value = true;
-          const deletePromises = selectedCoupons.value.map(id => 
-            fetch(`http://localhost:8000/api/discounts/${id}`, {
+          const deletePromises = selectedCoupons.value.map(id =>
+            secureFetch(`${apiBase}/discounts/${id}`, {
               method: 'DELETE',
-              headers: {
-                'Content-Type': 'application/json'
-              }
-            })
+              headers: { 'Content-Type': 'application/json' }
+            }, ['admin'])
           );
-
           await Promise.all(deletePromises);
           showSuccessNotification('Xóa các mã giảm giá thành công!');
           selectedCoupons.value = [];
@@ -512,7 +523,7 @@ const applyBulkAction = async () => {
       loading.value = true;
       const status = selectedAction.value === 'activate' ? 'active' : 'inactive';
       const updatePromises = selectedCoupons.value.map(id =>
-        fetch(`http://localhost:8000/api/discounts/${id}`, {
+        secureFetch(`${apiBase}/discounts/${id}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json'
@@ -548,12 +559,13 @@ const confirmDelete = async (coupon) => {
     `Bạn có chắc chắn muốn xóa mã giảm giá "${coupon.code}" không?`,
     async () => {
       try {
-        const response = await fetch(`http://localhost:8000/api/discounts/${coupon.id}`, {
+        loading.value = true;
+        const response = await secureFetch(`${apiBase}/discounts/${coupon.id}`, {
           method: 'DELETE',
           headers: {
             'Content-Type': 'application/json'
           }
-        });
+        }, ['admin']);
 
         if (response.ok) {
           showSuccessNotification('Xóa mã giảm giá thành công!');
@@ -565,6 +577,8 @@ const confirmDelete = async (coupon) => {
       } catch (error) {
         console.error('Error:', error);
         showSuccessNotification('Có lỗi xảy ra khi xóa mã giảm giá');
+      } finally {
+        loading.value = false;
       }
     }
   );
@@ -572,7 +586,7 @@ const confirmDelete = async (coupon) => {
 
 // Format currency
 const formatCurrency = (value) => {
-  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
+  return new Intl.NumberFormat('vi-VN').format(value) + ' đ';
 };
 
 // Format date
@@ -582,6 +596,18 @@ const formatDate = (date) => {
     month: 'long',
     year: 'numeric'
   });
+};
+
+// Tìm tất cả các chỗ hiển thị giá trị tiền, ví dụ:
+// {{ coupon.discount_value }}
+// {{ coupon.min_order_value }}
+// Sửa thành:
+{{ formatPrice(coupon.discount_value) }}
+{{ formatPrice(coupon.min_order_value) }}
+
+const formatPrice = (value) => {
+  if (!value) return '0';
+  return parseInt(value, 10).toLocaleString('vi-VN');
 };
 
 const toggleDropdown = (id) => {

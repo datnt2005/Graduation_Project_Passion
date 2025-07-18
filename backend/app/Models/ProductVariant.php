@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Attribute;
+use App\Models\Product;
 
 class ProductVariant extends Model
 {
@@ -21,6 +23,7 @@ class ProductVariant extends Model
     public function attributes()
     {
         return $this->belongsToMany(Attribute::class, 'variant_attributes')
+                    ->using(AttributeValueProductVariant::class)
                     ->withPivot('value_id')
                     ->withTimestamps();
     }
@@ -38,5 +41,13 @@ class ProductVariant extends Model
     {
         return $this->hasMany(OrderItem::class, 'product_variant_id');
     }
-    
+
+    public function attributeValues()
+{
+    return $this->belongsToMany(AttributeValue::class, 'attribute_value_product_variant');
+}
+
+
+
+
 }

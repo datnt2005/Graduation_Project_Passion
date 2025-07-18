@@ -42,6 +42,13 @@
                     <option value="inactive">Ẩn</option>
                   </select>
                 </div>
+                <div class="mb-4">
+                  <label class="block font-medium mb-1">Loại banner</label>
+                  <select v-model="type" class="form-input">
+                    <option value="banner">Banner thường</option>
+                    <option value="popup">Popup (hiện popup trang chủ)</option>
+                  </select>
+                </div>
               </div>
             </section>
             <!-- Sidebar (Right) -->
@@ -192,6 +199,7 @@ const image = ref(null)
 const imageUrl = ref('')
 const preview = ref(null)
 const loading = ref(false)
+
 const router = useRouter()
 const route = useRoute()
 const fileInput = ref(null)
@@ -210,6 +218,7 @@ const fetchBanner = async () => {
     description.value = data.data.description || ''
     imageUrl.value = data.data.image_url
     status.value = data.data.status || 'active'
+    type.value = data.data.type || 'banner'
   } catch (err) {
     showNotificationMessage('Không thể tải thông tin banner.', 'error')
   }
@@ -263,6 +272,7 @@ const submitEdit = async () => {
     formData.append('title', title.value)
     formData.append('description', description.value || '')
     formData.append('status', status.value)
+    formData.append('type', type.value)
     if (image.value) formData.append('image', image.value)
 
     const token = localStorage.getItem('access_token')

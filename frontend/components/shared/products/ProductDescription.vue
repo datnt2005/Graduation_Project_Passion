@@ -1,18 +1,20 @@
 <template>
-  <section class="mb-8 text-gray-700 text-sm bg-[#FFFFFF] p-4 rounded-2">
+  <section class="mb-8 text-gray-700 text-sm bg-white p-4 rounded-2">
     <h2 class="text-xl font-semibold mb-3">Mô tả chi tiết</h2>
-    
-    <div class="text-base text-gray-700 mb-4 leading-relaxed break-words break-all"
-         v-html="displayedHtml"
-         :class="{ 'line-clamp-2 overflow-hidden': !isExpanded }">
-    </div>
+
+    <div
+      class="text-base text-gray-700 leading-relaxed relative transition-all duration-300"
+      :class="!isExpanded ? 'max-h-[460px] overflow-hidden fade-mask' : ''"
+      v-html="displayedHtml"
+    ></div>
 
     <button
       v-if="shouldShowToggle"
-      class="text-sm text-gray-700 border border-gray-300 rounded-md px-4 py-1.5 hover:bg-gray-100 transition-colors duration-150"
+      class="mt-3 text-blue-600 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50" 
       type="button"
       @click="isExpanded = !isExpanded"
-      :aria-expanded="isExpanded">
+      :aria-expanded="isExpanded"
+    >
       {{ isExpanded ? 'Thu gọn' : 'Xem thêm' }}
     </button>
   </section>
@@ -26,25 +28,22 @@ const props = defineProps({
 });
 
 const isExpanded = ref(false);
+const MAX_LENGTH = 1000; 
 
-// Ngưỡng độ dài (số ký tự) để bắt đầu rút gọn
-const MAX_LENGTH = 1000;
-
-// Tự động phát hiện nếu mô tả dài thì mới cho "Xem thêm"
 const shouldShowToggle = computed(() => props.fullDescription.length > MAX_LENGTH);
 
-// Nội dung HTML hiển thị
-const displayedHtml = computed(() => {
-  if (isExpanded.value || !shouldShowToggle.value) return props.fullDescription;
-  return props.fullDescription.slice(0, MAX_LENGTH) + '...';
-});
+// Không cắt chuỗi – hiển thị nguyên HTML nhưng kiểm soát chiều cao bằng CSS
+const displayedHtml = computed(() => props.fullDescription);
 </script>
-
 <style scoped>
-.line-clamp-2 {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+.fade-mask::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 100px;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0), white 80%);
+  pointer-events: none;
 }
 </style>

@@ -1,73 +1,43 @@
 <template>
-  <div class="bg-white p-4 rounded-lg shadow-sm">
-    <h2 class="text-lg font-semibold mb-4">Tất cả sản phẩm</h2>
-
-    <!-- Hiển thị bộ lọc đã chọn -->
-    <div v-if="activeFilters.length" class="mb-4 flex flex-wrap gap-2">
-      <span class="text-sm font-semibold text-gray-600">Bộ lọc đã chọn:</span>
-      <div v-for="filter in activeFilters" :key="filter.key"
-        class="flex items-center gap-1 bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded">
-        <span>{{ filter.label }}</span>
-        <button @click="removeFilter(filter)" class="text-red-500 hover:text-red-700">
-          <i class="fas fa-times"></i>
-        </button>
+  <div class="mt-6 bg-white p-3 mb-6">
+    <div class="text-[#1BA0E2] font-bold text-sm uppercase mb-3">
+      GỢI Ý HÔM NAY
+    </div>
+    <div
+      class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 text-xs text-gray-700"
+    >
+      <div
+        v-for="(item, index) in products"
+        :key="index"
+        class="border border-gray-200 rounded p-1 hover:shadow-md transition-shadow"
+      >
+        <img
+          :alt="item.name"
+          class="w-full rounded mb-1 object-cover h-[150px]"
+          :src="item.image"
+        />
+        <div class="font-semibold text-red-600 text-sm truncate">
+          ₫{{ item.price.toLocaleString("vi-VN") }}
+        </div>
+        <div
+          v-if="item.price_old"
+          class="line-through text-gray-400 text-[10px] truncate"
+        >
+          ₫{{ item.price_old.toLocaleString("vi-VN") }}
+        </div>
+        <div v-if="item.sold" class="text-[10px] text-gray-500 truncate">
+          Đã bán {{ item.sold > 99 ? "99+" : item.sold }}
+        </div>
       </div>
-    </div>
-
-    <!-- Bộ lọc -->
-    <Filters @update:filters="handleFilterUpdate" :brands="brands" :priceMin="priceMin" :priceMax="priceMax"
-      :priceRange="priceRange" />
-
-    <!-- Trạng thái tải -->
-    <div v-if="loading" class="text-center py-4">
-      <p class="text-gray-500">Đang tải sản phẩm...</p>
-    </div>
-
-    <!-- Lỗi API -->
-    <div v-else-if="error" class="text-center py-4">
-      <p class="text-red-500">Có lỗi xảy ra khi tải sản phẩm: {{ error }}</p>
-    </div>
-
-    <!-- Danh sách sản phẩm -->
-    <div v-else-if="products.length > 0" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-      <ProductCard v-for="item in products" :key="item.id" :item="item" />
-    </div>
-
-    <!-- Trạng thái không có sản phẩm -->
-    <div v-else class="text-center py-4">
-      <p class="text-gray-500">Không tìm thấy sản phẩm nào.</p>
-    </div>
-
-    <!-- Phân trang -->
-    <div class="mt-8 flex justify-center items-center gap-1 text-sm flex-wrap" v-if="pagination.last_page > 1">
-      <button
-        class="px-3 py-1 rounded-full border border-gray-300 bg-white shadow-sm hover:bg-blue-50 hover:border-blue-400 transition disabled:opacity-50 disabled:cursor-not-allowed"
-        :disabled="pagination.current_page === 1" @click="changePage(pagination.current_page - 1)">
-        <i class="fas fa-chevron-left mr-1"></i>
-      </button>
-      <template v-for="(page, i) in visiblePages" :key="i">
-        <span v-if="page === '...'" class="px-3 py-1 text-gray-400 font-semibold select-none">...</span>
-        <button v-else class="px-3 py-1 rounded-full border transition font-semibold shadow-sm" :class="page === pagination.current_page
-          ? 'bg-[#1BA0E2] text-white border-[#1BA0E2] shadow-md scale-105'
-          : 'bg-white border-gray-300 hover:bg-blue-50 hover:border-blue-400 text-gray-700'"
-          @click="() => handlePageClick(page)">
-          {{ page }}
-        </button>
-      </template>
-      <button
-        class="px-3 py-1 rounded-full border border-gray-300 bg-white shadow-sm hover:bg-blue-50 hover:border-blue-400 transition disabled:opacity-50 disabled:cursor-not-allowed"
-        :disabled="pagination.current_page === pagination.last_page" @click="changePage(pagination.current_page + 1)">
-        <i class="fas fa-chevron-right ml-1"></i>
-      </button>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
-import Filters from '~/components/shared/filters/Filters.vue';
-import ProductCard from '~/components/shared/products/ProductCard.vue';
-import { useSearchStore } from '~/stores/search';
+import { ref, computed, onMounted } from "vue";
+import Filters from "~/components/shared/filters/Filters.vue";
+import ProductCard from "~/components/shared/products/ProductCard.vue";
+import { useSearchStore } from "~/stores/search";
 
 const config = useRuntimeConfig();
 const apiBase = config.public.apiBaseUrl;
@@ -112,7 +82,7 @@ const fetchProducts = async (page = 1) => {
 
     // Thêm lọc thương hiệu
     if (filters.value.brand.length > 0) {
-      const brandsQuery = filters.value.brand.map(encodeURIComponent).join(',');
+      const brandsQuery = filters.value.brand.map(encodeURIComponent).join(",");
       url += `&brands=${brandsQuery}`;
     }
 
@@ -124,13 +94,15 @@ const fetchProducts = async (page = 1) => {
     const data = await response.json();
 
     if (!data?.data?.products || !Array.isArray(data.data.products)) {
-      throw new Error('Invalid data format: Expected data.data.products to be an array');
+      throw new Error(
+        "Invalid data format: Expected data.data.products to be an array"
+      );
     }
 
-    products.value = data.data.products.map(p => ({
+    products.value = data.data.products.map((p) => ({
       ...p,
-      image: p.image ? `${mediaBase}${p.image}` : '/default-image.jpg',
-      sold: typeof p.sold === 'string' ? parseInt(p.sold) : p.sold,
+      image: p.image ? `${mediaBase}${p.image}` : "/default-image.jpg",
+      sold: typeof p.sold === "string" ? parseInt(p.sold) : p.sold,
       percent: p.percent ? parseFloat(p.percent) : 0,
     }));
 
@@ -144,10 +116,11 @@ const fetchProducts = async (page = 1) => {
     };
 
     // Debug log
-    console.log('Pagination:', pagination.value);
+    console.log("Pagination:", pagination.value);
   } catch (err) {
-    console.error('Error fetching products:', err);
-    error.value = err.message || 'Không thể tải sản phẩm. Vui lòng thử lại sau.';
+    console.error("Error fetching products:", err);
+    error.value =
+      err.message || "Không thể tải sản phẩm. Vui lòng thử lại sau.";
   } finally {
     loading.value = false;
   }
@@ -158,21 +131,23 @@ const activeFilters = computed(() => {
   const active = [];
 
   // Bộ lọc thương hiệu
-  filters.value.brand.forEach(brand => {
+  filters.value.brand.forEach((brand) => {
     active.push({
       key: `brand_${brand}`,
       label: `Thương hiệu: ${brand}`,
-      type: 'brand',
-      value: brand
+      type: "brand",
+      value: brand,
     });
   });
 
   // Bộ lọc giá
   if (priceRange.value[0] > priceMin || priceRange.value[1] < priceMax) {
     active.push({
-      key: 'price',
-      label: `Giá: ${priceRange.value[0].toLocaleString('vi-VN')} ₫ - ${priceRange.value[1].toLocaleString('vi-VN')} ₫`,
-      type: 'price'
+      key: "price",
+      label: `Giá: ${priceRange.value[0].toLocaleString(
+        "vi-VN"
+      )} ₫ - ${priceRange.value[1].toLocaleString("vi-VN")} ₫`,
+      type: "price",
     });
   }
 
@@ -181,9 +156,9 @@ const activeFilters = computed(() => {
 
 // Xóa bộ lọc
 const removeFilter = (filter) => {
-  if (filter.type === 'brand') {
-    filters.value.brand = filters.value.brand.filter(b => b !== filter.value);
-  } else if (filter.type === 'price') {
+  if (filter.type === "brand") {
+    filters.value.brand = filters.value.brand.filter((b) => b !== filter.value);
+  } else if (filter.type === "price") {
     priceRange.value = [priceMin, priceMax];
   }
   fetchProducts(1);
@@ -208,11 +183,11 @@ const visiblePages = computed(() => {
     }
   } else {
     if (current <= 4) {
-      range.push(1, 2, 3, 4, 5, '...', total);
+      range.push(1, 2, 3, 4, 5, "...", total);
     } else if (current >= total - 3) {
-      range.push(1, '...', total - 4, total - 3, total - 2, total - 1, total);
+      range.push(1, "...", total - 4, total - 3, total - 2, total - 1, total);
     } else {
-      range.push(1, '...', current - 1, current, current + 1, '...', total);
+      range.push(1, "...", current - 1, current, current + 1, "...", total);
     }
   }
   return range;
@@ -220,7 +195,7 @@ const visiblePages = computed(() => {
 
 // Đảm bảo không click vào dấu "..."
 const handlePageClick = (page) => {
-  if (typeof page === 'number') {
+  if (typeof page === "number") {
     changePage(page);
   }
 };
@@ -228,9 +203,13 @@ const handlePageClick = (page) => {
 const changePage = (page) => {
   // Log để debug
   // console.log('Change to page:', page, 'Current:', pagination.value.current_page, 'Last:', pagination.value.last_page);
-  if (page !== pagination.value.current_page && page >= 1 && page <= pagination.value.last_page) {
+  if (
+    page !== pagination.value.current_page &&
+    page >= 1 &&
+    page <= pagination.value.last_page
+  ) {
     fetchProducts(page);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 };
 

@@ -16,6 +16,8 @@ class Order extends Model
         'discount_id',
         'note',
         'status',
+        'failure_reason',
+        'is_buy_now',
         'total_price',
         'discount_price',
         'shipping_fee',
@@ -31,7 +33,38 @@ class Order extends Model
         'shipping_fee' => 'decimal:2',
         'shipping_discount' => 'decimal:2',
         'final_price' => 'decimal:2',
+        'failure_reason' => 'string',
     ];
+
+
+    public const STATUSES = [
+        'pending',
+        'processing',
+        'shipped',
+        'delivered',
+        'cancelled',
+        'failed',
+        'failed_delivery',
+        'rejected_by_customer',
+    ];
+
+
+    public function getStatusText(): string
+{
+    $statusMap = [
+        'pending' => 'Chờ xử lý',
+        'confirmed' => 'Đã xác nhận',
+        'processing' => 'Đang xử lý',
+        'shipped' => 'Đã gửi hàng',
+        'delivered' => 'Đã giao hàng',
+        'cancelled' => 'Đã hủy',
+        'failed' => 'Giao thất bại',
+        'failed_delivery' => 'Giao không thành công',
+        'rejected_by_customer' => 'Khách từ chối nhận',
+    ];
+    return $statusMap[$this->status] ?? $this->status;
+}
+
 
     // Relationships
     public function user()
@@ -39,16 +72,15 @@ class Order extends Model
         return $this->belongsTo(User::class);
     }
 
-        public function address()
-        {
-            return $this->belongsTo(Address::class);
-        }
+    public function address()
+    {
+        return $this->belongsTo(Address::class);
+    }
 
     public function discount()
     {
         return $this->belongsTo(Discount::class)->withDefault();
     }
-
 
     public function orderItems()
     {
@@ -60,7 +92,20 @@ class Order extends Model
         return $this->hasMany(Payment::class);
     }
 
+    public function refund()
+    {
+        return $this->hasOne(Refund::class, 'order_id', 'id');
+    }
 
+    public function payout()
+    {
+        return $this->hasOne(Payout::class, 'order_id', 'id');
+    }
+
+    public function shipping()
+    {
+        return $this->hasOne(Shipping::class);
+    }
 
     // Phương thức kiểm tra và áp dụng mã giảm giá
     public function applyDiscount($discountCode)
@@ -144,9 +189,31 @@ class Order extends Model
         throw new \Exception('Đơn hàng chưa áp dụng mã giảm giá');
     }
 
-    public function shipping()
-{
-    return $this->hasOne(Shipping::class);
-}
+    /**
+     * Kiểm tra trạng thái hợp lệ
+     */
+    public function isValidStatus($status)
+    {
+        return in_array($status, [
+            'pending', 'processing', 'shipped', 'delivered',
+            'cancelled', 'failed', 'failed_delivery', 'rejected_by_customer'
+        ]);
+    }
 
+   public function canTransitionTo($newStatus)
+    {
+        $transitions = [
+            'pending' => ['confirmed', 'cancelled'],
+            'confirmed' => ['processing', 'cancelled'],
+            'processing' => ['shipped', 'cancelled'],
+            'shipped' => ['delivered', 'failed', 'failed_delivery', 'rejected_by_customer'],
+            'failed' => ['rejected_by_customer', 'failed_delivery', 'cancelled'],
+            'failed_delivery' => ['rejected_by_customer', 'cancelled'],
+            'rejected_by_customer' => ['cancelled'],
+            'delivered' => [],
+            'cancelled' => [],
+        ];
+
+        return in_array($newStatus, $transitions[$this->status] ?? []);
+    }
 }

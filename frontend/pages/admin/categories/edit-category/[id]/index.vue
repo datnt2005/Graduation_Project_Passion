@@ -205,6 +205,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue';
 import { useRouter, useRoute, useRuntimeConfig } from '#app';
+import { secureFetch } from '@/utils/secureFetch' 
 
 definePageMeta({
   layout: 'default-admin'
@@ -237,9 +238,14 @@ const formData = reactive({
 // Fetch categories for parent category dropdown
 const fetchCategories = async () => {
   try {
-    const response = await fetch(`${apiBase}/categories`);
+    const response = await secureFetch(`${apiBase}/categories` , {
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json'
+      }
+    }, ['admin']);
     const data = await response.json();
-    categories.value = data.categories || [];
+    categories.value = data.data.data || [];
     console.log('Categories fetched:', data);
   } catch (error) {
     console.error('Error fetching categories:', error);
@@ -258,7 +264,12 @@ const fetchCategory = async () => {
 
   try {
     console.log('Fetching category with ID:', route.params.id);
-    const response = await fetch(`${apiBase}/categories/${route.params.id}`);
+    const response = await secureFetch(`${apiBase}/categories/${route.params.id}` , {
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json'
+      }
+    }, ['admin']);
     const data = await response.json();
     console.log('Category API response:', data);
 
@@ -347,10 +358,10 @@ const updateCategory = async () => {
   try {
     loading.value = true;
     console.log('Updating category with ID:', route.params.id);
-    const response = await fetch(`${apiBase}/categories/${route.params.id}`, {
+    const response = await secureFetch(`${apiBase}/categories/${route.params.id}`, {
       method: 'POST', // Use POST with _method=PATCH for method spoofing
       body: form
-    });
+    } , ['admin']);
     const data = await response.json();
     console.log('Update API response:', data);
 

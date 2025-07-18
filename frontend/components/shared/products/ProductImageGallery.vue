@@ -262,7 +262,7 @@ function handleImageError(index) {
 
 let interval;
 onMounted(() => {
-  interval = setInterval(nextImage, 4000);
+  interval = setInterval(nextImage, 20000);
   window.addEventListener('keydown', handleKey);
 });
 

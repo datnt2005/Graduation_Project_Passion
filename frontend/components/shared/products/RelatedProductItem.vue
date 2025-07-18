@@ -34,12 +34,10 @@
 
 <script setup>
 import { computed } from 'vue';
-import { useRouter } from 'vue-router';
 import { useRuntimeConfig } from '#app';
 
-const router = useRouter();
 const config = useRuntimeConfig();
-const mediaBase = config.public.mediaBaseUrl;
+const mediaBase = config?.public?.mediaBaseUrl || '';
 
 const props = defineProps({
   product: {
@@ -68,9 +66,10 @@ const props = defineProps({
 
 // Compute image source
 const imageSrc = computed(() => {
-  return props.product.image
-    ? `${mediaBase}${props.product.image}`
-    : `${mediaBase}/default-product.jpg`;
+  if (!props.product.image) return `${mediaBase}/default-product.jpg`;
+  // Nếu đã là URL tuyệt đối thì trả về luôn
+  if (/^https?:\/\//.test(props.product.image)) return props.product.image;
+  return `${mediaBase}${props.product.image}`;
 });
 
 // Format price for Vietnamese currency
@@ -79,18 +78,14 @@ const formattedPrice = computed(() => {
   if (!price || price === 'null' || price === null || price === undefined) {
     return null;
   }
-
-  // Remove thousands separators (dots in Vietnamese format)
   if (typeof price === 'string') {
     price = price.replace(/\./g, '');
   }
-
   const parsedPrice = parseFloat(price);
   if (isNaN(parsedPrice) || parsedPrice < 0) {
     console.warn('Invalid price format:', props.product.price);
     return null;
   }
-
   return parsedPrice.toLocaleString('vi-VN', { style: 'decimal' });
 });
 
@@ -104,18 +99,15 @@ function handleImageError(event) {
 .group {
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
-
 .group:hover {
   transform: translateY(-4px);
 }
-
 .line-clamp-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-
 /* Responsive adjustments */
 @media (max-width: 640px) {
   .h-40 {

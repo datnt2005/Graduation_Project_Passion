@@ -15,3 +15,4 @@ Route::middleware('auth:sanctum')->post('/logout', [AuthController::class, 'logo
 Route::middleware('auth:sanctum')->get('/me', [AuthController::class, 'me']);
 Route::post('/send-forgot-password', [AuthController::class, 'sendForgotPassword']);
 Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+

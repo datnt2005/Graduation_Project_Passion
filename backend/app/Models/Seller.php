@@ -14,20 +14,42 @@ class Seller extends Model
         'store_name',
         'store_slug',
         'seller_type',
+        'tax_code',
+        'business_name',
+        'business_email',
+        'shipping_options',
         'bio',
         'identity_card_number',
         'date_of_birth',
         'personal_address',
+        'pickup_address',
+        'province_id',
+        'district_id',
+        'ward_id',
+        'address',
         'phone_number',
+        'identity_card_file',
         'document',
         'verification_status',
-        'cccd_front',
-        'cccd_back',
+        'verified_at',
+        'id_card_front_url',
+        'id_card_back_url',
     ];
+
+    protected $casts = [
+        'shipping_options' => 'array',
+        'verified_at' => 'datetime',
+    ];
+
+    /*
+    |--------------------------------------------------------------------------
+    | Relationships
+    |--------------------------------------------------------------------------
+    */
 
     public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class );
     }
 
     public function business()
@@ -60,4 +82,13 @@ class Seller extends Model
         return $this->belongsToMany(User::class, 'seller_followed', 'seller_id', 'followed_user_id')
             ->withTimestamps();
     }
+    public function discounts()
+    {
+        return $this->hasMany(Discount::class, 'seller_id');
+    }
+
+public function orders()
+{
+    return $this->hasMany(Order::class, 'user_id', 'user_id');
+}
 }

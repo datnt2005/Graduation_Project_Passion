@@ -23,7 +23,9 @@ class BannerController extends Controller
         if (request()->has('status')) {
             $query->where('status', request('status'));
         }
-
+        if (request()->has('type')) {
+            $query->where('type', request('type'));
+         }
         $banners = $query->paginate($perPage, ['*'], 'page', $page);
 
             foreach ($banners as $banner) {
@@ -51,6 +53,7 @@ class BannerController extends Controller
                 'title' => 'required|string|max:255',
                 'image' => 'required|image|mimes:jpeg,png,jpg,gif,svg,webp|max:4048',
                 'status' => 'required|in:active,inactive',
+                'type' => 'required|in:banner,popup', // validate type
             ], [
                 'title.required' => 'Tiêu đề là bắt buộc.',
                 'title.string' => 'Tiêu đề phải là chuỗi.',
@@ -61,16 +64,17 @@ class BannerController extends Controller
                 'image.max' => 'Ảnh tối đa 4MB.',
                 'status.required' => 'Trạng thái là bắt buộc.',
                 'status.in' => 'Trạng thái chỉ nhận giá trị active hoặc inactive.',
+                'type.required' => 'Loại banner là bắt buộc.',
+                'type.in' => 'Loại banner chỉ nhận giá trị banner hoặc popup.',
             ]);
 
             $imagePath = null;
 
             if ($request->hasFile('image')) {
                 $file = $request->file('image');
-
-                // Kiểm tra kích thước banner tiêu chuẩn (ví dụ: 1200x400)
                 [$width, $height] = getimagesize($file);
-                if ($width !== 1200 || $height !== 400) {
+                // Chỉ kiểm tra kích thước nếu là banner thường
+                if ((isset($validated['type']) && $validated['type'] === 'banner' && ($width !== 1200 || $height !== 400))) {
                     return response()->json([
                         'success' => false,
                         'message' => 'Ảnh banner phải có kích thước 1200x400 pixel.',
@@ -79,7 +83,6 @@ class BannerController extends Controller
                         ]
                     ], 422);
                 }
-
                 $filename = 'banners/' . time() . '_' . $file->getClientOriginalName();
                 Storage::disk('r2')->put($filename, file_get_contents($file));
                 $imagePath = $filename;
@@ -89,9 +92,8 @@ class BannerController extends Controller
                 'title' => $validated['title'],
                 'image' => $imagePath,
                 'status' => $validated['status'],
+                'type' => $validated['type'], // lưu type
             ]);
-
-
 
             return response()->json([
                 'success' => true,
@@ -143,6 +145,7 @@ class BannerController extends Controller
                 'title' => 'sometimes|required|string|max:255',
                 'image' => 'sometimes|image|mimes:jpeg,png,jpg,gif,svg,webp|max:4048',
                 'status' => 'sometimes|required|in:active,inactive',
+                'type' => 'sometimes|required|in:banner,popup', // validate type
             ], [
                 'title.required' => 'Tiêu đề là bắt buộc.',
                 'title.string' => 'Tiêu đề phải là chuỗi.',
@@ -152,13 +155,16 @@ class BannerController extends Controller
                 'image.max' => 'Ảnh tối đa 4MB.',
                 'status.required' => 'Trạng thái là bắt buộc.',
                 'status.in' => 'Trạng thái chỉ nhận giá trị active hoặc inactive.',
+                'type.required' => 'Loại banner là bắt buộc.',
+                'type.in' => 'Loại banner chỉ nhận giá trị banner hoặc popup.',
             ]);
 
             if ($request->hasFile('image')) {
                 $file = $request->file('image');
-                // Kiểm tra kích thước ảnh
                 [$width, $height] = getimagesize($file);
-                if ($width !== 1200 || $height !== 400) {
+                // Chỉ kiểm tra kích thước nếu là banner thường
+                if ((isset($validated['type']) && $validated['type'] === 'banner' && ($width !== 1200 || $height !== 400))
+                    || (!isset($validated['type']) && $banner->type === 'banner' && ($width !== 1200 || $height !== 400))) {
                     return response()->json([
                         'success' => false,
                         'message' => 'Ảnh banner phải có kích thước 1200x400 pixel.',
@@ -224,6 +230,18 @@ class BannerController extends Controller
         return response()->json([
             'success' => true,
             'data' => $banners
+        ]);
+    }
+    // Thêm API lấy popup active
+    public function getActivePopups(): JsonResponse
+    {
+        $popups = Banner::where('status', 'active')->where('type', 'popup')->orderByDesc('id')->get();
+        foreach ($popups as $popup) {
+            $popup->image_url = Storage::disk('r2')->url($popup->image);
+        }
+        return response()->json([
+            'success' => true,
+            'data' => $popups
         ]);
     }
 }

@@ -38,6 +38,12 @@
             Thùng rác
           </button>
           <span>({{ trashProducts }})</span>
+          <button @click="openApprovalHistory" :class="[
+            'text-blue-600 hover:underline',
+          ]">
+            Lịch sử duyệt
+          </button>
+
         </div>
         <div class="flex flex-wrap gap-2 items-center">
           <!-- Sort by Date -->
@@ -57,7 +63,7 @@
           <!-- Brand Filter -->
           <select v-model="filterBrand"
             class="rounded-md border border-gray-300 py-1.5 pl-3 pr-8 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
-            <option value="">Tất cả thương hiệu</option>
+            <option value="">Tất cả cửa hàng</option>
             <option v-for="brand in brands" :key="brand.id" :value="brand.id">
               {{ brand.store_name }}
             </option>
@@ -129,9 +135,6 @@
               Tên sản phẩm
             </th>
             <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">
-              Đường dẫn
-            </th>
-            <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">
               Tồn kho
             </th>
             <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">
@@ -144,7 +147,10 @@
               Ngày tạo
             </th>
             <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">
-              Thương hiệu
+              Cửa hàng
+            </th>
+            <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">
+              Trạng thái
             </th>
             <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">
               Thao tác
@@ -167,9 +173,6 @@
               @click="editProduct(product.id)">
               {{ truncateText(product.name, 30) }}
             </td>
-            <td class="border border-gray-300 px-3 py-2 text-left text-gray-500">
-              {{ product.slug }}
-            </td>
             <td class="border border-gray-300 px-3 py-2 text-left">
               <span :class="getStockStatus(product) === 'instock' ? 'text-green-600' : 'text-red-600'">
                 {{ getStockStatus(product) === 'instock' ? 'Còn hàng' : 'Hết hàng' }}
@@ -188,6 +191,16 @@
               {{ product.seller?.store_name || '–' }}
               <span v-if="product.is_admin_added === 1" class="text-xs text-gray-500">(Admin thêm sản phẩm)</span>
 
+            </td>
+            <td class="border border-gray-300 px-3 py-2 text-left">
+              <span class="inline-block px-3 py-1 text-xs rounded-full font-medium" :class="{
+                'bg-green-100 text-green-700 font-semibold': product.admin_status === 'approved',
+                'bg-yellow-100 text-yellow-600 font-semibold': product.admin_status === 'pending',
+                'bg-red-100 text-red-600 font-semibold': product.admin_status === 'rejected',
+                'bg-gray-100 text-gray-500 font-semibold': product.admin_status === 'trash'
+              }">
+                {{ getStatusLabel(product.admin_status) }}
+              </span>
             </td>
             <td class="border border-gray-300 px-3 py-2 text-left">
               <div class="relative inline-block text-left">
@@ -350,12 +363,99 @@
       </div>
     </Transition>
   </Teleport>
+
+  <!-- Approval History Modal -->
+<Teleport to="body">
+  <Transition
+    enter-active-class="transition ease-out duration-200"
+    enter-from-class="opacity-0"
+    enter-to-class="opacity-100"
+    leave-active-class="transition ease-in duration-100"
+    leave-from-class="opacity-100"
+    leave-to-class="opacity-0"
+  >
+    <div v-if="showApprovalHistory" class="fixed inset-0 z-50 overflow-y-auto">
+      <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="closeApprovalHistory"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true"></span>
+        <div
+          class="relative inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full"
+        >
+          <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+            <h3 class="text-lg leading-6 font-medium text-gray-900">Lịch sử xét duyệt sản phẩm</h3>
+            <div class="mt-4">
+              <table class="min-w-full border-collapse border border-gray-300 text-sm">
+                <thead class="bg-white border-b border-gray-300">
+                  <tr>
+                    <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">ID</th>
+                    <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Tên sản phẩm</th>
+                    <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Quản trị viên</th>
+                    <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Trạng thái</th>
+                    <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Lý do</th>
+                    <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Ngày xét duyệt</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="history in approvalHistory"
+                    :key="history.id"
+                    :class="{ 'bg-gray-50': history.id % 2 === 0 }"
+                    class="border-b border-gray-300"
+                  >
+                    <td class="border border-gray-300 px-3 py-2 text-left">{{ history.id }}</td>
+                    <td class="border border-gray-300 px-3 py-2 text-left">
+                      {{ truncateText(history.product_name, 30) }}
+
+                    </td>
+                    <td class="border border-gray-300 px-3 py-2 text-left">
+                      {{ history.admin_name || '–' }}
+                    </td>
+                    <td class="border border-gray-300 px-3 py-2 text-left">
+                      <span
+                        class="inline-block px-3 py-1 text-xs rounded-full font-medium"
+                        :class="{
+                          'bg-green-100 text-green-700': history.status === 'approved',
+                          'bg-red-100 text-red-600': history.status === 'rejected',
+                        }"
+                      >
+                        {{ history.status === 'approved' ? 'Đã duyệt' : 'Từ chối' }}
+                      </span>
+                    </td>
+                    <td class="border border-gray-300 px-3 py-2 text-left">
+                      {{ history.reason || '–' }}
+                    </td>
+                    <td class="border border-gray-300 px-3 py-2 text-left">
+                      {{ formatDate(history.created_at) }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              <div v-if="!approvalHistory.length" class="text-center text-gray-500 py-4">
+                Không có lịch sử xét duyệt nào.
+              </div>
+            </div>
+          </div>
+          <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+            <button
+              type="button"
+              class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+              @click="closeApprovalHistory"
+            >
+              Đóng
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </Transition>
+</Teleport>
 </template>
 
 <script setup>
 import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import Pagination from '~/components/Pagination.vue';
+import { secureFetch } from '@/utils/secureFetch' 
 
 
 definePageMeta({
@@ -413,12 +513,12 @@ const fetchProductCounts = async () => {
     inStockProducts.value = allProducts.filter(p => getStockStatus(p) === 'instock').length;
 
     // Fetch trashed products to get trash count
-    const trashResponse = await fetch(`${apiBase}/products/trash`, {
+    const trashResponse = await secureFetch(`${apiBase}/products/trash`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json'
       }
-    });
+    },['admin']);
     const trashData = await trashResponse.json();
     const trashProductsList = trashData.data?.data || trashData.data || [];
     trashProducts.value = trashData.data?.total || trashProductsList.length || 0;
@@ -436,10 +536,10 @@ const fetchProducts = async (page = 1) => {
     const endpoint = filterTrash.value === 'trash'
       ? `${apiBase}/products/trash?page=${page}&per_page=${perPage}`
       : `${apiBase}/products?page=${page}&per_page=${perPage}`;
-    const response = await fetch(endpoint, {
+    const response = await secureFetch(endpoint, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' }
-    });
+    },['admin']);
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     const data = await response.json();
     products.value = data.data?.data || data.data || data || [];
@@ -486,7 +586,7 @@ const fetchBrands = async () => {
     });
     const data = await response.json();
     brands.value = data.data || [];
-    
+
   } catch (error) {
     console.error('Error fetching brands:', error);
     showNotificationMessage('Có lỗi xảy ra khi tải thương hiệu', 'error');
@@ -504,8 +604,7 @@ const fetchTags = async () => {
     });
     const data = await response.json();
     tags.value = data.data.tags || [];
-    console.log('tags', tags.value);
-    
+
   } catch (error) {
     console.error('Error fetching tags:', error);
     showNotificationMessage('Có lỗi xảy ra khi tải thẻ', 'error');
@@ -529,6 +628,21 @@ const getStockStatus = (product) => {
     return sum + (variant.quantity || 0);
   }, 0) || 0;
   return totalQuantity > 0 ? 'instock' : 'outofstock';
+};
+
+const getStatusLabel = (status) => {
+  switch (status) {
+    case 'approved':
+      return 'Đã duyệt';
+    case 'pending':
+      return 'Chờ duyệt';
+    case 'rejected':
+      return 'Từ chối';
+    case 'trash':
+      return 'Đã xóa';
+    default:
+      return 'Không xác định';
+  }
 };
 
 // Toggle select all
@@ -559,13 +673,13 @@ const applyBulkAction = async () => {
         try {
           loading.value = true;
           const deletePromises = selectedProducts.value.map(id =>
-            fetch(`${apiBase}/products/${id}`, {
+            secureFetch(`${apiBase}/products/${id}`, {
               method: 'DELETE',
               headers: {
                 'Content-Type': 'application/json'
 
               }
-            })
+            } , ['admin'])
           );
 
           const responses = await Promise.all(deletePromises);
@@ -593,16 +707,14 @@ const applyBulkAction = async () => {
       const status = selectedAction.value === 'active' ? 'active' :
         selectedAction.value === 'inactive' ? 'inactive' :
           selectedAction.value === 'trash' ? 'trash' : 'active';
-      const token = localStorage.getItem('access_token');
       const updatePromises = selectedProducts.value.map(id =>
-        fetch(`${apiBase}/products/change-status/${id}`, {
+        secureFetch(`${apiBase}/products/change-status/${id}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({ status })
-        })
+        } , ['admin'])
       );
 
       const responses = await Promise.all(updatePromises);
@@ -636,21 +748,19 @@ const editProduct = (id) => {
 
 // Move to trash
 const moveToTrash = async (product) => {
-  const token = localStorage.getItem('access_token');
   showConfirmationDialog(
     'Xác nhận chuyển vào thùng rác',
     `Bạn có chắc chắn muốn chuyển sản phẩm "${product.name}" vào thùng rác?`,
 
     async () => {
       try {
-        const response = await fetch(`${apiBase}/products/change-status/${product.id}`, {
+        const response = await secureFetch(`${apiBase}/products/change-status/${product.id}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({ status: 'trash' })
-        });
+        } , ['admin']);
 
         if (response.ok) {
           showNotificationMessage('Đã chuyển sản phẩm vào thùng rác!', 'success');
@@ -669,20 +779,18 @@ const moveToTrash = async (product) => {
 
 // Restore product
 const restoreProduct = async (product) => {
-  const token = localStorage.getItem('access_token');
   showConfirmationDialog(
     'Xác nhận khôi phục',
     `Bạn có chắc chắn muốn khôi phục sản phẩm "${product.name}"?`,
     async () => {
       try {
-        const response = await fetch(`${apiBase}/products/change-status/${product.id}`, {
+        const response = await secureFetch(`${apiBase}/products/change-status/${product.id}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({ status: 'active' })
-        });
+        } , ['admin']);
 
         if (response.ok) {
           showNotificationMessage('Khôi phục sản phẩm thành công!', 'success');
@@ -706,14 +814,12 @@ const confirmDelete = async (product) => {
     `Bạn có chắc chắn muốn xóa vĩnh viễn sản phẩm "${product.name}" không?`,
     async () => {
       try {
-        const token = localStorage.getItem('access_token');
-        const response = await fetch(`${apiBase}/products/${product.id}`, {
+        const response = await secureFetch(`${apiBase}/products/${product.id}`, {
           method: 'DELETE',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
           }
-        });
+        } , ['admin']);
 
         if (response.ok) {
           showNotificationMessage('Xóa vĩnh viễn sản phẩm thành công!', 'success');
@@ -856,6 +962,40 @@ const showConfirmationDialog = (title, message, action) => {
   showConfirmDialog.value = true;
 };
 
+const showApprovalHistory = ref(false);
+const approvalHistory = ref([]);
+
+// Fetch approval history từ API
+const fetchApprovalHistory = async () => {
+  try {
+    const response = await secureFetch(`${apiBase}/approvals/history`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    } , ['admin']);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const data = await response.json();
+    approvalHistory.value = data.data || [];
+
+    if (!approvalHistory.value.length) {
+      showNotificationMessage('Không có lịch sử xét duyệt nào.', 'info');
+    }
+  } catch (error) {
+    console.error('Error fetching approval history:', error);
+    showNotificationMessage('Có lỗi xảy ra khi tải lịch sử xét duyệt', 'error');
+  }
+};
+
+const openApprovalHistory = async () => {
+  await fetchApprovalHistory();
+  showApprovalHistory.value = true;
+};
+
+const closeApprovalHistory = () => {
+  showApprovalHistory.value = false;
+  approvalHistory.value = [];
+};
 // Lifecycle hooks
 onMounted(() => {
   fetchProducts();

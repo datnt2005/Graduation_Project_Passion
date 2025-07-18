@@ -370,6 +370,7 @@ import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { useRuntimeConfig } from '#app';
 import Pagination from '~/components/Pagination.vue';
+import { secureFetch } from '@/utils/secureFetch' 
 
 definePageMeta({
   layout: 'default-admin'
@@ -404,9 +405,9 @@ const fetchAttributes = async (page = 1) => {
     loading.value = true;
     currentPage.value = page;
 
-    const response = await fetch(`${apiBase}/attributes?page=${page}&per_page=${perPage}`, {
+    const response = await secureFetch(`${apiBase}/attributes?page=${page}&per_page=${perPage}`, {
       headers: { Accept: 'application/json' }
-    });
+    } , ['admin']);
 
     const result = await response.json();
 
@@ -452,13 +453,13 @@ const applyBulkAction = async () => {
         try {
           loading.value = true;
           const deletePromises = selectedAttributes.value.map(id => 
-            fetch(`${apiBase}/attributes/${id}`, {
+            secureFetch(`${apiBase}/attributes/${id}`, {
               method: 'DELETE',
               headers: {
                 'Content-Type': 'application/json',
                 Accept: 'application/json'
               }
-            })
+            } , ['admin'])
           );
 
           const responses = await Promise.all(deletePromises);
@@ -495,13 +496,13 @@ const confirmDelete = async (attribute) => {
     `Bạn có chắc chắn muốn xóa thuộc tính "${attribute.name}" không?`,
     async () => {
       try {
-        const response = await fetch(`${apiBase}/attributes/${attribute.id}`, {
+        const response = await secureFetch(`${apiBase}/attributes/${attribute.id}`, {
           method: 'DELETE',
           headers: {
             'Content-Type': 'application/json',
             Accept: 'application/json'
           }
-        });
+        } , ['admin']);
 
         if (response.ok) {
           showNotificationMessage('Xóa thuộc tính thành công!', 'success');

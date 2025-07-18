@@ -4,13 +4,14 @@ type SecureFetchOptions = RequestInit & {
   headers?: Record<string, string>
 }
 
-const apiBaseUrl = 'http://localhost:8000/api'
-
 export async function secureFetch(
   apiUrl: string,
   fetchOptions: SecureFetchOptions = {},
   allowedRoles: string[] = []
-): Promise<Response> {
+): Promise<any> {
+  const config = useRuntimeConfig() // ✅ Gọi ở đây
+  const apiBaseUrl = config.public.apiBaseUrl
+
   const token = localStorage.getItem('access_token')
   if (!token) {
     await navigateTo('/unauthorized', { replace: true })
@@ -52,5 +53,11 @@ export async function secureFetch(
     },
   })
 
-  return response
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  const data = await response.json(); // Đảm bảo parse JSON
+  console.log('Raw response data from secureFetch (before return):', data); // Log trước khi return
+  return data; // Trả về toàn bộ dữ liệu JSON
 }

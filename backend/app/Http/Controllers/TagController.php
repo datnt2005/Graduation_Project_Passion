@@ -7,6 +7,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
+use App\Models\Product;
+
+
 
 class TagController extends Controller
 {
@@ -48,6 +52,9 @@ public function index(Request $request)
             'data' => $tag,
         ], 200);
     }
+
+
+
 
     // Tạo mới tag (API)
     public function store(Request $request)
@@ -189,4 +196,62 @@ public function index(Request $request)
             'message' => 'Xóa thẻ thành công.',
         ], 200);
     }
+
+
+  public function productsBySlug($slug)
+{
+    $tag = Tag::where('slug', $slug)->firstOrFail();
+
+    $productIds = DB::table('product_tags')
+        ->where('tag_id', $tag->id)
+        ->pluck('product_id');
+
+    $products = Product::whereIn('id', $productIds)
+        ->where('status', 'active')
+        ->where('admin_status', 'approved')
+        ->with([
+            'variants' => function ($q) {
+                $q->select('id', 'product_id', 'price', 'sale_price', 'quantity', 'thumbnail')
+                  ->orderByRaw('CASE WHEN sale_price IS NOT NULL THEN 0 ELSE 1 END');
+            },
+            'categories:id,name',
+            'tags:id,name',
+        ])
+        ->select('id', 'name', 'slug', 'created_at', 'status', 'admin_status')
+        ->paginate(20);
+
+    // Chuẩn hoá output
+    $mapped = $products->map(function ($p) {
+        $variant = $p->variants->first();
+        return [
+            'id'           => $p->id,
+            'name'         => $p->name,
+            'slug'         => $p->slug,
+            'price'        => $variant->price ?? null,
+            'sale_price'   => $variant->sale_price ?? null,
+            'thumbnail'    => $variant->thumbnail ?? null,
+            'quantity'     => $variant->quantity ?? null,
+            'created_at'   => $p->created_at,
+            'status'       => $p->status,
+            'admin_status' => $p->admin_status,
+            'variants_count' => $p->variants->count(),
+            'categories'   => $p->categories,
+            'tags'         => $p->tags,
+        ];
+    });
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Lấy sản phẩm theo tag thành công.',
+        'data' => [
+            'tag' => $tag,
+            'products' => $mapped,
+            'current_page' => $products->currentPage(),
+            'last_page' => $products->lastPage(),
+            'total' => $products->total(),
+        ]
+    ]);
+}
+
+
 }

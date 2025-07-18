@@ -1,17 +1,25 @@
-    <?php
+<?php
 
-    use Illuminate\Support\Facades\Route;
-    use App\Http\Controllers\ReportController;
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\ReportController;
 
-    // Người dùng gửi báo cáo (user/seller/admin)
-    Route::middleware(['auth:sanctum', 'checkRole:user,seller,admin'])->group(function () {
-        Route::post('/reports', [ReportController::class, 'store']);
+// ✅ Người dùng gửi báo cáo (user, seller, admin)
+Route::middleware(['auth:sanctum', 'checkRole:user,seller,admin'])->post('/reports', [ReportController::class, 'store']);
+
+// ✅ Quản trị viên xử lý tất cả các loại báo cáo (review, post_comment, ...)
+Route::prefix('admin/reports')
+    ->middleware(['auth:sanctum', 'checkRole:admin'])
+    ->group(function () {
+        Route::get('/', [ReportController::class, 'index']); // Lấy danh sách
+        Route::get('/{id}', [ReportController::class, 'show']); // Xem chi tiết
+        Route::put('/{id}/status', [ReportController::class, 'updateStatus']); // Cập nhật trạng thái
     });
 
-    // Quản trị viên xử lý báo cáo – Tách riêng route theo từng loại nếu cần
-    Route::prefix('admin/reports')->middleware(['auth:sanctum', 'checkRole:admin'])->group(function () {
-        Route::get('/', [ReportController::class, 'index']); // Lấy tất cả report (review + post_comment)
-        Route::get('/{id}', [ReportController::class, 'show']); // Xem chi tiết 1 report
-        Route::put('/{id}/status', [ReportController::class, 'updateStatus']); // Cập nhật trạng thái (resolved, dismissed)
+// ✅ Seller xử lý báo cáo liên quan đến sản phẩm của họ (review)
+Route::prefix('seller/reports/reviews')
+    ->middleware(['auth:sanctum', 'checkRole:seller'])
+    ->group(function () {
+        Route::get('/', [ReportController::class, 'sellerIndex']);
+        Route::get('/{id}', [ReportController::class, 'sellerShow']);
+        Route::put('/{id}/status', [ReportController::class, 'sellerUpdateStatus']);
     });
-    

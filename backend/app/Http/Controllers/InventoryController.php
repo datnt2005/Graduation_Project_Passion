@@ -6,6 +6,8 @@ use App\Models\Inventory;
 use App\Models\ProductVariant;
 use App\Models\Order;
 use Illuminate\Http\Request;
+use App\Services\InventoryService;
+use App\Models\StockMovement;
 
 class InventoryController extends Controller
 {
@@ -16,76 +18,129 @@ class InventoryController extends Controller
             'location' => 'required|string|max:255',
         ]);
 
-        // Cập nhật tồn kho
         $inventory = Inventory::findOrFail($inventoryId);
+
+        $diffQuantity = $validated['quantity'] - $inventory->quantity;
+
+        // Nếu có sự thay đổi về số lượng
+        if ($diffQuantity !== 0) {
+            $actionType = $diffQuantity > 0 ? 'import' : 'adjust';
+
+            // Lấy người thực hiện
+            $user = auth()->user();
+            $createdBy = $user?->id ?? 'system';
+            $createdByType = $user && $user->hasRole('seller') ? 'seller' : 'admin';
+
+            // Ghi lại biến động tồn kho
+            $service = new InventoryService();
+            $service->adjustStock(
+                $inventory->product_variant_id,
+                abs($diffQuantity),
+                $actionType,
+                'Điều chỉnh tồn kho thủ công',
+                $createdBy,
+                $createdByType
+            );
+        }
+
+        // Cập nhật tồn kho
         $inventory->update([
             'quantity' => $validated['quantity'],
             'location' => $validated['location'],
             'last_updated' => now(),
         ]);
 
-        // Cập nhật quantity trong product_variants
+        // Cập nhật tồn kho tổng cho product_variant
         $variant = $inventory->variant;
-        $totalQuantity = $variant->inventories()->sum('quantity');
-        $variant->update(['quantity' => $totalQuantity]);
+        if ($variant) {
+            $variant->quantity = $variant->inventories()->sum('quantity');
+            $variant->save();
+        }
 
-        return response()->json(['message' => 'Inventory updated successfully', 'inventory' => $inventory]);
+        return response()->json([
+            'message' => 'Cập nhật tồn kho thành công!',
+            'inventory' => $inventory
+        ]);
     }
+
 
     public function list(Request $request)
     {
-        $inventories = \App\Models\Inventory::with(['productVariant.product.categories'])
-            ->whereHas('productVariant.product', function($query) {
-                $query->where('status', '!=', 'trash');
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['error' => 'Chưa đăng nhập!'], 401);
+        }
+
+        $seller = \App\Models\Seller::where('user_id', $user->id)->first();
+        if (!$seller) {
+            return response()->json(['error' => 'Bạn không phải seller hoặc chưa đăng nhập!'], 403);
+        }
+
+        $inventories = Inventory::with([
+            'productVariant.product.categories',
+            'productVariant.attributes', // không eager load pivot->value ở đây
+        ])
+
+            ->whereHas('productVariant.product', function ($query) use ($seller) {
+                $query->where('seller_id', $seller->id)
+                    ->where('status', '!=', 'trash');
             })
             ->get()
-            ->groupBy('productVariant.product_id') // Group by main product ID
-            ->map(function($groupedInventories) {
-                $firstInventory = $groupedInventories->first();
-                $product = $firstInventory->productVariant->product;
+            ->map(function ($inventory) {
+                $variant = $inventory->productVariant;
+                $product = $variant->product;
                 $categoryName = $product->categories->first()?->name;
-                
-                // Calculate total quantity for all variants
-                $totalQuantity = $groupedInventories->sum('quantity');
-                
-                // Get the first variant's prices
-                $firstVariant = $firstInventory->productVariant;
-                $costPrice = $firstVariant->cost_price ?? 0;
-                $sellPrice = $firstVariant->price ?? 0;
-                
-                // Debug log
-                \Log::info('Product Price Debug', [
-                    'product_name' => $firstVariant->product->name,
-                    'sale_price' => $firstVariant->sale_price,
-                    'price' => $firstVariant->price,
-                    'variant_id' => $firstVariant->id
-                ]);
-                
-                // Determine status based on total quantity
+
                 $status = 'Hết hàng';
-                if ($totalQuantity > 0 && $totalQuantity <= 5) {
+                if ($inventory->quantity > 0 && $inventory->quantity <= 5) {
                     $status = 'Gần hết';
-                } elseif ($totalQuantity > 5) {
+                } elseif ($inventory->quantity > 5) {
                     $status = 'Còn hàng';
                 }
 
+                // Lấy danh sách attributes
+                $attributes = $variant->attributes->map(function ($attr) {
+                    $value = null;
+
+                    // Nếu pivot tồn tại và là instance của AttributeValueProductVariant
+                    if ($attr->pivot instanceof \App\Models\AttributeValueProductVariant) {
+                        $value = optional($attr->pivot->value)->value;
+                    }
+
+                    return [
+                        'name' => $attr->name,
+                        'value' => $value
+                    ];
+                });
                 return [
-                    'id' => $product->id,
+                    'id' => $inventory->id,
+                    'product_variant_id' => $variant->id,
+                    'sku' => $variant->sku,
                     'product_name' => $product->name,
-                    'quantity' => $totalQuantity,
-                    'cost_price' => round($costPrice),
-                    'sell_price' => round($sellPrice),
+                    'quantity' => $inventory->quantity,
+                    'cost_price' => round($variant->cost_price),
+                    'sell_price' => round($variant->price),
+                    'location' => $inventory->location,
+                    'last_updated' => $inventory->last_updated,
+                    'created_at' => $inventory->created_at,
+                    'updated_at' => $inventory->updated_at,
+                    'note' => $inventory->note,
+                    'batch_number' => $inventory->batch_number,
+                    'imported_at' => $inventory->imported_at,
+                    'imported_by' => $inventory->imported_by,
+                    'import_source' => $inventory->import_source,
+                    'is_locked' => $inventory->is_locked,
                     'category_name' => $categoryName,
                     'status' => $status,
+                    'attributes' => $attributes,
                 ];
-            })
-            ->values(); // Convert to array and reindex
-        return response()->json($inventories);
+
+            });
+
+        return response()->json($inventories->values());
     }
 
-    /**
-     * Deduct inventory quantities for an order's items
-     */
+
     public function deductInventoryForOrder(Order $order)
     {
         try {
@@ -95,7 +150,8 @@ class InventoryController extends Controller
                     $quantityToDeduct = $item->quantity;
                     $inventories = $variant->inventories()->orderBy('id')->get();
                     foreach ($inventories as $inventory) {
-                        if ($quantityToDeduct <= 0) break;
+                        if ($quantityToDeduct <= 0)
+                            break;
                         $deduct = min($inventory->quantity, $quantityToDeduct);
                         $inventory->quantity -= $deduct;
                         $inventory->last_updated = now();
@@ -106,6 +162,16 @@ class InventoryController extends Controller
                     $totalQuantity = $variant->inventories()->sum('quantity');
                     $variant->quantity = $totalQuantity;
                     $variant->save();
+
+                    StockMovement::create([
+                        'product_variant_id' => $variant->id,
+                        'action_type' => 'export',
+                        'quantity' => $item->quantity,
+                        'note' => 'Xuất kho cho đơn hàng #' . $order->id,
+                        'created_by' => 'system',
+                        'created_by_type' => 'system',
+                    ]);
+
                 }
             }
             return true;
@@ -124,15 +190,15 @@ class InventoryController extends Controller
      */
     public function lowStock()
     {
-        $inventories = \App\Models\Inventory::with(['productVariant.product.categories'])
-            ->where(function($query) {
+        $inventories = Inventory::with(['productVariant.product.categories'])
+            ->where(function ($query) {
                 $query->where('quantity', '<=', 5); // Bao gồm cả sản phẩm hết hàng và gần hết hàng
             })
-            ->whereHas('productVariant.product', function($query) {
+            ->whereHas('productVariant.product', function ($query) {
                 $query->where('status', '!=', 'trash');
             })
             ->get()
-            ->map(function($inv) {
+            ->map(function ($inv) {
                 $productVariant = $inv->productVariant;
                 $product = $productVariant?->product;
                 $categoryName = $product?->categories?->first()?->name;
@@ -155,67 +221,198 @@ class InventoryController extends Controller
     /**
      * Lấy danh sách sản phẩm bán chạy nhất dựa theo số lượng bán ra (order_items)
      */
-    public function bestSellers()
+    public function bestSellers(Request $request)
     {
-        try {
-            $bestSellers = \App\Models\OrderItem::select('product_variant_id', \DB::raw('SUM(quantity) as total_sold'))
-                ->whereHas('order', function($q) {
-                    $q->where('status', 'delivered');
-                })
-                ->whereHas('productVariant.product', function($query) {
-                    $query->where('status', '!=', 'trash');
-                })
-                ->with(['productVariant.product.categories', 'productVariant.inventories'])
-                ->groupBy('product_variant_id')
-                ->get()
-                ->groupBy('productVariant.product_id') // Group by main product ID
-                ->map(function($items) {
-                    $firstItem = $items->first();
-                    $product = $firstItem->productVariant->product;
-                    $categoryName = $product->categories->first()?->name;
-                    
-                    // Calculate total quantity for all variants
-                    $totalQuantity = $items->reduce(function($carry, $item) {
-                        return $carry + $item->productVariant->inventories->sum('quantity');
-                    }, 0);
-                    
-                    // Calculate total sold for all variants
-                    $totalSold = $items->sum('total_sold');
-                    
-                    // Get first variant's prices
-                    $firstVariant = $firstItem->productVariant;
-                    $costPrice = $firstVariant->cost_price ?? 0;
-                    $sellPrice = $firstVariant->price ?? 0;
-                    
-                    // Determine status based on total quantity
-                    $status = 'Hết hàng';
-                    if ($totalQuantity > 0 && $totalQuantity <= 5) {
-                        $status = 'Gần hết';
-                    } elseif ($totalQuantity > 5) {
-                        $status = 'Còn hàng';
-                    }
-
-                    return [
-                        'product_name' => $product->name,
-                        'category_name' => $categoryName,
-                        'quantity' => $totalQuantity,
-                        'cost_price' => round($costPrice),
-                        'sell_price' => round($sellPrice),
-                        'status' => $status,
-                        'total_sold' => $totalSold,
-                    ];
-                })
-                ->sortByDesc('total_sold')
-                ->take(10)
-                ->values();
-                
-            return response()->json($bestSellers);
-        } catch (\Exception $e) {
-            \Log::error('Best Sellers Error:', [
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-            return response()->json(['error' => 'Không thể tải dữ liệu sản phẩm bán chạy!'], 500);
-        }
+        $user = $request->user();
+        $seller = \App\Models\Seller::where('user_id', $user->id)->first();
+        $bestSellers = \App\Models\OrderItem::select('product_variant_id', \DB::raw('SUM(quantity) as total_sold'))
+            ->whereHas('order', function ($q) {
+                $q->where('status', 'delivered');
+            })
+            ->whereHas('productVariant.product', function ($query) use ($seller) {
+                $query->where('seller_id', $seller->id)
+                    ->where('status', '!=', 'trash');
+            })
+            ->with(['productVariant.product.categories', 'productVariant.inventories'])
+            ->groupBy('product_variant_id')
+            ->get()
+            ->groupBy('productVariant.product_id')
+            ->map(function ($items) {
+                $firstItem = $items->first();
+                $product = $firstItem->productVariant->product;
+                $categoryName = $product->categories->first()?->name;
+                $totalQuantity = $items->reduce(function ($carry, $item) {
+                    return $carry + $item->productVariant->inventories->sum('quantity');
+                }, 0);
+                $totalSold = $items->sum('total_sold');
+                $firstVariant = $firstItem->productVariant;
+                $costPrice = $firstVariant->cost_price ?? 0;
+                $sellPrice = $firstVariant->price ?? 0;
+                $status = 'Hết hàng';
+                if ($totalQuantity > 0 && $totalQuantity <= 5) {
+                    $status = 'Gần hết';
+                } elseif ($totalQuantity > 5) {
+                    $status = 'Còn hàng';
+                }
+                return [
+                    'product_name' => $product->name,
+                    'category_name' => $categoryName,
+                    'quantity' => $totalQuantity,
+                    'total_sold' => $totalSold,
+                    'cost_price' => round($costPrice),
+                    'sell_price' => round($sellPrice),
+                    'status' => $status,
+                ];
+            })
+            ->values();
+        return response()->json($bestSellers);
     }
+
+    public function stockHistory(Request $request)
+    {
+        $user = $request->user();
+        if (!$user || !in_array($user->role, ['admin', 'seller'])) {
+            return response()->json(['error' => 'Bạn không có quyền truy cập.'], 403);
+        }
+
+        $movements = StockMovement::with('productVariant.product', 'creator')
+            ->when(
+                $request->filled('product_variant_id'),
+                fn($q) => $q->where('product_variant_id', $request->product_variant_id)
+            )
+            ->orderByDesc('created_at')
+            ->paginate(20);
+
+        return response()->json($movements);
+    }
+
+
+
+
+    public function markDamagedOrExport(Request $request, Inventory $inventory)
+    {
+        $user = $request->user();
+        if (!$user || !in_array($user->role, ['admin', 'seller'])) {
+            return response()->json(['error' => 'Bạn không có quyền thực hiện thao tác này.'], 403);
+        }
+
+        $validated = $request->validate([
+            'quantity' => 'required|integer|min:1',
+            'note' => 'nullable|string',
+            'action_type' => 'required|in:damage,export', // 👈 Xác định loại hành động
+        ]);
+
+        if ($inventory->quantity < $validated['quantity']) {
+            return response()->json(['error' => 'Không đủ số lượng để thực hiện thao tác'], 400);
+        }
+
+        // Trừ số lượng tồn kho
+        $inventory->decrement('quantity', $validated['quantity']);
+        $inventory->last_updated = now();
+        $inventory->save();
+
+        // Cập nhật tồn kho tổng cho product_variant
+        $variant = $inventory->productVariant;
+        if ($variant) {
+            $variant->quantity = $variant->inventories()->sum('quantity');
+            $variant->save();
+        }
+
+        // Lưu lịch sử biến động kho
+        StockMovement::create([
+            'product_variant_id' => $inventory->product_variant_id,
+            'action_type' => $validated['action_type'], // 👈 damage hoặc export
+            'quantity' => $validated['quantity'],
+            'note' => $validated['note'] ?? ($validated['action_type'] === 'damage' ? 'Hàng lỗi' : 'Xuất kho'),
+            'created_by' => $user->id,
+            'created_by_type' => $user->role,
+        ]);
+
+        return response()->json([
+            'message' => $validated['action_type'] === 'damage'
+                ? 'Đã đánh dấu hàng lỗi'
+                : 'Đã xuất kho thành công'
+        ]);
+    }
+
+
+
+    public function import(Request $request)
+    {
+        $validated = $request->validate([
+            'product_variant_id' => 'required|exists:product_variants,id',
+            'quantity' => 'required|integer|min:1',
+            'note' => 'nullable|string',
+            'location' => 'nullable|string|max:255',
+            'batch_number' => 'nullable|string|max:255',
+            'import_source' => 'nullable|string|max:255',
+        ]);
+
+        $user = $request->user();
+        $createdBy = $user?->id ?? 'system';
+        $createdByType = $user && $user->role === 'seller' ? 'seller' : 'admin';
+        $importedByName = $user?->name ?? 'system';
+
+        // Tìm hoặc tạo inventory
+// 📝 Tìm inventory cũ khớp cả 3: variant + location + batch_number
+        $inventory = Inventory::where('product_variant_id', $validated['product_variant_id'])
+            ->where('location', $validated['location'] ?? 'Kho mặc định')
+            ->where('batch_number', $validated['batch_number'] ?? null)
+            ->where('status', 'available')
+            ->where('is_locked', false)
+            ->first();
+
+        if ($inventory) {
+            // 📝 Nếu tìm thấy => cập nhật số lượng và thông tin
+            $inventory->increment('quantity', $validated['quantity']);
+            $inventory->last_updated = now();
+            $inventory->imported_at = now();
+            $inventory->imported_by = $importedByName;
+
+            if (isset($validated['note'])) {
+                $inventory->note = $validated['note'];
+            }
+            if (isset($validated['import_source'])) {
+                $inventory->import_source = $validated['import_source'];
+            }
+
+            $inventory->save();
+        } else {
+            // 📝 Nếu không có => tạo inventory mới
+            $inventory = Inventory::create([
+                'product_variant_id' => $validated['product_variant_id'],
+                'quantity' => $validated['quantity'],
+                'location' => $validated['location'] ?? 'Kho mặc định',
+                'batch_number' => $validated['batch_number'] ?? null,
+                'import_source' => $validated['import_source'] ?? null,
+                'note' => $validated['note'] ?? null,
+                'status' => 'available',
+                'is_locked' => false,
+                'imported_by' => $importedByName,
+                'imported_at' => now(),
+                'last_updated' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        // Cập nhật tổng tồn kho cho biến thể sản phẩm
+        $variant = ProductVariant::findOrFail($validated['product_variant_id']);
+        $variant->quantity = $variant->inventories()->sum('quantity');
+        $variant->save();
+
+        // Lưu lịch sử nhập kho
+        StockMovement::create([
+            'product_variant_id' => $validated['product_variant_id'],
+            'action_type' => 'import',
+            'quantity' => $validated['quantity'],
+            'note' => $validated['note'] ?? 'Nhập kho',
+            'created_by' => $createdBy,
+            'created_by_type' => $createdByType,
+        ]);
+
+        return response()->json(['message' => 'Nhập kho thành công!']);
+    }
+
+
 }

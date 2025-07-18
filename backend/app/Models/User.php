@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -13,12 +12,24 @@ class User extends Authenticatable
     use HasApiTokens, HasFactory, Notifiable;
 
     protected $fillable = [
-        'name', 'email', 'password', 'phone', 'google_id', 'avatar',
-        'role', 'status', 'otp', 'otp_expired_at', 'is_verified',
+        'name',
+        'email',
+        'password',
+        'phone',
+        'google_id',
+        'avatar',
+        'role',
+        'status',
+        'otp',
+        'otp_expired_at',
+        'is_verified',
+        'warning_email_sent',
     ];
 
     protected $hidden = [
-        'password', 'remember_token', 'otp',
+        'password',
+        'remember_token',
+        'otp',
     ];
 
     protected $casts = [
@@ -27,30 +38,48 @@ class User extends Authenticatable
         'is_verified' => 'boolean',
         'role' => 'string',
         'status' => 'string',
+        'warning_email_sent' => 'boolean',
     ];
-
 
     public function seller()
     {
-         return $this->hasOne(Seller::class);
+        return $this->hasOne(Seller::class, 'user_id', 'id');
     }
+
     public function discounts()
     {
         return $this->belongsToMany(Discount::class, 'discount_users', 'user_id', 'discount_id');
     }
 
     public function getAvatarUrlAttribute()
-        {
-            return $this->avatar ? Storage::disk('r2')->url($this->avatar) : null;
-        }
-
-        public function followedSellers()
-        {
-            return $this->belongsToMany(Seller::class, 'seller_followers')
-            ->withTimestamps();
-        }
-        public function isFollowingSeller($sellerId)
-        {
-           return $this->followedSellers()->where('seller_id', $sellerId)->exists();
-        }
+    {
+        return $this->avatar ? Storage::disk('r2')->url($this->avatar) : null;
     }
+
+    public function followedSellers()
+    {
+        return $this->belongsToMany(Seller::class, 'seller_followers')
+            ->withTimestamps();
+    }
+
+    public function isFollowingSeller($sellerId)
+    {
+        return $this->followedSellers()->where('seller_id', $sellerId)->exists();
+    }
+
+    public function searchHistory()
+    {
+        return $this->hasMany(SearchHistory::class);
+    }
+
+    public function getAllUsers()
+    {
+        $users = User::select('id', 'name', 'email', 'role')->get();
+        return response()->json($users);
+    }
+
+    public function approvals()
+    {
+        return $this->hasMany(ProductApproval::class, 'admin_id');
+    }
+}

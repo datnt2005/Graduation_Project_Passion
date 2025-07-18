@@ -40,6 +40,7 @@
             <th class="border border-gray-300 px-3 py-2 text-left w-32">Hình ảnh</th>
             <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Tiêu đề</th>
             <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Trạng thái</th>
+            <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Loại</th>
             <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Ngày tạo</th>
             <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Hành động</th>
           </tr>
@@ -79,6 +80,10 @@
               >
                 {{ banner.status === 'active' ? 'Đang hiển thị' : 'Ẩn' }}
               </span>
+            </td>
+            <td class="border border-gray-300 px-3 py-2 text-left">
+              <span v-if="banner.type === 'popup'" class="text-red-500 font-bold">Popup</span>
+              <span v-else>Banner</span>
             </td>
             <td class="border border-gray-300 px-3 py-2 text-left">{{ formatDate(banner.created_at) }}</td>
             <td class="border border-gray-300 px-3 py-2 text-left">
@@ -319,6 +324,14 @@ const showNotificationMessage = (message, type = 'success') => {
   notificationType.value = type
   showNotification.value = true
   setTimeout(() => (showNotification.value = false), 3000)
+}
+
+const showSuccessNotification = (message) => {
+  notificationMessage.value = message
+  showNotification.value = true
+  setTimeout(() => {
+    showNotification.value = false
+  }, 3000)
 }
 
 const showConfirmationDialog = (title, message, action) => {

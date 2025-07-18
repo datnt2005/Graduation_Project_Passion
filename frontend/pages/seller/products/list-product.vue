@@ -17,21 +17,21 @@
       <!-- Filter Bar -->
       <div class="bg-gray-200 px-4 py-3 flex flex-wrap items-center gap-3 text-sm text-gray-700">
         <div class="flex items-center gap-2">
-          <button @click="filterStatus = ''; filterTrash = ''; fetchProducts()" :class="[
+          <button @click="filterStatus = ''; filterTrash = ''; filterAdminStatus = ''; fetchProducts()" :class="[
             'text-blue-600 hover:underline',
-            filterStatus === '' && filterTrash === '' ? 'font-semibold' : ''
+            filterStatus === '' && filterTrash === '' && filterAdminStatus === '' ? 'font-semibold' : ''
           ]">
             Tất cả
           </button>
           <span>({{ totalProducts }})</span>
-          <button @click="filterStatus = 'instock'; filterTrash = ''; fetchProducts()" :class="[
+          <button @click="filterStatus = 'instock'; filterTrash = ''; filterAdminStatus = ''; fetchProducts()" :class="[
             'text-blue-600 hover:underline',
             filterStatus === 'instock' && filterTrash === '' ? 'font-semibold' : ''
           ]">
             Còn hàng
           </button>
           <span>({{ inStockProducts }})</span>
-          <button @click="filterTrash = 'trash'; filterStatus = ''; fetchProducts()" :class="[
+          <button @click="filterTrash = 'trash'; filterStatus = ''; filterAdminStatus = ''; fetchProducts()" :class="[
             'text-blue-600 hover:underline',
             filterTrash === 'trash' ? 'font-semibold' : ''
           ]">
@@ -61,6 +61,14 @@
             <option v-for="tag in tags" :key="tag.id" :value="tag.id">
               {{ tag.name }}
             </option>
+          </select>
+          <!-- Admin Status Filter -->
+          <select v-model="filterAdminStatus"
+            class="rounded-md border border-gray-300 py-1.5 pl-3 pr-8 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+            <option value="">Tất cả trạng thái duyệt</option>
+            <option value="approved">Đã duyệt</option>
+            <option value="pending">Chờ duyệt</option>
+            <option value="rejected">Từ chối</option>
           </select>
         </div>
         <div class="ml-auto flex flex-wrap gap-2 items-center">
@@ -121,9 +129,6 @@
               Tên sản phẩm
             </th>
             <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">
-              Đường dẫn
-            </th>
-            <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">
               Tồn kho
             </th>
             <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">
@@ -140,6 +145,9 @@
             </th>
             <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">
               Ghi chú
+            </th>
+            <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">
+              Duyệt
             </th>
             <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">
               Thao tác
@@ -161,9 +169,6 @@
               class="border border-gray-300 px-3 py-2 text-left font-semibold text-blue-700 hover:underline cursor-pointer"
               @click="editProduct(product.id)">
               {{ truncateText(product.name, 30) }}
-            </td>
-            <td class="border border-gray-300 px-3 py-2 text-left text-gray-500">
-              {{ product.slug }}
             </td>
             <td class="border border-gray-300 px-3 py-2 text-left">
               <span :class="getStockStatus(product) === 'instock' ? 'text-green-600' : 'text-red-600'">
@@ -201,7 +206,16 @@
               <span v-if="product.is_admin_added === 1" class="text-xs text-gray-500">Admin thêm sản phẩm</span>
               <span v-else class="text-xs text-gray-500">-</span>
             </td>
-
+             <td class="border border-gray-300 px-3 py-2 text-left">
+              <span class="inline-block px-3 py-1 text-xs rounded-full font-medium" :class="{
+                'bg-green-100 text-green-700 font-semibold': product.admin_status === 'approved',
+                'bg-yellow-100 text-yellow-600 font-semibold': product.admin_status === 'pending',
+                'bg-red-100 text-red-600 font-semibold': product.admin_status === 'rejected',
+                'bg-gray-100 text-gray-500 font-semibold': product.admin_status === 'trash'
+              }">
+                {{ getStatusLabel(product.admin_status) }}
+              </span>
+            </td>
             <td class="border border-gray-300 px-3 py-2 text-left">
               <div class="relative inline-block text-left">
                 <button @click="toggleDropdown(product.id)"
@@ -369,7 +383,7 @@
 import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import Pagination from '~/components/Pagination.vue';
-
+import { secureFetch } from '@/utils/secureFetch' 
 
 definePageMeta({
   layout: 'default-seller'
@@ -387,6 +401,7 @@ const sortBy = ref('newest');
 const filterCategory = ref('');
 const filterBrand = ref('');
 const filterTag = ref('');
+const filterAdminStatus = ref('');
 const categories = ref([]);
 const tags = ref([]);
 const totalProducts = ref(0);
@@ -409,31 +424,42 @@ const currentPage = ref(1);
 const lastPage = ref(1);
 const perPage = 10;
 
+const getStatusLabel = (status) => {
+  switch (status) {
+    case 'approved':
+      return 'Đã duyệt';
+    case 'pending':
+      return 'Chờ duyệt';
+    case 'rejected':
+      return 'Từ chối';
+    case 'trash':
+      return 'Đã xóa';
+    default:
+      return 'Không xác định';
+  }
+};
+
 // Fetch product counts (total, instock, trash)
 const fetchProductCounts = async () => {
   try {
-    const token = localStorage.getItem('access_token');
-    // Fetch all products to get total count
-    const productsResponse = await fetch(`${apiBase}/products/sellers`, {
+    const productsResponse = await secureFetch(`${apiBase}/products/sellers`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
       }
-    });
+    } , ['seller']);
     const productsData = await productsResponse.json();
     const allProducts = productsData.data?.data || productsData.data || [];
     totalProducts.value = productsData.data?.total || allProducts.length || 0;
     inStockProducts.value = allProducts.filter(p => getStockStatus(p) === 'instock').length;
 
     // Fetch trashed products to get trash count
-    const trashResponse = await fetch(`${apiBase}/products/sellers/trash`, {
+    const trashResponse = await secureFetch(`${apiBase}/products/sellers/trash`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
       }
-    });
+    } , ['seller']);
     const trashData = await trashResponse.json();
     const trashProductsList = trashData.data?.data || trashData.data || [];
     trashProducts.value = trashData.data?.total || trashProductsList.length || 0;
@@ -448,17 +474,16 @@ const fetchProducts = async (page = 1) => {
   try {
     loading.value = true;
     currentPage.value = page;
-    const token = localStorage.getItem('access_token');
 
     const endpoint = filterTrash.value === 'trash'
       ? `${apiBase}/products/sellers/trash?page=${page}&per_page=${perPage}`
       : `${apiBase}/products/sellers?page=${page}&per_page=${perPage}`;
-    const response = await fetch(endpoint, {
+    const response = await secureFetch(endpoint, {
       method: 'GET',
-      headers: { 'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-       }
-    });
+      headers: { 
+        'Content-Type': 'application/json',
+      }
+    } , ['seller']);
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     const data = await response.json();
     products.value = data.data?.data || data.data || data || [];
@@ -487,7 +512,7 @@ const fetchCategories = async () => {
       }
     });
     const data = await response.json();
-    categories.value = data.data.data || data.categories || [];
+    categories.value = data.data?.data || data.categories || [];
   } catch (error) {
     console.error('Error fetching categories:', error);
     showNotificationMessage('Có lỗi xảy ra khi tải danh mục', 'error');
@@ -504,9 +529,7 @@ const fetchTags = async () => {
       }
     });
     const data = await response.json();
-    tags.value = data.data.tags || [];
-    console.log('tags', tags.value);
-
+    tags.value = data.data?.tags || [];
   } catch (error) {
     console.error('Error fetching tags:', error);
     showNotificationMessage('Có lỗi xảy ra khi tải thẻ', 'error');
@@ -540,6 +563,7 @@ const toggleSelectAll = () => {
     selectedProducts.value = [];
   }
 };
+
 function truncateText(text, maxLength) {
   if (!text) return '';
   return text.length > maxLength ? text.slice(0, maxLength) + '…' : text;
@@ -560,13 +584,12 @@ const applyBulkAction = async () => {
         try {
           loading.value = true;
           const deletePromises = selectedProducts.value.map(id =>
-            fetch(`${apiBase}/products/${id}`, {
+            secureFetch(`${apiBase}/products/${id}`, {
               method: 'DELETE',
               headers: {
-                'Content-Type': 'application/json'
-
+                'Content-Type': 'application/json',
               }
-            })
+            } , ['seller'])
           );
 
           const responses = await Promise.all(deletePromises);
@@ -591,19 +614,15 @@ const applyBulkAction = async () => {
   } else if (['active', 'inactive', 'trash', 'restore'].includes(selectedAction.value)) {
     try {
       loading.value = true;
-      const status = selectedAction.value === 'active' ? 'active' :
-        selectedAction.value === 'inactive' ? 'inactive' :
-          selectedAction.value === 'trash' ? 'trash' : 'active';
-      const token = localStorage.getItem('access_token');
+      const status = selectedAction.value === 'active' ? 'active' : selectedAction.value === 'inactive' ? 'inactive' : selectedAction.value === 'trash' ? 'trash' : 'active';
       const updatePromises = selectedProducts.value.map(id =>
-        fetch(`${apiBase}/products/change-status/${id}`, {
+        secureFetch(`${apiBase}/products/change-status/${id}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({ status })
-        })
+        } , ['seller'])
       );
 
       const responses = await Promise.all(updatePromises);
@@ -637,21 +656,18 @@ const editProduct = (id) => {
 
 // Move to trash
 const moveToTrash = async (product) => {
-  const token = localStorage.getItem('access_token');
   showConfirmationDialog(
     'Xác nhận chuyển vào thùng rác',
     `Bạn có chắc chắn muốn chuyển sản phẩm "${product.name}" vào thùng rác?`,
-
     async () => {
       try {
-        const response = await fetch(`${apiBase}/products/change-status/${product.id}`, {
+        const response = await secureFetch(`${apiBase}/products/change-status/${product.id}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({ status: 'trash' })
-        });
+        } , ['seller']);
 
         if (response.ok) {
           showNotificationMessage('Đã chuyển sản phẩm vào thùng rác!', 'success');
@@ -670,20 +686,18 @@ const moveToTrash = async (product) => {
 
 // Restore product
 const restoreProduct = async (product) => {
-  const token = localStorage.getItem('access_token');
   showConfirmationDialog(
     'Xác nhận khôi phục',
     `Bạn có chắc chắn muốn khôi phục sản phẩm "${product.name}"?`,
     async () => {
       try {
-        const response = await fetch(`${apiBase}/products/change-status/${product.id}`, {
+        const response = await secureFetch(`${apiBase}/products/change-status/${product.id}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({ status: 'active' })
-        });
+        } , ['seller']);
 
         if (response.ok) {
           showNotificationMessage('Khôi phục sản phẩm thành công!', 'success');
@@ -707,14 +721,12 @@ const confirmDelete = async (product) => {
     `Bạn có chắc chắn muốn xóa vĩnh viễn sản phẩm "${product.name}" không?`,
     async () => {
       try {
-        const token = localStorage.getItem('access_token');
-        const response = await fetch(`${apiBase}/products/${product.id}`, {
+        const response = await secureFetch(`${apiBase}/products/${product.id}`, {
           method: 'DELETE',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
           }
-        });
+        } , ['seller']);
 
         if (response.ok) {
           showNotificationMessage('Xóa vĩnh viễn sản phẩm thành công!', 'success');
@@ -782,6 +794,11 @@ const filteredProducts = computed(() => {
   // Filter by stock status (only when not in trash view)
   if (filterStatus.value && filterTrash.value !== 'trash') {
     result = result.filter(product => getStockStatus(product) === filterStatus.value);
+  }
+
+  // Filter by admin status
+  if (filterAdminStatus.value) {
+    result = result.filter(product => product.admin_status === filterAdminStatus.value);
   }
 
   // Filter by category
