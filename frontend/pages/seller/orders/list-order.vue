@@ -8,15 +8,19 @@
       <!-- Nút chuyển đổi -->
       <div class="flex gap-2 mb-4 px-4 pt-4">
         <button
-          @click="showPayoutList = false"
-          :class="['px-4 py-2 rounded', !showPayoutList ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700']"
+          @click="activeTab = 'orders'"
+          :class="['px-4 py-2 rounded', activeTab === 'orders' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700']"
         >Đơn hàng</button>
         <button
-          @click="showPayoutList = true"
-          :class="['px-4 py-2 rounded', showPayoutList ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700']"
+          @click="activeTab = 'payouts'"
+          :class="['px-4 py-2 rounded', activeTab === 'payouts' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700']"
         >Thanh toán đã duyệt</button>
+        <button
+          @click="activeTab = 'withdraw'"
+          :class="['px-4 py-2 rounded', activeTab === 'withdraw' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700']"
+        >Rút tiền</button>
       </div>
-      <div v-if="!showPayoutList">
+      <div v-if="activeTab === 'orders'">
         <!-- Filter Bar -->
         <div class="bg-gray-200 px-4 py-3 flex flex-wrap items-center gap-3 text-sm text-gray-700">
           <div class="flex items-center gap-2">
@@ -432,60 +436,142 @@
           <button @click="orderPage++" :disabled="orderPage === orderTotalPages" class="px-3 py-1 mx-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50">></button>
         </div>
       </div>
-      <div v-else>
+      <div v-else-if="activeTab === 'payouts'">
+        <!-- Bảng đơn hàng đã giao, chờ admin duyệt payout -->
+        <div class="bg-white p-6 rounded shadow w-full overflow-x-auto mb-6">
+          <h2 class="text-lg font-bold mb-4 text-yellow-700">Đơn hàng đã giao, chờ admin duyệt thanh toán</h2>
+          <table class="min-w-full border border-gray-200 rounded">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-4 py-2 border-b text-left">Mã vận đơn</th>
+                <th class="px-4 py-2 border-b text-left">Khách hàng</th>
+                <th class="px-4 py-2 border-b text-right">Tổng tiền</th>
+                <th class="px-4 py-2 border-b text-center">Ngày giao</th>
+                <th class="px-4 py-2 border-b text-center">Trạng thái</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="order in deliveredUnpaidOrders" :key="order.id" class="hover:bg-yellow-50 transition">
+                <td class="px-4 py-2 border-b">{{ order.shipping?.tracking_code || '-' }}</td>
+                <td class="px-4 py-2 border-b">{{ order.user?.name || '-' }}</td>
+                <td class="px-4 py-2 border-b text-right">{{ formatPrice(order.final_price) }}</td>
+                <td class="px-4 py-2 border-b text-center">
+                  {{ order.shipping?.estimated_delivery ? formatDate(order.shipping.estimated_delivery) : (order.updated_at ? formatDate(order.updated_at) : (order.created_at ? formatDate(order.created_at) : '-')) }}
+                </td>
+                <td class="px-4 py-2 border-b text-center">
+                  <span class="inline-block px-3 py-1 rounded-full bg-yellow-100 text-yellow-700 font-semibold text-sm">Chờ duyệt payout</span>
+                </td>
+              </tr>
+              <tr v-if="deliveredUnpaidOrders.length === 0">
+                <td colspan="5" class="text-center text-gray-400 py-4">Không có đơn hàng nào chờ duyệt payout</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
         <!-- Bảng payout đã duyệt -->
         <div class="bg-white p-6 rounded shadow w-full overflow-x-auto">
           <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
             <span>💸</span> Danh sách thanh toán đã được duyệt
           </h2>
-          <div class="flex flex-wrap gap-3 mb-4">
-            <input v-model="payoutFilters.keyword" type="text" placeholder="Tìm theo mã payout hoặc ghi chú"
-              class="border p-2 rounded flex-1 min-w-[180px] placeholder-gray-400">
-            <select v-model="payoutFilters.status" class="border p-2 rounded flex-1 min-w-[140px]">
-              <option value="">Tất cả trạng thái</option>
-              <option value="completed">Đã chuyển khoản</option>
-              <option value="pending">Chờ duyệt</option>
-              <option value="rejected">Từ chối</option>
+          <!-- UI filter payout -->
+          <div class="flex flex-wrap gap-2 mb-4 items-end">
+            <input v-model="payoutSearch" placeholder="Tìm mã payout hoặc ghi chú" class="border rounded px-2 py-1" />
+            <label> Từ: <input type="date" v-model="payoutDateFrom" class="border rounded px-2 py-1" /> </label>
+            <label> Đến: <input type="date" v-model="payoutDateTo" class="border rounded px-2 py-1" /> </label>
+            <select v-model="payoutSort" class="border rounded px-2 py-1">
+              <option value="desc">Mới nhất</option>
+              <option value="asc">Cũ nhất</option>
             </select>
-            <button @click="applyPayoutFilters" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Lọc</button>
-            <button @click="resetPayoutFilters" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Reset</button>
+            <button @click="applyPayoutFilters" class="px-3 py-1 bg-blue-600 text-white rounded">Lọc</button>
+            <button @click="resetPayoutFilters" class="px-3 py-1 bg-gray-200 rounded">Đặt lại</button>
           </div>
           <div v-if="payoutLoading" class="text-center text-gray-400 py-10">Đang tải dữ liệu...</div>
           <div v-else-if="payoutError" class="text-center text-red-500 py-10">{{ payoutError }}</div>
           <div v-else-if="!payoutFilteredData.length" class="text-center text-gray-400 py-10">Không có payout nào</div>
           <div v-else class="mt-4">
-            <table class="w-full table-auto divide-y divide-gray-200">
-              <thead>
-                <tr>
-                  <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">MÃ PAYOUT</th>
-                  <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">SỐ TIỀN</th>
-                  <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">NGÀY YÊU CẦU</th>
-                  <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">NGÀY DUYỆT</th>
-                  <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">TRẠNG THÁI</th>
-                  <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">GHI CHÚ</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="item in payoutPaginatedData" :key="item.id" class="hover:bg-blue-50 transition">
-                  <td class="px-4 py-3 whitespace-nowrap text-sm font-semibold text-blue-700">
-                    {{ getTrackingCode(item.order_id) }}
-                  </td>
-                  <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ formatNumber(item.amount) }} đ</td>
-                  <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ formatDate(item.created_at) }}</td>
-                  <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ formatDate(item.transferred_at) }}</td>
-                  <td class="px-4 py-3 whitespace-nowrap text-sm">
-                    <span :class="payoutStatusClass(item.status)">{{ payoutStatusLabel(item.status) }}</span>
-                  </td>
-                  <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.note }}</td>
-                </tr>
-              </tbody>
-            </table>
+            <div style="max-height: 320px; overflow-y: auto;">
+              <table class="min-w-full border-collapse border border-gray-300 text-sm">
+                <thead>
+                  <tr>
+                    <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">MÃ PAYOUT</th>
+                    <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">SỐ TIỀN</th>
+                    <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">NGÀY YÊU CẦU</th>
+                    <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">NGÀY DUYỆT</th>
+                    <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">TRẠNG THÁI</th>
+                    <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">GHI CHÚ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="item in payoutPaginatedData" :key="item.id" class="hover:bg-blue-50 transition">
+                    <td class="px-4 py-3 whitespace-nowrap text-sm font-semibold text-blue-700">
+                      {{ getTrackingCode(item.order_id) }}
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ formatNumber(item.amount) }} đ</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ formatDate(item.created_at) }}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ formatDate(item.transferred_at) }}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm">
+                      <span :class="payoutStatusClass(item.status)">{{ payoutStatusLabel(item.status) }}</span>
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.note }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
             <div v-if="payoutTotalPages > 1" class="flex justify-center mt-4">
               <button @click="payoutPage--" :disabled="payoutPage === 1" class="px-3 py-1 mx-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50"><</button>
               <button v-for="p in payoutTotalPages" :key="p" @click="payoutPage = p" :class="['px-3 py-1 mx-1 rounded border', payoutPage === p ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-gray-700 border-gray-300']">{{ p }}</button>
               <button @click="payoutPage++" :disabled="payoutPage === payoutTotalPages" class="px-3 py-1 mx-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50">></button>
             </div>
           </div>
+        </div>
+      </div>
+      <div v-else-if="activeTab === 'withdraw'">
+        <!-- Bảng lịch sử rút tiền -->
+        <div class="bg-white p-4 rounded shadow w-full overflow-x-auto mb-6">
+          <h3 class="text-lg font-bold mb-2 text-blue-700">Lịch sử rút tiền</h3>
+          <!-- Thanh filter lịch sử rút tiền đặt ở trên -->
+          <div class="flex flex-wrap gap-2 mb-4 items-end">
+            <input v-model="withdrawSearch" placeholder="Tìm kiếm theo số tiền" class="border rounded px-2 py-1" />
+            <select v-model="withdrawSortDate" class="border rounded px-2 py-1">
+              <option value="desc">Mới nhất</option>
+              <option value="asc">Cũ nhất</option>
+            </select>
+            <select v-model="withdrawSortAmount" class="border rounded px-2 py-1">
+              <option value="desc">Giá cao → thấp</option>
+              <option value="asc">Giá thấp → cao</option>
+            </select>
+          </div>
+          <table class="min-w-full border border-gray-200 rounded text-sm">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-4 py-2 border-b text-left">Số tiền</th>
+                <th class="px-4 py-2 border-b text-left">Trạng thái</th>
+                <th class="px-4 py-2 border-b text-left">Thời gian gửi</th>
+                <th class="px-4 py-2 border-b text-left">Thời gian duyệt</th>
+                <th class="px-4 py-2 border-b text-left">Ghi chú</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in withdrawHistoryFiltered" :key="item.id" class="hover:bg-blue-50 transition">
+                <td class="px-4 py-2 border-b">{{ formatNumber(item.amount) }} đ</td>
+                <td class="px-4 py-2 border-b">
+                  <span :class="{
+                    'text-yellow-600 font-semibold': item.status === 'pending',
+                    'text-green-600 font-semibold': item.status === 'completed',
+                    'text-red-600 font-semibold': item.status === 'rejected'
+                  }">
+                    {{ withdrawStatusLabel(item.status) }}
+                  </span>
+                </td>
+                <td class="px-4 py-2 border-b">{{ formatDate(item.created_at) }}</td>
+                <td class="px-4 py-2 border-b">{{ item.approved_at ? formatDate(item.approved_at) : '-' }}</td>
+                <td class="px-4 py-2 border-b">{{ item.note || '-' }}</td>
+              </tr>
+              <tr v-if="withdrawHistory.length === 0">
+                <td colspan="5" class="text-center text-gray-400 py-4">Chưa có yêu cầu rút tiền nào</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -512,6 +598,52 @@
           </div>
         </div>
       </Transition>
+    </Teleport>
+    <Teleport to="body">
+      <div v-if="showWithdrawModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6 relative">
+          <button @click="showWithdrawModal = false" class="absolute top-4 right-4 text-gray-400 hover:text-black text-lg">✕</button>
+          <h2 class="text-xl font-bold mb-4 text-gray-800">Yêu cầu rút tiền</h2>
+          <form @submit.prevent="submitWithdraw">
+            <div class="mb-4">
+              <div v-if="availableBalance !== null" class="mb-2 text-blue-700 font-semibold">
+                Số dư khả dụng: {{ formatNumber(availableBalance) }} đ
+              </div>
+              <label class="block mb-1 font-medium">Số tiền muốn rút</label>
+              <input
+                type="number"
+                v-model.number="withdrawAmount"
+                class="w-full border rounded px-3 py-2"
+                :placeholder="'Tối đa ' + formatNumber(availableBalance !== null ? availableBalance : totalApprovedPayout) + ' đ'"
+              />
+            </div>
+            <div class="mb-4">
+              <label class="block mb-1 font-medium">Ghi chú (tuỳ chọn)</label>
+              <textarea v-model="withdrawNote" class="w-full border rounded px-3 py-2" rows="2" placeholder="Ghi chú cho admin (nếu có)"></textarea>
+            </div>
+            <div class="mb-4">
+              <label class="block mb-1 font-medium">Tên ngân hàng</label>
+              <input v-model="withdrawBankName" class="w-full border rounded px-3 py-2" placeholder="VD: Vietcombank" />
+            </div>
+            <div class="mb-4">
+              <label class="block mb-1 font-medium">Số tài khoản</label>
+              <input v-model="withdrawBankAccount" class="w-full border rounded px-3 py-2" placeholder="Số tài khoản" />
+            </div>
+            <div class="mb-4">
+              <label class="block mb-1 font-medium">Tên chủ tài khoản</label>
+              <input v-model="withdrawBankAccountName" class="w-full border rounded px-3 py-2" placeholder="Tên chủ tài khoản" />
+            </div>
+            <div v-if="withdrawError" class="mb-2 text-red-600 text-sm">{{ withdrawError }}</div>
+            <div class="flex gap-2 justify-end">
+              <button type="button" @click="showWithdrawModal = false" class="px-4 py-2 bg-gray-200 rounded">Huỷ</button>
+              <button type="submit" :disabled="withdrawLoading" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Xác nhận</button>
+            </div>
+          </form>
+          <div v-if="withdrawLoading" class="absolute inset-0 bg-white bg-opacity-60 flex items-center justify-center z-10 rounded-xl">
+            <svg class="animate-spin h-8 w-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg>
+          </div>
+        </div>
+      </div>
     </Teleport>
   </div>
 </template>
@@ -560,6 +692,32 @@ const showNotification = ref(false);
 const notificationMessage = ref('');
 const notificationType = ref('success');
 const loading = ref(false);
+const sidebarTab = ref('pending');
+const showWithdrawModal = ref(false);
+const withdrawAmount = ref(0);
+const withdrawNote = ref('');
+const withdrawError = ref('');
+const withdrawLoading = ref(false);
+const withdrawHistory = ref([]);
+const activeTab = ref('orders');
+const showPayoutMenu = ref(false);
+const showWithdrawHistory = ref(false);
+const withdrawBankName = ref('');
+const withdrawBankAccount = ref('');
+const withdrawBankAccountName = ref('');
+// Thêm biến lưu số dư khả dụng
+const availableBalance = ref(null)
+
+// Thêm biến filter payout
+const payoutSearch = ref('');
+const payoutDateFrom = ref('');
+const payoutDateTo = ref('');
+const payoutSort = ref('desc'); // 'desc' = mới nhất, 'asc' = cũ nhất
+
+// Thêm biến filter cho lịch sử rút tiền
+const withdrawSearch = ref('');
+const withdrawSortDate = ref('desc'); // 'desc' = mới nhất, 'asc' = cũ nhất
+const withdrawSortAmount = ref('desc'); // 'desc' = cao->thấp, 'asc' = thấp->cao
 
 const fetchOrders = async () => {
   try {
@@ -604,8 +762,23 @@ const formatPrice = (price) => {
 };
 
 const formatDate = (date) => {
-  if (!date) return '';
-  return new Date(date).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  if (!date || date === '0000-00-00 00:00:00') return '-';
+  // Nếu là dạng dd/mm/yyyy hh:mm:ss
+  if (/^\d{2}\/\d{2}\/\d{4}/.test(date)) {
+    const [d, m, yAndTime] = date.split('/');
+    let y = '', time = '';
+    if (yAndTime) {
+      [y, time] = yAndTime.trim().split(' ');
+    }
+    const [h = '00', min = '00', s = '00'] = (time || '').split(':');
+    const jsDate = new Date(`${y}-${m}-${d}T${h}:${min}:${s}`);
+    if (isNaN(jsDate.getTime())) return '-';
+    return jsDate.toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+  // Nếu là ISO hoặc dạng khác
+  const jsDate = new Date(date);
+  if (isNaN(jsDate.getTime())) return '-';
+  return jsDate.toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 };
 
 const statusText = (status) => {
@@ -890,21 +1063,35 @@ const payoutStatusClass = (status) => {
   return '';
 };
 
+// Cập nhật hàm filter payout
 const applyPayoutFilters = () => {
   let arr = [...payoutData.value];
-  if (payoutFilters.value.keyword) {
-    const kw = payoutFilters.value.keyword.toLowerCase();
-    arr = arr.filter(item => (item.code && item.code.toLowerCase().includes(kw)) || (item.note && item.note.toLowerCase().includes(kw)));
+  if (payoutSearch.value) {
+    const kw = payoutSearch.value.toLowerCase();
+    arr = arr.filter(item =>
+      (item.code && item.code.toLowerCase().includes(kw)) ||
+      (item.note && item.note.toLowerCase().includes(kw))
+    );
   }
-  if (payoutFilters.value.status) {
-    arr = arr.filter(item => item.status === payoutFilters.value.status);
+  if (payoutDateFrom.value) {
+    arr = arr.filter(item => new Date(item.created_at) >= new Date(payoutDateFrom.value));
   }
+  if (payoutDateTo.value) {
+    arr = arr.filter(item => new Date(item.created_at) <= new Date(payoutDateTo.value + 'T23:59:59'));
+  }
+  arr = arr.sort((a, b) => {
+    const da = new Date(a.created_at), db = new Date(b.created_at);
+    return payoutSort.value === 'desc' ? db - da : da - db;
+  });
   payoutFilteredData.value = arr;
   payoutPage.value = 1;
 };
 
 const resetPayoutFilters = () => {
-  payoutFilters.value = { keyword: '', status: '' };
+  payoutSearch.value = '';
+  payoutDateFrom.value = '';
+  payoutDateTo.value = '';
+  payoutSort.value = 'desc';
   payoutFilteredData.value = [...payoutData.value];
   payoutPage.value = 1;
 };
@@ -989,9 +1176,17 @@ const loadWards = async (districtId) => {
   } catch {};
 };
 
+// Thêm biến lọc đơn hàng đã giao, chưa payout
+const deliveredUnpaidOrders = computed(() =>
+  orders.value.filter(
+    o => o.status === 'delivered' && o.payout_status === 'pending'
+  )
+)
+
 onMounted(() => {
   fetchOrders();
   fetchPayoutData();
+  fetchWithdrawHistory();
   if (process.client) {
     document.addEventListener('click', closeDropdown);
   }
@@ -1001,6 +1196,127 @@ watch(payoutFilters, applyPayoutFilters, { deep: true });
 
 definePageMeta({
   layout: 'default-seller'
+});
+
+// Sau dòng khai báo payoutPaginatedData
+const totalApprovedPayout = computed(() => {
+  // Tổng tất cả payout đã duyệt (không phân trang, không filter)
+  return payoutData.value.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+});
+
+const fetchWithdrawHistory = async () => {
+  try {
+    let token = null;
+    if (process.client) token = localStorage.getItem('access_token');
+    const res = await fetch(`${apiBase}/withdraw-requests`, {
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+    });
+    const data = await res.json();
+    withdrawHistory.value = Array.isArray(data) ? data : (data.data || []);
+  } catch (e) {
+    withdrawHistory.value = [];
+  }
+};
+
+const submitWithdraw = async () => {
+  withdrawError.value = '';
+  if (!withdrawAmount.value || withdrawAmount.value < 1) {
+    withdrawError.value = 'Vui lòng nhập số tiền muốn rút';
+    return;
+  }
+  if (withdrawAmount.value > totalApprovedPayout.value) {
+    withdrawError.value = 'Số tiền rút vượt quá số dư hiện có';
+    return;
+  }
+  withdrawLoading.value = true;
+  try {
+    let token = null;
+    if (process.client) token = localStorage.getItem('access_token');
+    const res = await fetch(`${apiBase}/withdraw-requests`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify({
+        amount: withdrawAmount.value,
+        note: withdrawNote.value,
+        bank_name: withdrawBankName.value,
+        bank_account: withdrawBankAccount.value,
+        bank_account_name: withdrawBankAccountName.value
+      })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      showWithdrawModal.value = false;
+      withdrawAmount.value = 0;
+      withdrawNote.value = '';
+      withdrawBankName.value = '';
+      withdrawBankAccount.value = '';
+      withdrawBankAccountName.value = '';
+      await fetchWithdrawHistory();
+      showNotificationMessage(data.message || 'Gửi yêu cầu rút tiền thành công!', 'success');
+    } else {
+      withdrawError.value = data.message || 'Gửi yêu cầu thất bại';
+      showNotificationMessage(data.message || 'Gửi yêu cầu thất bại', 'error');
+    }
+  } catch (e) {
+    withdrawError.value = 'Lỗi kết nối server';
+  } finally {
+    withdrawLoading.value = false;
+  }
+};
+
+function withdrawStatusLabel(status) {
+  if (status === 'pending') return 'Chờ duyệt';
+  if (status === 'completed') return 'Đã chuyển khoản';
+  if (status === 'rejected') return 'Từ chối';
+  return status;
+}
+
+// Hàm fetch số dư khả dụng
+const fetchAvailableBalance = async () => {
+  try {
+    let token = null;
+    if (process.client) token = localStorage.getItem('access_token');
+    const res = await fetch(`${apiBase}/withdraw-available`, {
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+    });
+    const data = await res.json();
+    availableBalance.value = data.available ?? null;
+  } catch (e) {
+    availableBalance.value = null;
+  }
+}
+
+// Gọi khi mở modal rút tiền
+function openWithdrawModal() {
+  showWithdrawModal.value = true;
+  showPayoutMenu.value = false;
+  fetchAvailableBalance();
+}
+
+function toggleWithdrawHistory() {
+  showWithdrawHistory.value = !showWithdrawHistory.value;
+  showPayoutMenu.value = false;
+}
+
+const withdrawHistoryFiltered = computed(() => {
+  let arr = [...withdrawHistory.value];
+  if (withdrawSearch.value) {
+    const kw = withdrawSearch.value.replace(/\D/g, '');
+    arr = arr.filter(item => String(item.amount).includes(kw));
+  }
+  // Sắp xếp theo ngày
+  arr = arr.sort((a, b) => {
+    const da = new Date(a.created_at), db = new Date(b.created_at);
+    return withdrawSortDate.value === 'desc' ? db - da : da - db;
+  });
+  // Sắp xếp theo số tiền
+  arr = arr.sort((a, b) => {
+    return withdrawSortAmount.value === 'desc' ? b.amount - a.amount : a.amount - b.amount;
+  });
+  return arr;
 });
 </script>
 
