@@ -8,7 +8,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/return-requests/check/{orderItemId}', [ReturnController::class, 'check']);
 });
 
-Route::middleware(['auth:sanctum', 'checkRole:admin'])->group(function () {
-    Route::get('/admin/returns', [ReturnController::class, 'index']);
-    Route::put('/admin/returns/{returnRequest}', [ReturnController::class, 'update']);
+Route::middleware(['auth:sanctum', 'checkRole:seller'])->group(function () {
+    Route::get('/seller/returns', [ReturnController::class, 'index']);
+    Route::put('/seller/returns/{returnRequest}', [ReturnController::class, 'update']);
 });
