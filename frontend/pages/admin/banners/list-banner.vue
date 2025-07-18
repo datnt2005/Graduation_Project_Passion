@@ -132,6 +132,8 @@
           </tr>
         </tbody>
       </table>
+      <!-- Pagination Component -->
+      <Pagination :currentPage="currentPage" :lastPage="lastPage" @change="fetchBanners" class="mt-4" />
     </div>
   </div>
 
@@ -237,6 +239,10 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
+import { useRuntimeConfig } from '#app'
+
+const config = useRuntimeConfig()
+const apiBase = config.public.apiBaseUrl
 
 definePageMeta({
   layout: 'default-admin'
@@ -254,17 +260,22 @@ const showConfirmDialog = ref(false)
 const confirmDialogTitle = ref('')
 const confirmDialogMessage = ref('')
 const confirmAction = ref(null)
+const currentPage = ref(1)
+const lastPage = ref(1)
+const perPage = 10
 
-const fetchBanners = async () => {
+const fetchBanners = async (page = 1) => {
   try {
     const token = localStorage.getItem('access_token')
-    const response = await $fetch('http://localhost:8000/api/banners', {
+    const response = await $fetch(`${apiBase}/banners?page=${page}&per_page=${perPage}&search=${searchQuery.value}`, {
       headers: { Authorization: `Bearer ${token}` }
     })
-    banners.value = response.data
+
+    banners.value = response.data.data || [] // Get the data array
+    currentPage.value = response.data.current_page || 1 // Set the current page
+    lastPage.value = response.data.last_page || 1 // Set the last page
   } catch (err) {
     console.error('API Error:', err)
-    showNotificationMessage('Không thể tải danh sách banner', 'error')
   }
 }
 
@@ -279,7 +290,7 @@ const confirmDelete = (banner) => {
     async () => {
       try {
         const token = localStorage.getItem('access_token')
-        await $fetch(`http://localhost:8000/api/banners/${banner.id}`, {
+        await $fetch(`${apiBase}/banners/${banner.id}`, {
           method: 'DELETE',
           headers: { Authorization: `Bearer ${token}` }
         })

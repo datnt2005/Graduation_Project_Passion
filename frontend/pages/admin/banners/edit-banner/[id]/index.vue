@@ -81,7 +81,7 @@
                   <div class="text-xs text-gray-500">Định dạng: jpg, png, jpeg, webp. Kích thước tối đa 4MB.</div>
                 </div>
               </section>
-              <!-- Button Lưu + Thông báo -->
+              <!-- Button Lưu -->
               <div class="bg-white border border-gray-300 rounded-md shadow-sm p-4">
                 <div class="flex justify-end gap-2">
                   <NuxtLink
@@ -102,20 +102,91 @@
                     {{ loading ? 'Đang lưu...' : 'Lưu' }}
                   </button>
                 </div>
-                <div v-if="error" class="mt-4 text-red-600">{{ error }}</div>
-                <div v-if="success" class="mt-4 text-green-600">{{ success }}</div>
               </div>
             </aside>
           </div>
         </form>
       </div>
     </main>
+
+    <!-- Notification Popup -->
+    <Teleport to="body">
+      <Transition
+        enter-active-class="transition ease-out duration-200"
+        enter-from-class="transform opacity-0 scale-95"
+        enter-to-class="transform opacity-100 scale-100"
+        leave-active-class="transition ease-in duration-100"
+        leave-from-class="transform opacity-100 scale-100"
+        leave-to-class="transform opacity-0 scale-95"
+      >
+        <div
+          v-if="showNotification"
+          class="fixed bottom-4 right-4 bg-white rounded-lg shadow-xl border border-gray-200 p-4 flex items-center space-x-3 z-50"
+        >
+          <div class="flex-shrink-0">
+            <svg
+              class="h-6 w-6"
+              :class="notificationType === 'success' ? 'text-green-400' : 'text-red-500'"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                v-if="notificationType === 'success'"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+              <path
+                v-if="notificationType === 'error'"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              />
+            </svg>
+          </div>
+          <div class="flex-1">
+            <p class="text-sm font-medium text-gray-900">
+              {{ notificationMessage }}
+            </p>
+          </div>
+          <div class="flex-shrink-0">
+            <button
+              @click="showNotification = false"
+              class="inline-flex text-gray-400 hover:text-gray-500 focus:outline-none"
+            >
+              <svg
+                class="h-6 w-6"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useRuntimeConfig } from '#app'
+
+const config = useRuntimeConfig()
+const apiBase = config.public.apiBaseUrl
 
 definePageMeta({
   layout: 'default-admin',
@@ -127,19 +198,19 @@ const status = ref('active')
 const image = ref(null)
 const imageUrl = ref('')
 const preview = ref(null)
-const error = ref('')
-const success = ref('')
 const loading = ref(false)
-const type = ref('banner')
 
 const router = useRouter()
 const route = useRoute()
 const fileInput = ref(null)
+const showNotification = ref(false)
+const notificationMessage = ref('')
+const notificationType = ref('success')
 
 const fetchBanner = async () => {
   try {
     const token = localStorage.getItem('access_token')
-    const data = await $fetch(`http://localhost:8000/api/banners/${route.params.id}`, {
+    const data = await $fetch(`${apiBase}/banners/${route.params.id}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
 
@@ -149,7 +220,7 @@ const fetchBanner = async () => {
     status.value = data.data.status || 'active'
     type.value = data.data.type || 'banner'
   } catch (err) {
-    error.value = 'Không thể tải thông tin banner.'
+    showNotificationMessage('Không thể tải thông tin banner.', 'error')
   }
 }
 
@@ -167,7 +238,7 @@ const triggerFileInput = () => {
 const validateAndPreviewImage = (file) => {
   if (!file) return
   if (!['image/jpeg', 'image/png', 'image/jpg', 'image/webp'].includes(file.type) || file.size > 4 * 1024 * 1024) {
-    error.value = 'Chỉ nhận ảnh jpg, png, jpeg, webp, nhỏ hơn 4MB.'
+    showNotificationMessage('Chỉ nhận ảnh jpg, png, jpeg, webp, nhỏ hơn 4MB.', 'error')
     return
   }
   image.value = file
@@ -180,13 +251,18 @@ const removeImage = () => {
   imageUrl.value = ''
 }
 
+const showNotificationMessage = (message, type = 'success') => {
+  notificationMessage.value = message
+  notificationType.value = type
+  showNotification.value = true
+  setTimeout(() => (showNotification.value = false), 3000)
+}
+
 const submitEdit = async () => {
-  error.value = ''
-  success.value = ''
   loading.value = true
 
   if (!title.value) {
-    error.value = 'Vui lòng nhập tiêu đề.'
+    showNotificationMessage('Vui lòng nhập tiêu đề.', 'error')
     loading.value = false
     return
   }
@@ -200,7 +276,7 @@ const submitEdit = async () => {
     if (image.value) formData.append('image', image.value)
 
     const token = localStorage.getItem('access_token')
-    await $fetch(`http://localhost:8000/api/banners/${route.params.id}`, {
+    await $fetch(`${apiBase}/banners/${route.params.id}`, {
       method: 'POST',
       body: formData,
       headers: {
@@ -209,14 +285,14 @@ const submitEdit = async () => {
       },
     })
 
-    success.value = 'Cập nhật banner thành công!'
+    showNotificationMessage('Cập nhật banner thành công!', 'success')
     setTimeout(() => router.push('/admin/banners/list-banner'), 1200)
   } catch (err) {
+    let errorMessage = 'Có lỗi xảy ra khi cập nhật banner.'
     if (err?.data?.errors) {
-      error.value = Object.values(err.data.errors).flat().join(', ')
-    } else {
-      error.value = 'Có lỗi xảy ra khi cập nhật banner.'
+      errorMessage = Object.values(err.data.errors).flat().join(', ')
     }
+    showNotificationMessage(errorMessage, 'error')
     console.error(err)
   } finally {
     loading.value = false

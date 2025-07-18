@@ -25,7 +25,7 @@ class PostCommentController extends Controller
         return response()->json(['success' => true, 'data' => $comments], 200);
     }
 
-    public function store(Request $request, Post $post)
+public function store(Request $request, Post $post)
     {
         $data = $request->validate([
             'content' => 'required|string|max:2000',
@@ -42,7 +42,11 @@ class PostCommentController extends Controller
         // Lưu media
         $this->storeMedia($request, $comment);
 
-        return response()->json(['success' => true, 'message' => 'Đã gửi bình luận', 'data' => $this->transformComment($comment->fresh())], 201);
+        return response()->json([
+            'success' => true,
+            'message' => 'Đã gửi bình luận',
+            'data' => $this->transformComment($comment->fresh())
+        ], 201);
     }
 
     public function update(Request $request, Post $post, $id)
@@ -60,7 +64,7 @@ class PostCommentController extends Controller
             'videos.*' => 'nullable|mimetypes:video/mp4,video/quicktime|max:10000',
         ]);
 
-        $comment->update(['content' => $data['content']]);
+        $comment->update(['content' => $data['content'], 'rating' => $request->input('rating', $comment->rating)]);
 
         // Xoá media không giữ lại
         $kept = $request->input('kept_images', []);
@@ -72,14 +76,18 @@ class PostCommentController extends Controller
         // Lưu media mới
         $this->storeMedia($request, $comment);
 
-        return response()->json(['success' => true, 'message' => 'Cập nhật thành công', 'data' => $this->transformComment($comment->fresh())], 200);
+        return response()->json([
+            'success' => true,
+            'message' => 'Cập nhật thành công',
+            'data' => $this->transformComment($comment->fresh())
+        ], 200);
     }
 
     public function destroy($id)
     {
         $comment = PostComment::findOrFail($id);
 
-        if ($comment->user_id !== Auth::id()) {
+        if ($comment->user_id !== Auth::id() && !Auth::user()->hasRole('admin')) {
             return response()->json(['success' => false, 'message' => 'Không có quyền'], 403);
         }
 
@@ -102,8 +110,9 @@ class PostCommentController extends Controller
         }
 
         $comment->likes()->create(['user_id' => Auth::id()]);
+        $likesCount = $comment->likes()->count();
 
-        return response()->json(['success' => true, 'liked' => true]);
+        return response()->json(['success' => true, 'liked' => true, 'likes' => $likesCount]);
     }
 
     public function unlike($id)
@@ -112,7 +121,10 @@ class PostCommentController extends Controller
         if (!$like) return response()->json(['success' => false, 'message' => 'Chưa thích'], 400);
 
         $like->delete();
-        return response()->json(['success' => true, 'liked' => false]);
+        $comment = PostComment::findOrFail($id);
+        $likesCount = $comment->likes()->count();
+
+        return response()->json(['success' => true, 'liked' => false, 'likes' => $likesCount]);
     }
 
     public function checkLiked($id)

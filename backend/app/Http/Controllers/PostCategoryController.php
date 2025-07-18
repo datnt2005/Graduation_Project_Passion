@@ -12,7 +12,10 @@ class PostCategoryController extends Controller
     public function index()
     {
         try {
-            $categories = PostCategory::orderByDesc('id')->get();
+            $page = request()->get('page', 1);
+            $perPage = request()->get('per_page', 10);
+
+            $categories = PostCategory::orderByDesc('id')->paginate($perPage);
 
             foreach ($categories as $cat) {
                 $cat->image_url = $cat->image ? Storage::disk('r2')->url($cat->image) : null;

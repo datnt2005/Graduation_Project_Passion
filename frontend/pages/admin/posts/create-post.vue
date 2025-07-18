@@ -7,7 +7,6 @@
     <span class="text-gray-600 text-sm"> / Thêm bài viết</span>
   </div>
   <div class="flex min-h-screen bg-gray-100">
-    <!-- Main Content -->
     <main class="flex-1 p-6 bg-gray-100">
       <div class="max-w-[1200px] mx-auto">
         <form @submit.prevent="submitPost">
@@ -22,13 +21,46 @@
                     class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     placeholder="Nhập tiêu đề bài viết" required />
                 </div>
+                <!-- Slug -->
+                <div>
+                  <label class="block text-sm font-medium mb-1">Slug</label>
+                  <input v-model="slug" type="text"
+                    class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    placeholder="slug (không dấu, viết liền)" />
+                </div>
                 <!-- Danh mục -->
                 <div>
                   <label class="block text-sm font-medium mb-1">Danh mục bài viết</label>
                   <select v-model="category_id" class="w-full border border-gray-300 rounded px-3 py-2" required>
-                    <option value="" disabled>Chọn danh mục</option>
-                    <option :value="cat.id" v-for="cat in categories" :key="cat.id">{{ cat.name }}</option>
+                    <option value="" disabled selected>Chọn danh mục</option>
+                    <option v-for="cat in categories" :key="cat.id" :value="cat.id" :selected="cat.id === category_id">
+                      {{ cat.name }}
+                    </option>
                   </select>
+                  <div v-if="categories.length === 0" class="text-red-500 text-xs mt-1">
+                    Không có danh mục nào để chọn. Vui lòng thêm danh mục.
+                  </div>
+                </div>
+                <!-- Tóm tắt -->
+                <div>
+                  <label class="block text-sm font-medium mb-1">Tóm tắt</label>
+                  <textarea v-model="excerpt" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    placeholder="Nhập tóm tắt bài viết (tối đa 500 ký tự)" rows="3"></textarea>
+                </div>
+                <!-- Trạng thái -->
+                <div>
+                  <label class="block text-sm font-medium mb-1">Trạng thái</label>
+                  <select v-model="status" class="w-full border border-gray-300 rounded px-3 py-2">
+                    <option value="draft">Nháp</option>
+                    <option value="published">Đã xuất bản</option>
+                    <option value="pending">Chờ duyệt</option>
+                  </select>
+                </div>
+                <!-- Ngày xuất bản -->
+                <div>
+                  <label class="block text-sm font-medium mb-1">Ngày xuất bản</label>
+                  <input v-model="published_at" type="datetime-local"
+                    class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500" />
                 </div>
                 <!-- Nội dung -->
                 <div>
@@ -75,7 +107,7 @@
                   <div v-if="errors.image" class="text-red-500 text-xs mt-1">{{ errors.image }}</div>
                 </div>
               </section>
-              <!-- Button Lưu + Thông báo -->
+              <!-- Button -->
               <div class="bg-white border border-gray-300 rounded-md shadow-sm p-4">
                 <div class="flex justify-end gap-2">
                   <NuxtLink
@@ -96,14 +128,81 @@
                     {{ loading ? 'Đang lưu...' : 'Thêm bài viết' }}
                   </button>
                 </div>
-                <div v-if="error" class="mt-4 text-red-600">{{ error }}</div>
-                <div v-if="success" class="mt-4 text-green-600">{{ success }}</div>
               </div>
             </aside>
           </div>
         </form>
       </div>
     </main>
+
+    <!-- Notification Popup -->
+    <Teleport to="body">
+      <Transition
+        enter-active-class="transition ease-out duration-200"
+        enter-from-class="transform opacity-0 scale-95"
+        enter-to-class="transform opacity-100 scale-100"
+        leave-active-class="transition ease-in duration-100"
+        leave-from-class="transform opacity-100 scale-100"
+        leave-to-class="transform opacity-0 scale-95"
+      >
+        <div
+          v-if="showNotification"
+          class="fixed bottom-4 right-4 bg-white rounded-lg shadow-xl border border-gray-200 p-4 flex items-center space-x-3 z-50"
+        >
+          <div class="flex-shrink-0">
+            <svg
+              class="h-6 w-6"
+              :class="notificationType === 'success' ? 'text-green-400' : 'text-red-500'"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                v-if="notificationType === 'success'"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+              <path
+                v-if="notificationType === 'error'"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              />
+            </svg>
+          </div>
+          <div class="flex-1">
+            <p class="text-sm font-medium text-gray-900">
+              {{ notificationMessage }}
+            </p>
+          </div>
+          <div class="flex-shrink-0">
+            <button
+              @click="showNotification = false"
+              class="inline-flex text-gray-400 hover:text-gray-500 focus:outline-none"
+            >
+              <svg
+                class="h-6 w-6"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -120,17 +219,31 @@ definePageMeta({ layout: 'default-admin' })
 
 const router = useRouter()
 const title = ref('')
+const slug = ref('')
 const content = ref('')
 const category_id = ref('')
+const excerpt = ref('')
+const status = ref('draft')
+const published_at = ref('')
 const image = ref(null)
 const preview = ref(null)
 const categories = ref([])
 const loading = ref(false)
-const error = ref('')
-const success = ref('')
 const errors = reactive({})
-
 const fileInput = ref(null)
+const showNotification = ref(false)
+const notificationMessage = ref('')
+const notificationType = ref('success')
+
+const generateSlug = (text) => {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9-]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+}
 
 const handleImageUpload = (e) => {
   const file = e.target.files[0]
@@ -147,7 +260,7 @@ const validateAndPreviewImage = (file) => {
   errors.image = ''
   if (!file) return
   if (!['image/jpeg', 'image/png', 'image/jpg', 'image/webp'].includes(file.type) || file.size > 4 * 1024 * 1024) {
-    errors.image = 'Chỉ nhận ảnh jpg, png, jpeg, webp, nhỏ hơn 4MB.'
+    showNotificationMessage('Chỉ nhận ảnh jpg, png, jpeg, webp, nhỏ hơn 4MB.', 'error')
     return
   }
   image.value = file
@@ -165,28 +278,48 @@ onMounted(async () => {
     const res = await $fetch(`${apiBase}/post-categories`, {
       headers: { Authorization: `Bearer ${token}` }
     })
-    categories.value = res.data || []
+    // Lấy mảng danh mục từ res.data.data (nếu là paginator)
+    categories.value = res.data.data || res.data || []
+    console.log('Full response:', res) // Kiểm tra toàn bộ response
+    console.log('Categories:', categories.value) // Kiểm tra mảng danh mục
+    if (categories.value.length > 0) {
+      category_id.value = categories.value[0].id // Gán giá trị mặc định
+    }
   } catch (err) {
-    error.value = 'Không thể tải danh mục bài viết'
+    showNotificationMessage('Không thể tải danh mục bài viết.', 'error')
+    console.error('Error fetching categories:', err)
   }
 })
 
+const showNotificationMessage = (message, type = 'success') => {
+  notificationMessage.value = message
+  notificationType.value = type
+  showNotification.value = true
+  setTimeout(() => (showNotification.value = false), 3000)
+}
+
 const submitPost = async () => {
-  error.value = ''
-  success.value = ''
   loading.value = true
 
   if (!title.value || !category_id.value) {
-    error.value = 'Vui lòng nhập tiêu đề và chọn danh mục.'
+    showNotificationMessage('Vui lòng nhập tiêu đề và chọn danh mục.', 'error')
     loading.value = false
     return
+  }
+
+  if (!slug.value) {
+    slug.value = generateSlug(title.value)
   }
 
   try {
     const formData = new FormData()
     formData.append('title', title.value)
+    formData.append('slug', slug.value)
     formData.append('content', content.value)
     formData.append('category_id', category_id.value)
+    formData.append('excerpt', excerpt.value)
+    formData.append('status', status.value)
+    formData.append('published_at', published_at.value)
     if (image.value) formData.append('thumbnail', image.value)
 
     const token = localStorage.getItem('access_token')
@@ -196,14 +329,15 @@ const submitPost = async () => {
       headers: { Authorization: `Bearer ${token}` },
     })
 
-    success.value = 'Tạo bài viết thành công'
+    showNotificationMessage('Tạo bài viết thành công.', 'success')
     setTimeout(() => router.push('/admin/posts/list-post'), 1200)
   } catch (err) {
     if (err?.data?.errors) {
-      error.value = Object.values(err.data.errors).flat().join(', ')
+      showNotificationMessage(Object.values(err.data.errors).flat().join(', '), 'error')
     } else {
-      error.value = 'Tạo bài viết thất bại'
+      showNotificationMessage('Tạo bài viết thất bại.', 'error')
     }
+    console.error('Error submitting post:', err)
   } finally {
     loading.value = false
   }

@@ -7,14 +7,47 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class PostController extends Controller
 {
-    public function index()
+ public function index(Request $request)
     {
-        $posts = Post::with('user', 'category')->latest()->get();
+        $page = $request->get('page', 1);
+        $perPage = $request->get('per_page', 10);
+        $categoryId = $request->get('category_id');
+        $search = $request->get('search');
+        $sort = $request->get('sort', 'created_at:desc');
+        $limit = $request->get('limit', $perPage); // Hỗ trợ limit cho danh sách đặc biệt
 
-        // Nếu có ảnh, trả về url đầy đủ
+        $query = Post::with('user', 'category')->where('status', 'published');
+
+        if ($categoryId) {
+            $query->where('category_id', $categoryId);
+        }
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                  ->orWhere('excerpt', 'like', "%{$search}%")
+                  ->orWhere('content', 'like', "%{$search}%");
+            });
+        }
+
+        if ($sort) {
+            $sortParts = explode(':', $sort);
+            $column = $sortParts[0];
+            $direction = $sortParts[1] ?? 'desc';
+            // Đảm bảo cột views được xử lý
+            if ($column === 'views') {
+                $query->orderByRaw("COALESCE(views, 0) $direction");
+            } else {
+                $query->orderBy($column, $direction);
+            }
+        }
+
+        $posts = $limit === $perPage ? $query->paginate($perPage) : $query->limit($limit)->get();
+
         foreach ($posts as $post) {
             $post->thumbnail_url = $post->thumbnail
                 ? Storage::disk('r2')->url($post->thumbnail)
@@ -23,8 +56,10 @@ class PostController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Lấy danh sách bài viết thành công',
-            'data' => $posts
+            'message' => 'Fetched posts successfully',
+            'data' => $posts instanceof \Illuminate\Pagination\LengthAwarePaginator
+                ? $posts
+                : ['data' => $posts, 'current_page' => 1, 'last_page' => 1]
         ], 200);
     }
 
@@ -35,7 +70,10 @@ class PostController extends Controller
                 'title' => 'required|string|max:255',
                 'content' => 'required|string',
                 'category_id' => 'required|exists:post_categories,id',
-                'thumbnail' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:4048'
+                'thumbnail' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:4048',
+                'excerpt' => 'nullable|string|max:500',
+                'status' => 'required|in:draft,published,pending',
+                'published_at' => 'nullable|date',
             ], [
                 'title.required' => 'Tiêu đề là bắt buộc.',
                 'title.string' => 'Tiêu đề phải là chuỗi.',
@@ -47,6 +85,10 @@ class PostController extends Controller
                 'thumbnail.image' => 'File phải là ảnh.',
                 'thumbnail.mimes' => 'Ảnh phải có định dạng: jpeg, png, jpg, gif, svg, webp.',
                 'thumbnail.max' => 'Ảnh tối đa 4MB.',
+                'excerpt.max' => 'Tóm tắt tối đa 500 ký tự.',
+                'status.required' => 'Trạng thái là bắt buộc.',
+                'status.in' => 'Trạng thái phải là draft, published hoặc pending.',
+                'published_at.date' => 'Ngày xuất bản phải là định dạng ngày hợp lệ.',
             ]);
 
             $thumbnailPath = null;
@@ -57,10 +99,21 @@ class PostController extends Controller
                 $thumbnailPath = $filename;
             }
 
-            $validated['user_id'] = Auth::id(); 
-        
+            // Generate slug if not provided
+            $slug = $request->input('slug');
+            if (!$slug) {
+                $slug = Str::slug($request->input('title'));
+                $originalSlug = $slug;
+                $count = 1;
+                while (Post::where('slug', $slug)->exists()) {
+                    $slug = "{$originalSlug}-{$count}";
+                    $count++;
+                }
+            }
 
+            $validated['user_id'] = Auth::id();
             $validated['thumbnail'] = $thumbnailPath;
+            $validated['slug'] = $slug;
 
             $post = Post::create($validated);
 
@@ -90,6 +143,8 @@ class PostController extends Controller
     {
         try {
             $post = Post::with('user', 'category', 'comments.user')->findOrFail($id);
+            // Tăng lượt xem
+            $post->increment('views');
             $post->thumbnail_url = $post->thumbnail
                 ? Storage::disk('r2')->url($post->thumbnail)
                 : null;
@@ -117,7 +172,10 @@ class PostController extends Controller
                 'title' => 'sometimes|required|string|max:255',
                 'content' => 'sometimes|required|string',
                 'category_id' => 'sometimes|required|exists:post_categories,id',
-                'thumbnail' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:4048'
+                'thumbnail' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:4048',
+                'excerpt' => 'nullable|string|max:500',
+                'status' => 'sometimes|required|in:draft,published,pending',
+                'published_at' => 'nullable|date',
             ], [
                 'title.required' => 'Tiêu đề là bắt buộc.',
                 'title.string' => 'Tiêu đề phải là chuỗi.',
@@ -129,6 +187,10 @@ class PostController extends Controller
                 'thumbnail.image' => 'File phải là ảnh.',
                 'thumbnail.mimes' => 'Ảnh phải có định dạng: jpeg, png, jpg, gif, svg, webp.',
                 'thumbnail.max' => 'Ảnh tối đa 4MB.',
+                'excerpt.max' => 'Tóm tắt tối đa 500 ký tự.',
+                'status.required' => 'Trạng thái là bắt buộc.',
+                'status.in' => 'Trạng thái phải là draft, published hoặc pending.',
+                'published_at.date' => 'Ngày xuất bản phải là định dạng ngày hợp lệ.',
             ]);
 
             if ($request->hasFile('thumbnail')) {
@@ -137,6 +199,20 @@ class PostController extends Controller
                 Storage::disk('r2')->put($filename, file_get_contents($file));
                 $validated['thumbnail'] = $filename;
             }
+
+            // Generate slug if not provided
+            $slug = $request->input('slug', $post->slug); // Keep existing slug if not changed
+            if (!$slug || $slug === $post->slug) {
+                $slug = Str::slug($request->input('title', $post->title));
+                $originalSlug = $slug;
+                $count = 1;
+                while (Post::where('slug', $slug)->where('id', '!=', $id)->exists()) {
+                    $slug = "{$originalSlug}-{$count}";
+                    $count++;
+                }
+            }
+
+            $validated['slug'] = $slug;
 
             $post->update($validated);
 
@@ -180,6 +256,27 @@ class PostController extends Controller
                 'message' => 'Lỗi khi xoá bài viết',
                 'error' => $e->getMessage()
             ], 500);
+        }
+    }
+
+    public function showBySlug($slug)
+    {
+        try {
+            $post = Post::with(['user', 'category', 'comments.user'])->where('slug', $slug)->firstOrFail();
+            // Tăng lượt xem
+            $post->increment('views');
+            $post->thumbnail_url = $post->thumbnail ? Storage::disk('r2')->url($post->thumbnail) : null;
+
+            return response()->json([
+                'success' => true,
+                'data' => $post
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không tìm thấy bài viết',
+                'error' => $e->getMessage()
+            ], 404);
         }
     }
 }

@@ -107,8 +107,12 @@
           </tr>
         </tbody>
       </table>
+            <!-- Pagination Component -->
+      <Pagination :currentPage="currentPage" :lastPage="lastPage" @change="fetchSupports" />
     </div>
   </div>
+  
+  
 
   <!-- Notification Popup -->
   <Teleport to="body">
@@ -208,21 +212,27 @@ const showConfirmDialog = ref(false)
 const confirmDialogTitle = ref('')
 const confirmDialogMessage = ref('')
 const confirmAction = ref(null)
+const currentPage = ref(1)
+const lastPage = ref(1)
+const perPage = 10
 
 const router = useRouter()
 
-const fetchPosts = async () => {
+const fetchPosts = async (page = 1) => {
   try {
     const token = localStorage.getItem('access_token')
-    const response = await $fetch(`${apiBase}/posts`, {
+    const response = await $fetch(`${apiBase}/posts?page=${page}&per_page=${perPage}`, {
       headers: { Authorization: `Bearer ${token}` }
     })
-    posts.value = response.data
+    posts.value = response.data.data || []
+    currentPage.value = response.data.current_page || 1
+    lastPage.value = response.data.last_page || 1
   } catch (err) {
     showNotificationMessage('Không thể tải danh sách bài viết', 'error')
     console.error(err)
   }
 }
+
 
 const editPost = (id) => {
   router.push(`/admin/posts/edit/${id}`)
