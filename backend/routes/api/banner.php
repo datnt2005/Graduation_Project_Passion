@@ -5,6 +5,7 @@ use App\Http\Controllers\BannerController;
 
 // route công khai
 Route::get('/banners', [BannerController::class, 'index']);
+Route::get('/banners/popups', [BannerController::class, 'getActivePopups']);
 Route::get('/banners/{id}', [BannerController::class, 'show']);
 
 // route dành cho user đã đăng nhập

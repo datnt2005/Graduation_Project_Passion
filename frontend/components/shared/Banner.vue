@@ -65,7 +65,7 @@ let timer = null
 
 async function fetchBanners() {
   try {
-    const res = await $fetch(`${apiBase}/banners?status=active`)
+    const res = await $fetch(`${apiBase}/banners?status=active&type=banner`)
     banners.value = (res.data || []).map(b => b.image_url).filter(Boolean)
     if (index.value >= banners.value.length) index.value = 0
   } catch (e) {
