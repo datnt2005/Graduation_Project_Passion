@@ -13,7 +13,7 @@
         <div
           v-for="category in categories"
           :key="category.id"
-          @click="trackCategoryClick(category.id)"
+          @click="handleCategoryClick(category)"
           class="flex flex-col items-center text-center text-[12px] text-gray-800 cursor-pointer"
         >
           <div class="bg-gray-100 rounded-full p-3 mb-2">
@@ -34,9 +34,11 @@
 
 <script setup>
 import { ref, onMounted } from "vue";
-import { useRuntimeConfig } from "#imports";
+import { useRuntimeConfig, useRouter } from "#imports";
 
 const config = useRuntimeConfig();
+const router = useRouter();
+
 const apiBase = config.public.apiBaseUrl;
 const mediaBase = config.public.mediaBaseUrl;
 const categories = ref([]);
@@ -57,8 +59,8 @@ const fetchCategories = async () => {
   }
 };
 
-// Tracking click danh mục
-const trackCategoryClick = async (categoryId) => {
+// Xử lý click: tracking + chuyển trang
+const handleCategoryClick = async (category) => {
   try {
     const token = localStorage.getItem("access_token");
     await $fetch(`${apiBase}/search/track-category-click`, {
@@ -68,11 +70,16 @@ const trackCategoryClick = async (categoryId) => {
         Authorization: `Bearer ${token}`,
       },
       body: {
-        category_id: categoryId,
+        category_id: category.id,
       },
     });
+
+    // Điều hướng tới trang danh mục
+    if (category.slug) {
+      router.push(`/category/${category.slug}`);
+    }
   } catch (error) {
-    console.error("Lỗi khi tracking danh mục:", error);
+    console.error("Lỗi khi xử lý click danh mục:", error);
   }
 };
 
