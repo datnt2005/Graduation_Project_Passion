@@ -28,4 +28,3 @@ Route::get('/{slug}/products', [TagController::class, 'productsBySlug']);
             Route::delete('/{id}', [TagController::class, 'destroy']);
         });
     });
-});
