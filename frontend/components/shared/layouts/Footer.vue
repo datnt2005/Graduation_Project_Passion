@@ -104,7 +104,12 @@
                 href="mailto:hotro@passion.vn"
                 class="hover:underline flex items-center gap-2"
               >
-                <i class="fas fa-envelope text-gray-500"></i> {{ contactEmail }}
+                <i class="fas fa-envelope text-gray-500"></i>
+                <span
+                  class="line-clamp-2 break-all text-sm max-w-[180px] sm:max-w-none"
+                >
+                  {{ contactEmail }}
+                </span>
               </a>
             </li>
             <li class="flex items-center gap-2">

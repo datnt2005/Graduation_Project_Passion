@@ -6,29 +6,11 @@
     <div
       class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 text-xs text-gray-700"
     >
-      <div
+      <ProductCard
         v-for="(item, index) in products"
         :key="index"
-        class="border border-gray-200 rounded p-1 hover:shadow-md transition-shadow"
-      >
-        <img
-          :alt="item.name"
-          class="w-full rounded mb-1 object-cover h-[150px]"
-          :src="item.image"
-        />
-        <div class="font-semibold text-red-600 text-sm truncate">
-          ₫{{ item.price.toLocaleString("vi-VN") }}
-        </div>
-        <div
-          v-if="item.price_old"
-          class="line-through text-gray-400 text-[10px] truncate"
-        >
-          ₫{{ item.price_old.toLocaleString("vi-VN") }}
-        </div>
-        <div v-if="item.sold" class="text-[10px] text-gray-500 truncate">
-          Đã bán {{ item.sold > 99 ? "99+" : item.sold }}
-        </div>
-      </div>
+        :item="item"
+      />
     </div>
   </div>
 </template>
