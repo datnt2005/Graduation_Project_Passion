@@ -241,6 +241,7 @@ const calculateShippingFee = async (shop, method) => {
   try {
     const sellerId = shop.seller_id;
     const totalWeight = calculateTotalWeight(shop);
+    console.log(`Tính phí vận chuyển cho shop ${sellerId}, dịch vụ ${method.service_id}, trọng lượng ${totalWeight}g`);
 
     if (totalWeight < 50) {
       throw new Error('Cân nặng đơn hàng quá thấp. Tối thiểu 50g.');
@@ -249,7 +250,6 @@ const calculateShippingFee = async (shop, method) => {
       throw new Error('Cân nặng không hợp lệ cho dịch vụ Hàng nặng: tối thiểu 2000g.');
     }
 
-    console.log(`Kiểm tra shippingMethods cho seller ${sellerId}:`, JSON.stringify(shippingMethods.value[sellerId], null, 2));
     if (!shippingMethods.value[sellerId]?.some(m => m.service_id === method.service_id)) {
       throw new Error(`Dịch vụ vận chuyển ${method.service_id} không được hỗ trợ cho shop ${sellerId}`);
     }
@@ -274,13 +274,15 @@ const calculateShippingFee = async (shop, method) => {
       width: shop.items.reduce((max, item) => Math.max(max, item.productVariant?.width || 20), 20),
     };
 
-    console.log('Payload gửi tới /ghn/shipping-fee:', JSON.stringify(payload, null, 2));
+    console.log(`Payload gửi tới /ghn/shipping-fee:`, JSON.stringify(payload, null, 2));
 
     const token = localStorage.getItem('access_token');
     if (!token) {
       throw new Error('Thiếu access token');
     }
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
     const res = await fetch(`${apiBase}/ghn/shipping-fee`, {
       method: 'POST',
       headers: {
@@ -288,15 +290,17 @@ const calculateShippingFee = async (shop, method) => {
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify(payload),
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
 
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({ message: `Lỗi máy chủ: ${res.status}` }));
-      console.error('Phản hồi lỗi từ /ghn/shipping-fee:', JSON.stringify(errorData, null, 2));
       throw new Error(errorData.message || 'Không thể tính phí vận chuyển');
     }
 
     const data = await res.json();
+    console.log(`Phản hồi từ /ghn/shipping-fee:`, JSON.stringify(data, null, 2));
     const fee = (data?.data?.total ?? 0) / 100;
     fees.value[`${sellerId}_${method.service_id}`] = formatPrice(fee);
 
@@ -306,7 +310,7 @@ const calculateShippingFee = async (shop, method) => {
 
     return fee;
   } catch (err) {
-    console.error(`Lỗi tính phí vận chuyển cho seller ${shop.seller_id}, method ${method.service_id}:`, err);
+    console.error(`Lỗi tính phí vận chuyển cho shop ${shop.seller_id}, dịch vụ ${method.service_id}:`, err.message);
     fees.value[`${shop.seller_id}_${method.service_id}`] = 'Lỗi';
     errorMessage.value = err.message.includes('Cân nặng')
       ? err.message
@@ -333,6 +337,7 @@ const calculateAllShippingFees = async () => {
   errorMessage.value = '';
 
   for (const shop of props.cartItems) {
+    console.log(`Bắt đầu tính phí vận chuyển cho shop ${shop.seller_id}`);
     if (!shop.seller_id) {
       console.error('Thiếu seller_id cho shop:', shop);
       fees.value[`${shop.seller_id}_${selectedMethod.value}`] = 'Lỗi';
@@ -347,6 +352,7 @@ const calculateAllShippingFees = async () => {
     if (!districtId || !wardCode) {
       console.log(`Thiếu district_id hoặc ward_code cho shop ${shop.seller_id}, đang lấy từ API...`);
       const sellerAddress = await fetchSellerAddress(shop.seller_id);
+      console.log(`Địa chỉ shop ${shop.seller_id}:`, JSON.stringify(sellerAddress, null, 2));
       if (!sellerAddress || !sellerAddress.district_id || !sellerAddress.ward_code) {
         fees.value[`${shop.seller_id}_${selectedMethod.value}`] = 'Lỗi';
         errorMessage.value = `Không thể lấy thông tin địa chỉ cho ${shop.store_name || 'cửa hàng'}. Vui lòng kiểm tra thông tin cửa hàng.`;
@@ -376,6 +382,7 @@ const calculateAllShippingFees = async () => {
 
     const totalWeight = calculateTotalWeight(shop);
     const services = await fetchGHNServiceId(shop.seller_id, districtId, props.address.district_id);
+    console.log(`Dịch vụ vận chuyển cho shop ${shop.seller_id}:`, JSON.stringify(services, null, 2));
     if (!services || services.length === 0) {
       fees.value[`${shop.seller_id}_${selectedMethod.value}`] = 'Lỗi';
       errorMessage.value = `Không có dịch vụ vận chuyển khả dụng cho ${shop.store_name || 'cửa hàng'}.`;
@@ -391,7 +398,7 @@ const calculateAllShippingFees = async () => {
       return true;
     });
 
-    console.log(`Cập nhật shippingMethods cho seller ${shop.seller_id}:`, JSON.stringify(shippingMethods.value[shop.seller_id], null, 2));
+    console.log(`Dịch vụ vận chuyển đã lọc cho shop ${shop.seller_id}:`, JSON.stringify(shippingMethods.value[shop.seller_id], null, 2));
 
     if (shippingMethods.value[shop.seller_id].length === 0) {
       fees.value[`${shop.seller_id}_${selectedMethod.value}`] = 'Lỗi';
@@ -403,7 +410,7 @@ const calculateAllShippingFees = async () => {
 
     let success = false;
     for (const method of shippingMethods.value[shop.seller_id]) {
-      console.log(`Thử dịch vụ ${method.service_id} cho seller ${shop.seller_id}`);
+      console.log(`Thử dịch vụ ${method.service_id} cho shop ${shop.seller_id}`);
       const fee = await calculateShippingFee({
         ...shop,
         district_id: districtId,
@@ -416,26 +423,8 @@ const calculateAllShippingFees = async () => {
           emit('update:selectedMethod', method.service_id);
         }
         break;
-      } else if (method.service_id === 53321) {
-        // Thử dịch vụ khác nếu 53321 thất bại
-        console.log(`Dịch vụ 53321 thất bại cho seller ${shop.seller_id}, thử dịch vụ khác...`);
-        const alternativeMethod = shippingMethods.value[shop.seller_id].find(m => m.service_id !== 53321);
-        if (alternativeMethod) {
-          console.log(`Thử dịch vụ thay thế ${alternativeMethod.service_id} cho seller ${shop.seller_id}`);
-          const altFee = await calculateShippingFee({
-            ...shop,
-            district_id: districtId,
-            ward_code: wardCode,
-          }, alternativeMethod);
-          if (altFee !== null) {
-            success = true;
-            if (!selectedMethod.value) {
-              selectedMethod.value = alternativeMethod.service_id;
-              emit('update:selectedMethod', alternativeMethod.service_id);
-            }
-          }
-        }
       }
+      console.log(`Dịch vụ ${method.service_id} thất bại cho shop ${shop.seller_id}, thử dịch vụ khác...`);
     }
 
     if (!success) {
@@ -447,6 +436,8 @@ const calculateAllShippingFees = async () => {
     loadingFees.value[shop.seller_id] = false;
   }
 
+  console.log(`Fees sau khi tính toán:`, JSON.stringify(fees.value, null, 2));
+  await nextTick();
   const display = document.getElementById('shipping-fee-display');
   if (display) {
     const totalShippingFee = Object.values(fees.value)
