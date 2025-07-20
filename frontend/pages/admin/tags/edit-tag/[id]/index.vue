@@ -234,17 +234,14 @@ const fetchTag = async () => {
   }
 
   try {
-    console.log('Fetching tag with ID:', route.params.id);
-    const response = await secureFetch(`${apiBase}/tags/${route.params.id}` , {
+    const data = await secureFetch(`${apiBase}/tags/${route.params.id}` , {
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json'
       }
     }, ['admin']);
-    const data = await response.json();
-    console.log('tag API response:', data);
 
-    if (!response.ok) {
+    if (!data.tag && !data.data && !data) {
       throw new Error(`Có lỗi xảy ra khi lấy thông tin thẻ`, 'error' );
     }
 
@@ -325,13 +322,10 @@ const updateTag = async () => {
 
   try {
     loading.value = true;
-    console.log('Updating tag with ID:', route.params.id);
-    const response = await secureFetch(`${apiBase}/tags/${route.params.id}`, {
-      method: 'POST', // Use POST with _method=PATCH for method spoofing
+    const data = await secureFetch(`${apiBase}/tags/${route.params.id}`, {
+      method: 'POST',
       body: form
     } , ['admin']);
-    const data = await response.json();
-    console.log('Update API response:', data);
 
     if (data.success) {
       showNotificationMessage('Cập nhật thẻ thành công!' , 'success');
@@ -357,7 +351,6 @@ const updateTag = async () => {
 
 // Fetch data on mount
 onMounted(() => {
-  console.log('API Base URL:', apiBase);
   fetchTag();
 });
 </script>

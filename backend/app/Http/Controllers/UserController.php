@@ -36,47 +36,47 @@ class UserController extends Controller
         $users = User::select('id', 'name', 'email', 'role')->get();
         return response()->json($users);
     }
-   public function batchDelete(Request $request)
-{
-    $ids = $request->input('ids', []);
+    public function batchDelete(Request $request)
+    {
+        $ids = $request->input('ids', []);
 
-    if (empty($ids) || !is_array($ids)) {
-        return response()->json(['error' => 'Danh sách người dùng không hợp lệ.'], 400);
-    }
-
-    // Tìm các user là admin để chặn xoá
-    $adminUsers = User::whereIn('id', $ids)->where('role', 'admin')->pluck('id')->toArray();
-    if (!empty($adminUsers)) {
-        return response()->json([
-            'error' => 'Không thể xóa admin.',
-            'admin_ids' => $adminUsers
-        ], 403);
-    }
-
-    try {
-        User::whereIn('id', $ids)->delete();
-
-        Log::info('Batch deleted users successfully.', ['ids' => $ids]);
-
-        return response()->json(['success' => true]);
-    } catch (QueryException $e) {
-        Log::error('Batch delete failed due to DB constraint.', [
-            'error' => $e->getMessage(),
-            'code' => $e->getCode(),
-            'ids' => $ids,
-        ]);
-
-        if ($e->getCode() === '23000') {
-            return response()->json([
-                'error' => 'Không thể xoá vì có ràng buộc dữ liệu liên quan (ví dụ: đơn hàng hoặc địa chỉ).'
-            ], 409);
+        if (empty($ids) || !is_array($ids)) {
+            return response()->json(['error' => 'Danh sách người dùng không hợp lệ.'], 400);
         }
 
-        return response()->json([
-            'error' => 'Đã xảy ra lỗi khi xoá người dùng.'
-        ], 500);
+        // Tìm các user là admin để chặn xoá
+        $adminUsers = User::whereIn('id', $ids)->where('role', 'admin')->pluck('id')->toArray();
+        if (!empty($adminUsers)) {
+            return response()->json([
+                'error' => 'Không thể xóa admin.',
+                'admin_ids' => $adminUsers
+            ], 403);
+        }
+
+        try {
+            User::whereIn('id', $ids)->delete();
+
+            Log::info('Batch deleted users successfully.', ['ids' => $ids]);
+
+            return response()->json(['success' => true]);
+        } catch (QueryException $e) {
+            Log::error('Batch delete failed due to DB constraint.', [
+                'error' => $e->getMessage(),
+                'code' => $e->getCode(),
+                'ids' => $ids,
+            ]);
+
+            if ($e->getCode() === '23000') {
+                return response()->json([
+                    'error' => 'Không thể xoá vì có ràng buộc dữ liệu liên quan (ví dụ: đơn hàng hoặc địa chỉ).'
+                ], 409);
+            }
+
+            return response()->json([
+                'error' => 'Đã xảy ra lỗi khi xoá người dùng.'
+            ], 500);
+        }
     }
-}   
 
     public function sendWarningEmail(Request $request)
     {
@@ -290,8 +290,9 @@ class UserController extends Controller
             ]);
 
             return response()->json([
+                'success' => false,
+                'message' => 'Đã xảy ra lỗi khi tạo người dùng.',
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
             ], 500);
         }
     }
@@ -522,7 +523,12 @@ class UserController extends Controller
 
             Log::info('User deleted successfully', ['user_id' => $user->id]);
 
-            return response()->json(null, 204);
+            return response()->json(
+                [
+                    'success' => true,
+                    'message' => 'Xoá người dùng thành công.'
+                ]
+            );
         } catch (\Exception $e) {
             Log::error('Error in UserController::destroy', [
                 'error' => $e->getMessage(),

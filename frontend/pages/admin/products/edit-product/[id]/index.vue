@@ -658,15 +658,12 @@ const extractArray = (data, key) => {
 const fetchProduct = async () => {
   try {
     loading.value = true;
-    const response = await secureFetch(`${apiBase}/products/${route.params.id}`, {
+    const data = await secureFetch(`${apiBase}/products/${route.params.id}`, {
       headers: {
         Accept: 'application/json',
       }
     } , ['admin']);
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-    const data = await response.json();
+    if (!data.success) throw new Error(`HTTP error! status: ${data.status}`);
     const product = data.data || data.product || data;
 
     if (!product.id) {
@@ -734,13 +731,12 @@ const fetchProduct = async () => {
 // Fetch data with error handling
 const fetchCategories = async () => {
   try {
-    const response = await secureFetch(`${apiBase}/categories`, {
+    const data = await secureFetch(`${apiBase}/categories`, {
       headers: {
         Accept: 'application/json',
       }
     } , ['admin']);
-    if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    const data = await response.json();
+    if (!data.success) throw new Error(`HTTP error! status: ${data.status}`);
     const categoryArray = extractArray(data, 'data') || extractArray(data, 'categories');
     if (categoryArray.length) {
       categories.value = categoryArray.map(item => ({
@@ -759,13 +755,12 @@ const fetchCategories = async () => {
 
 const fetchTags = async () => {
   try {
-    const response = await secureFetch(`${apiBase}/tags`, {
+    const data = await secureFetch(`${apiBase}/tags`, {
       headers: {
         Accept: 'application/json',
       }
     } , ['admin']);
-    if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    const data = await response.json();
+    if (!data.success) throw new Error(`HTTP error! status: ${data.status}`);
     const tagArray = extractArray(data, 'tags');
     if (tagArray.length) {
       tags.value = tagArray.map(item => ({
@@ -784,13 +779,12 @@ const fetchTags = async () => {
 
 const fetchAttributes = async () => {
   try {
-    const response = await secureFetch(`${apiBase}/attributes`, {
+    const data = await secureFetch(`${apiBase}/attributes`, {
       headers: {
         Accept: 'application/json',
       }
     } , ['admin']);
-    if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    const data = await response.json();
+    if (!data.success) throw new Error(`HTTP error! status: ${data.status}`);
     const attributeArray = extractArray(data, 'data') || extractArray(data, 'attributes');
     if (attributeArray.length) {
       attributes.value = attributeArray.map(attr => ({
@@ -815,13 +809,12 @@ const fetchAttributes = async () => {
 
 const fetchSellers = async () => {
   try {
-    const response = await secureFetch(`${apiBase}/sellers/verified`, {
+    const data = await secureFetch(`${apiBase}/sellers/verified`, {
       headers: {
         Accept: 'application/json',
       }
     } , ['admin']);
-    if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    const data = await response.json();
+    if (!data.success) throw new Error(`HTTP error! status: ${data.status}`);
     const sellerArray = extractArray(data, 'sellers');
     if (sellerArray.length) {
       sellers.value = sellerArray.map(item => ({
@@ -873,7 +866,7 @@ const createAttribute = async () => {
 
   try {
     loading.value = true;
-    const response = await secureFetch(`${apiBase}/attributes`, {
+    const data = await secureFetch(`${apiBase}/attributes`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -882,8 +875,7 @@ const createAttribute = async () => {
       body: JSON.stringify(attributeData)
     } , ['admin']);
 
-    const data = await response.json();
-    if (response.ok && data.success) {
+    if ( data.success) {
       const newAttr = data.data || data;
       attributes.value.push({
         id: newAttr.id,
@@ -1263,16 +1255,15 @@ const updateProduct = async () => {
 
   try {
     loading.value = true;
-    const response = await secureFetch(`${apiBase}/products/${formData.id}`, {
+    const data = await secureFetch(`${apiBase}/products/${formData.id}`, {
       method: 'POST',
       body: formDataToSend,
       headers: {
         Accept: 'application/json',
       }
     } , ['admin']);
-    const data = await response.json();
 
-    if (response.ok && data.success) {
+    if (data.success) {
       showNotificationMessage('Cập nhật sản phẩm thành công!', 'success');
       setTimeout(() => router.push('/admin/products/list-product'), 1500);
     } else {
