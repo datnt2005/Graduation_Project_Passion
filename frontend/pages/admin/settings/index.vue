@@ -166,38 +166,27 @@
     </main>
   </div>
 </template>
-
 <script setup>
 import { ref, onMounted } from "vue";
 import { useToast } from "~/composables/useToast";
 const { toast } = useToast();
 const config = useRuntimeConfig();
 const API = config.public.apiBaseUrl;
-
+const token = localStorage.getItem("access_token");
 const settings = ref({});
 
-onMounted(async () => {
-  const fetchSettings = async (retries = 3) => {
-    for (let i = 0; i < retries; i++) {
-      console.log(`Attempt ${i + 1} to fetch settings...`);
+const fetchSettings = async (retries = 3) => {
+  for (let i = 0; i < retries; i++) {
+    try {
       const { data, error } = await useFetch(`${API}/settings`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Cache-Control": "no-cache"
+        },
         query: { t: Date.now() },
-        headers: { "Cache-Control": "no-cache" },
       });
 
-      console.log("API Response:", data.value, "Error:", error.value);
-
-      if (error.value) {
-        if (i === retries - 1) {
-          toast(
-            "error",
-            "Không thể tải dữ liệu cài đặt: " + error.value.message
-          );
-          return;
-        }
-        await new Promise((resolve) => setTimeout(resolve, 1000)); // Đợi 1 giây
-        continue;
-      }
+      if (error.value) throw error.value;
 
       if (
         data.value &&
@@ -206,20 +195,18 @@ onMounted(async () => {
       ) {
         settings.value = data.value;
         return;
+      }
+    } catch (error) {
+      if (i === retries - 1) {
+        toast("error", "Không thể tải cài đặt: " + error.message);
       } else {
-        if (i === retries - 1) {
-          toast(
-            "error",
-            "⚠️ API không trả về object như mong đợi:",
-            data.value
-          );
-        }
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     }
-  };
+  }
+};
 
-  await fetchSettings();
-});
+onMounted(fetchSettings);
 
 const updateSettings = async () => {
   const flatSettings = Object.values(settings.value)
@@ -227,30 +214,17 @@ const updateSettings = async () => {
     .map(({ key, value }) => ({ key, value }));
 
   try {
-    await $fetch(`${API}/settings`, {
-      method: "PUT",
+    await $fetch(`${API}/settings/update`, {
+      method: "POST",
       body: flatSettings,
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
     });
-    toast("success", "✅ Đã lưu thành công!");
-
-    // Refresh data after successful save
-    const { data, error } = await useFetch(`${API}/settings`);
-    if (error.value) {
-      toast("error", "❌ Lỗi khi lấy lại dữ liệu:", error.value);
-      return;
-    }
-    if (
-      data.value &&
-      typeof data.value === "object" &&
-      !Array.isArray(data.value)
-    ) {
-      settings.value = data.value;
-    } else {
-      toast("error", "⚠️ API không trả về object như mong đợi:", data.value);
-    }
+    toast("success", "Lưu cài đặt thành công!");
+    fetchSettings();
   } catch (err) {
-    toast("error", "❌ Lưu thất bại:", err);
-    toast("error", `❌ Lưu thất bại: ${err.message}`);
+    toast("error", "Không thể lưu cài đặt: " + err.message);
   }
 };
 
@@ -266,20 +240,22 @@ const handleFileUpload = async (e, setting) => {
     const result = await $fetch(`${API}/settings/upload`, {
       method: "POST",
       body: formData,
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
     });
-    if (result && result.path) {
+    if (result?.path) {
       setting.value = result.path;
     } else {
-      toast("error", "⚠️ Không nhận được đường dẫn từ API upload:", result);
+      toast("error", "Cập nhật file thất bại!");
     }
   } catch (err) {
-    toast("error", "❌ Upload file thất bại:", err);
+    toast("error", "Không thể cập nhật file: " + err.message);
   }
 };
 
 const getFileUrl = (path) => {
   const base =
-    config.public.r2BaseUrl ||
     config.public.mediaBaseUrl ||
     "http://localhost:8000/storage";
   return path ? `${base.replace(/\/$/, "")}/${path}` : "/default-logo.png";
@@ -287,7 +263,11 @@ const getFileUrl = (path) => {
 
 const downloadBackup = async () => {
   try {
-    const res = await $fetch(`${API}/settings/backup`);
+    const res = await $fetch(`${API}/settings/backup`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
     const blob = new Blob([JSON.stringify(res, null, 2)], {
       type: "application/json",
     });
@@ -297,7 +277,7 @@ const downloadBackup = async () => {
     link.download = "settings-backup.json";
     link.click();
   } catch (err) {
-    toast("error", "❌ Lỗi sao lưu:", err);
+    toast("error", "Lỗi khi tạo file backup: " + err.message);
   }
 };
 
@@ -312,11 +292,14 @@ const uploadRestore = async (e) => {
     await $fetch(`${API}/settings/restore`, {
       method: "POST",
       body: formData,
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
     });
-    toast("success", "✅ Đã phục hồi cài đặt! Trang sẽ tải lại...");
+    toast("success", "Cập nhật thành công!");
     location.reload();
   } catch (err) {
-    toast("error", "❌ Phục hồi thất bại:", err);
+    toast("error", "Lỗi khi cập nhật: " + err.message);
   }
 };
 

@@ -227,6 +227,7 @@ definePageMeta({
 const title = ref('')
 const description = ref('')
 const status = ref('active')
+const type = ref('banner')
 const image = ref(null)
 const preview = ref(null)
 const errorImage = ref('')
