@@ -15,25 +15,24 @@ foreach (glob(__DIR__.'/api/*.php') as $routeFile) {
 // use App\Http\Controllers\SellerFollowerController;
 
 // api chat user width seller
-use App\Http\Controllers\SettingController;
+// use App\Http\Controllers\SettingController;
 
-use App\Http\Controllers\ChatController;
 
-Route::get('/settings', [SettingController::class, 'index']);
-    Route::put('/settings', [SettingController::class, 'update']);
-    Route::post('/settings/upload', [SettingController::class, 'upload']);
-    Route::get('/settings/backup', [SettingController::class, 'backup']);
-    Route::post('/settings/restore', [SettingController::class, 'restore']);
+// Route::get('/settings', [SettingController::class, 'index']);
+//     Route::put('/settings', [SettingController::class, 'update']);
+//     Route::post('/settings/upload', [SettingController::class, 'upload']);
+//     Route::get('/settings/backup', [SettingController::class, 'backup']);
+//     Route::post('/settings/restore', [SettingController::class, 'restore']);
 
 // api chat user width seller
 // api chat user width seller
-Route::prefix('chat')->group(function () {
-    Route::post('/session', [ChatController::class, 'createSession']);
-    Route::get('/sessions', [ChatController::class, 'getSessions']);
-    Route::post('/message', [ChatController::class, 'sendMessage']);
-    Route::get('/messages/{sessionId}', [ChatController::class, 'getMessages']);
-    Route::post('/messages/{sessionId}/read', [ChatController::class, 'markAsRead']);
-});
+// Route::prefix('chat')->group(function () {
+//     Route::post('/session', [ChatController::class, 'createSession']);
+//     Route::get('/sessions', [ChatController::class, 'getSessions']);
+//     Route::post('/message', [ChatController::class, 'sendMessage']);
+//     Route::get('/messages/{sessionId}', [ChatController::class, 'getMessages']);
+//     Route::post('/messages/{sessionId}/read', [ChatController::class, 'markAsRead']);
+// });
 
 // // Category
 // Route::prefix('categories')->group(function () {
