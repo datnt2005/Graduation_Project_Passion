@@ -232,7 +232,7 @@ const formatPrice = (price) => {
 
 const calculateTotalWeight = (shop) => {
   const totalWeight = shop.items.reduce((sum, item) => {
-    const itemWeight = item.productVariant?.weight || 800; // Trọng lượng mặc định 800g
+    const itemWeight = item.productVariant?.weight || 500; // Trọng lượng mặc định 800g
     return sum + itemWeight * item.quantity;
   }, 0);
   console.log(`Total weight for shop ${shop.seller_id}: ${totalWeight}g`);
@@ -293,8 +293,8 @@ const calculateShippingFee = async (shop, method, retryCount = 0) => {
       to_district_id: props.address?.district_id || 0,
       to_ward_code: props.address?.ward_code || '',
       service_id: method.service_id,
-      weight: Math.max(totalWeight, 50),
-      height: shop.items.reduce((max, item) => Math.max(max, item.productVariant?.height || 50), 50),
+      weight: Math.max(totalWeight, 40),
+      height: shop.items.reduce((max, item) => Math.max(max, item.productVariant?.height || 40), 40),
       length: shop.items.reduce((max, item) => Math.max(max, item.productVariant?.length || 40), 40),
       width: shop.items.reduce((max, item) => Math.max(max, item.productVariant?.width || 30), 30),
     };
