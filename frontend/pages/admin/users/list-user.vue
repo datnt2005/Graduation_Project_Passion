@@ -232,8 +232,7 @@ const userToDelete = ref(null)
 const fetchUsers = async () => {
   loading.value = true
   try {
-    const res = await secureFetch(`${api}/users`, {}, ['admin'])
-    const json = await res.json()
+    const json = await secureFetch(`${api}/users`, {}, ['admin'])
     users.value = json.data.map(u => ({
       id: u.id,
       username: u.username || (u.email ? u.email.split('@')[0] : ''),
@@ -379,26 +378,24 @@ const handleConfirmAction = async () => {
 
   try {
     if (!userToDelete.value) {
-      const res = await secureFetch(`${api}/users/batch-delete`, {
+      const json = await secureFetch(`${api}/users/batch-delete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: selectedUsers.value }),
       }, ['admin'])
 
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error || 'Xoá người dùng thất bại.')
+      if (!json.success) throw new Error(json.status || 'Xoá người dùng thất bại.')
       
       notificationMessage.value = 'Đã xóa người dùng đã chọn.'
       selectedUsers.value = []
       selectAll.value = false
       selectedAction.value = ''
     } else {
-      const res = await secureFetch(`${api}/users/${userToDelete.value.id}`, {
+      const json = await secureFetch(`${api}/users/${userToDelete.value.id}`, {
         method: 'DELETE'
       }, ['admin'])
 
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error || 'Xoá người dùng thất bại.')
+      if (!json.success) throw new Error(json.status || 'Xoá người dùng thất bại.')
 
       notificationMessage.value = `Đã xoá người dùng "${userToDelete.value.username}".`
       userToDelete.value = null

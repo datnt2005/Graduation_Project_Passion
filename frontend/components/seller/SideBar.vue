@@ -80,11 +80,11 @@
           <ul v-show="productOpen" class="pl-11 mt-1 space-y-0.5 text-gray-300 text-[13px]">
             <li>
               <NuxtLink to="/seller/products/list-product" class="block py-1 hover:text-white rounded"
-                :class="route.path.startsWith('/seller/products') ? 'text-green-400 font-bold' : ''"
+                :class="route.path.startsWith('/seller/products/list-product') ? 'text-green-400 font-bold' : ''"
                 @click="$emit('close')">Tất cả sản phẩm</NuxtLink>
             </li>
             <li>
-              <NuxtLink to="/seller/products/create-product" class="block py-1 font-semibold text-white rounded"
+              <NuxtLink to="/seller/products/create-product" class="block py-1 hover:text-white rounded"
                 :class="route.path.startsWith('/seller/products/create-product') ? 'text-green-400 font-bold' : ''"
                 @click="$emit('close')">Thêm sản phẩm</NuxtLink>
             </li>
@@ -250,6 +250,8 @@ const productOpen = ref(false)
 const toggleProduct = () => productOpen.value = !productOpen.value
 const productActive = computed(() =>
   route.path.startsWith('/seller/products')
+  || route.path.startsWith('/seller/list-product')
+  || route.path.startsWith('/seller/create-product')
   || route.path.startsWith('/seller/attributes')
   || route.path.startsWith('/seller/categories')
   || route.path.startsWith('/seller/tags')

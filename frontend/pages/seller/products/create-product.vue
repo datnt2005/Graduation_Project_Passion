@@ -618,11 +618,10 @@ const extractArray = (data, key) => {
 // Fetch data with error handling
 const fetchCategories = async () => {
   try {
-    const response = await secureFetch(`${apiBase}/categories`, {
+    const data = await secureFetch(`${apiBase}/categories`, {
       headers: { Accept: 'application/json' }
     }, ['seller']);
-    if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    const data = await response.json();
+    if (!data.success) throw new Error(`HTTP error! status: ${data.status}`);
     const categoryArray = data?.data?.data || [];
     if (categoryArray.length) {
       categories.value = categoryArray.map(item => ({
@@ -640,11 +639,10 @@ const fetchCategories = async () => {
 
 const fetchTags = async () => {
   try {
-    const response = await secureFetch(`${apiBase}/tags`, {
+    const data = await secureFetch(`${apiBase}/tags`, {
       headers: { Accept: 'application/json' }
     }, ['seller']);
-    if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    const data = await response.json();
+    if (!data.success) throw new Error(`HTTP error! status: ${data.status}`);
     const tagArray = extractArray(data, 'tags');
     if (tagArray.length) {
       tags.value = tagArray.map(item => ({
@@ -662,11 +660,10 @@ const fetchTags = async () => {
 
 const fetchAttributes = async () => {
   try {
-    const response = await secureFetch(`${apiBase}/attributes`, {
+    const data = await secureFetch(`${apiBase}/attributes`, {
       headers: { Accept: 'application/json' }
     }, ['seller']);
-    if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    const data = await response.json();
+    if (!data.success) throw new Error(`HTTP error! status: ${data.status}`);
     const attributeArray = extractArray(data, 'data');
     if (attributeArray.length) {
       attributes.value = attributeArray.map(attr => ({
@@ -725,7 +722,7 @@ const createAttribute = async () => {
 
   try {
     loading.value = true;
-    const response = await secureFetch(`${apiBase}/attributes`, {
+    const data = await secureFetch(`${apiBase}/attributes`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -734,9 +731,7 @@ const createAttribute = async () => {
       body: JSON.stringify(attributeData)
     }, ['seller']);
 
-    const data = await response.json();
-
-    if (response.ok && data.success) {
+    if (data.success) {
       // Add new attribute to list
       const newAttr = data.data || data;
       attributes.value.push({
@@ -1084,16 +1079,14 @@ const createProduct = async () => {
     for (let [key, value] of formDataToSend.entries()) {
       console.log(`${key}: ${value instanceof File ? value.name : value}`);
     }
-    const response = await secureFetch(`${apiBase}/products`, {
+    const data = await secureFetch(`${apiBase}/products`, {
       method: 'POST',
       body: formDataToSend,
       headers: {
         Accept: 'application/json',
       }
     }, ['seller']);
-    const data = await response.json();
-
-    if (response.ok && data.success) {
+    if (data.success) {
       showNotificationMessage('Tạo sản phẩm thành công!', 'success');
       setTimeout(() => router.push('/seller/products/list-product'), 1500);
     } else {

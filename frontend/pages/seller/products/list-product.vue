@@ -442,25 +442,23 @@ const getStatusLabel = (status) => {
 // Fetch product counts (total, instock, trash)
 const fetchProductCounts = async () => {
   try {
-    const productsResponse = await secureFetch(`${apiBase}/products/sellers`, {
+    const productsData = await secureFetch(`${apiBase}/products/sellers`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
       }
     } , ['seller']);
-    const productsData = await productsResponse.json();
     const allProducts = productsData.data?.data || productsData.data || [];
     totalProducts.value = productsData.data?.total || allProducts.length || 0;
     inStockProducts.value = allProducts.filter(p => getStockStatus(p) === 'instock').length;
 
     // Fetch trashed products to get trash count
-    const trashResponse = await secureFetch(`${apiBase}/products/sellers/trash`, {
+    const trashData = await secureFetch(`${apiBase}/products/sellers/trash`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
       }
     } , ['seller']);
-    const trashData = await trashResponse.json();
     const trashProductsList = trashData.data?.data || trashData.data || [];
     trashProducts.value = trashData.data?.total || trashProductsList.length || 0;
   } catch (error) {
@@ -478,14 +476,13 @@ const fetchProducts = async (page = 1) => {
     const endpoint = filterTrash.value === 'trash'
       ? `${apiBase}/products/sellers/trash?page=${page}&per_page=${perPage}`
       : `${apiBase}/products/sellers?page=${page}&per_page=${perPage}`;
-    const response = await secureFetch(endpoint, {
+    const data = await secureFetch(endpoint, {
       method: 'GET',
       headers: { 
         'Content-Type': 'application/json',
       }
     } , ['seller']);
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-    const data = await response.json();
+    if (!data.success) throw new Error(`HTTP error! status: ${data.status}`);
     products.value = data.data?.data || data.data || data || [];
     lastPage.value = data.data?.last_page || 1;
     currentPage.value = data.data?.current_page || page;
@@ -583,7 +580,7 @@ const applyBulkAction = async () => {
       async () => {
         try {
           loading.value = true;
-          const deletePromises = selectedProducts.value.map(id =>
+          const responses = selectedProducts.value.map(id =>
             secureFetch(`${apiBase}/products/${id}`, {
               method: 'DELETE',
               headers: {
@@ -592,8 +589,7 @@ const applyBulkAction = async () => {
             } , ['seller'])
           );
 
-          const responses = await Promise.all(deletePromises);
-          const failed = responses.some(res => !res.ok);
+          const failed = responses.some(res => !res.success);
           if (failed) {
             showNotificationMessage('Có lỗi xảy ra khi xóa một số sản phẩm', 'error');
           } else {
@@ -615,7 +611,7 @@ const applyBulkAction = async () => {
     try {
       loading.value = true;
       const status = selectedAction.value === 'active' ? 'active' : selectedAction.value === 'inactive' ? 'inactive' : selectedAction.value === 'trash' ? 'trash' : 'active';
-      const updatePromises = selectedProducts.value.map(id =>
+      const responses = selectedProducts.value.map(id =>
         secureFetch(`${apiBase}/products/change-status/${id}`, {
           method: 'POST',
           headers: {
@@ -625,8 +621,7 @@ const applyBulkAction = async () => {
         } , ['seller'])
       );
 
-      const responses = await Promise.all(updatePromises);
-      const failed = responses.some(res => !res.ok);
+      const failed = responses.some(res => !res.success);
       if (failed) {
         showNotificationMessage('Có lỗi xảy ra khi cập nhật trạng thái một số sản phẩm', 'error');
       } else {
@@ -661,19 +656,15 @@ const moveToTrash = async (product) => {
     `Bạn có chắc chắn muốn chuyển sản phẩm "${product.name}" vào thùng rác?`,
     async () => {
       try {
-        const response = await secureFetch(`${apiBase}/products/change-status/${product.id}`, {
+        const data = await secureFetch(`${apiBase}/products/change-status/${product.id}`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status: 'trash' })
-        } , ['seller']);
-
-        if (response.ok) {
+        }, ['seller']);
+        if (data.success) {
           showNotificationMessage('Đã chuyển sản phẩm vào thùng rác!', 'success');
           await fetchProducts();
         } else {
-          const data = await response.json();
           showNotificationMessage(data.message || 'Có lỗi xảy ra khi chuyển vào thùng rác', 'error');
         }
       } catch (error) {
@@ -691,19 +682,15 @@ const restoreProduct = async (product) => {
     `Bạn có chắc chắn muốn khôi phục sản phẩm "${product.name}"?`,
     async () => {
       try {
-        const response = await secureFetch(`${apiBase}/products/change-status/${product.id}`, {
+        const data = await secureFetch(`${apiBase}/products/change-status/${product.id}`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status: 'active' })
-        } , ['seller']);
-
-        if (response.ok) {
+        }, ['seller']);
+        if (data.success) {
           showNotificationMessage('Khôi phục sản phẩm thành công!', 'success');
           await fetchProducts();
         } else {
-          const data = await response.json();
           showNotificationMessage(data.message || 'Có lỗi xảy ra khi khôi phục sản phẩm', 'error');
         }
       } catch (error) {
@@ -721,18 +708,14 @@ const confirmDelete = async (product) => {
     `Bạn có chắc chắn muốn xóa vĩnh viễn sản phẩm "${product.name}" không?`,
     async () => {
       try {
-        const response = await secureFetch(`${apiBase}/products/${product.id}`, {
+        const data = await secureFetch(`${apiBase}/products/${product.id}`, {
           method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-          }
-        } , ['seller']);
-
-        if (response.ok) {
+          headers: { 'Content-Type': 'application/json' }
+        }, ['seller']);
+        if (data.success) {
           showNotificationMessage('Xóa vĩnh viễn sản phẩm thành công!', 'success');
           await fetchProducts();
         } else {
-          const data = await response.json();
           showNotificationMessage(data.message || 'Có lỗi xảy ra khi xóa sản phẩm', 'error');
         }
       } catch (error) {
@@ -742,7 +725,6 @@ const confirmDelete = async (product) => {
     }
   );
 };
-
 // Format date
 const formatDate = (date) => {
   if (!date) return '–';

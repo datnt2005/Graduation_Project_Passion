@@ -275,13 +275,12 @@ const fetchTags = async (page = 1) => {
     loading.value = true;
     currentPage.value = page;
 
-    const response = await secureFetch(`${apiBase}/tags?page=${page}&per_page=${perPage}`, {
+    const result = await secureFetch(`${apiBase}/tags?page=${page}&per_page=${perPage}`, {
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json'
       }
     }, ['admin']);
-    const result = await response.json();
 
     // ✅ Kiểm tra đúng cấu trúc mới
     if (!result || !result.data || !Array.isArray(result.data.tags)) {
@@ -333,17 +332,12 @@ const applyBulkAction = async () => {
             } , ['admin'])
           );
 
-          const responses = await Promise.all(deletePromises);
-          const allSuccessful = responses.every(res => res.ok);
-          if (allSuccessful) {
+          await Promise.all(deletePromises);
             showNotificationMessage('Xóa các thẻ thành công!', 'success');
             selectedTags.value = [];
             selectAll.value = false;
             selectedAction.value = '';
             await fetchTags();
-          } else {
-            showNotificationMessage('Có lỗi xảy ra khi xóa một số thẻ', 'error');
-          }
         } catch (error) {
           console.error('Error deleting tags:', error);
           showNotificationMessage('Có lỗi xảy ra khi xóa thẻ', 'error');
@@ -367,18 +361,17 @@ const confirmDelete = async (tag) => {
     `Bạn có chắc chắn muốn xóa thẻ "${tag.name}" không?`,
     async () => {
       try {
-        const response = await secureFetch(`${apiBase}/tags/${tag.id}`, {
+        const data = await secureFetch(`${apiBase}/tags/${tag.id}`, {
           method: 'DELETE',
           headers: {
             'Content-Type': 'application/json'
           }
         } , ['admin']);
 
-        if (response.ok) {
+        if (data.success) {
           showNotificationMessage('Xóa thẻ thành công!', 'success');
           await fetchTags();
         } else {
-          const data = await response.json();
           showNotificationMessage(data.message || 'Có lỗi xảy ra khi xóa thẻ', 'error');
         }
       } catch (error) {

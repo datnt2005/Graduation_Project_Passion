@@ -405,11 +405,9 @@ const fetchAttributes = async (page = 1) => {
     loading.value = true;
     currentPage.value = page;
 
-    const response = await secureFetch(`${apiBase}/attributes?page=${page}&per_page=${perPage}`, {
+    const result = await secureFetch(`${apiBase}/attributes?page=${page}&per_page=${perPage}`, {
       headers: { Accept: 'application/json' }
     } , ['admin']);
-
-    const result = await response.json();
 
     if (!result || !result.data || !Array.isArray(result.data.data)) {
       throw new Error('Phản hồi API không hợp lệ');
@@ -462,17 +460,12 @@ const applyBulkAction = async () => {
             } , ['admin'])
           );
 
-          const responses = await Promise.all(deletePromises);
-          const allSuccessful = responses.every(res => res.ok);
-          if (allSuccessful) {
+          await Promise.all(deletePromises);
             showNotificationMessage('Xóa các thuộc tính thành công!', 'success');
             selectedAttributes.value = [];
             selectAll.value = false;
             selectedAction.value = '';
             await fetchAttributes();
-          } else {
-            showNotificationMessage('Có lỗi xảy ra khi xóa một số thuộc tính', 'error');
-          }
         } catch (error) {
           console.error('Error deleting attributes:', error);
           showNotificationMessage('Có lỗi xảy ra khi xóa thuộc tính', 'error');
@@ -496,7 +489,7 @@ const confirmDelete = async (attribute) => {
     `Bạn có chắc chắn muốn xóa thuộc tính "${attribute.name}" không?`,
     async () => {
       try {
-        const response = await secureFetch(`${apiBase}/attributes/${attribute.id}`, {
+        const data = await secureFetch(`${apiBase}/attributes/${attribute.id}`, {
           method: 'DELETE',
           headers: {
             'Content-Type': 'application/json',
@@ -504,11 +497,10 @@ const confirmDelete = async (attribute) => {
           }
         } , ['admin']);
 
-        if (response.ok) {
+        if (data.success) {
           showNotificationMessage('Xóa thuộc tính thành công!', 'success');
           await fetchAttributes();
         } else {
-          const data = await response.json();
           showNotificationMessage(data.message || 'Có lỗi xảy ra khi xóa thuộc tính', 'error');
         }
       } catch (error) {

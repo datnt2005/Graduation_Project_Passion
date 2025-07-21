@@ -415,13 +415,12 @@ const fetchCategories = async (page = 1) => {
     loading.value = true;
     currentPage.value = page;
 
-    const response = await secureFetch(`${apiBase}/categories?page=${page}&per_page=${perPage}`, {
+    const result = await secureFetch(`${apiBase}/categories?page=${page}&per_page=${perPage}`, {
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json'
       }
     }, ['admin']);
-    const result = await response.json();
 
     // ✅ Kiểm tra cấu trúc phản hồi hợp lệ
     if (!result || !result.data || !Array.isArray(result.data.data)) {
@@ -503,18 +502,17 @@ const confirmDelete = async (category) => {
     `Bạn có chắc chắn muốn xóa danh mục "${category.name}" không?`,
     async () => {
       try {
-        const response = await secureFetch(`${apiBase}/categories/${category.id}`, {
+        const data = await secureFetch(`${apiBase}/categories/${category.id}`, {
           method: 'DELETE',
           headers: {
             'Content-Type': 'application/json'
           }
         } , ['admin']);
 
-        if (response.ok) {
+        if (data.success) {
           showNotificationMessage('Xóa danh mục thành công!' , 'success');
           await fetchCategories();
         } else {
-          const data = await response.json(); 
           showNotificationMessage(data.message || 'Có lỗi xảy ra khi xóa danh mục' , 'error');
         }
       } catch (error) {

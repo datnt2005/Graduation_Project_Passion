@@ -257,16 +257,13 @@ const createAttribute = async () => {
 
   try {
     loading.value = true;
-    const response = await secureFetch(`${apiBase}/attributes`, {
+    const data = await secureFetch(`${apiBase}/attributes`, {
       method: 'POST',
       body: form,
       headers: {
         Accept: 'application/json'
       }
     } , ['admin']);
-
-    const data = await response.json();
-    console.log('API response:', data); // Debug log
 
     if (data.success) {
       showNotificationMessage('Tạo thuộc tính thành công!', 'success');
