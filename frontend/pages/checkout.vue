@@ -39,8 +39,9 @@
               </div>
               <!-- Shipping Selector -->
               <ShippingSelector ref="shippingRef" :address="selectedAddress"
-                v-model:selectedMethod="selectedShippingMethod" :cart-items="cartItems"
-                @update:shop-discount="handleShopDiscountUpdate" />
+  v-model:selectedMethod="selectedShippingMethod" :cart-items="cartItems"
+  @update:shop-discount="handleShopDiscountUpdate"
+  @update:totalShippingFee="totalShippingFee = $event" />
 
               <!-- Payment Methods -->
               <section class="bg-white rounded-[4px] p-5">
@@ -196,7 +197,7 @@
             <div class="lg:col-span-1 space-y-2">
               <!-- Address Selector -->
               <SelectedAddress :address="selectedAddress" :provinces="provinces" :districts="districts" :wards="wards"
-                @update:address="selectedAddress = $event" />
+                @update:address="updateSelectedAddress" />
 
               <!-- Discounts -->
               <section class="bg-white p-6 rounded-[4px] shadow-sm">
@@ -246,7 +247,7 @@
                   @click.self="showDiscountModal = false">
                   <div class="bg-white rounded-[8px] shadow-xl w-full max-w-2xl p-6 relative">
                     <div class="flex justify-between items-center mb-4 border-b pb-2">
-                      <h2 class="text-lg font-semibold text-gray-800">Chọn mã giảm giá</h2>
+                      <h3 class="text-lg font-semibold text-gray-800">Chọn mã giảm giá</h3>
                       <button @click="showDiscountModal = false" class="text-gray-500 hover:text-gray-700">
                         <i class="fas fa-times text-base"></i>
                       </button>
@@ -269,8 +270,7 @@
                     <div class="space-y-6 max-h-[450px] overflow-y-auto">
                       <div>
                         <h3 class="text-sm font-medium text-gray-700 mb-2">Mã giảm phí vận chuyển</h3>
-                        <div v-if="discountLoading" class="text-gray-500 text-sm italic mt-2">Đang tải mã giảm giá...
-                        </div>
+                        <div v-if="discountLoading" class="text-gray-500 text-sm italic mt-2">Đang tải mã giảm giá...</div>
                         <div v-else-if="uniqueShippingDiscounts.length" class="space-y-3">
                           <div v-for="discount in uniqueShippingDiscounts" :key="discount.id"
                             class="border border-gray-300 rounded-md p-4 hover:border-blue-500 transition duration-200"
@@ -304,14 +304,9 @@
                       </div>
                       <div>
                         <h3 class="text-sm font-medium text-gray-700 mb-2">Mã giảm giá sản phẩm</h3>
-                        <div v-if="discountLoading" class="text-gray-500 text-sm italic mt-2">Đang tải mã giảm giá...
-                        </div>
-                        <div
-                          v-else-if="publicDiscounts.filter(d => d.discount_type !== 'shipping_fee' && d.seller_id === null).length"
-                          class="space-y-3">
-                          <div
-                            v-for="discount in publicDiscounts.filter(d => d.discount_type !== 'shipping_fee' && d.seller_id === null)"
-                            :key="discount.id"
+                        <div v-if="discountLoading" class="text-gray-500 text-sm italic mt-2">Đang tải mã giảm giá...</div>
+                        <div v-else-if="publicDiscounts.filter(d => d.discount_type !== 'shipping_fee' && d.seller_id === null).length" class="space-y-3">
+                          <div v-for="discount in publicDiscounts.filter(d => d.discount_type !== 'shipping_fee' && d.seller_id === null)" :key="discount.id"
                             class="border border-gray-300 rounded-md p-4 hover:border-blue-500 transition duration-200"
                             :class="{ 'opacity-50': total < discount.min_order_value }">
                             <div class="flex justify-between items-center">
@@ -361,90 +356,75 @@
               </section>
 
               <!-- Order Summary -->
-<section class="bg-white rounded-lg p-5 text-sm text-gray-700 border border-gray-200 space-y-4">
-  <div class="flex justify-between items-center">
-    <h3 class="text-base font-semibold text-gray-900">Thông tin đơn hàng</h3>
-    <NuxtLink to="/cart" class="text-blue-600 text-sm font-medium hover:underline">Thay đổi</NuxtLink>
-  </div>
-  <div class="space-y-3">
-    <div class="text-sm">
-      {{ cartItems.length }} sản phẩm từ {{ shopCount }} cửa hàng.
-    </div>
-    <hr />
-    <div v-for="store in cartItems" :key="store.seller_id" class="bg-white rounded shadow p-4 mb-4">
-      <div class="font-semibold text-gray-800 mb-2">{{ store.store_name }}</div>
-      <div v-for="item in store.items" :key="item.id" class="flex items-center border-b last:border-b-0 py-2">
-        <img
-          :src="item.productVariant?.thumbnail ? mediaBaseUrl + item.productVariant.thumbnail : '/images/default-product.jpg'"
-          :alt="item.product?.name"
-          class="w-12 h-12 object-cover rounded mr-3"
-        />
-        <div class="flex-1">
-          <div class="font-semibold">{{ item.product?.name }}</div>
-          <div class="text-xs text-gray-500">
-            {{ item.productVariant?.attributes?.map(attr => attr.value).join(' - ') }}
-          </div>
-          <div class="text-xs text-gray-500">Số lượng: x{{ item.quantity }}</div>
-        </div>
-        <div class="font-semibold">{{ formatPrice(item.sale_price) }} đ</div>
-      </div>
-      <div class="space-y-2 mt-2">
-        <div class="flex justify-between">
-          <span class="text-sm">Tổng tiền hàng</span>
-          <span class="font-semibold">{{ formatPrice(store.store_total) }} đ</span>
-        </div>
-        <div v-if="store.discount > 0" class="flex justify-between">
-          <span class="text-sm">Giảm giá {{ store.store_name }}</span>
-          <span class="text-green-600">- {{ formatPrice(store.discount) }} đ</span>
-        </div>
-        <div class="flex justify-between">
-          <span class="text-sm">Phí vận chuyển</span>
-          <span class="font-semibold">{{ formatPrice(store.shipping_fee || 0) }} đ</span>
-        </div>
-        <div class="flex justify-end font-semibold">
-          <span>Tổng cộng: {{ formatPrice(store.store_total - (store.discount || 0) + (store.shipping_fee || 0)) }} đ</span>
-        </div>
-      </div>
-    </div>
-    <hr />
-    <div class="flex justify-between">
-      <span class="text-[14px]">Tổng tiền hàng</span>
-      <span class="text-[14px] text-gray-800">{{ formattedTotal }}</span>
-    </div>
-    <div class="flex justify-between">
-      <span class="text-[14px]">Tổng phí vận chuyển</span>
-      <span class="text-[14px] text-gray-800">{{ formatPrice(totalShippingFee) }}</span>
-    </div>
-    <div class="flex justify-between">
-      <span class="text-[14px]">Giảm giá phí ship</span>
-      <span class="text-green-600">- {{ formatPrice(totalShippingDiscount) }}</span>
-    </div>
-    <div v-if="calculateDiscount(total) > 0" class="flex justify-between">
-      <span class="text-[14px]">Giảm giá khuyến mãi</span>
-      <span class="text-green-600">- {{ formatPrice(calculateDiscount(total)) }}</span>
-    </div>
-    <div v-for="storeItem in shopsWithDiscount" :key="storeItem.seller_id" class="flex justify-between">
-      <span class="text-[14px]">Giảm giá {{ storeItem.store_name }}</span>
-      <span class="text-green-600">- {{ formatPrice(storeItem.discount) }}</span>
-    </div>
-    <div class="flex justify-between pt-3 border-t border-gray-200 text-base font-semibold">
-      <span class="text-[14px]">Tổng thanh toán</span>
-      <span class="text-[15px] text-lg">{{ formatPrice(realFinalTotal) }}</span>
-    </div>
-    <p class="text-xs text-gray-500 italic text-right mt-1 leading-snug">
-      (Giá đã bao gồm thuế GTGT, phí đóng gói, phí vận chuyển và chi phí phát sinh khác)
-    </p>
-  </div>
-  <div class="pt-2">
-    <button
-      @click="placeOrder"
-      class="w-full bg-red-500 text-white py-3 rounded-md font-bold text-base hover:bg-red-600 transition"
-      :disabled="!cartItems.length || loading || isAccountBanned"
-    >
-      Đặt hàng
-    </button>
-  </div>
-</section>
+              <section class="bg-white rounded-lg p-5 text-sm text-gray-700 border border-gray-200 space-y-4">
+                <div class="flex justify-between items-center">
+                  <h3 class="text-base font-semibold text-gray-900">Thông tin đơn hàng</h3>
+                  <NuxtLink to="/cart" class="text-blue-600 text-sm font-medium hover:underline">Thay đổi</NuxtLink>
+                </div>
+                <div class="flex items-center justify-between">
+                  <div class="text-sm">
+                    {{ cartItems.length }} sản phẩm từ {{ shopCount }} cửa hàng
+                  </div>
+                  <div class="cursor-pointer" @click="isOrderDetailsOpen = !isOrderDetailsOpen">
+                    <span class="ml-2 transform transition-transform" :class="{ 'rotate-180': isOrderDetailsOpen }">
+                      <i class="fas fa-chevron-down"></i>
+                    </span>
+                  </div>
+                </div>
+                <div v-if="isOrderDetailsOpen" class="space-y-3">
+                  <hr />
+                  <div v-for="store in cartItems" :key="store.seller_id" class="bg-white rounded shadow p-4 mb-4">
+                    <div class="font-semibold text-gray-800 mb-2">{{ store.store_name }}</div>
+                    <div v-for="item in store.items" :key="item.id" class="flex items-center py-2 border-b last:border-b-0">
+                      <span class="text-xs text-gray-500 w-12 text-center">{{ item.quantity }} x</span>
+                      <span v-if="item.productVariant?.attributes" class="text-xs text-gray-500 w-16 text-center">
+                        {{ item.productVariant.attributes.map(attr => attr.value).join(', ') }}
+                      </span>
+                      <span class="flex-1 font-semibold text-sm truncate">{{ item.product?.name }}</span>
+                      <span class="font-semibold w-24 text-right">{{ formatPrice(item.sale_price) }} đ</span>
+                    </div>
+                  </div>
+                </div>
+                <hr />
+                <div class="space-y-3">
+                  <div class="flex justify-between">
+                    <span class="text-[14px]">Tổng tiền hàng</span>
+                    <span class="text-[14px] text-gray-800">{{ formattedTotal }}</span>
+                  </div>
+                  <div class="flex justify-between">
+  <span class="text-[14px]">Tổng phí vận chuyển</span>
+  <span class="text-[14px] text-gray-800">{{ formatPrice(totalShippingFee) }} đ</span>
+</div>
+                  <div class="flex justify-between">
+                    <span class="text-[14px]">Giảm giá phí ship</span>
+                    <span class="text-green-600">- {{ formatPrice(totalShippingDiscount) }} đ</span>
+                  </div>
+                  <div v-if="calculateDiscount(total) > 0" class="flex justify-between">
+                    <span class="text-[14px]">Giảm giá khuyến mãi</span>
+                    <span class="text-green-600">- {{ formatPrice(calculateDiscount(total)) }} đ</span>
+                  </div>
+                  <div v-for="storeItem in shopsWithDiscount" :key="storeItem.seller_id" class="flex justify-between">
+                    <span class="text-[14px]">Giảm giá {{ storeItem.store_name }}</span>
+                    <span class="text-green-600">- {{ formatPrice(storeItem.discount) }} đ</span>
+                  </div>
+                  <div class="flex justify-between pt-3 border-t border-gray-200 text-base font-semibold">
+                    <span class="text-[14px]">Tổng thanh toán</span>
+                    <span class="text-[15px] text-lg">{{ formatPrice(realFinalTotal) }} đ</span>
+                  </div>
+                  <p class="text-xs text-gray-500 italic text-right mt-1 leading-snug">
+                    (Giá đã bao gồm thuế GTGT, phí đóng gói, phí vận chuyển và chi phí phát sinh khác)
+                  </p>
+                </div>
+                <div class="pt-2">
+                  <button
+                    @click="placeOrder"
+                    class="w-full bg-red-500 text-white py-3 rounded-md font-bold text-base hover:bg-red-600 transition"
+                    :disabled="!cartItems.length || loading || isAccountBanned"
+                  >
+                    Đặt hàng
+                  </button>
+                </div>
+              </section>
             </div>
           </div>
         </div>
@@ -454,7 +434,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch, computed } from 'vue';
+import { ref, onMounted, watch, computed, reactive } from 'vue';
 import { useRoute, useRuntimeConfig } from '#app';
 import axios from 'axios';
 import Swal from 'sweetalert2';
@@ -478,6 +458,7 @@ const manualCode = ref('');
 const showDiscountModal = ref(false);
 const requestInvoice = ref(false);
 const storeNotes = ref({});
+const isOrderDetailsOpen = ref(true); // Mặc định mở chi tiết đơn hàng
 
 const promotions = ref([
   {
@@ -524,14 +505,13 @@ const cardPromotions = ref([
     limit: 'Hạn sử dụng 30 ngày',
   },
 ]);
-
+const totalShippingFee = ref(0);
 const {
   cartItems,
   total,
   formattedTotal,
   finalTotal,
   formattedFinalTotal,
-  totalShippingFee, // Sử dụng totalShippingFee thay vì finalShippingFee
   formattedFinalShippingFee,
   loading,
   error,
@@ -560,7 +540,9 @@ const {
   getShopDiscount,
   isAccountBanned,
   checkCodEligibility,
-  loadShippingFees, // Thêm loadShippingFees
+  loadShippingFees,
+  fetchDefaultAddress,
+  calculateShippingFee,
 } = useCheckout(shippingRef, selectedShippingMethod, selectedAddress, storeNotes);
 
 const { fetchMyVouchers, fetchDiscounts: fetchPublicDiscounts, fetchSellerDiscounts, discounts: publicDiscounts } = useDiscount();
@@ -633,6 +615,16 @@ const loadWards = async (district_id) => {
   }
 };
 
+const updateSelectedAddress = async (newAddress) => {
+  console.log('Cập nhật địa chỉ:', JSON.stringify(newAddress, null, 2));
+  selectedAddress.value = newAddress;
+  if (newAddress && newAddress.province_id && newAddress.district_id) {
+    await loadDistricts(newAddress.province_id);
+    await loadWards(newAddress.district_id);
+    await loadShippingFees();
+  }
+};
+
 const loadSelectedAddress = async () => {
   try {
     await loadProvinces();
@@ -659,7 +651,6 @@ const loadSelectedAddress = async () => {
     }
 
     if (selectedAddress.value) {
-      // Đảm bảo gán đầy đủ các trường
       selectedAddress.value = {
         id: selectedAddress.value.id,
         user_id: selectedAddress.value.user_id,
@@ -667,18 +658,17 @@ const loadSelectedAddress = async () => {
         phone: selectedAddress.value.phone,
         province_id: selectedAddress.value.province_id,
         district_id: selectedAddress.value.district_id,
-        ward_code: selectedAddress.value.ward_code, // Hoặc ward_id tùy theo API GHN
+        ward_code: selectedAddress.value.ward_code,
         detail: selectedAddress.value.detail,
         is_default: selectedAddress.value.is_default,
         address_type: selectedAddress.value.address_type,
       };
       console.log('Địa chỉ đã chọn:', JSON.stringify(selectedAddress.value, null, 2));
-
       await loadDistricts(selectedAddress.value.province_id);
       await loadWards(selectedAddress.value.district_id);
       await loadShippingFees();
     } else {
-      toast('error', 'Không tìm thấy địa chỉ giao hàng phù hợp');
+      console.warn('Không tìm thấy địa chỉ giao hàng phù hợp');
     }
   } catch (err) {
     console.error('Lỗi khi tải địa chỉ:', err);
@@ -798,12 +788,15 @@ watch(discountError, (val) => {
   if (val) toast('error', val);
 });
 
-// Gọi loadShippingFees khi selectedAddress thay đổi
-watch(selectedAddress, async () => {
-  if (selectedAddress.value) {
-    await loadShippingFees();
-  }
-}, { deep: true });
+watch(selectedAddress, async (newAddress) => {
+    if (newAddress && newAddress.district_id && newAddress.ward_code) {
+      await loadShippingFees();
+    }
+  }, { deep: true });
+
+watch(cartItems, () => {
+    console.log('cartItems đã thay đổi, cập nhật totalShippingFee:', cartItems.value);
+  }, { deep: true });
 
 onMounted(async () => {
   try {
