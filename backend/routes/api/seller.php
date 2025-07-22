@@ -4,10 +4,10 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\SellerController;
 
 Route::prefix('sellers')->group(function () {
-// Đăng ký tài khoản seller — chỉ cho user đã đăng nhập
-Route::middleware(['auth:sanctum'])->prefix('register')->group(function () {
-    Route::post('/full', [SellerController::class, 'registerFull']);
-});
+    // Đăng ký tài khoản seller — chỉ cho user đã đăng nhập
+    Route::middleware(['auth:sanctum'])->prefix('register')->group(function () {
+        Route::post('/full', [SellerController::class, 'registerFull']);
+    });
 
     // 2. Seller và Admin có quyền xem/ cập nhật thông tin của chính mình
     Route::middleware(['auth:sanctum', 'checkRole:seller,admin'])->group(function () {
@@ -25,5 +25,6 @@ Route::middleware(['auth:sanctum'])->prefix('register')->group(function () {
     Route::get('/verified', [SellerController::class, 'getVerifiedSellers']);
 
     Route::get('/{seller_id}', [SellerController::class, 'show']);
-
 });
+
+    Route::get('/brands', [SellerController::class, 'getBrands']);
