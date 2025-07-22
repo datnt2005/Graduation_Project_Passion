@@ -9,7 +9,7 @@
     <!-- Header -->
     <div class="p-4 text-xl font-bold border-b border-gray-800">
       <span class="text-green-400 bg-gray-800 text-sm px-2 py-0.5 rounded">Live</span>
-      <span class="ml-2">Passion</span>
+      <NuxtLink to="/seller/dashboard" class="ml-2">Passion</NuxtLink>
     </div>
 
     <!-- Menu -->
@@ -25,7 +25,7 @@
               <path stroke-linecap="round" stroke-linejoin="round"
                 d="M3 12l2-2m0 0l7-7 7 7m-9 2v10m4-10h5.586a1 1 0 01.707 1.707l-9.586 9.586a1 1 0 01-1.414 0L3 13.414A1 1 0 013.586 12H9z" />
             </svg>
-            Dashboard
+            Thống kê
           </NuxtLink>
         </li>
 
@@ -34,8 +34,12 @@
           <button @click="toggleUser"
             class="flex items-center w-full px-4 py-2 text-white hover:bg-gray-800 rounded focus:outline-none"
             :class="userActive ? 'bg-gray-800 text-green-400 font-bold' : ''">
-            <font-awesome-icon class="w-4 h-4 mr-3" :icon="['fas', 'users']" />
-            <span class="flex-1 text-left">Quản Lí Hồ Sơ</span>
+            <svg class="w-4 h-4 mr-3 text-gray-400" fill="none" stroke="currentColor" stroke-width="2"
+              viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+            <span class="flex-1 text-left">Quản lý hồ sơ</span>
             <font-awesome-icon :icon="['fas', userOpen ? 'angle-down' : 'angle-right']" class="w-3 h-3" />
           </button>
           <transition name="slide-fade">
@@ -44,7 +48,11 @@
                 <NuxtLink to="/seller/seller_profile" class="flex items-center px-4 py-2 hover:bg-gray-800 rounded"
                   :class="route.path.startsWith('/seller/users') ? 'bg-gray-800 text-green-400 font-bold' : 'text-gray-300'"
                   @click="$emit('close')">
-                  <font-awesome-icon class="w-4 h-4 mr-2" :icon="['fas', 'user']" />
+                  <svg class="w-4 h-4 mr-3 text-gray-400" fill="none" stroke="currentColor" stroke-width="2"
+                    viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
                   Cá nhân
                 </NuxtLink>
               </li>
@@ -54,13 +62,18 @@
 
         <!-- người dùng đã mua hàng... -->
         <li class="pt-2 border-t border-gray-800">
-          <NuxtLink to="/seller/CustomerList" class="flex items-center px-4 py-2 hover:bg-gray-800 gap-3 rounded"
-            :class="route.path.startsWith('/seller/CustomerList') ? 'bg-gray-800 text-green-400 font-bold' : 'text-white'"
-            @click="$emit('close')">
-            <font-awesome-icon class="w-4 h-4" :icon="['fas', 'user']" />
-            Người dùng
+          <NuxtLink to="/seller/CustomerList"
+            class="flex items-center px-4 py-2 gap-3 rounded hover:bg-gray-800 transition" :class="route.path.startsWith('/seller/CustomerList')
+              ? 'bg-gray-800 text-green-400 font-bold'
+              : 'text-white'" @click="$emit('close')">
+            <svg class="w-4 h-4  text-gray-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-5-4m-4 6v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2h5
+           m4-10a4 4 0 110-8 4 4 0 010 8zm6 0a3 3 0 100-6 3 3 0 000 6z" />
+            </svg>
+            <span>Người dùng</span>
           </NuxtLink>
         </li>
+
 
         <!-- Sản phẩm (Dropdown) -->
         <li class="pt-2 border-t border-gray-800">
@@ -90,8 +103,9 @@
             </li>
             <li>
               <NuxtLink to="/seller/inventory/inventory" class="block py-1 hover:text-white rounded"
-                :class="route.path.startsWith('/seller/inventory') ? 'text-green-400 font-bold' : ''" @click="$emit('close')">
-               Quản lý kho</NuxtLink>
+                :class="route.path.startsWith('/seller/inventory') ? 'text-green-400 font-bold' : ''"
+                @click="$emit('close')">
+                Quản lý kho</NuxtLink>
             </li>
           </ul>
         </li>
@@ -134,12 +148,13 @@
             Chiết khấu
           </NuxtLink>
         </li>
-                 <!-- Đánh giá (Dropdown) -->
+        <!-- Đánh giá (Dropdown) -->
         <li class="pt-2 border-t border-gray-800">
           <button @click="toggleReview"
             class="flex items-center w-full px-4 py-2 hover:bg-gray-800 focus:outline-none rounded"
             :class="reviewActive ? 'bg-gray-800 text-green-400 font-bold' : ''">
-            <svg class="w-4 h-4 mr-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <svg class="w-4 h-4 mr-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+              stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round"
                 d="M12 9v3m0 0v3m0-3h3m-3 0H9m6.364-7.636a9 9 0 11-12.728 12.728A9 9 0 0118.364 4.364z" />
             </svg>
@@ -166,17 +181,6 @@
             </li>
           </ul>
         </li>
-        <!-- Bài viết -->
-        <li class="pt-2 border-t border-gray-800">
-          <NuxtLink to="#" class="flex items-center px-4 py-2 hover:bg-gray-800 gap-3 rounded" @click="$emit('close')">
-            <svg class="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
-            Bài viết
-          </NuxtLink>
-        </li>
-
         <!-- Thông báo (Dropdown) -->
         <li class="pt-2 border-t border-gray-800">
           <button @click="toggleNotification"
@@ -207,11 +211,16 @@
           </ul>
         </li>
 
-        <!-- Cài đặt -->
+        <!-- Quay về trang chủ -->
         <li>
-          <NuxtLink to="/seller/settings/list-paymentMethod" class="flex items-center px-4 py-2 hover:bg-gray-800 gap-3" @click="$emit('close')">
-            <font-awesome-icon :icon="['fas', 'gear']" class="text-gray-400 w-4 h-4" />
-            Cài đặt
+          <NuxtLink to="/" class="flex items-center px-4 py-2 hover:bg-gray-800 rounded"
+            :class="route.path === '/' ? 'bg-gray-800 text-green-400 font-bold' : 'text-white'">
+            <svg class="w-4 h-4 mr-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+              stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+            </svg>
+            Trở về trang chủ
           </NuxtLink>
         </li>
       </ul>

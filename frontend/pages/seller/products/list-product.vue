@@ -621,7 +621,7 @@ const applyBulkAction = async () => {
         } , ['seller'])
       );
 
-      const failed = responses.some(res => !res.success);
+      const failed = responses.some(res => res.success === false);
       if (failed) {
         showNotificationMessage('Có lỗi xảy ra khi cập nhật trạng thái một số sản phẩm', 'error');
       } else {

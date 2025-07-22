@@ -1,12 +1,12 @@
 <template>
   <div class="flex min-h-screen bg-gray-100">
     <main class="flex-1 p-6 bg-gray-100">
-      <h1 class="text-xl font-semibold text-gray-800 px-6 pt-6">Thêm Banner mới</h1>
+      <h1 class="text-xl font-semibold text-gray-800 px-6 pt-6">Thêm ảnh quảng cáo mới</h1>
       <div class="px-6 pb-4">
         <NuxtLink to="/admin/banners/list-banner" class="text-gray-600 hover:underline text-sm">
-          Danh sách banner
+          Danh sách ảnh quảng cáo
         </NuxtLink>
-        <span class="text-gray-600 text-sm"> / Thêm banner</span>
+        <span class="text-gray-600 text-sm"> / Thêm ảnh quảng cáo</span>
       </div>
       <div class="max-w-[900px] mx-auto">
         <form @submit.prevent="submitBanner">
@@ -44,7 +44,7 @@
                 </div>
                 <div class="mb-4">
                   <label class="block font-medium mb-1">Loại banner</label>
-                  <select v-model="type" class="form-input">
+                  <select v-model="type" class="form-input w-full border border-gray-300 rounded px-3 py-2">
                     <option value="banner">Banner thường</option>
                     <option value="popup">Popup (hiện popup trang chủ)</option>
                   </select>
