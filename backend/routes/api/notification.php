@@ -41,4 +41,7 @@ Route::prefix('admin/notifications')
         Route::post('/mark-all-read', [NotificationController::class, 'markAllAsRead']);
         Route::post('/delete-multiple', [NotificationController::class, 'deleteMultiple']);
         Route::delete('/delete-all', [NotificationController::class, 'deleteAll']);
+
+        Route::get('/system', [NotificationController::class, 'adminIndex']);
+        Route::get('/system/{id}', [NotificationController::class, 'adminShow']);
     });

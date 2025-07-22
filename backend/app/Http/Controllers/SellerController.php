@@ -447,7 +447,7 @@ public function update(Request $request)
 public function getVerifiedSellers()
 {
     $sellers = Seller::where('verification_status', 'verified')
-        ->select('id', 'store_name', 'store_slug') 
+        ->select('id', 'store_name', 'store_slug')
         ->get();
 
     return response()->json([
@@ -625,109 +625,105 @@ public function getVerifiedSellers()
             ]);
             return response()->json(['errors' => ['api' => ['Lỗi khi kiểm tra địa chỉ với GHN: ' . $e->getMessage()]]], 500);
         }
+try {
+    // Tạo thông báo và xử lý trong transaction
+    $seller = DB::transaction(function () use ($request, $user, $data) {
+        $notification = Notification::create([
+            'title' => 'Yêu cầu đăng ký người bán mới',
+            'content' => "Người dùng {$user->name} ({$user->email}) đã gửi yêu cầu đăng ký với tên cửa hàng: {$request->store_name}.",
+            'user_id' => $user->id,
+            'from_role' => 'system',
+            'to_roles' => json_encode(['admin']),
+            'channels' => json_encode(['email', 'dashboard']),
+            'status' => 'sent',
+            'type' => 'message',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
-        try {
-            // tạo thông báo
-         $seller = DB::transaction(function () use ($request, $user, $data) {
-                // Tạo thông báo trước
-                $notification = Notification::create([
-                    'title' => 'Yêu cầu đăng ký người bán mới',
-                    'content' => "Người dùng {$user->name} ({$user->email}) đã gửi yêu cầu đăng ký với tên cửa hàng: {$request->store_name}.",
-                    'user_id' => $user->id,
-                    'from_role' => 'system',
-                    'to_roles' => json_encode(['admin']),
-                    'channels' => json_encode(['email', 'dashboard']),
-                    'type' => 'seller_registration',
-                    'status' => 'pending',
-                ]);
+        // Tạo slug
+        $slug = Str::slug($request->store_name) . '-' . Str::random(4) . '-' . uniqid();
 
-            // Tạo slug
-            $slug = Str::slug($request->store_name) . '-' . Str::random(4) . '-' . uniqid();
+        // Lưu ảnh và file
+        $idCardFrontPath = null;
+        $idCardBackPath = null;
+        $identityCardFilePath = null;
 
-            // Lưu ảnh và file
-            $idCardFrontPath = null;
-            $idCardBackPath = null;
-            $identityCardFilePath = null;
-
-            if ($request->hasFile('id_card_front_url')) {
-                try {
-                    $idCardFrontPath = $request->file('id_card_front_url')->store('seller-documents/cccd-front', 'r2');
-                    Log::info('Uploaded id_card_front_url: ', ['path' => $idCardFrontPath]);
-                } catch (\Exception $e) {
-                    Log::error('Error uploading id_card_front_url: ', ['error' => $e->getMessage()]);
-                    return response()->json(['errors' => ['id_card_front_url' => ['Lỗi khi tải lên ảnh mặt trước CCCD: ' . $e->getMessage()]]], 500);
-                }
+        if ($request->hasFile('id_card_front_url')) {
+            try {
+                $idCardFrontPath = $request->file('id_card_front_url')->store('seller-documents/cccd-front', 'r2');
+                Log::info('Uploaded id_card_front_url: ', ['path' => $idCardFrontPath]);
+            } catch (\Exception $e) {
+                Log::error('Error uploading id_card_front_url: ', ['error' => $e->getMessage()]);
+                throw new \Exception('Lỗi khi tải lên ảnh mặt trước CCCD: ' . $e->getMessage());
             }
-
-            if ($request->hasFile('id_card_back_url')) {
-                try {
-                    $idCardBackPath = $request->file('id_card_back_url')->store('seller-documents/cccd-back', 'r2');
-                    Log::info('Uploaded id_card_back_url: ', ['path' => $idCardBackPath]);
-                } catch (\Exception $e) {
-                    Log::error('Error uploading id_card_back_url: ', ['error' => $e->getMessage()]);
-                    return response()->json(['errors' => ['id_card_back_url' => ['Lỗi khi tải lên ảnh mặt sau CCCD: ' . $e->getMessage()]]], 500);
-                }
-            }
-
-            if ($request->hasFile('identity_card_file')) {
-                try {
-                    $identityCardFilePath = $request->file('identity_card_file')->store('seller-documents/business-proof', 'r2');
-                    Log::info('Uploaded identity_card_file: ', ['path' => $identityCardFilePath]);
-                } catch (\Exception $e) {
-                    Log::error('Error uploading identity_card_file: ', ['error' => $e->getMessage()]);
-                    return response()->json(['errors' => ['identity_card_file' => ['Lỗi khi tải lên giấy tờ xác minh: ' . $e->getMessage()]]], 500);
-                }
-            }
-
-            // Log dữ liệu trước khi lưu vào database
-            $sellerData = [
-                'user_id' => $user->id,
-                'store_name' => $request->store_name,
-                'store_slug' => $slug,
-                'phone_number' => $request->phone_number,
-                'province_id' => $data['province_id'], // Số nguyên
-                'district_id' => $data['district_id'], // Số nguyên
-                'ward_id' => $request->ward_id, // Chuỗi
-                'address' => $request->address,
-                'shipping_options' => $request->shipping_options,
-                'seller_type' => $request->seller_type,
-                'tax_code' => $request->tax_code,
-                'business_name' => $request->business_name,
-                'business_email' => $request->business_email,
-                'identity_card_number' => $request->identity_card_number,
-                'date_of_birth' => $request->date_of_birth,
-                'personal_address' => $request->personal_address,
-                'id_card_front_url' => $idCardFrontPath,
-                'id_card_back_url' => $idCardBackPath,
-                'identity_card_file' => $identityCardFilePath,
-                'verification_status' => 'pending',
-            ];
-            Log::info('Data to save in sellers table:', ['sellerData' => $sellerData]);
-
-            // Tạo hoặc cập nhật seller
-            $seller = Seller::updateOrCreate(
-                ['user_id' => $user->id],
-                $sellerData
-            );
-
-            Log::info('Seller registered successfully: ', ['seller_id' => $seller->id, 'user_id' => $user->id]);
-
-            return response()->json([
-                'message' => 'Đã hoàn tất đăng ký người bán.',
-                'data' => [
-                    'seller_id' => $seller->id,
-                ],
-            ], 201);
-        } catch (\Exception $e) {
-            Log::error('Error in registerFull: ', [
-                'error' => $e->getMessage(),
-                'request_data' => $data,
-                'trace' => $e->getTraceAsString(),
-            ]);
-            return response()->json([
-                'message' => 'Lỗi khi đăng ký người bán: ' . $e->getMessage(),
-            ], 500);
         }
+
+        if ($request->hasFile('id_card_back_url')) {
+            try {
+                $idCardBackPath = $request->file('id_card_back_url')->store('seller-documents/cccd-back', 'r2');
+                Log::info('Uploaded id_card_back_url: ', ['path' => $idCardBackPath]);
+            } catch (\Exception $e) {
+                Log::error('Error uploading id_card_back_url: ', ['error' => $e->getMessage()]);
+                throw new \Exception('Lỗi khi tải lên ảnh mặt sau CCCD: ' . $e->getMessage());
+            }
+        }
+
+        if ($request->hasFile('identity_card_file')) {
+            try {
+                $identityCardFilePath = $request->file('identity_card_file')->store('seller-documents/business-proof', 'r2');
+                Log::info('Uploaded identity_card_file: ', ['path' => $identityCardFilePath]);
+            } catch (\Exception $e) {
+                Log::error('Error uploading identity_card_file: ', ['error' => $e->getMessage()]);
+                throw new \Exception('Lỗi khi tải lên giấy tờ xác minh: ' . $e->getMessage());
+            }
+        }
+
+        // Log dữ liệu trước khi lưu vào database
+        $sellerData = [
+            'user_id' => $user->id,
+            'store_name' => $request->store_name,
+            'store_slug' => $slug,
+            'phone_number' => $request->phone_number,
+            'province_id' => $data['province_id'],
+            'district_id' => $data['district_id'],
+            'ward_id' => $request->ward_id,
+            'address' => $request->address,
+            'shipping_options' => $request->shipping_options,
+            'seller_type' => $request->seller_type,
+            'tax_code' => $request->tax_code,
+            'business_name' => $request->business_name,
+            'business_email' => $request->business_email,
+            'identity_card_number' => $request->identity_card_number,
+            'date_of_birth' => $request->date_of_birth,
+            'personal_address' => $request->personal_address,
+            'id_card_front_url' => $idCardFrontPath,
+            'id_card_back_url' => $idCardBackPath,
+            'identity_card_file' => $identityCardFilePath,
+            'verification_status' => 'pending',
+        ];
+        Log::info('Data to save in sellers table:', ['sellerData' => $sellerData]);
+
+        // Tạo hoặc cập nhật seller
+        $seller = Seller::updateOrCreate(['user_id' => $user->id], $sellerData);
+
+        Log::info('Seller registered successfully: ', ['seller_id' => $seller->id, 'user_id' => $user->id]);
+
+        // Trả về seller từ transaction
+        return $seller;
+    });
+    return response()->json([
+        'message' => 'Đã hoàn tất đăng ký người bán.',
+        'data' => ['seller_id' => $seller->id],
+    ], 201);
+} catch (\Exception $e) {
+    Log::error('Error in registerFull: ', [
+        'error' => $e->getMessage(),
+        'request_data' => $data,
+        'trace' => $e->getTraceAsString(),
+    ]);
+    return response()->json(['message' => 'Lỗi khi đăng ký người bán: ' . $e->getMessage()], 500);
+}
     }
 
     public function getDiscounts(Request $request, $slug)

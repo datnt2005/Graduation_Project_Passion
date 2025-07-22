@@ -13,16 +13,16 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('chat_sessions', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('user_id');
-            $table->unsignedBigInteger('seller_id');
-            $table->dateTime('last_message_at')->nullable();
-            $table->timestamps();
+        // Schema::create('chat_sessions', function (Blueprint $table) {
+        //     $table->id();
+        //     $table->unsignedBigInteger('user_id');
+        //     $table->unsignedBigInteger('seller_id');
+        //     $table->dateTime('last_message_at')->nullable();
+        //     $table->timestamps();
 
-            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
-            $table->foreign('seller_id')->references('id')->on('sellers')->onDelete('cascade');
-        });
+        //     $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+        //     $table->foreign('seller_id')->references('id')->on('sellers')->onDelete('cascade');
+        // });
     }
 
     /**
