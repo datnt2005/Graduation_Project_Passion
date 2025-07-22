@@ -18,7 +18,7 @@ Route::get('/{slug}/products', [TagController::class, 'productsBySlug']);
 
 });
 
-    //Admin: các route yêu cầu đăng nhập 
+    //Admin: các route yêu cầu đăng nhập
     Route::middleware('auth:sanctum')->group(function () {
         //  Admin đều có thể gọi
         Route::middleware('checkRole:admin')->group(function () {
@@ -28,4 +28,4 @@ Route::get('/{slug}/products', [TagController::class, 'productsBySlug']);
             Route::delete('/{id}', [TagController::class, 'destroy']);
         });
     });
-});
+

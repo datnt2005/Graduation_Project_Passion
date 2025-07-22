@@ -83,38 +83,38 @@ class ReturnController extends Controller
     }
 
     // ADMIN duyệt hoặc từ chối
-  public function update(Request $request, ReturnRequest $returnRequest)
-{
-    $user = $request->user();
+    public function update(Request $request, ReturnRequest $returnRequest)
+    {
+        $user = $request->user();
 
-    if (!$user->is_admin) {
-        if (
-            $user->role !== 'seller' ||
-            $returnRequest->orderItem->product->seller_id !== $user->id
-        ) {
-            return response()->json(['message' => 'Không có quyền duyệt yêu cầu này'], 403);
+        if (!$user->is_admin) {
+            if (
+                $user->role !== 'seller' ||
+                $returnRequest->orderItem->product->seller_id !== $user->id
+            ) {
+                return response()->json(['message' => 'Không có quyền duyệt yêu cầu này'], 403);
+            }
         }
+
+        $request->validate([
+            'status' => 'required|in:approved,rejected',
+            'admin_note' => 'nullable|string',
+            'refund_amount' => 'nullable|numeric'
+        ]);
+
+        $returnRequest->status = $request->status;
+        $returnRequest->admin_note = $request->admin_note;
+        if ($request->has('refund_amount')) {
+            $returnRequest->refund_amount = $request->refund_amount;
+        }
+
+        $returnRequest->save();
+
+        // Gửi email thông báo
+        Mail::to($returnRequest->user->email)->send(new ReturnRequestStatusUpdatedMail($returnRequest));
+
+        return response()->json(['message' => 'Cập nhật thành công và đã gửi email thông báo']);
     }
-
-    $request->validate([
-        'status' => 'required|in:approved,rejected',
-        'admin_note' => 'nullable|string',
-        'refund_amount' => 'nullable|numeric'
-    ]);
-
-    $returnRequest->status = $request->status;
-    $returnRequest->admin_note = $request->admin_note;
-    if ($request->has('refund_amount')) {
-        $returnRequest->refund_amount = $request->refund_amount;
-    }
-
-    $returnRequest->save();
-
-    // Gửi email thông báo
-    Mail::to($returnRequest->user->email)->send(new ReturnRequestStatusUpdatedMail($returnRequest));
-
-    return response()->json(['message' => 'Cập nhật thành công và đã gửi email thông báo']);
-}
 
 
     // ADMIN: danh sách yêu cầu
@@ -149,22 +149,22 @@ class ReturnController extends Controller
 
         return response()->json($returns);
     }
-public function check(Request $request, $orderItemId)
-{
-    $user = $request->user();
+    public function check(Request $request, $orderItemId)
+    {
+        $user = $request->user();
 
-    $item = OrderItem::with('order')->find($orderItemId);
-    if (!$item || $item->order->user_id !== $user->id) {
-        return response()->json(['message' => 'Không hợp lệ'], 403);
+        $item = OrderItem::with('order')->find($orderItemId);
+        if (!$item || $item->order->user_id !== $user->id) {
+            return response()->json(['message' => 'Không hợp lệ'], 403);
+        }
+
+        $requestData = ReturnRequest::where('order_item_id', $orderItemId)->first();
+
+        return response()->json([
+            'exists' => !!$requestData,
+            'status' => $requestData?->status,
+        ]);
     }
-
-    $requestData = ReturnRequest::where('order_item_id', $orderItemId)->first();
-
-    return response()->json([
-        'exists' => !!$requestData,
-        'status' => $requestData?->status,  
-    ]);
-}
 
 
 }

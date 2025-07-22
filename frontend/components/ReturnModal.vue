@@ -254,6 +254,7 @@ function formatPrice(price) {
 }
 
 function resolveImage(path) {
+  if (!path) return 'https://pub-3fc809b4396849cba1c342a5b9f50be9.r2.dev/return-requests/jMjTzdrhP2wEO3XaM0bbCYDqmBEGlw8rblAwL5H3.webp'
   return `https://pub-3fc809b4396849cba1c342a5b9f50be9.r2.dev/${path}`
 }
 

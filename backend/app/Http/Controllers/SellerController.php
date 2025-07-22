@@ -9,12 +9,13 @@ use App\Models\Discount;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Http; 
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Storage;
 use Google\Cloud\Vision\V1\ImageAnnotatorClient;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Models\Notification;
 
 class SellerController extends Controller
 {
@@ -622,6 +623,20 @@ public function update(Request $request)
         }
 
         try {
+            // tạo thông báo
+         $seller = DB::transaction(function () use ($request, $user, $data) {
+                // Tạo thông báo trước
+                $notification = Notification::create([
+                    'title' => 'Yêu cầu đăng ký người bán mới',
+                    'content' => "Người dùng {$user->name} ({$user->email}) đã gửi yêu cầu đăng ký với tên cửa hàng: {$request->store_name}.",
+                    'user_id' => $user->id,
+                    'from_role' => 'system',
+                    'to_roles' => json_encode(['admin']),
+                    'channels' => json_encode(['email', 'dashboard']),
+                    'type' => 'seller_registration',
+                    'status' => 'pending',
+                ]);
+
             // Tạo slug
             $slug = Str::slug($request->store_name) . '-' . Str::random(4) . '-' . uniqid();
 
