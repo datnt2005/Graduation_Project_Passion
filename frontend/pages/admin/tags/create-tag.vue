@@ -270,12 +270,10 @@ const createTag = async () => {
 
   try {
     loading.value = true;
-    const response = await secureFetch(`${apiBase}/tags`, {
+    const data = await secureFetch(`${apiBase}/tags`, {
       method: 'POST',
       body: form
     } , ['admin']);
-
-    const data = await response.json();
 
     if (data.success) {
       showNotificationMessage('Tạo thẻ thành công!' , 'success');
@@ -287,6 +285,7 @@ const createTag = async () => {
         Object.keys(data.errors).forEach(key => {
           errors[key] = data.errors[key][0];
         });
+        showNotificationMessage('Có lỗi xảy ra khi tạo thẻ' , 'error');
       } else {
         showNotificationMessage(data.message || 'Có lỗi xảy ra khi tạo thẻ' , 'error');
       }

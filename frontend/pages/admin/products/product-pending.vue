@@ -359,6 +359,7 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import Pagination from '~/components/Pagination.vue';
+import { secureFetch } from '@/utils/secureFetch'
 
 definePageMeta({
   layout: 'default-admin'
@@ -410,21 +411,19 @@ const currentDetail = ref(null);
 // Fetch product counts (total, instock, trash)
 const fetchProductCounts = async () => {
   try {
-    const productsResponse = await secureFetch(`${apiBase}/approvals`, {
+    const productsData = await secureFetch(`${apiBase}/approvals`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' }
     } , ['admin']);
-    const productsData = await productsResponse.json();
     const allProducts = productsData.data?.data || productsData.data || [];
     totalProducts.value = productsData.data?.total || allProducts.length || 0;
     inStockProducts.value = allProducts.filter(p => getStockStatus(p) === 'instock').length;
 
     // Fetch rejected products
-    const rejectedResponse = await secureFetch(`${apiBase}/approvals/rejected`, {
+    const rejectedData = await secureFetch(`${apiBase}/approvals/rejected`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' }
     } , ['admin']);
-    const rejectedData = await rejectedResponse.json();
     const rejectedProductsList = rejectedData.data?.data || rejectedData.data || [];
     rejectedProducts.value = rejectedData.data?.total || rejectedProductsList.length || 0;
   } catch (error) {
@@ -450,12 +449,11 @@ const fetchProducts = async (page = 1) => {
     const endpoint = filterRejected.value === 'rejected'
       ? `${apiBase}/approvals/rejected?page=${page}&per_page=${perPage}`
       : `${apiBase}/approvals?page=${page}&per_page=${perPage}`;
-    const response = await secureFetch(endpoint, {
+    const data = await secureFetch(endpoint, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' }
     } , ['admin']);
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-    const data = await response.json();
+    if (!data.success) throw new Error(`HTTP error! status: ${data.status}`);
     products.value = data.data?.data || data.data || data || [];
     lastPage.value = data.data?.last_page || 1;
     currentPage.value = data.data?.current_page || page;
@@ -688,7 +686,7 @@ const submitBulkApproval = async () => {
   }
   try {
     loading.value = true;
-    const updatePromises = pendingProductIds.value.map(id =>
+    const responses = pendingProductIds.value.map(id =>
       secureFetch(`${apiBase}/approvals/${id}`, {
         method: 'POST',
         headers: {
@@ -700,8 +698,7 @@ const submitBulkApproval = async () => {
         })
       } , ['admin'])
     );
-    const responses = await Promise.all(updatePromises);
-    const failed = responses.some(res => !res.ok);
+    const failed = responses.some(res => res.success === false);
     if (failed) {
       showNotificationMessage('Có lỗi xảy ra khi cập nhật trạng thái một số sản phẩm', 'error');
     } else {

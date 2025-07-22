@@ -169,12 +169,12 @@ public function approveProduct($id, Request $request)
             ], 403);
         }
 
-        if ($product->admin_status !== 'pending') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Chỉ có thể duyệt sản phẩm ở trạng thái chờ duyệt.',
-            ], 422);
-        }
+        // if ($product->admin_status !== 'pending') {
+        //     return response()->json([
+        //         'success' => false,
+        //         'message' => 'Chỉ có thể duyệt sản phẩm ở trạng thái chờ duyệt.',
+        //     ], 422);
+        // }
 
         // Cập nhật trạng thái
         $product->admin_status = $request->admin_status;

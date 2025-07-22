@@ -651,11 +651,10 @@ const extractArray = (data, key) => {
 // Fetch data with error handling
 const fetchCategories = async () => {
   try {
-    const response = await secureFetch(`${apiBase}/categories`, {
+    const data = await secureFetch(`${apiBase}/categories`, {
       headers: { Accept: 'application/json' }
     } , ['admin']);
-    if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    const data = await response.json();
+    if (!data.success) throw new Error(`HTTP error! status: ${data.status}`);
     const categoryArray = data?.data?.data || [];
     if (categoryArray.length) {
       categories.value = categoryArray.map(item => ({
@@ -664,20 +663,19 @@ const fetchCategories = async () => {
       }));
       apiErrors.categories = null;
     } else {
-      throw new Error('Unexpected response format for categories');
+      throw new Error('Không thể tải danh sách danh mục.');
     }
   } catch (error) {
-    console.error('Error fetching categories:', error);
+    console.error('Không thể tải danh sách danh mục:', error);
   }
 };
 
 const fetchTags = async () => {
   try {
-    const response = await secureFetch(`${apiBase}/tags`, {
+    const data = await secureFetch(`${apiBase}/tags`, {
       headers: { Accept: 'application/json' }
     } , ['admin']);
-    if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    const data = await response.json();
+    if (!data.success) throw new Error(`HTTP error! status: ${data.status}`);
     const tagArray = extractArray(data, 'tags');
     if (tagArray.length) {
       tags.value = tagArray.map(item => ({
@@ -779,7 +777,7 @@ const createAttribute = async () => {
 
   try {
     loading.value = true;
-    const response = await secureFetch(`${apiBase}/attributes`, {
+    const data = await secureFetch(`${apiBase}/attributes`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -788,8 +786,7 @@ const createAttribute = async () => {
       body: JSON.stringify(attributeData)
     } , ['admin', 'seller']);
 
-    const data = await response.json();
-    if (response.ok && data.success) {
+    if (data.success) {
       const newAttr = data.data || data;
       attributes.value.push({
         id: newAttr.id,
@@ -1142,16 +1139,14 @@ const createProduct = async () => {
     for (let [key, value] of formDataToSend.entries()) {
       console.log(`${key}: ${value instanceof File ? value.name : value}`);
     }
-    const response = await secureFetch(`${apiBase}/products`, {
+    const data = await secureFetch(`${apiBase}/products`, {
       method: 'POST',
       body: formDataToSend,
       headers: {
         Accept: 'application/json',
       }
     } , ['admin']);
-    const data = await response.json();
-
-    if (response.ok && data.success) {
+    if (data.success) {
       showNotificationMessage('Tạo sản phẩm thành công!', 'success');
       setTimeout(() => router.push('/admin/products/list-product'), 1500);
     } else {

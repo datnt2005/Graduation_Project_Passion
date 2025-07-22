@@ -236,13 +236,12 @@ const formData = reactive({
 // Fetch categories for parent category dropdown
 const fetchCategories = async () => {
   try {
-    const response = await secureFetch(`${apiBase}/categories`, {
+    const data = await secureFetch(`${apiBase}/categories`, {
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json'
       }
     }, ['admin']);
-    const data = await response.json();
     categories.value = data.data.data || [];
   } catch (error) {
     console.error('Error fetching categories:', error);
@@ -303,12 +302,11 @@ const createCategory = async () => {
 
   try {
     loading.value = true;
-    const response = await secureFetch(`${apiBase}/categories`, {
+    const data = await secureFetch(`${apiBase}/categories`, {
       method: 'POST',
       body: form
     } , ['admin']);
 
-    const data = await response.json();
 
     if (data.success) {
       showNotificationMessage('Tạo danh mục thành công!' , 'success');

@@ -243,14 +243,11 @@ const fetchAttribute = async () => {
   const id = route.params.id;
   try {
     loading.value = true;
-    const response = await secureFetch(`${apiBase}/attributes/${id}`, {
+    const data = await secureFetch(`${apiBase}/attributes/${id}`, {
       headers: {
         Accept: 'application/json'
       }
     } , ['admin']);
-    const data = await response.json();
-    console.log('Fetch attribute response:', data);
-
     if (data.success && data.data) {
       formData.name = data.data.name || '';
       formData.slug = data.data.slug || '';
@@ -292,16 +289,13 @@ const updateAttribute = async () => {
   try {
     loading.value = true;
     const id = route.params.id;
-    const response = await secureFetch(`${apiBase}/attributes/${id}`, {
+    const data = await secureFetch(`${apiBase}/attributes/${id}`, {
       method: 'POST',
       body: form,
       headers: {
         Accept: 'application/json'
       }
     } , ['admin']);
-
-    const data = await response.json();
-    console.log('Update attribute response:', data);
 
     if (data.success) {
       showNotificationMessage('Cập nhật thuộc tính thành công!', 'success');
@@ -328,7 +322,6 @@ const updateAttribute = async () => {
   }
 };
 
-// Load attribute data on mount
 onMounted(() => {
   fetchAttribute();
 });

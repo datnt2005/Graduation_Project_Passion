@@ -2,7 +2,11 @@
   <div
     class="relative overflow-hidden p-2 bg-white rounded shadow transition transform hover:scale-[1.03] hover:-translate-y-1 hover:shadow-lg duration-300 text-left"
   >
-    <nuxt-link :to="`/products/${item.slug}`" class="block group" @click="trackClick">
+    <nuxt-link
+      :to="`/products/${item.slug}`"
+      class="block group"
+      @click="trackClick"
+    >
       <!-- Discount badge -->
       <div
         v-if="item.percent && item.percent > 0"
@@ -47,8 +51,8 @@
 </template>
 
 <script setup>
-import { useRuntimeConfig } from '#imports';
-import { defineProps } from 'vue';
+import { useRuntimeConfig } from "#imports";
+import { defineProps } from "vue";
 
 const props = defineProps({
   item: {
@@ -62,13 +66,13 @@ const apiBase = config.public.apiBaseUrl;
 
 async function trackClick() {
   try {
-    const token = localStorage.getItem('access_token');
+    const token = localStorage.getItem("access_token");
     await $fetch(`${apiBase}/search/track-click`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${token}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: `Bearer ${token}`,
       },
       body: {
         product_id: props.item.id,
@@ -76,12 +80,12 @@ async function trackClick() {
     });
     console.log(`Tracked click for product ID: ${props.item.id}`);
   } catch (error) {
-    console.error('Error tracking product click:', error);
+    console.error("Error tracking product click:", error);
   }
 }
 
 const formatPrice = (price) => {
-  return price ? price.toLocaleString('vi-VN') : '0';
+  return price ? price.toLocaleString("vi-VN") : "0";
 };
 </script>
 

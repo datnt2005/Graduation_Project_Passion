@@ -238,15 +238,13 @@ const formData = reactive({
 // Fetch categories for parent category dropdown
 const fetchCategories = async () => {
   try {
-    const response = await secureFetch(`${apiBase}/categories` , {
+    const data = await secureFetch(`${apiBase}/categories` , {
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json'
       }
     }, ['admin']);
-    const data = await response.json();
     categories.value = data.data.data || [];
-    console.log('Categories fetched:', data);
   } catch (error) {
     console.error('Error fetching categories:', error);
     showNotificationMessage('Có lỗi xảy ra khi lấy danh sách danh mục' , 'error');
@@ -263,18 +261,14 @@ const fetchCategory = async () => {
   }
 
   try {
-    console.log('Fetching category with ID:', route.params.id);
-    const response = await secureFetch(`${apiBase}/categories/${route.params.id}` , {
+    const data = await secureFetch(`${apiBase}/categories/${route.params.id}` , {
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json'
       }
     }, ['admin']);
-    const data = await response.json();
-    console.log('Category API response:', data);
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
+    if (!data.category && !data.data && !data) {
+      throw new Error(`HTTP error! Status: ${data.status}`);
     }
 
     // Handle different response formats
@@ -295,8 +289,6 @@ const fetchCategory = async () => {
   } catch (error) {
     console.error('Error fetching category:', error.message);
     showNotificationMessage(`Có lỗi xảy ra khi lấy thông tin danh mục: ${error.message}` , 'error');
-    // Comment out redirect to allow debugging
-    // router.push('/admin/categories/list-category');
   }
 };
 
@@ -358,13 +350,10 @@ const updateCategory = async () => {
   try {
     loading.value = true;
     console.log('Updating category with ID:', route.params.id);
-    const response = await secureFetch(`${apiBase}/categories/${route.params.id}`, {
-      method: 'POST', // Use POST with _method=PATCH for method spoofing
+    const data = await secureFetch(`${apiBase}/categories/${route.params.id}`, {
+      method: 'POST',
       body: form
     } , ['admin']);
-    const data = await response.json();
-    console.log('Update API response:', data);
-
     if (data.success) {
       showNotificationMessage('Cập nhật danh mục thành công!' , 'success');
       setTimeout(() => {
@@ -389,7 +378,6 @@ const updateCategory = async () => {
 
 // Fetch data on mount
 onMounted(() => {
-  console.log('API Base URL:', apiBase);
   fetchCategories();
   fetchCategory();
 });

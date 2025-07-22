@@ -444,14 +444,18 @@ public function update(Request $request)
     }
 
 
-    public function getVerifiedSellers()
-    {
-        $sellers = Seller::where('verification_status', 'verified')->get();
-        return response()->json([
-            'message' => 'Lấy danh sách người bán.',
-            'data' => $sellers
-        ], 200);
-    }
+public function getVerifiedSellers()
+{
+    $sellers = Seller::where('verification_status', 'verified')
+        ->select('id', 'store_name', 'store_slug') 
+        ->get();
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Lấy danh sách người bán thành công.',
+        'data' => $sellers
+    ]);
+}
 
 
     public function registerFull(Request $request)

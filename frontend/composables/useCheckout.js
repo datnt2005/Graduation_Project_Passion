@@ -1,3 +1,4 @@
+
 import { ref, computed, watch } from 'vue';
 import { useRuntimeConfig, navigateTo } from '#app';
 import { useToast } from '~/composables/useToast';
@@ -57,186 +58,183 @@ export function useCheckout() {
     return paymentMethods.value.filter(method => method.name !== 'COD');
   });
 
-  // Trong composable useCheckout
-const fetchDefaultAddress = async (userId) => {
-  try {
-    const token = localStorage.getItem('access_token');
-    if (!token) {
-      throw new Error('Thiếu access token. Vui lòng đăng nhập lại.');
+  const fetchDefaultAddress = async (userId) => {
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        throw new Error('Thiếu access token. Vui lòng đăng nhập lại.');
+      }
+      const response = await fetch(`${config.public.apiBaseUrl}/address`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: `Lỗi máy chủ: ${response.status}` }));
+        throw new Error(errorData.message || 'Không thể lấy địa chỉ mặc định');
+      }
+      const { data } = await response.json();
+      const addresses = data || [];
+      const defaultAddress = addresses.find(addr => addr.is_default === 1) || addresses[0] || null;
+      if (!defaultAddress) {
+        throw new Error('Không tìm thấy địa chỉ mặc định');
+      }
+      return {
+        id: defaultAddress.id,
+        user_id: defaultAddress.user_id,
+        name: defaultAddress.name,
+        phone: defaultAddress.phone,
+        province_id: defaultAddress.province_id,
+        district_id: defaultAddress.district_id,
+        ward_code: defaultAddress.ward_code,
+        detail: defaultAddress.detail,
+        is_default: defaultAddress.is_default,
+        address_type: defaultAddress.address_type,
+      };
+    } catch (err) {
+      console.error(`Lỗi khi lấy địa chỉ mặc định cho user ${userId}:`, err);
+      throw err;
     }
-    const response = await fetch(`${config.public.apiBaseUrl}/address`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/json',
-      },
-    });
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: `Lỗi máy chủ: ${response.status}` }));
-      throw new Error(errorData.message || 'Không thể lấy địa chỉ mặc định');
-    }
-    const { data } = await response.json();
-    const addresses = data || [];
-    const defaultAddress = addresses.find(addr => addr.is_default === 1) || addresses[0] || null;
-    if (!defaultAddress) {
-      throw new Error('Không tìm thấy địa chỉ mặc định');
-    }
-    return {
-      id: defaultAddress.id,
-      user_id: defaultAddress.user_id,
-      name: defaultAddress.name,
-      phone: defaultAddress.phone,
-      province_id: defaultAddress.province_id,
-      district_id: defaultAddress.district_id,
-      ward_code: defaultAddress.ward_code, // Hoặc ward_id tùy theo API GHN
-      detail: defaultAddress.detail,
-      is_default: defaultAddress.is_default,
-      address_type: defaultAddress.address_type,
-    };
-  } catch (err) {
-    console.error(`Lỗi khi lấy địa chỉ mặc định cho user ${userId}:`, err);
-    throw err;
-  }
-};
+  };
 
   const fetchSellerAddress = async (sellerId) => {
-  try {
-    const token = localStorage.getItem('access_token');
-    if (!token) {
-      throw new Error('Thiếu access token. Vui lòng đăng nhập lại.');
-    }
-    if (sellerAddresses.value[sellerId]?.district_id && sellerAddresses.value[sellerId]?.ward_code) {
-      console.log(`Lấy địa chỉ từ cache cho seller ${sellerId}:`, sellerAddresses.value[sellerId]);
-      return sellerAddresses.value[sellerId];
-    }
-    console.log(`Gọi API để lấy địa chỉ seller ${sellerId}`);
-    const response = await fetch(`${config.public.apiBaseUrl}/sellers/${sellerId}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/json',
-      },
-    });
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: `Lỗi máy chủ: ${response.status}` }));
-      if (response.status === 401) {
-        toast('error', 'Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.');
-        await logout();
-        await navigateTo('/login');
-        throw new Error('Phiên đăng nhập hết hạn');
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        throw new Error('Thiếu access token. Vui lòng đăng nhập lại.');
       }
-      console.error('Phản hồi lỗi từ /sellers:', JSON.stringify(errorData, null, 2));
-      throw new Error(errorData.message || `Không thể lấy thông tin cửa hàng ${sellerId}`);
-    }
-    const { data } = await response.json();
-    if (!data || !data.district_id || !data.ward_id) {
-      throw new Error(`Thiếu district_id hoặc ward_id cho seller ${sellerId}`);
-    }
+      if (sellerAddresses.value[sellerId]?.district_id && sellerAddresses.value[sellerId]?.ward_code) {
+        console.log(`Lấy địa chỉ từ cache cho seller ${sellerId}:`, sellerAddresses.value[sellerId]);
+        return sellerAddresses.value[sellerId];
+      }
+      console.log(`Gọi API để lấy địa chỉ seller ${sellerId}`);
+      const response = await fetch(`${config.public.apiBaseUrl}/sellers/${sellerId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: `Lỗi máy chủ: ${response.status}` }));
+        if (response.status === 401) {
+          toast('error', 'Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.');
+          await logout();
+          await navigateTo('/login');
+          throw new Error('Phiên đăng nhập hết hạn');
+        }
+        console.error('Phản hồi lỗi từ /sellers:', JSON.stringify(errorData, null, 2));
+        throw new Error(errorData.message || `Không thể lấy thông tin cửa hàng ${sellerId}`);
+      }
+      const { data } = await response.json();
+      if (!data || !data.district_id || !data.ward_id) {
+        throw new Error(`Thiếu district_id hoặc ward_id cho seller ${sellerId}`);
+      }
 
-    // Kiểm tra ward_code từ API GHN
-    const wardResponse = await fetch(`${config.public.apiBaseUrl}/ghn/wards`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ district_id: data.district_id }),
-    });
-    if (!wardResponse.ok) {
-      const wardError = await wardResponse.json().catch(() => ({ message: `Lỗi máy chủ: ${wardResponse.status}` }));
-      console.error('Phản hồi lỗi từ /ghn/wards:', JSON.stringify(wardError, null, 2));
-      throw new Error(`Không thể lấy ward_code cho seller ${sellerId}: ${wardError.message}`);
-    }
-    const wardData = await wardResponse.json();
-    const ward = wardData.data.find(w => w.WardCode === data.ward_id || w.WardCode.includes(data.ward_id));
-    if (!ward) {
-      throw new Error(`Không tìm thấy ward_code tương ứng cho ward_id ${data.ward_id} trong district_id ${data.district_id}`);
-    }
+      const wardResponse = await fetch(`${config.public.apiBaseUrl}/ghn/wards`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ district_id: data.district_id }),
+      });
+      if (!wardResponse.ok) {
+        const wardError = await wardResponse.json().catch(() => ({ message: `Lỗi máy chủ: ${wardResponse.status}` }));
+        console.error('Phản hồi lỗi từ /ghn/wards:', JSON.stringify(wardError, null, 2));
+        throw new Error(`Không thể lấy ward_code cho seller ${sellerId}: ${wardError.message}`);
+      }
+      const wardData = await wardResponse.json();
+      const ward = wardData.data.find(w => w.WardCode === data.ward_id || w.WardCode.includes(data.ward_id));
+      if (!ward) {
+        throw new Error(`Không tìm thấy ward_code tương ứng cho ward_id ${data.ward_id} trong district_id ${data.district_id}`);
+      }
 
-    const sellerAddress = {
-      province_id: data.province_id,
-      district_id: data.district_id,
-      ward_id: data.ward_id,
-      ward_code: ward.WardCode,
-      address: data.address,
-    };
-    sellerAddresses.value[sellerId] = sellerAddress;
-    console.log(`Đã lưu địa chỉ cho seller ${sellerId}:`, sellerAddress);
-    return sellerAddress;
-  } catch (err) {
-    console.error(`Lỗi khi lấy địa chỉ seller ${sellerId}:`, err.message);
-    toast('error', `Không thể lấy thông tin địa chỉ của cửa hàng ${sellerId}: ${err.message}`);
-    return null;
-  }
-};
+      const sellerAddress = {
+        province_id: data.province_id,
+        district_id: data.district_id,
+        ward_id: data.ward_id,
+        ward_code: ward.WardCode,
+        address: data.address,
+      };
+      sellerAddresses.value[sellerId] = sellerAddress;
+      console.log(`Đã lưu địa chỉ cho seller ${sellerId}:`, sellerAddress);
+      return sellerAddress;
+    } catch (err) {
+      console.error(`Lỗi khi lấy địa chỉ seller ${sellerId}:`, err.message);
+      toast('error', `Không thể lấy thông tin địa chỉ của cửa hàng ${sellerId}.`);
+      return null;
+    }
+  };
 
   const fetchGHNServiceId = async (sellerId, fromDistrictId, toDistrictId, retries = 2) => {
-  try {
-    const token = localStorage.getItem('access_token');
-    if (!token) {
-      throw new Error('Thiếu access token. Vui lòng đăng nhập lại.');
-    }
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        throw new Error('Thiếu access token. Vui lòng đăng nhập lại.');
+      }
 
-    console.log(`Gọi API /ghn/services cho seller ${sellerId} (lần thử ${3 - retries}):`, {
-      seller_id: sellerId,
-      from_district_id: fromDistrictId,
-      to_district_id: toDistrictId,
-    });
-
-    const response = await fetch(`${config.public.apiBaseUrl}/ghn/services`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
+      console.log(`Gọi API /ghn/services cho seller ${sellerId} (lần thử ${3 - retries}):`, {
         seller_id: sellerId,
         from_district_id: fromDistrictId,
         to_district_id: toDistrictId,
-      }),
-    });
+      });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: `Lỗi máy chủ: ${response.status}` }));
-      console.error('Phản hồi lỗi từ /ghn/services:', JSON.stringify(errorData, null, 2));
-      if (response.status === 500 && retries > 0) {
-        console.log(`Thử lại API /ghn/services cho seller ${sellerId}. Số lần thử còn lại: ${retries}`);
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Chờ 1 giây trước khi thử lại
-        return await fetchGHNServiceId(sellerId, fromDistrictId, toDistrictId, retries - 1);
+      const response = await fetch(`${config.public.apiBaseUrl}/ghn/services`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          seller_id: sellerId,
+          from_district_id: fromDistrictId,
+          to_district_id: toDistrictId,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: `Lỗi máy chủ: ${response.status}` }));
+        console.error('Phản hồi lỗi từ /ghn/services:', JSON.stringify(errorData, null, 2));
+        if (response.status === 500 && retries > 0) {
+          console.log(`Thử lại API /ghn/services cho seller ${sellerId}. Số lần thử còn lại: ${retries}`);
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          return await fetchGHNServiceId(sellerId, fromDistrictId, toDistrictId, retries - 1);
+        }
+        if (response.status === 401) {
+          toast('error', 'Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.');
+          await logout();
+          await navigateTo('/login');
+          throw new Error('Phiên đăng nhập hết hạn');
+        }
+        throw new Error(errorData.message || 'Không thể lấy danh sách dịch vụ');
       }
-      if (response.status === 401) {
-        toast('error', 'Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.');
-        await logout();
-        await navigateTo('/login');
-        throw new Error('Phiên đăng nhập hết hạn');
-      }
-      throw new Error(errorData.message || 'Không thể lấy danh sách dịch vụ');
+
+      const data = await response.json();
+      console.log(`Phản hồi từ /ghn/services cho seller ${sellerId}:`, JSON.stringify(data, null, 2));
+      return data.data || [];
+    } catch (err) {
+      console.error(`Lỗi khi lấy danh sách dịch vụ cho seller ${sellerId}:`, err.message);
+      throw err;
     }
+  };
 
-    const data = await response.json();
-    console.log(`Phản hồi từ /ghn/services cho seller ${sellerId}:`, JSON.stringify(data, null, 2));
-    return data.data || [];
-  } catch (err) {
-    console.error(`Lỗi khi lấy danh sách dịch vụ cho seller ${sellerId}:`, err.message);
-    throw err;
-  }
-};
   const calculateShippingFee = async (sellerId, fromAddress, toAddress) => {
-    if (!fromAddress || !fromAddress.district_id || !fromAddress.ward_id) { // Sử dụng ward_id
+    if (!fromAddress || !fromAddress.district_id || !fromAddress.ward_id) {
       fromAddress = await fetchSellerAddress(sellerId);
       if (!fromAddress || !fromAddress.district_id || !fromAddress.ward_id) {
-        toast('error', `Thiếu thông tin địa chỉ của cửa hàng ${sellerId}.`);
+        console.error(`Thiếu thông tin địa chỉ của cửa hàng ${sellerId}.`);
         return 0;
       }
     }
-    if (!toAddress || !toAddress.district_id || !toAddress.ward_id) { // Sử dụng ward_id
+    if (!toAddress || !toAddress.district_id || !toAddress.ward_id) {
       console.warn(`Thiếu thông tin địa chỉ nhận cho seller ${sellerId}:`, toAddress);
-      toast('error', 'Vui lòng chọn đầy đủ địa chỉ nhận hàng (quận/huyện và phường/xã).');
       return 0;
     }
     try {
       const services = await fetchGHNServiceId(sellerId, fromAddress.district_id, toAddress.district_id);
       if (!services || services.length === 0) {
         console.warn(`Không tìm thấy dịch vụ GHN phù hợp cho seller ${sellerId}`);
-        toast('warning', `Không có dịch vụ vận chuyển khả dụng cho cửa hàng ${sellerId}.`);
         return 0;
       }
       const storeItems = cartItems.value.find(store => store.seller_id === sellerId)?.items || [];
@@ -246,7 +244,6 @@ const fetchDefaultAddress = async (userId) => {
       }, 0);
       if (totalWeight < 50) {
         console.warn(`Cân nặng quá thấp: ${totalWeight}g cho seller ${sellerId}. Tối thiểu 50g.`);
-        toast('error', 'Cân nặng đơn hàng quá thấp. Tối thiểu 50g.');
         return 0;
       }
       let service = services.find(s => s.service_type_id === 2);
@@ -258,11 +255,11 @@ const fetchDefaultAddress = async (userId) => {
       }
       const serviceId = service?.service_id || null;
       if (!serviceId) {
-        throw new Error('Không tìm thấy dịch vụ vận chuyển hợp lệ');
+        console.error('Không tìm thấy dịch vụ vận chuyển hợp lệ');
+        return 0;
       }
       if (serviceId === 100039 && totalWeight < 2000) {
         console.warn(`Cân nặng ${totalWeight}g không hợp lệ cho dịch vụ Hàng nặng (service_id: 100039).`);
-        toast('error', 'Cân nặng không hợp lệ cho dịch vụ Hàng nặng: tối thiểu 2000g.');
         return 0;
       }
       const dimensions = storeItems.reduce(
@@ -281,16 +278,17 @@ const fetchDefaultAddress = async (userId) => {
       console.log(`Đang tính phí vận chuyển cho seller ${sellerId}:`, {
         seller_id: sellerId,
         from_district_id: fromAddress.district_id,
-        from_ward_id: fromAddress.ward_id, // Sử dụng ward_id
+        from_ward_id: fromAddress.ward_id,
         to_district_id: toAddress.district_id,
-        to_ward_id: toAddress.ward_id, // Sử dụng ward_id
+        to_ward_id: toAddress.ward_id,
         service_id: serviceId,
         weight: totalWeight,
         ...dimensions,
       });
       const token = localStorage.getItem('access_token');
       if (!token) {
-        throw new Error('Thiếu access token');
+        console.error('Thiếu access token');
+        return 0;
       }
       const response = await fetch(`${config.public.apiBaseUrl}/ghn/shipping-fee`, {
         method: 'POST',
@@ -302,9 +300,9 @@ const fetchDefaultAddress = async (userId) => {
         body: JSON.stringify({
           seller_id: sellerId,
           from_district_id: fromAddress.district_id,
-          from_ward_id: fromAddress.ward_id, // Sử dụng ward_id
+          from_ward_id: fromAddress.ward_id,
           to_district_id: toAddress.district_id,
-          to_ward_id: toAddress.ward_id, // Sử dụng ward_id
+          to_ward_id: toAddress.ward_id,
           service_id: serviceId,
           weight: Math.max(totalWeight, 50),
           length: dimensions.length,
@@ -315,7 +313,7 @@ const fetchDefaultAddress = async (userId) => {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: 'Lỗi máy chủ' }));
         console.error('Lỗi phản hồi từ API GHN shipping-fee:', errorData);
-        throw new Error(errorData.message || 'Không thể tính phí vận chuyển');
+        return 0;
       }
       const { data } = await response.json();
       const shippingFee = (data?.total || 0) / 100;
@@ -323,7 +321,6 @@ const fetchDefaultAddress = async (userId) => {
       return shippingFee;
     } catch (err) {
       console.error(`Lỗi khi tính phí vận chuyển cho seller ${sellerId}:`, err);
-      toast('error', `Không thể tính phí vận chuyển cho cửa hàng ${sellerId}: ${err.message}`);
       return 0;
     }
   };
@@ -422,7 +419,7 @@ const fetchDefaultAddress = async (userId) => {
         store_name: buyNowData.value.store_name || '',
         store_url: buyNowData.value.store_url || '',
         district_id: sellerAddress.district_id || null,
-        ward_id: sellerAddress.ward_id || null, // Sử dụng ward_id
+        ward_id: sellerAddress.ward_id || null,
         items: [{
           id: buyNowData.value.product_id,
           product: {
@@ -484,7 +481,7 @@ const fetchDefaultAddress = async (userId) => {
         store_name: store.store_name || '',
         store_url: store.store_url || '',
         district_id: sellerAddress.district_id || null,
-        ward_id: sellerAddress.ward_id || null, // Sử dụng ward_id
+        ward_id: sellerAddress.ward_id || null,
         items,
         store_total: storeTotal,
         discount: getShopDiscount(store.seller_id),
@@ -605,7 +602,7 @@ const fetchDefaultAddress = async (userId) => {
       const allItems = [];
       const storeShippingFees = {};
       cartItems.value.forEach(store => {
-        if (!store.district_id || !store.ward_id) { // Sử dụng ward_id
+        if (!store.district_id || !store.ward_id) {
           throw new Error(`Thiếu thông tin địa chỉ của cửa hàng ${store.store_name || store.seller_id}`);
         }
         if (store.items && Array.isArray(store.items)) {
@@ -634,7 +631,7 @@ const fetchDefaultAddress = async (userId) => {
         service_id: null,
         discount_ids: [],
         items: allItems,
-        ward_id: null, // Sử dụng ward_id
+        ward_id: null,
         district_id: null,
         province_id: null,
         is_buy_now: isBuyNow.value,
