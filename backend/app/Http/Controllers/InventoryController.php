@@ -414,5 +414,130 @@ class InventoryController extends Controller
         return response()->json(['message' => 'Nhập kho thành công!']);
     }
 
+    public function sellerList(Request $request)
+    {
+        try {
+            $user = $request->user();
+            $seller = \App\Models\Seller::where('user_id', $user->id)->first();
+            if (!$seller) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Bạn không phải seller hoặc chưa đăng nhập!'
+                ], 403);
+            }
+
+            $inventories = Inventory::with([
+                'productVariant.product.categories',
+                'productVariant.attributes'
+            ])
+            ->whereHas('productVariant.product', function ($query) use ($seller) {
+                $query->where('seller_id', $seller->id)
+                    ->where('status', '!=', 'trash');
+            })
+            ->get()
+            ->map(function ($inventory) {
+                $variant = $inventory->productVariant;
+                $product = $variant->product;
+                $categoryName = $product->categories->first()?->name;
+
+                $status = 'Hết hàng';
+                if ($inventory->quantity > 0 && $inventory->quantity <= 5) {
+                    $status = 'Gần hết';
+                } elseif ($inventory->quantity > 5) {
+                    $status = 'Còn hàng';
+                }
+
+                return [
+                    'id' => $inventory->id,
+                    'product_variant_id' => $variant->id,
+                    'sku' => $variant->sku,
+                    'product_name' => $product->name,
+                    'quantity' => $inventory->quantity,
+                    'cost_price' => round($variant->cost_price),
+                    'sell_price' => round($variant->price),
+                    'location' => $inventory->location,
+                    'last_updated' => $inventory->last_updated,
+                    'category_name' => $categoryName,
+                    'status' => $status
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => $inventories->values()
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi khi lấy danh sách tồn kho: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function sellerBestSellers(Request $request)
+    {
+        try {
+            $user = $request->user();
+            $seller = \App\Models\Seller::where('user_id', $user->id)->first();
+            if (!$seller) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Bạn không phải seller hoặc chưa đăng nhập!'
+                ], 403);
+            }
+
+            $bestSellers = \App\Models\OrderItem::select('product_variant_id', \DB::raw('SUM(quantity) as total_sold'))
+                ->whereHas('order', function ($q) {
+                    $q->where('status', 'delivered');
+                })
+                ->whereHas('productVariant.product', function ($query) use ($seller) {
+                    $query->where('seller_id', $seller->id)
+                        ->where('status', '!=', 'trash');
+                })
+                ->with(['productVariant.product.categories', 'productVariant.inventories'])
+                ->groupBy('product_variant_id')
+                ->get()
+                ->groupBy('productVariant.product_id')
+                ->map(function ($items) {
+                    $firstItem = $items->first();
+                    $product = $firstItem->productVariant->product;
+                    $categoryName = $product->categories->first()?->name;
+                    $totalQuantity = $items->reduce(function ($carry, $item) {
+                        return $carry + $item->productVariant->inventories->sum('quantity');
+                    }, 0);
+                    $totalSold = $items->sum('total_sold');
+                    $firstVariant = $firstItem->productVariant;
+                    $costPrice = $firstVariant->cost_price ?? 0;
+                    $sellPrice = $firstVariant->price ?? 0;
+                    $status = 'Hết hàng';
+                    if ($totalQuantity > 0 && $totalQuantity <= 5) {
+                        $status = 'Gần hết';
+                    } elseif ($totalQuantity > 5) {
+                        $status = 'Còn hàng';
+                    }
+                    return [
+                        'product_name' => $product->name,
+                        'category_name' => $categoryName,
+                        'quantity' => $totalQuantity,
+                        'total_sold' => $totalSold,
+                        'cost_price' => round($costPrice),
+                        'sell_price' => round($sellPrice),
+                        'status' => $status,
+                    ];
+                })
+                ->values();
+
+            return response()->json([
+                'success' => true,
+                'data' => $bestSellers
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi khi lấy danh sách sản phẩm bán chạy: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
 
 }

@@ -329,164 +329,105 @@ class OrderController extends Controller
     {
         try {
             $query = Order::with([
-                'orderItems.product',
-                'orderItems.productVariant',
                 'user',
-                'address',
-                'payments.paymentMethod',
                 'shipping',
-                'refund',
-                'payout'
-            ]);
+                'orderItems.productVariant.product.seller',
+                'payments.paymentMethod'
+            ])->latest();
 
-            // Lọc theo trạng thái
-            if ($request->has('status') && !empty($request->status)) {
+            // Filter by status
+            if ($request->has('status')) {
                 $query->where('status', $request->status);
             }
 
-            // Lọc theo khoảng thời gian
-            if ($request->has('from_date') && !empty($request->from_date)) {
+            // Filter by tracking code
+            if ($request->has('tracking_code')) {
+                $query->whereHas('shipping', function($q) use ($request) {
+                    $q->where('tracking_code', 'like', '%' . $request->tracking_code . '%');
+                });
+            }
+
+            // Filter by date range
+            if ($request->has('from_date') && $request->from_date) {
                 $query->whereDate('created_at', '>=', $request->from_date);
             }
-            if ($request->has('to_date') && !empty($request->to_date)) {
+            if ($request->has('to_date') && $request->to_date) {
                 $query->whereDate('created_at', '<=', $request->to_date);
             }
 
-            // Tìm kiếm theo ID đơn hàng
-            if ($request->has('order_id') && !empty($request->order_id)) {
-                $query->where('id', $request->order_id);
+            // Filter by seller if user is seller
+            $user = Auth::user();
+            if ($user && $user->role === 'seller') {
+                $seller = Seller::where('user_id', $user->id)->first();
+                if ($seller) {
+                    $query->whereHas('orderItems.productVariant.product', function($q) use ($seller) {
+                        $q->where('seller_id', $seller->id);
+                    });
+                }
             }
 
-            // Lọc theo mã vận đơn
-            if ($request->has('tracking_code') && !empty($request->tracking_code)) {
-                $query->whereHas('shipping', function ($q) use ($request) {
-                    $q->where('tracking_code', $request->tracking_code);
-                });
-            }
-
-            // Lọc theo phương thức thanh toán
-            if ($request->has('payment_method') && !empty($request->payment_method)) {
-                $query->whereHas('payments.paymentMethod', function ($q) use ($request) {
-                    $q->where('name', $request->payment_method);
-                });
-            }
-
-            // Sắp xếp
-            $sortBy = $request->input('sort_by', 'created_at');
-            $sortOrder = $request->input('sort_order', 'desc');
-            $allowedSortColumns = ['created_at', 'id', 'status', 'total_price', 'final_price'];
-            $sortBy = in_array($sortBy, $allowedSortColumns) ? $sortBy : 'created_at';
-            $query->orderBy($sortBy, $sortOrder);
-
-            // Phân trang
-            $perPage = (int) $request->input('per_page', 10);
-            $perPage = max(1, min(100, $perPage));
+            // Paginate
+            $perPage = $request->input('per_page', 10);
             $orders = $query->paginate($perPage);
 
-            if ($orders->isEmpty()) {
-                return response()->json([
-                    'success' => true,
-                    'data' => [],
-                    'meta' => [
-                        'current_page' => 1,
-                        'last_page' => 1,
-                        'per_page' => $perPage,
-                        'total' => 0,
+            // Format response
+            $formattedOrders = $orders->through(function($order) {
+                return [
+                    'id' => $order->id,
+                    'user' => [
+                        'id' => $order->user->id,
+                        'name' => $order->user->name,
+                        'email' => $order->user->email
                     ],
-                ]);
-            }
+                    'shipping' => $order->shipping ? [
+                        'tracking_code' => $order->shipping->tracking_code,
+                        'shipping_method' => $order->shipping->shipping_method,
+                        'shipping_fee' => $order->shipping->shipping_fee,
+                        'estimated_delivery_date' => $order->shipping->estimated_delivery_date,
+                    ] : null,
+                    'status' => $order->status,
+                    'payment_method' => $order->payments->first()?->paymentMethod?->name ?? null,
+                    'payments' => $order->payments->map(function ($payment) {
+                        return [
+                            'id' => $payment->id,
+                            'method' => $payment->paymentMethod ? $payment->paymentMethod->name : null,
+                            'amount' => $payment->amount,
+                            'status' => $payment->status,
+                            'created_at' => $payment->created_at,
+                        ];
+                    }),
+                    'payment_status' => $order->payment_status,
+                    'subtotal' => $order->subtotal,
+                    'shipping_fee' => $order->shipping_fee,
+                    'discount_price' => $order->discount_price,
+                    'final_price' => $order->final_price,
+                    'note' => $order->note,
+                    'created_at' => $order->created_at,
+                    'updated_at' => $order->updated_at
+                ];
+            });
 
             return response()->json([
                 'success' => true,
-                'data' => $orders->map(function ($order) {
-                    return [
-                        'id' => $order->id,
-                        'shipping' => $order->shipping ? [
-                            'tracking_code' => $order->shipping->tracking_code,
-                            'status' => $order->shipping->status,
-                            'shipping_fee' => (float) $order->shipping->shipping_fee,
-                            'estimated_delivery' => $order->shipping->estimated_delivery ? $order->shipping->estimated_delivery->toISOString() : null,
-                        ] : null,
-                        'user' => $order->user ? [
-                            'id' => $order->user->id,
-                            'name' => $order->user->name,
-                            'email' => $order->user->email,
-                        ] : null,
-                        'address' => $order->address ? [
-                            'id' => $order->address->id,
-                            'address' => $order->address->address,
-                            'phone' => $order->address->phone,
-                            'province_id' => $order->address->province_id,
-                            'district_id' => $order->address->district_id,
-                            'ward_code' => $order->address->ward_code,
-                            'detail' => $order->address->detail,
-                        ] : null,
-                        'note' => $order->note ?? '',
-                        'status' => $order->status,
-                        'failure_reason' => $order->failure_reason ?? null,
-                        'can_delete' => in_array($order->status, ['pending', 'cancelled', 'failed', 'failed_delivery', 'rejected_by_customer']),
-                        'total_price' => (float)$order->total_price,
-                        'discount_price' => (float)$order->discount_price,
-                        'final_price' => (float)$order->final_price,
-                        'payout_amount' => $order->payout ? (float)$order->payout->amount : 0,
-                        'payout_id' => $order->payout ? $order->payout->id : null,
-                        'payout_status' => $order->payout ? $order->payout->status : null,
-                        'transferred_at' => $order->payout ? ($order->payout->transferred_at ? $order->payout->transferred_at->toISOString() : null) : null,
-                        'shipping_method' => $order->shipping_method,
-                        'created_at' => $order->created_at ? $order->created_at->toISOString() : null,
-                        'order_items' => $order->orderItems->map(function ($item) {
-                            return [
-                                'id' => $item->id,
-                                'product' => $item->product ? [
-                                    'id' => $item->product->id,
-                                    'name' => $item->product->name,
-                                    'thumbnail' => $item->product->thumbnail,
-                                ] : null,
-                                'variant' => $item->productVariant ? [
-                                    'id' => $item->productVariant->id,
-                                    'name' => $item->productVariant->name,
-                                ] : null,
-                                'quantity' => $item->quantity,
-                                'price' => (float) $item->price,
-                                'total' => (float) ($item->price * $item->quantity),
-                            ];
-                        }),
-                        'payments' => $order->payments->map(function ($payment) {
-                            return [
-                                'id' => $payment->id,
-                                'method' => $payment->paymentMethod ? $payment->paymentMethod->name : null,
-                                'amount' => (float) $payment->amount,
-                                'status' => $payment->status,
-                                'created_at' => $payment->created_at ? $payment->created_at->toISOString() : null,
-                            ];
-                        }),
-                        'refund' => $order->refund ? [
-                            'id' => $order->refund->id,
-                            'order_id' => $order->refund->order_id,
-                            'user_id' => $order->refund->user_id,
-                            'amount' => (float) $order->refund->amount,
-                            'status' => $order->refund->status,
-                            'reason' => $order->refund->reason,
-                            'created_at' => $order->refund->created_at ? $order->refund->created_at->toISOString() : null,
-                        ] : null,
-                    ];
-                })->toArray(),
+                'message' => 'Lấy danh sách đơn hàng thành công',
+                'data' => $formattedOrders->items(),
                 'meta' => [
-                    'current_page' => $orders->currentPage(),
-                    'last_page' => $orders->lastPage(),
-                    'per_page' => $orders->perPage(),
-                    'total' => $orders->total(),
+                    'current_page' => $formattedOrders->currentPage(),
+                    'from' => $formattedOrders->firstItem(),
+                    'last_page' => $formattedOrders->lastPage(),
+                    'path' => $formattedOrders->path(),
+                    'per_page' => $formattedOrders->perPage(),
+                    'to' => $formattedOrders->lastItem(),
+                    'total' => $formattedOrders->total(),
                 ],
             ]);
         } catch (\Exception $e) {
-            Log::error('Lỗi lấy danh sách đơn hàng: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString(),
-                'request' => $request->all(),
-            ]);
+            Log::error('Error in OrderController@index: ' . $e->getMessage());
+            Log::error($e->getTraceAsString());
+            
             return response()->json([
                 'success' => false,
-                'message' => 'Có lỗi xảy ra khi lấy danh sách đơn hàng',
-                'error' => $e->getMessage(),
+                'message' => 'Lỗi khi lấy danh sách đơn hàng: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -1474,5 +1415,136 @@ class OrderController extends Controller
             'total_revenue' => $totalRevenue,
             'total_discount' => $totalDiscount,
         ]);
+    }
+
+    /**
+     * Lấy danh sách đơn hàng cho admin dashboard
+     */
+    public function adminList(Request $request)
+    {
+        try {
+            $query = Order::with([
+                'shipping',
+                'user',
+                'orderItems.productVariant.product',
+                'payments.paymentMethod'
+            ])->latest();
+
+            // Filter by status
+            if ($request->has('status')) {
+                $query->where('status', $request->status);
+            }
+
+            // Filter by tracking code
+            if ($request->has('tracking_code')) {
+                $query->whereHas('shipping', function($q) use ($request) {
+                    $q->where('tracking_code', 'like', '%' . $request->tracking_code . '%');
+                });
+            }
+
+            // Filter by date range
+            if ($request->has('from_date')) {
+                $query->whereDate('created_at', '>=', $request->from_date);
+            }
+            if ($request->has('to_date')) {
+                $query->whereDate('created_at', '<=', $request->to_date);
+            }
+
+            // Paginate
+            $perPage = $request->input('per_page', 10);
+            $orders = $query->paginate($perPage);
+
+            // Format response
+            $formattedOrders = $orders->through(function($order) {
+                return [
+                    'id' => $order->id,
+                    'user' => [
+                        'id' => $order->user->id,
+                        'name' => $order->user->name,
+                        'email' => $order->user->email
+                    ],
+                    'shipping' => $order->shipping ? [
+                        'tracking_code' => $order->shipping->tracking_code,
+                        'shipping_method' => $order->shipping->shipping_method,
+                        'shipping_fee' => $order->shipping->shipping_fee,
+                        'estimated_delivery_date' => $order->shipping->estimated_delivery_date,
+                    ] : null,
+                    'status' => $order->status,
+                    'payment_method' => $order->payments->first()?->paymentMethod?->name ?? null,
+                    'payment_status' => $order->payment_status,
+                    'subtotal' => $order->subtotal,
+                    'shipping_fee' => $order->shipping_fee,
+                    'discount_price' => $order->discount_price,
+                    'final_price' => $order->final_price,
+                    'note' => $order->note,
+                    'created_at' => $order->created_at,
+                    'updated_at' => $order->updated_at
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Lấy danh sách đơn hàng thành công',
+                'data' => $formattedOrders->items(),
+                'meta' => [
+                    'current_page' => $formattedOrders->currentPage(),
+                    'from' => $formattedOrders->firstItem(),
+                    'last_page' => $formattedOrders->lastPage(),
+                    'path' => $formattedOrders->path(),
+                    'per_page' => $formattedOrders->perPage(),
+                    'to' => $formattedOrders->lastItem(),
+                    'total' => $formattedOrders->total(),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error in OrderController@adminList: ' . $e->getMessage());
+            Log::error($e->getTraceAsString());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi khi lấy danh sách đơn hàng: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Lấy danh sách sellers cho admin dashboard
+     */
+    public function adminSellerList()
+    {
+        try {
+            $sellers = \App\Models\Seller::with(['user' => function($q) {
+                $q->select('id', 'name', 'email');
+            }])
+            ->select('id', 'user_id', 'store_name', 'created_at')
+            ->latest()
+            ->get()
+            ->map(function($seller) {
+                return [
+                    'id' => $seller->id,
+                    'store_name' => $seller->store_name ?: 'Shop #' . $seller->id,
+                    'user' => [
+                        'id' => $seller->user->id,
+                        'name' => $seller->user->name ?: $seller->user->email,
+                        'email' => $seller->user->email
+                    ],
+                    'created_at' => $seller->created_at
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => $sellers,
+                'message' => 'Lấy danh sách sellers thành công'
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error in adminSellerList: ' . $e->getMessage());
+            \Log::error($e->getTraceAsString());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi khi lấy danh sách sellers: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

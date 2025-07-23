@@ -15,15 +15,121 @@ use Illuminate\Support\Facades\Storage;
 use Google\Cloud\Vision\V1\ImageAnnotatorClient;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Models\Order;
+use App\Models\Product;
+use Carbon\Carbon;
 
 class SellerController extends Controller
 {
 
-    public function index()
+    public function index(Request $request)
     {
-        $sellers = User::whereHas('seller')
-            ->get();
-        return response()->json($sellers);
+        try {
+            $query = Seller::with(['user', 'orders', 'orders.orderItems.productVariant'])
+                ->withCount(['orders', 'products']);
+
+            // Tìm kiếm theo tên shop hoặc email
+            if ($request->has('search')) {
+                $search = $request->search;
+                $query->where(function($q) use ($search) {
+                    $q->where('store_name', 'like', "%{$search}%")
+                        ->orWhereHas('user', function($q) use ($search) {
+                            $q->where('email', 'like', "%{$search}%")
+                                ->orWhere('name', 'like', "%{$search}%");
+                        });
+                });
+            }
+
+            // Lọc theo trạng thái
+            if ($request->has('status')) {
+                $query->where('status', $request->status);
+            }
+
+            // Tính toán các thống kê cho mỗi seller
+            $sellers = $query->get()
+                ->map(function($seller) {
+                    // Lấy các order_id đã payout thành công cho seller này
+                    $payoutOrderIds = \App\Models\Payout::where('seller_id', $seller->id)
+                        ->where('status', 'completed')
+                        ->pluck('order_id')
+                        ->unique()
+                        ->filter();
+
+                    // Đếm tổng đơn hàng đã payout
+                    $totalOrders = \App\Models\Order::whereIn('id', $payoutOrderIds)->count();
+                    // Đếm đơn đã bán (delivered)
+                    $completedOrders = \App\Models\Order::whereIn('id', $payoutOrderIds)->where('status', 'delivered')->count();
+                    // Tổng doanh thu từ đơn đã bán
+                    $totalRevenue = \App\Models\Order::whereIn('id', $payoutOrderIds)->where('status', 'delivered')->sum('final_price');
+                    // Lấy id các đơn delivered
+                    $deliveredOrderIds = \App\Models\Order::whereIn('id', $payoutOrderIds)->where('status', 'delivered')->pluck('id');
+                    // Tính tổng vốn từ đơn đã bán
+                    $orderItems = \App\Models\OrderItem::whereIn('order_id', $deliveredOrderIds)->get();
+                    $variantIds = $orderItems->pluck('product_variant_id')->unique();
+                    $variants = \App\Models\ProductVariant::whereIn('id', $variantIds)->get()->keyBy('id');
+                    $totalCost = 0;
+                    foreach ($orderItems as $item) {
+                        $variant = $variants[$item->product_variant_id] ?? null;
+                        if ($variant) {
+                            $totalCost += $variant->cost_price * $item->quantity;
+                        }
+                    }
+                    $totalProfit = $totalRevenue - $totalCost;
+                    $totalLoss = $totalProfit < 0 ? abs($totalProfit) : 0;
+                    if ($totalProfit < 0) $totalProfit = 0;
+
+                    return [
+                        'id' => $seller->id,
+                        'store_name' => $seller->store_name,
+                        'user' => [
+                            'id' => $seller->user->id,
+                            'name' => $seller->user->name,
+                            'email' => $seller->user->email,
+                        ],
+                        'status' => $seller->status,
+                        'created_at' => $seller->created_at,
+                        'total_orders' => $totalOrders,
+                        'completed_orders' => $completedOrders,
+                        'total_products' => $seller->products_count,
+                        'total_revenue' => $totalRevenue,
+                        'total_cost' => $totalCost,
+                        'total_profit' => $totalProfit,
+                        'total_loss' => $totalLoss,
+                    ];
+                });
+
+            // Sắp xếp theo doanh thu
+            if ($request->has('sort')) {
+                switch ($request->sort) {
+                    case 'revenue_asc':
+                        $sellers = $sellers->sortBy('total_revenue');
+                        break;
+                    case 'revenue_desc':
+                        $sellers = $sellers->sortByDesc('total_revenue');
+                        break;
+                    case 'orders_asc':
+                        $sellers = $sellers->sortBy('total_orders');
+                        break;
+                    case 'orders_desc':
+                        $sellers = $sellers->sortByDesc('total_orders');
+                        break;
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $sellers->values(),
+                'message' => 'Lấy danh sách seller thành công'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error in SellerController@index: ' . $e->getMessage());
+            Log::error($e->getTraceAsString());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi khi lấy danh sách seller: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function show($sellerId)
@@ -760,5 +866,70 @@ public function getVerifiedSellers()
             'success' => true,
             'data' => $data
         ]);
+    }
+
+    /**
+     * Lấy thống kê seller cho admin
+     */
+    public function stats()
+    {
+        try {
+            // Tổng số seller
+            $totalSellers = Seller::count();
+
+            // Seller mới trong tháng này
+            $newSellers = Seller::where('created_at', '>=', Carbon::now()->startOfMonth())->count();
+
+            // Seller active (có đơn hàng trong tháng)
+            $activeSellers = Seller::whereHas('orders', function($q) {
+                $q->where('created_at', '>=', Carbon::now()->startOfMonth());
+            })->count();
+
+            // Top 5 seller theo doanh thu tháng này
+            $topSellers = Seller::with(['user'])
+                ->withSum(['orders' => function($q) {
+                    $q->where('created_at', '>=', Carbon::now()->startOfMonth());
+                }], 'final_price')
+                ->orderByDesc('orders_sum_final_price')
+                ->limit(5)
+                ->get()
+                ->map(function($seller) {
+                    return [
+                        'id' => $seller->id,
+                        'store_name' => $seller->store_name,
+                        'user' => [
+                            'name' => $seller->user->name,
+                            'email' => $seller->user->email
+                        ],
+                        'revenue' => $seller->orders_sum_final_price ?? 0
+                    ];
+                });
+
+            // Thống kê theo trạng thái
+            $statusStats = Seller::select('status', DB::raw('count(*) as count'))
+                ->groupBy('status')
+                ->get()
+                ->pluck('count', 'status');
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'total_sellers' => $totalSellers,
+                    'new_sellers' => $newSellers,
+                    'active_sellers' => $activeSellers,
+                    'top_sellers' => $topSellers,
+                    'status_stats' => $statusStats
+                ],
+                'message' => 'Lấy thống kê seller thành công'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error in SellerController@stats: ' . $e->getMessage());
+            Log::error($e->getTraceAsString());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi khi lấy thống kê seller: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

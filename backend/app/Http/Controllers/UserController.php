@@ -23,8 +23,18 @@ class UserController extends Controller
 {
     public function index()
     {
-        $users = User::all();
-        return UserResource::collection($users);
+        try {
+            $users = User::all();
+            return response()->json([
+                'success' => true,
+                'data' => UserResource::collection($users)
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi khi lấy danh sách người dùng: ' . $e->getMessage()
+            ], 500);
+        }
     }
     public function getByRole($role)
     {

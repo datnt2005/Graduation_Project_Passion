@@ -34,11 +34,17 @@ class Seller extends Model
         'verified_at',
         'id_card_front_url',
         'id_card_back_url',
+        'status'
     ];
 
     protected $casts = [
         'shipping_options' => 'array',
         'verified_at' => 'datetime',
+        'status' => 'string'
+    ];
+
+    protected $attributes = [
+        'status' => 'active' // Default value
     ];
 
     /*
