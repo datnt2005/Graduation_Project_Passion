@@ -1,7 +1,6 @@
 import { defineStore } from "pinia";
 import axios from "axios";
 import { useRuntimeConfig } from "#app";
-const mediaBaseUrl = useRuntimeConfig().public.mediaBaseUrl || "";
 
 export const useChatStore = defineStore("chat", {
   state: () => ({
@@ -38,28 +37,37 @@ export const useChatStore = defineStore("chat", {
     },
 
     async getOrCreateSession(userId, sellerId, sellerInfo) {
-      try {
-        const config = useRuntimeConfig();
-        const API = config.public.apiBaseUrl;
-        const token = localStorage.getItem("access_token");
-        if (!token)
-          throw new Error("Chưa đăng nhập. Vui lòng đăng nhập để tiếp tục.");
+      const config = useRuntimeConfig();
+      const API = config.public.apiBaseUrl;
+      const token = localStorage.getItem("access_token");
 
+      if (!token) {
+        throw new Error("Chưa đăng nhập. Vui lòng đăng nhập để tiếp tục.");
+      }
+
+      try {
+        // 1. Tìm session trong danh sách hiện tại
         let session = this.sessions.find(
           (s) => s.user_id === userId && s.seller?.id === sellerId
         );
 
+        // 2. Nếu chưa có session -> kiểm tra lại trên server
         if (!session) {
-          const res = await axios.get(`${API}/chat/sessions`, {
-            params: { user_id: userId, type: "user" },
-            headers: { Authorization: `Bearer ${token}` },
-          });
+          const { data: responseData } = await axios.get(
+            `${API}/chat/sessions`,
+            {
+              params: { user_id: userId, type: "user" },
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          );
 
-          const sessionList = Array.isArray(res.data)
-            ? res.data
-            : res.data?.data || [];
+          const sessionList = Array.isArray(responseData)
+            ? responseData
+            : responseData?.data || [];
+
           session = sessionList.find((s) => s.seller?.id === sellerId);
 
+          // 3. Nếu vẫn chưa có -> tạo session mới
           if (!session) {
             const { data: newSession } = await axios.post(
               `${API}/chat/session`,
@@ -68,7 +76,9 @@ export const useChatStore = defineStore("chat", {
                 seller_id: sellerId,
                 type: "user",
               },
-              { headers: { Authorization: `Bearer ${token}` } }
+              {
+                headers: { Authorization: `Bearer ${token}` },
+              }
             );
 
             session = {
@@ -82,17 +92,19 @@ export const useChatStore = defineStore("chat", {
             };
           }
 
-          this.sessions.push(session);
+          this.sessions.push(session); // cache lại session
         }
 
-        this.openChat(session);
+        this.openChat(session); // mở khung chat
         return session;
-      } catch (error) {
-        console.error("❌ Lỗi khi lấy/tạo session:", error);
-        throw new Error(error.message || "Không thể tạo session chat");
+      } catch (err) {
+        console.error(
+          "❌ getOrCreateSession error:",
+          err.response?.data || err.message
+        );
+        throw new Error("Không thể tạo hoặc lấy session chat");
       }
     },
-
     async sendProductMessage(product, userId, sellerId) {
       if (!product || !product.id || !userId || !sellerId) {
         console.error("❌ Dữ liệu không hợp lệ:", {
@@ -105,9 +117,9 @@ export const useChatStore = defineStore("chat", {
 
       const config = useRuntimeConfig();
       const API = config.public.apiBaseUrl;
+      const mediaBaseUrl = config.public.mediaBaseUrl;
       const token = localStorage.getItem("access_token");
-      const DEFAULT_PRODUCT =
-        config.public.mediaBaseUrl + "products/default.jpg";
+      const DEFAULT_PRODUCT = mediaBaseUrl + "products/default.jpg";
 
       const getImageUrl = (path) => {
         if (!path) return DEFAULT_PRODUCT;
@@ -132,11 +144,6 @@ export const useChatStore = defineStore("chat", {
           variantId: product.variantId || null,
           productLink: product.link || window.location.href,
           file_url: imageUrl,
-          name: product.name,
-          price: product.price,
-          original_price: product.original_price || null,
-          description: product.description || "",
-          file_type: "image",
         },
       };
 

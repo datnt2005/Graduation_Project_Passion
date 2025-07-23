@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\ChatSession;
 use App\Models\ChatMessage;
 use App\Models\ChatAttachment;
+use App\Models\User;
+use App\Models\Seller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Cache;
@@ -37,7 +39,7 @@ class ChatController extends Controller
         $type = $request->query('type');
 
         try {
-            // Xác thực đầu vào
+            // Validate đầu vào
             if (!$userId || !in_array($type, ['user', 'seller'])) {
                 Log::warning('Invalid parameters for chat sessions', [
                     'user_id' => $userId,
@@ -49,21 +51,39 @@ class ChatController extends Controller
                 ], 400);
             }
 
-            $sessions = ChatSession::where('user_id', $userId)
+            // Query tùy theo role (user hoặc seller)
+            $query = ChatSession::query();
+
+            if ($type === 'user') {
+                $query->where('user_id', $userId);
+            } elseif ($type === 'seller') {
+                $query->where('seller_id', $userId);
+            }
+
+            $sessions = $query
+                ->with(['user', 'seller'])
                 ->orderByDesc(function ($query) {
                     $query->select('created_at')
-                        ->from('messages')
-                        ->where('messages.chat_session_id', '=', DB::raw('chat_sessions.id'))
+                        ->from('chat_messages')
+                        ->whereColumn('chat_messages.session_id', 'chat_sessions.id')
                         ->orderByDesc('created_at')
                         ->limit(1);
                 })
                 ->orWhereNotExists(function ($query) {
                     $query->select(DB::raw(1))
-                        ->from('messages')
-                        ->where('messages.chat_session_id', '=', DB::raw('chat_sessions.id'));
+                        ->from('chat_messages')
+                        ->whereColumn('chat_messages.session_id', 'chat_sessions.id');
                 })
-                ->orderByDesc('created_at') // Sắp xếp theo created_at của chat_sessions nếu không có tin nhắn
-                ->get(['id', 'user_id', 'seller_id', 'created_at', 'updated_at']);
+                ->orderByDesc('created_at')
+                ->get([
+                    'id',
+                    'user_id',
+                    'seller_id',
+                    'last_message',
+                    'last_message_at',
+                    'created_at',
+                    'updated_at',
+                ]);
 
             Log::info('Chat sessions retrieved', [
                 'user_id' => $userId,
@@ -90,7 +110,6 @@ class ChatController extends Controller
             ], 500);
         }
     }
-
 
     // 3️⃣ Gửi tin nhắn mới (text, ảnh hoặc sản phẩm)
     public function sendMessage(Request $request)
@@ -194,51 +213,52 @@ class ChatController extends Controller
     }
 
     // 4️⃣ Lấy tất cả tin nhắn của 1 phiên
-    public function getMessages(Request $request ,$sessionId)
-    {
-        try {
-            $limit = $request->input('limit', 20);
-            $page = $request->input('page', 1);
 
-            $messages = ChatMessage::with('attachments')
-                ->where('session_id', $sessionId)
-                ->whereIn('message_type', ['text', 'image', 'product'])
-                ->orderBy('created_at', 'asc')
-                ->skip(($page - 1) * $limit)
-                ->take($limit)
-                ->get();
+    public function getMessages(Request $request, $sessionId)
+{
+    try {
+        $limit = (int) $request->input('limit', 20);
+        $page = (int) $request->input('page', 1);
 
-           $formattedMessages = $messages->map(function ($message) {
-                $attachments = $message->attachments->pluck('attachments')->flatten(1)->all() ?? [];
-
-                return [
-                    'id'            => $message->id,
-                    'session_id'    => $message->session_id,
-                    'sender_id'     => $message->sender_id,
-                    'sender_type'   => $message->sender_type,
-                    'message'       => $message->message ?? '',
-                    'message_type'  => $message->message_type,
-                    'status'        => $message->status,
-                    'created_at'    => $message->created_at,
-                    'updated_at'    => $message->updated_at,
-                    'attachments'   => $attachments,
-                    'avatar'        => $message->senderUser?->avatar
-                                        ? url($message->senderUser->avatar)
-                                        : null,
-                ];
-            });
+        $messages = ChatMessage::with('attachments')
+        ->where('session_id', $sessionId)
+        ->whereIn('message_type', ['text', 'image', 'product'])
+        ->orderBy('created_at', 'desc') // lấy mới nhất
+        ->take(20)
+        ->get()
+        ->sortBy('created_at') // sắp xếp lại đúng dòng thời gian
+        ->values();
 
 
-            return response()->json([
-                'data' => $formattedMessages
-            ]);
-        } catch (\Exception $e) {
-            Log::error('❌ Lỗi trong getMessages: ' . $e->getMessage(), ['session_id' => $sessionId]);
-            return response()->json([
-                'error' => 'Lỗi server khi lấy tin nhắn: ' . $e->getMessage()
-            ], 500);
-        }
+        $formattedMessages = $messages->map(function ($message) {
+            $attachments = $message->attachments->pluck('attachments')->flatten(1)->all() ?? [];
+
+            return [
+                'id' => $message->id,
+                'session_id' => $message->session_id,
+                'sender_id' => $message->sender_id,
+                'sender_type' => $message->sender_type,
+                'message' => $message->message ?? '',
+                'message_type' => $message->message_type,
+                'status' => $message->status,
+                'created_at' => $message->created_at,
+                'updated_at' => $message->updated_at,
+                'attachments' => $attachments,
+                'avatar' => $message->senderUser?->avatar ? url($message->senderUser->avatar) : null,
+            ];
+        });
+
+        return response()->json([
+            'data' => $formattedMessages
+        ]);
+    } catch (\Exception $e) {
+        Log::error('❌ Lỗi trong getMessages: ' . $e->getMessage(), ['session_id' => $sessionId]);
+        return response()->json([
+            'error' => 'Lỗi server khi lấy tin nhắn: ' . $e->getMessage()
+        ], 500);
     }
+}
+
 
     // 5️⃣ Đánh dấu tin nhắn là đã đọc
     public function markAsRead(Request $request, $sessionId)

@@ -6,8 +6,15 @@
         <div
           class="p-4 font-bold text-lg border-b border-gray-200 text-[#189EFF]"
         >
-          💬 Tin nhắn
+          Tin nhắn
         </div>
+        <div
+          v-if="!selectedSession"
+          class="flex-1 flex items-center justify-center text-gray-400 italic"
+        >
+          Hãy chọn một cuộc trò chuyện để bắt đầu
+        </div>
+
         <ul class="overflow-y-auto h-full">
           <li
             v-for="(session, i) in chatSessions"
@@ -48,171 +55,189 @@
         </div>
 
         <!-- Messages -->
+
+        <!-- Messages -->
+        <div
+          v-if="loadingMessages"
+          class="text-gray-500 p-4 text-center italic"
+        >
+          Đang tải cuộc trò chuyện...
+        </div>
+        <div
+          v-else-if="isLoadingMore"
+          class="text-gray-500 p-4 text-center italic"
+        >
+          Đang tải thêm tin nhắn...
+        </div>
         <div
           ref="chatContainer"
           class="flex-1 overflow-y-auto p-4 space-y-4 bg-[#F9FAFB] text-[#212121]"
         >
-          <div
-            v-for="msg in currentMessages"
-            :key="msg.id"
-            :class="[
-              'flex items-end gap-2',
-              msg.sender_type === 'seller' ? 'justify-end' : '',
-            ]"
+          <TransitionGroup
+            name="message"
+            tag="div"
+            @after-enter="scrollToBottom"
           >
-            <!-- Avatar người dùng -->
-            <img
-              v-if="msg.sender_type === 'user'"
-              src="https://i.pravatar.cc/32"
-              class="w-8 h-8 rounded-full"
-              alt="User avatar"
-            />
-
             <div
-              :class="
-                msg.sender_type === 'seller' ? 'flex flex-col items-end' : ''
-              "
+              v-for="msg in currentMessages"
+              :key="msg.id"
+              :class="[
+                'flex items-end gap-2',
+                msg.sender_type === 'seller' ? 'justify-end' : '',
+              ]"
             >
-              <!-- Text -->
-              <div
-                v-if="msg.message"
-                :class="[
-                  'px-4 py-2 rounded-2xl max-w-xs break-words mb-1',
-                  msg.sender_type === 'seller'
-                    ? 'bg-[#189EFF] text-white rounded-br-none'
-                    : 'bg-gray-100 rounded-bl-none',
-                ]"
-              >
-                {{ msg.message }}
-              </div>
+              <!-- Avatar người dùng -->
+              <img
+                v-if="msg.sender_type === 'user'"
+                src="https://i.pravatar.cc/32"
+                class="w-8 h-8 rounded-full"
+                alt="Ảnh đại diện người dùng"
+              />
 
-              <!-- Image -->
               <div
-                v-if="msg.message_type === 'image' && msg.attachments?.length"
-                class="flex gap-2 flex-wrap mb-1"
-              >
-                <div
-                  v-for="(attachment, index) in msg.attachments"
-                  :key="index"
-                  class="w-24 h-24 rounded overflow-hidden cursor-pointer relative"
-                  @click="
-                    openImageViewer(attachment.file_url || attachment.url)
-                  "
-                >
-                  <img
-                    :src="attachment.file_url || attachment.url"
-                    class="w-full h-full object-cover border border-gray-200 rounded"
-                    alt="Ảnh đính kèm"
-                    :class="{
-                      'opacity-50 grayscale animate-pulse': attachment.temp,
-                    }"
-                  />
-                  <div
-                    v-if="attachment.temp"
-                    class="absolute inset-0 flex items-center justify-center"
-                  >
-                    <svg
-                      class="w-6 h-6 text-white animate-spin"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <circle
-                        class="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        stroke-width="4"
-                      ></circle>
-                      <path
-                        class="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8v8z"
-                      ></path>
-                    </svg>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Product -->
-              <a
-                v-if="msg.message_type === 'product'"
-                :href="msg.attachments?.[0]?.meta_data?.productLink"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="block bg-[#F7F7F7] rounded-lg p-3 text-sm no-underline mb-1 max-w-xs"
-              >
-                <div class="mb-2 text-[#555] font-medium">
-                  Bạn đang trao đổi với Người bán về sản phẩm này
-                </div>
-                <div
-                  class="flex border rounded overflow-hidden bg-white hover:shadow-md transition"
-                >
-                  <img
-                    :src="msg.attachments?.[0]?.meta_data?.file_url"
-                    alt="Ảnh sản phẩm"
-                    class="w-24 h-24 object-cover border-r"
-                  />
-                  <div class="flex-1 p-2 overflow-hidden">
-                    <div class="font-semibold text-[#212121] line-clamp-2">
-                      {{
-                        msg.attachments?.[0]?.meta_data?.name || "[Sản phẩm]"
-                      }}
-                    </div>
-                    <div class="mt-1 flex flex-wrap items-center gap-1">
-                      <span
-                        v-if="msg.attachments?.[0]?.meta_data?.original_price"
-                        class="text-gray-400 line-through text-xs"
-                      >
-                        {{
-                          formatPrice(
-                            msg.attachments[0].meta_data.original_price
-                          )
-                        }}
-                      </span>
-                      <span
-                        v-if="msg.attachments?.[0]?.meta_data?.price"
-                        class="text-[#FF0000] font-semibold"
-                      >
-                        {{ formatPrice(msg.attachments[0].meta_data.price) }}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </a>
-
-              <!-- Không có nội dung -->
-              <div
-                v-if="
-                  !msg.message && (!msg.attachments || !msg.attachments.length)
+                :class="
+                  msg.sender_type === 'seller' ? 'flex flex-col items-end' : ''
                 "
-                class="text-xs text-gray-400 italic"
               >
-                [Tin nhắn không xác định]
-              </div>
+                <!-- Text -->
+                <div
+                  v-if="msg.message"
+                  :class="[
+                    'px-4 py-2 rounded-2xl max-w-md break-words mb-1',
+                    msg.sender_type === 'seller'
+                      ? 'bg-[#189EFF] text-white rounded-br-none'
+                      : 'bg-gray-100 rounded-bl-none',
+                  ]"
+                >
+                  {{ msg.message }}
+                </div>
 
-              <!-- Thời gian gửi -->
-              <div
-                :class="[
-                  'text-xs mt-1',
-                  msg.sender_type === 'seller'
-                    ? 'text-gray-500 flex items-center gap-1'
-                    : 'text-gray-400',
-                ]"
-              >
-                {{
-                  new Date(msg.created_at).toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })
-                }}
-                <template v-if="msg.sender_type === 'seller'">
-                  <span class="text-xs">Đã Gửi</span>
-                </template>
+                <!-- Image -->
+                <div
+                  v-if="msg.message_type === 'image' && msg.attachments?.length"
+                  class="flex gap-2 flex-wrap mb-1"
+                >
+                  <div
+                    v-for="(attachment, index) in msg.attachments"
+                    :key="index"
+                    class="w-24 h-24 rounded overflow-hidden cursor-pointer relative"
+                    @click="
+                      openImageViewer(attachment.file_url || attachment.url)
+                    "
+                  >
+                    <img
+                      :src="attachment.file_url || attachment.url"
+                      class="w-full h-full object-cover border border-gray-200 rounded aspect-square"
+                      alt="Ảnh đính kèm"
+                      :class="{
+                        'opacity-50 grayscale animate-pulse': attachment.temp,
+                      }"
+                    />
+                    <div
+                      v-if="attachment.temp"
+                      class="absolute inset-0 flex items-center justify-center"
+                    >
+                      <svg
+                        class="w-6 h-6 text-white animate-spin"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <circle
+                          class="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          stroke-width="4"
+                        ></circle>
+                        <path
+                          class="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8v8z"
+                        ></path>
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Product -->
+                <a
+                  v-if="msg.message_type === 'product'"
+                  :href="msg.attachments?.[0]?.meta_data?.productLink"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="block bg-[#F7F7F7] rounded-lg p-3 text-sm no-underline mb-1 max-w-xs"
+                >
+                  <div class="mb-2 text-[#555] font-medium">
+                    Bạn đang trao đổi với Người bán về sản phẩm này
+                  </div>
+                  <div
+                    class="flex border rounded overflow-hidden bg-white hover:shadow-md transition"
+                  >
+                    <img
+                      :src="msg.attachments?.[0]?.meta_data?.file_url"
+                      alt="Ảnh sản phẩm"
+                      class="w-24 h-24 object-cover border-r"
+                    />
+                    <div class="flex-1 p-2 overflow-hidden">
+                      <div class="font-semibold text-[#212121] line-clamp-2">
+                        {{
+                          msg.attachments?.[0]?.meta_data?.name || "[Sản phẩm]"
+                        }}
+                      </div>
+                      <div class="mt-1 flex flex-wrap items-center gap-1">
+                        <span
+                          v-if="msg.attachments?.[0]?.meta_data?.original_price"
+                          class="text-gray-400 line-through text-xs"
+                        >
+                          {{
+                            formatPrice(
+                              msg.attachments[0].meta_data.original_price
+                            )
+                          }}
+                        </span>
+                        <span
+                          v-if="msg.attachments?.[0]?.meta_data?.price"
+                          class="text-[#FF0000] font-semibold"
+                        >
+                          {{ formatPrice(msg.attachments[0].meta_data.price) }}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </a>
+
+                <!-- Không có nội dung -->
+                <div
+                  v-if="
+                    !msg.message &&
+                    (!msg.attachments || !msg.attachments.length)
+                  "
+                  class="text-xs text-gray-400 italic"
+                >
+                  [Tin nhắn không xác định]
+                </div>
+
+                <!-- Thời gian gửi -->
+                <div
+                  :class="[
+                    'text-xs mt-1',
+                    msg.sender_type === 'seller'
+                      ? 'text-gray-500 flex items-center gap-1'
+                      : 'text-gray-400',
+                  ]"
+                >
+                  {{
+                    new Date(msg.created_at).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
+                  }}
+                </div>
               </div>
             </div>
-          </div>
+          </TransitionGroup>
         </div>
 
         <!-- Form gửi tin -->
@@ -312,6 +337,7 @@ const selectedImages = ref([]);
 const message = ref("");
 const seller = ref({});
 const chatSessions = ref([]);
+const isLoadingMessages = ref(false);
 
 const selectedSession = ref(null);
 const chatContainer = ref(null);
@@ -342,6 +368,20 @@ const handleFileChange = (e) => {
     }))
   );
   e.target.value = "";
+};
+
+const handleSelectSession = async (session_id) => {
+  loadingMessages.value = true;
+  currentMessages.value = [];
+
+  try {
+    const res = await axios.get(`/api/messages/${session_id}`);
+    currentMessages.value = res.data;
+  } catch (err) {
+    console.error(err);
+  } finally {
+    loadingMessages.value = false;
+  }
 };
 
 const removeImage = (index) => {
@@ -400,17 +440,25 @@ onMounted(async () => {
   window.addEventListener("keydown", handleEscKey);
 
   const token = localStorage.getItem("access_token");
-  if (!token) return;
+  if (!token) {
+    console.error("Không tìm thấy access_token");
+    return;
+  }
 
   try {
     const sellerRes = await fetch(`${API}/sellers/seller/me`, {
       headers: { Authorization: `Bearer ${token}` },
     });
+    // console.log("sellerRes status:", sellerRes.status);
     if (!sellerRes.ok) throw new Error("Không thể lấy dữ liệu seller");
     const dataSeller = await sellerRes.json();
+    // console.log("dataSeller:", dataSeller);
     seller.value = dataSeller?.seller || {};
 
-    if (!seller.value?.id) return;
+    if (!seller.value?.id) {
+      console.error("Không tìm thấy seller.id");
+      return;
+    }
 
     const sessionsRes = await fetch(
       `${API}/chat/sessions?user_id=${seller.value.id}&type=seller`,
@@ -418,36 +466,63 @@ onMounted(async () => {
         headers: { Authorization: `Bearer ${token}` },
       }
     );
-    if (!sessionsRes.ok) throw new Error("Không thể lấy danh sách session");
+    // console.log("sessionsRes status:", sessionsRes.status);
     const sessionsData = await sessionsRes.json();
+    // console.log("sessionsData:", sessionsData);
+    if (!sessionsRes.ok) throw new Error("Không thể lấy danh sách session");
     chatSessions.value = Array.isArray(sessionsData)
       ? sessionsData
-      : sessionsData?.data || [];
+      : sessionsData?.data || sessionsData?.sessions || [];
   } catch (error) {
     console.error("Lỗi khi lấy dữ liệu:", error.message);
   }
 });
 
+async function selectSession(session) {
+  selectedSession.value = session;
+
+  const token = localStorage.getItem("access_token");
+  if (!token || !session?.id) {
+    console.error("Thiếu token hoặc session.id");
+    return;
+  }
+
+  isLoadingMessages.value = true;
+
+  try {
+    const res = await fetch(
+      `${API}/chat/messages/${session.id}?page=last&limit=20`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    const data = await res.json();
+    // console.log("messagesData:", data);
+    // console.log("response status:", res.status);
+
+    if (!res.ok) throw new Error(data?.message || "Không thể lấy tin nhắn");
+
+    currentMessages.value = Array.isArray(data?.data)
+      ? data.data
+      : data?.messages || [];
+
+    await nextTick();
+    scrollToBottom();
+  } catch (error) {
+    console.error("Lỗi khi chọn session:", error.message);
+  } finally {
+    isLoadingMessages.value = false;
+  }
+}
+
 onUnmounted(() => {
   stopPollingMessages();
   window.removeEventListener("keydown", handleEscKey);
 });
-
-async function selectSession(session) {
-  selectedSession.value = session;
-  const token = localStorage.getItem("access_token");
-  try {
-    const res = await fetch(`${API}/chat/messages/${session.id}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) throw new Error("Không thể lấy tin nhắn");
-    const data = await res.json();
-    currentMessages.value = data?.data || [];
-    nextTick(scrollToBottom);
-  } catch (error) {
-    console.error("Lỗi khi chọn session:", error.message);
-  }
-}
 
 function formatTime(ts) {
   if (!ts) return "";
@@ -651,6 +726,41 @@ watch(selectedSession, (newVal) => {
 </script>
 
 <style scoped>
+@media (max-width: 640px) {
+  .sidebar {
+    display: none;
+  }
+  .sidebar.open {
+    display: block;
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: white;
+    z-index: 50;
+  }
+}
+
+.message-enter-active,
+.message-leave-active {
+  transition: all 0.3s ease;
+}
+.message-enter-from {
+  opacity: 0;
+  transform: translateY(10px);
+}
+.message-enter-to {
+  opacity: 1;
+  transform: translateY(0);
+}
+.message-leave-from {
+  opacity: 1;
+  transform: translateY(0);
+}
+.message-leave-to {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
 @keyframes shake {
   0%,
   100% {
