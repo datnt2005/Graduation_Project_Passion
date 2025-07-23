@@ -211,7 +211,7 @@ class SellerController extends Controller
             );
 
             // Total active products
-            $productsCount = $seller->products()->where('status', 'active')->count();
+            $productsCount = $seller->products()->where('status', 'active')->where('admin_status', 'approved')->count();
 
             // Total sold items
             $totalSold = $seller->products->flatMap(function ($product) {

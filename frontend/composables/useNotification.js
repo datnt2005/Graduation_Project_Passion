@@ -1,32 +1,23 @@
-import { ref } from 'vue'
-
-const notification = ref({
-  show: false,
-  message: '',
-  type: 'success' // 'success' or 'error'
-})
+import { ref } from 'vue';
 
 export function useNotification() {
-  const showNotification = (message, type = 'success') => {
-    notification.value = {
-      show: true,
-      message,
-      type
-    }
-    
-    // Auto hide after 3 seconds
-    setTimeout(() => {
-      hideNotification()
-    }, 3000)
-  }
+  const showNotification = ref(false);
+  const notificationMessage = ref('');
+  const notificationType = ref('success');
 
-  const hideNotification = () => {
-    notification.value.show = false
-  }
+  const setNotification = (message, type = 'success') => {
+    notificationMessage.value = message;
+    notificationType.value = type;
+    showNotification.value = true;
+    setTimeout(() => {
+      showNotification.value = false;
+    }, 3000);
+  };
 
   return {
-    notification,
     showNotification,
-    hideNotification
-  }
-} 
+    notificationMessage,
+    notificationType,
+    setNotification,
+  };
+}

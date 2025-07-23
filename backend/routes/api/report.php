@@ -11,6 +11,9 @@ Route::prefix('admin/reports')
     ->middleware(['auth:sanctum', 'checkRole:admin'])
     ->group(function () {
         Route::get('/', [ReportController::class, 'index']); // Lấy danh sách
+        Route::get('/products', [ReportController::class, 'getReportProduct']); // Lấy danh sách sản phẩm
+        Route::get('/products/{id}', [ReportController::class, 'getReportProductById']); // Lấy danh sách sản phẩm theo id
+        Route::delete('/products/{id}', [ReportController::class, 'destroy']); 
         Route::get('/{id}', [ReportController::class, 'show']); // Xem chi tiết
         Route::put('/{id}/status', [ReportController::class, 'updateStatus']); // Cập nhật trạng thái
     });

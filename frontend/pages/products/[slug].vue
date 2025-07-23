@@ -786,35 +786,63 @@ async function fetchShopProducts() {
       shopProducts.value = [];
       return;
     }
+
     const res = await fetch(`${apiBase}/products/sellers/${sellerId}`);
     if (!res.ok) {
       throw new Error(
         `Lỗi khi tải sản phẩm của shop: ${res.status} ${res.statusText}`
       );
     }
+
     const data = await res.json();
     if (!data.success) {
       throw new Error(data.message || "Lỗi API");
     }
-    shopProducts.value = (data.data.data || [])
-      .map((item) => {
+
+    // Get the category IDs of the current product
+    const currentProductCategoryIds = product.value?.categories?.map(cat => cat.id) || [];
+
+    // Initialize products array
+    let products = [];
+
+    // Prioritize products from the same categories as the current product
+    if (currentProductCategoryIds.length > 0) {
+      const sameCategoryProducts = data.data.filter(product =>
+        product.categories.some(cat => currentProductCategoryIds.includes(cat.id))
+      );
+      products = products.concat(sameCategoryProducts);
+    }
+
+    // If fewer than 10 products, add products from other categories
+    if (products.length < 10) {
+      const otherCategoryProducts = data.data.filter(product =>
+        !product.categories.some(cat => currentProductCategoryIds.includes(cat.id))
+      );
+      products = products.concat(otherCategoryProducts);
+    }
+
+    // Map and filter products
+    shopProducts.value = products
+      .slice(0, 10) // Limit to 10 products
+      .map(item => {
         // Lấy variant đầu tiên có số lượng > 0
         const variant =
-          item.product_variants?.find((v) => v.price && v.quantity > 0) ||
+          item.product_variants?.find(v => v.price && v.quantity > 0) ||
           item.product_variants?.[0] ||
           {};
+
         // Tính discountPercent
-        const price = parseFloat(
-          variant?.sale_price || variant?.price || "0.00"
-        );
+        const price = parseFloat(variant?.sale_price || variant?.price || "0.00");
         const originalPrice = parseFloat(variant?.price || "0.00");
         const discountPercent =
           variant?.sale_price && price < originalPrice
             ? Math.round(((originalPrice - price) / originalPrice) * 100)
             : 0;
+
         // Lấy ảnh đầu tiên
         const image =
           item.product_pic?.[0]?.imagePath || "/default-product.jpg";
+
         return {
           id: Number(item.id || 0),
           name: item.name || "Unknown Product",
@@ -825,9 +853,11 @@ async function fetchShopProducts() {
           sold: String(item.sold || "0"),
         };
       })
-      .filter((item) => item !== null && item.id !== product.value.id); // Lọc sản phẩm không hợp lệ và sản phẩm đang xem
+      .filter(item => item !== null && item.id !== product.value.id); // Lọc sản phẩm không hợp lệ và sản phẩm đang xem
+
   } catch (err) {
     shopProducts.value = [];
+    console.error(err);
   }
 }
 
