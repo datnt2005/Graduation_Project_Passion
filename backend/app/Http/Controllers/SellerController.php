@@ -47,14 +47,11 @@ class SellerController extends Controller
     }
 
 
-    public function getMySellerInfo()
+public function getMySellerInfo()
 {
     $user = auth()->user();
 
-    // Kiểm tra user có phải seller không
-    $seller = Seller::with(['user:id,name,email,avatar'])
-        ->where('user_id', auth()->id())
-        ->first();
+    $seller = Seller::with(['user:id,name,email,avatar'])->where('user_id', $user->id)->first();
 
     if (!$seller) {
         return response()->json([
@@ -62,28 +59,19 @@ class SellerController extends Controller
         ], 403);
     }
 
-    $avatarUrl = $seller->user->avatar
+    // Avatar xử lý URL nếu cần
+    $seller->user->avatar_url = $seller->user->avatar
         ? env('R2_AVATAR_URL') . $seller->user->avatar
         : env('R2_AVATAR_URL') . 'default.jpg';
 
+    // Xoá trường cũ (tránh nhầm)
+    unset($seller->user->avatar);
+
     return response()->json([
-        'seller' => [
-            'id' => $seller->id,
-            'store_name' => $seller->store_name,
-            'province_id' => $seller->province_id,
-            'district_id' => $seller->district_id,
-            'ward_id' => $seller->ward_id,
-            'address' => $seller->address,
-            'ghn_shop_id' => $seller->ghn_shop_id,
-            'user' => [
-                'id' => $seller->user->id,
-                'name' => $seller->user->name,
-                'email' => $seller->user->email,
-                'avatar_url' => $avatarUrl,
-            ],
-        ],
-    ], 200);
+        'seller' => $seller
+    ]);
 }
+
 public function update(Request $request)
 {
     $user = auth()->user();
