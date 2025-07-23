@@ -626,7 +626,7 @@ public function getVerifiedSellers()
             return response()->json(['errors' => ['api' => ['Lỗi khi kiểm tra địa chỉ với GHN: ' . $e->getMessage()]]], 500);
         }
 try {
-    // Tạo thông báo và xử lý trong transaction
+
     $seller = DB::transaction(function () use ($request, $user, $data) {
         $notification = Notification::create([
             'title' => 'Yêu cầu đăng ký người bán mới',
@@ -636,6 +636,7 @@ try {
             'to_roles' => json_encode(['admin']),
             'channels' => json_encode(['email', 'dashboard']),
             'status' => 'sent',
+            'link' => 'admin/sellers/list-seller',
             'type' => 'message',
             'created_at' => now(),
             'updated_at' => now(),

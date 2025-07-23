@@ -8,11 +8,14 @@ const hasNewNotifications = ref(false)
 const notifications = ref([])
 const isNotificationOpen = ref(false)
 const router = useRouter()
-let interval // Declare interval variable
+let interval 
 
-// LocalStorage key cho notifications đã đọc
+// Thêm các ref states cho modal:
+const isModalOpen = ref(false)
+const selectedNotification = ref(null)
+
 const STORAGE_KEY = 'admin_read_notifications'
-const STORAGE_EXPIRY_DAYS = 30  
+const STORAGE_EXPIRY_DAYS = 30 // Xóa data cũ sau 30 ngày
 
 // Utility functions cho localStorage
 const getReadNotificationsFromStorage = () => {
@@ -31,7 +34,6 @@ const getReadNotificationsFromStorage = () => {
       return acc
     }, {})
     
-    // Cập nhật lại localStorage nếu có thay đổi
     if (Object.keys(filtered).length !== Object.keys(data).length) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered))
     }
@@ -79,7 +81,6 @@ const fetchNotifications = async () => {
     const response = await secureFetch('http://localhost:8000/api/admin/notifications/system', {}, ['admin'])
     const serverNotifications = response?.data || []
     
-    // Merge với localStorage data
     notifications.value = mergeNotificationsWithLocalStorage(serverNotifications)
     hasNewNotifications.value = notifications.value.some(n => !n.read)
   } catch (error) {
@@ -95,57 +96,86 @@ const toggleNotifications = () => {
 // Mark all as read
 const markAllAsRead = async () => {
   try {
-    // Đánh dấu tất cả trong localStorage
     notifications.value.forEach(notification => {
       if (!notification.read) {
         saveReadNotificationToStorage(notification.id)
       }
     })
     
-    // Cập nhật state
     notifications.value = notifications.value.map(n => ({ ...n, read: true }))
     hasNewNotifications.value = false
     
-    // Gọi API server
     await secureFetch('http://localhost:8000/api/admin/notifications/mark-read', {
       method: 'POST'
     }, ['admin'])
   } catch (error) {
     console.error('Failed to mark notifications as read:', error)
-    // Có thể rollback localStorage nếu cần
   }
 }
 
 // Handle notification click
 const handleNotificationClick = async (notification) => {
-  // Đánh dấu đã đọc ngay lập tức (optimistic update)
   const notificationIndex = notifications.value.findIndex(n => n.id === notification.id)
   if (notificationIndex !== -1 && !notifications.value[notificationIndex].read) {
-    // Cập nhật localStorage
     saveReadNotificationToStorage(notification.id)
     
     // Cập nhật state
     notifications.value[notificationIndex].read = true
     hasNewNotifications.value = notifications.value.some(n => !n.read)
     
-    // Gọi API để đánh dấu đã đọc trên server (background)
     try {
       await secureFetch(`http://localhost:8000/api/admin/notifications/${notification.id}/read`, {
         method: 'POST'
       }, ['admin'])
     } catch (error) {
       console.error('Failed to mark notification as read on server:', error)
-      // Không rollback localStorage vì user đã đọc rồi
     }
   }
   
   // Navigate nếu có link
-  if (notification.link) {
-    router.push(notification.link)
+if (notification.link) {
+  let link = notification.link
+  if (!link.startsWith('/')) {
+    link = '/' + link
   }
+
+  const fullUrl = window.location.origin + link
+  window.location.href = fullUrl
+}
+
   
   // Đóng dropdown
   isNotificationOpen.value = false
+}
+
+// Thêm functions để handle modal:
+const openNotificationModal = (notification, event) => {
+  event.stopPropagation()
+  selectedNotification.value = notification
+  isModalOpen.value = true
+  
+  // Mark as read when opening modal
+  if (!notification.read) {
+    markAsRead(notification, event)
+  }
+}
+
+const closeModal = () => {
+  isModalOpen.value = false
+  selectedNotification.value = null
+}
+
+const handleModalBackdropClick = (event) => {
+  if (event.target === event.currentTarget) {
+    closeModal()
+  }
+}
+
+// Handle ESC key
+const handleEscKey = (event) => {
+  if (event.key === 'Escape' && isModalOpen.value) {
+    closeModal()
+  }
 }
 
 // Đánh dấu một notification cụ thể là đã đọc
@@ -250,12 +280,15 @@ onMounted(() => {
   
   // Add click outside listener
   document.addEventListener('click', closeNotifications)
+  document.addEventListener('keydown', handleEscKey)
 })
 
 onUnmounted(() => {
   clearInterval(interval)
   document.removeEventListener('click', closeNotifications)
+  document.removeEventListener('keydown', handleEscKey)
 })
+
 </script>
 
 <template>
@@ -364,6 +397,13 @@ onUnmounted(() => {
                         <p class="text-xs text-gray-500 mt-2">
                           {{ formatDate(notification.created_at) }}
                         </p>
+                        <!-- Trong notification item, thêm button này sau content -->
+                        <button
+                          @click="openNotificationModal(notification, $event)"
+                          class="mt-2 text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors duration-200"
+                        >
+                          Xem chi tiết
+                        </button>
                       </div>
                       
                       <!-- Actions -->
@@ -444,6 +484,143 @@ onUnmounted(() => {
       </div>
     </div>
   </header>
+  <!-- Notification Detail Modal -->
+  <Teleport to="body">
+    <Transition
+      enter-active-class="transition-all duration-300 ease-out"
+      enter-from-class="opacity-0"
+      enter-to-class="opacity-100"
+      leave-active-class="transition-all duration-200 ease-in"
+      leave-from-class="opacity-100"
+      leave-to-class="opacity-0"
+    >
+      <div
+        v-if="isModalOpen"
+        @click="handleModalBackdropClick"
+        class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+      >
+        <Transition
+          enter-active-class="transition-all duration-300 ease-out"
+          enter-from-class="opacity-0 scale-95 translate-y-4"
+          enter-to-class="opacity-100 scale-100 translate-y-0"
+          leave-active-class="transition-all duration-200 ease-in"
+          leave-from-class="opacity-100 scale-100 translate-y-0"
+          leave-to-class="opacity-0 scale-95 translate-y-4"
+        >
+          <div
+            v-if="selectedNotification"
+            class="relative w-full max-w-2xl max-h-[90vh] bg-white rounded-2xl shadow-2xl overflow-hidden"
+          >
+            <!-- Modal Header -->
+            <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
+                  <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 class="text-lg font-semibold text-gray-900 mb-2">Chi tiết thông báo</h2>
+                  <p class="text-sm text-gray-500">{{ formatDate(selectedNotification.created_at) }}</p>
+                </div>
+              </div>
+              <button
+                @click="closeModal"
+                class="w-8 h-8 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 flex items-center justify-center transition-all duration-200"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <!-- Modal Content -->
+            <div class="px-6 py-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+              <!-- Title -->
+              <div class="mb-6">
+                <h3 class="text-xl font-bold text-gray-900 mb-2">{{ selectedNotification.title }}</h3>
+                <div class="flex items-center gap-2">
+                  <span
+                    :class="selectedNotification.read ? 'bg-gray-100 text-gray-600' : 'bg-blue-100 text-blue-600'"
+                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                  >
+                    {{ selectedNotification.read ? 'Đã đọc' : 'Chưa đọc' }}
+                  </span>
+                  <span
+                    v-if="selectedNotification.priority"
+                    :class="{
+                      'bg-red-100 text-red-600': selectedNotification.priority === 'high',
+                      'bg-yellow-100 text-yellow-600': selectedNotification.priority === 'medium',
+                      'bg-green-100 text-green-600': selectedNotification.priority === 'low'
+                    }"
+                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                  >
+                    {{ selectedNotification.priority === 'high' ? 'Cao' : selectedNotification.priority === 'medium' ? 'Trung bình' : 'Thấp' }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- Content -->
+              <div class="prose prose-sm max-w-none">
+                <div class="bg-gray-50 rounded-xl p-4 mb-6">
+                  <p class="text-gray-700 leading-relaxed whitespace-pre-wrap">{{ selectedNotification.content || selectedNotification.message || 'Không có nội dung chi tiết.' }}</p>
+                </div>
+                
+                <!-- Additional Info -->
+                <div v-if="selectedNotification.metadata" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  <div class="bg-white border border-gray-200 rounded-lg p-4">
+                    <h4 class="text-sm font-medium text-gray-900 mb-2">Thông tin bổ sung</h4>
+                    <div class="space-y-2">
+                      <div v-for="(value, key) in selectedNotification.metadata" :key="key" class="flex justify-between text-sm">
+                        <span class="text-gray-500 capitalize">{{ key }}:</span>
+                        <span class="text-gray-900 font-medium">{{ value }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <button
+                  v-if="!selectedNotification.read"
+                  @click="markAsRead(selectedNotification, $event)"
+                  class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                  Đánh dấu đã đọc
+                </button>
+                <button
+                  v-else
+                  @click="markAsUnread(selectedNotification, $event)"
+                  class="inline-flex items-center gap-2 px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all duration-200"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636" />
+                  </svg>
+                  Đánh dấu chưa đọc
+                </button>
+              </div>
+              
+              <div class="flex items-center gap-2">
+             
+                <button
+                  @click="closeModal"
+                  class="px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all duration-200"
+                >
+                  Đóng
+                </button>
+              </div>
+            </div>
+          </div>
+        </Transition>
+      </div>
+    </Transition>
+  </Teleport>
 </template>
 
 <style scoped>
