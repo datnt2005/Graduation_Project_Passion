@@ -615,7 +615,7 @@ public function getVerifiedSellers()
         }
 try {
 
-    $seller = DB::transaction(function () use ($request, $user, $data) {
+         $seller = DB::transaction(function () use ($request, $user, $data) {
         $notification = Notification::create([
             'title' => 'Yêu cầu đăng ký người bán mới',
             'content' => "Người dùng {$user->name} ({$user->email}) đã gửi yêu cầu đăng ký với tên cửa hàng: {$request->store_name}.",
