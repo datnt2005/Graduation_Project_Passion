@@ -452,59 +452,62 @@ class NotificationController extends Controller
 
 
     public function getMyNotifications(Request $request)
-    {
-        try {
-            $user = auth()->user();
-            if (!$user) {
-                return response()->json(['message' => 'Chưa đăng nhập.'], 401);
-            }
-
-            $baseImageUrl = rtrim(env('R2_URL'), '/');
-
-            $notifications = NotificationRecipient::with(['notification' => function ($query) {
-                $query->where('status', 'sent'); // 🔥 lọc chỉ lấy thông báo đã gửi
-            }])
-                ->where('user_id', $user->id)
-                ->where('is_hidden', 0)
-                ->orderByDesc('created_at')
-                ->get()
-                ->filter(fn($recipient) => $recipient->notification) // loại bỏ những dòng không có notification (do không match status)
-                ->map(function ($recipient) use ($baseImageUrl) {
-                    $n = $recipient->notification;
-
-                    return [
-                        'id' => $n->id,
-                        'title' => $n->title,
-                        'content' => (string) $n->content,
-                        'link' => $n->link,
-                        'image_url' => $n->image_url && !str_starts_with($n->image_url, 'http')
-                            ? $baseImageUrl . '/' . ltrim($n->image_url, '/')
-                            : $n->image_url,
-                        'type' => $n->type,
-                        'status' => $n->status,
-                        'is_read' => $recipient->is_read,
-                        'read_at' => $recipient->read_at,
-                        'sent_at' => $n->sent_at ? Carbon::parse($n->sent_at)->format('Y-m-d H:i:s') : null,
-                        'time_ago' => $n->sent_at
-                            ? Carbon::parse($n->sent_at)->timezone('Asia/Ho_Chi_Minh')->diffForHumans()
-                            : null,
-                    ];
-                });
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Lấy danh sách thông báo thành công.',
-                'data' => $notifications->values()->all(), // ✅ Sửa dòng này
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Lỗi khi lấy thông báo người dùng: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Đã xảy ra lỗi khi lấy thông báo.',
-                'error' => config('app.debug') ? $e->getMessage() : null
-            ], 500);
+{
+    try {
+        $user = auth()->user();
+        if (!$user) {
+            return response()->json(['message' => 'Chưa đăng nhập.'], 401);
         }
+
+        $baseImageUrl = rtrim(env('R2_URL'), '/');
+
+        $notifications = NotificationRecipient::with(['notification' => function ($query) {
+            $query->where('status', 'sent'); // Chỉ lấy thông báo đã gửi
+        }])
+            ->where('user_id', $user->id)
+            ->where('is_hidden', 0)
+            ->orderByDesc('created_at')
+            ->get()
+            ->filter(fn($recipient) => $recipient->notification) // Loại bỏ bản ghi không hợp lệ
+            ->map(function ($recipient) use ($baseImageUrl) {
+                $n = $recipient->notification;
+
+                return [
+                    'id' => $n->id,
+                    'title' => $n->title,
+                    'content' => (string) $n->content,
+                    'link' => $n->link,
+                    'image_url' => $n->image_url && !str_starts_with($n->image_url, 'http')
+                        ? $baseImageUrl . '/' . ltrim($n->image_url, '/')
+                        : $n->image_url,
+                    'type' => $n->type,
+                    'status' => $n->status,
+                    'is_read' => $recipient->is_read,
+                    'read_at' => $recipient->read_at,
+                    'sent_at' => $n->sent_at ? Carbon::parse($n->sent_at)->format('Y-m-d H:i:s') : null,
+                    'time_ago' => $n->sent_at
+                        ? Carbon::parse($n->sent_at)->timezone('Asia/Ho_Chi_Minh')->diffForHumans()
+                        : null,
+                ];
+            });
+
+        // Thêm log để debug
+        Log::info('Notifications fetched', ['count' => $notifications->count(), 'unread' => $notifications->where('is_read', 0)->count()]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Lấy danh sách thông báo thành công.',
+            'data' => $notifications->values()->all(),
+        ]);
+    } catch (\Exception $e) {
+        Log::error('Lỗi khi lấy thông báo người dùng: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Đã xảy ra lỗi khi lấy thông báo.',
+            'error' => config('app.debug') ? $e->getMessage() : null
+        ], 500);
     }
+}
 
 
 
@@ -593,4 +596,167 @@ class NotificationController extends Controller
 
         return response()->json(['message' => 'Đã ẩn tất cả thông báo.']);
     }
+
+
+        public function adminIndex()
+    {
+        try {
+            $baseImageUrl = env('R2_URL');
+            $notifications = Notification::where('from_role', 'system')
+                ->latest()
+                ->get()
+                ->map(function ($item) use ($baseImageUrl) {
+                    $item->image_url = $item->image_url && !str_starts_with($item->image_url, 'http')
+                        ? rtrim($baseImageUrl, '/') . '/' . ltrim($item->image_url, '/')
+                        : $item->image_url;
+                    $item->to_roles = json_decode($item->to_roles, true);
+                    $item->channels = json_decode($item->channels, true);
+                    return $item;
+                });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Lấy danh sách thông báo hệ thống thành công.',
+                'data' => $notifications,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Lỗi khi lấy danh sách thông báo hệ thống: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Đã xảy ra lỗi khi lấy danh sách thông báo.',
+                'error' => env('APP_DEBUG') ? $e->getMessage() : null
+            ], 500);
+        }
+    }
+
+    public function adminShow($id)
+    {
+        try {
+            $notification = Notification::with([
+                'users:id,name,email,role',
+                'recipients.user:id,name,email,role'
+            ])->where('from_role', 'system')->findOrFail($id);
+
+            $notification->to_roles = json_decode($notification->to_roles, true);
+            $notification->channels = json_decode($notification->channels, true);
+
+            $baseImageUrl = env('R2_URL');
+            if ($notification->image_url && !str_starts_with($notification->image_url, 'http')) {
+                $notification->image_url = rtrim($baseImageUrl, '/') . '/' . ltrim($notification->image_url, '/');
+            }
+
+            $notification->recipients = $notification->recipients->map(function ($recipient) {
+                return [
+                    'id' => $recipient->id,
+                    'is_read' => $recipient->is_read,
+                    'read_at' => $recipient->read_at,
+                    'is_hidden' => $recipient->is_hidden,
+                    'user' => $recipient->user ? [
+                        'id' => $recipient->user->id,
+                        'name' => $recipient->user->name,
+                        'email' => $recipient->user->email,
+                        'role' => $recipient->user->role,
+                    ] : null
+                ];
+            });
+
+            return response()->json($notification);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Không tìm thấy thông báo hệ thống.',
+                'error' => $e->getMessage()
+            ], 404);
+        }
+    }
+
+
+ public function sellerIndex()
+{
+    try {
+        $user = auth()->user();
+        $baseImageUrl = env('R2_URL');
+
+        $notifications = Notification::where(function ($query) use ($user) {
+                $query->whereJsonContains('to_roles', $user->role)
+                      ->orWhereHas('recipients', function ($sub) use ($user) {
+                          $sub->where('user_id', $user->id);
+                      });
+            })
+            ->latest()
+            ->get()
+            ->map(function ($item) use ($baseImageUrl) {
+                $item->image_url = $item->image_url && !str_starts_with($item->image_url, 'http')
+                    ? rtrim($baseImageUrl, '/') . '/' . ltrim($item->image_url, '/')
+                    : $item->image_url;
+                $item->to_roles = json_decode($item->to_roles, true);
+                $item->channels = json_decode($item->channels, true);
+                return $item;
+            });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Lấy danh sách thông báo dành cho seller thành công.',
+            'data' => $notifications,
+        ]);
+    } catch (\Exception $e) {
+        Log::error('Lỗi khi lấy danh sách thông báo cho seller: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Đã xảy ra lỗi khi lấy danh sách thông báo.',
+            'error' => env('APP_DEBUG') ? $e->getMessage() : null
+        ], 500);
+    }
+}
+
+
+public function sellerShow($id)
+{
+    try {
+        $user = auth()->user();
+
+        $notification = Notification::with([
+                'users:id,name,email,role',
+                'recipients.user:id,name,email,role'
+            ])
+            ->where(function ($query) use ($user) {
+                $query->whereJsonContains('to_roles', $user->role)
+                      ->orWhereHas('recipients', function ($sub) use ($user) {
+                          $sub->where('user_id', $user->id);
+                      });
+            })
+            ->findOrFail($id);
+
+        $notification->to_roles = json_decode($notification->to_roles, true);
+        $notification->channels = json_decode($notification->channels, true);
+
+        $baseImageUrl = env('R2_URL');
+        if ($notification->image_url && !str_starts_with($notification->image_url, 'http')) {
+            $notification->image_url = rtrim($baseImageUrl, '/') . '/' . ltrim($notification->image_url, '/');
+        }
+
+        $notification->recipients = $notification->recipients->map(function ($recipient) {
+            return [
+                'id' => $recipient->id,
+                'is_read' => $recipient->is_read,
+                'read_at' => $recipient->read_at,
+                'is_hidden' => $recipient->is_hidden,
+                'user' => $recipient->user ? [
+                    'id' => $recipient->user->id,
+                    'name' => $recipient->user->name,
+                    'email' => $recipient->user->email,
+                    'role' => $recipient->user->role,
+                ] : null
+            ];
+        });
+
+        return response()->json($notification);
+    } catch (\Exception $e) {
+        return response()->json([
+            'message' => 'Không tìm thấy thông báo.',
+            'error' => env('APP_DEBUG') ? $e->getMessage() : null
+        ], 404);
+    }
+}
+
+
 }

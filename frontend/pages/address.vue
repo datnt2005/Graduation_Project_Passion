@@ -1,6 +1,6 @@
 <template>
   <div class="flex min-h-screen bg-gray-100 justify-center py-8">
-    <main class="container mx-auto px-4 sm:px-6 lg:px-8 bg-white shadow-md rounded-lg mt-4 py-6 **max-w-2xl**">
+    <main class="container mx-auto px-4 sm:px-6 lg:px-8 bg-white shadow-md rounded-lg mt-4 py-6">
       <h2 class="text-xl font-bold mb-4">2. Địa chỉ giao hàng</h2>
       <p class="mb-4 text-gray-600">Chọn địa chỉ giao hàng có sẵn dưới đây:</p>
 
@@ -14,7 +14,6 @@
           {{ getDistrictName(address.district_id) }},
           {{ getProvinceName(address.province_id) }}
         </p>
-
         <p>Điện thoại: {{ address.phone }}</p>
         <p>Loại địa chi: {{ address.address_type }}</p>
         <div class="mt-4 flex space-x-2">
@@ -43,7 +42,6 @@
 
         <div v-if="showNewAddressForm" class="mt-4 px-4">
           <div class="max-w-2xl mx-auto bg-white shadow-md rounded-lg p-6 space-y-4">
-
             <!-- Họ tên -->
             <div class="flex items-center">
               <label for="name" class="block text-sm font-medium text-gray-700 w-1/3">Họ tên</label>
@@ -61,7 +59,7 @@
             <!-- Tỉnh -->
             <div class="flex items-center">
               <label class="block text-sm font-medium text-gray-700 w-1/3">Tỉnh/Thành phố</label>
-              <select v-model="form.province_id" @change="loadDistricts()"
+              <select v-model="form.province_id" @change="onProvinceChange"
                 class="block w-2/3 border border-gray-300 rounded-md shadow-sm p-2">
                 <option value="">-- Chọn tỉnh --</option>
                 <option v-for="item in provinces" :key="item.ProvinceID" :value="item.ProvinceID">
@@ -73,8 +71,8 @@
             <!-- Quận -->
             <div class="flex items-center">
               <label class="block text-sm font-medium text-gray-700 w-1/3">Quận/Huyện</label>
-              <select v-model="form.district_id" @change="loadWards"
-                class="block w-2/3 border border-gray-300 rounded-md shadow-sm p-2" :disabled="!districts.length">
+              <select v-model="form.district_id" @change="onDistrictChange"
+                class="block w-2/3 border border-gray-300 rounded-md shadow-sm p-2" :disabled="!form.province_id">
                 <option value="">-- Chọn quận --</option>
                 <option v-for="item in districts" :key="item.DistrictID" :value="item.DistrictID">
                   {{ item.DistrictName }}
@@ -86,7 +84,7 @@
             <div class="flex items-center">
               <label class="block text-sm font-medium text-gray-700 w-1/3">Phường/Xã</label>
               <select v-model="form.ward_code" @change="calculateShippingFee"
-                class="block w-2/3 border border-gray-300 rounded-md shadow-sm p-2" :disabled="!wards.length">
+                class="block w-2/3 border border-gray-300 rounded-md shadow-sm p-2" :disabled="!form.district_id">
                 <option value="">-- Chọn phường --</option>
                 <option v-for="item in wards" :key="item.WardCode" :value="item.WardCode">
                   {{ item.WardName }}
@@ -100,7 +98,7 @@
               <div class="w-2/3">
                 <textarea id="addressDetail" v-model="form.detail" rows="3"
                   class="block w-full border border-gray-300 rounded-md shadow-sm p-2"
-                  placeholder="VD: 52 đường Trần Hưng Đạo, phường 1"></textarea>
+                  placeholder="VD: 01 Cù Chính Lan, Phường Hiệp Thành"></textarea>
                 <p class="text-sm text-gray-500 mt-1">Vui lòng nhập địa chỉ cụ thể để giao hàng nhanh hơn.</p>
               </div>
             </div>
@@ -110,12 +108,12 @@
               <label class="block text-sm font-medium text-gray-700 w-1/3 pt-2">Loại địa chỉ</label>
               <div class="w-2/3 mt-1 flex flex-col space-y-2">
                 <label class="inline-flex items-center">
-                  <input type="radio" v-model="form.addressType" name="address_type" value="home"
+                  <input type="radio" v-model="form.address_type" name="address_type" value="home"
                     class="form-radio text-blue-600" />
                   <span class="ml-2">Nhà riêng / Chung cư</span>
                 </label>
                 <label class="inline-flex items-center">
-                  <input type="radio" v-model="form.addressType" name="address_type" value="company"
+                  <input type="radio" v-model="form.address_type" name="address_type" value="company"
                     class="form-radio text-blue-600" />
                   <span class="ml-2">Cơ quan / Công ty</span>
                 </label>
@@ -125,7 +123,7 @@
             <!-- Địa chỉ mặc định -->
             <div class="flex items-center">
               <label class="inline-flex items-center">
-                <input type="checkbox" v-model="form.isDefault" class="form-checkbox text-blue-600" />
+                <input type="checkbox" v-model="form.is_default" class="form-checkbox text-blue-600" />
                 <span class="ml-2">Sử dụng địa chỉ này làm mặc định</span>
               </label>
             </div>
@@ -144,7 +142,6 @@
             <div v-if="shippingFee > 0" class="text-green-600 font-semibold text-sm text-right mt-2">
               Phí giao hàng: {{ shippingFee.toLocaleString() }} đ
             </div>
-
           </div>
         </div>
       </div>
@@ -164,7 +161,7 @@ useHead({
   title: 'Địa chỉ giao hàng | Thanh toán',
   meta: [
     { name: 'description', content: 'Chọn hoặc thêm địa chỉ giao hàng để hoàn tất đơn hàng của bạn.' },
-    { name: 'robots', content: 'noindex, nofollow' }, // Trang checkout không cần lập chỉ mục
+    { name: 'robots', content: 'noindex, nofollow' },
     { property: 'og:title', content: 'Địa chỉ giao hàng - Thanh toán' },
     { property: 'og:description', content: 'Quản lý địa chỉ giao hàng để nhận hàng nhanh chóng.' }
   ]
@@ -182,9 +179,8 @@ const wards = ref([])
 const addresses = ref([])
 const editAddress = ref(null)
 const loading = ref(true)
-const resolved = reactive({})
 
-const form = ref({
+const form = reactive({
   name: '',
   phone: '',
   province_id: '',
@@ -195,18 +191,27 @@ const form = ref({
   is_default: false
 })
 
-const provinceMap = computed(() => new Map(provinces.value.map(p => [p.ProvinceID, p.ProvinceName])))
-const districtMap = computed(() => new Map(districts.value.map(d => [d.DistrictID, d.DistrictName])))
-const wardMap = computed(() => new Map(wards.value.map(w => [`${w.WardCode}-${w.DistrictID}`, w.WardName])))
+const provinceMap = computed(() => {
+  console.log('Province data:', provinces.value)
+  return new Map(provinces.value.map(p => [p.ProvinceID, p.ProvinceName]))
+})
+const districtMap = computed(() => {
+  console.log('District data:', districts.value)
+  return new Map(districts.value.map(d => [d.DistrictID, d.DistrictName]))
+})
+const wardMap = computed(() => {
+  console.log('Ward data:', wards.value)
+  return new Map(wards.value.map(w => [`${w.WardCode}-${w.DistrictID}`, w.WardName]))
+})
 
 const isFormValid = computed(() => {
   return (
-    form.value.name.trim() &&
-    form.value.phone.trim() &&
-    form.value.province_id &&
-    form.value.district_id &&
-    form.value.ward_code &&
-    form.value.detail.trim()
+    form.name.trim() &&
+    form.phone.trim() &&
+    form.province_id &&
+    form.district_id &&
+    form.ward_code &&
+    form.detail.trim()
   )
 })
 
@@ -235,84 +240,86 @@ const loadProvinces = async () => {
   try {
     const res = await axios.get(`${apiBase}/ghn/provinces`)
     provinces.value = res.data.data || []
+    if (provinces.value.length === 0) {
+      console.warn('Danh sách tỉnh từ API rỗng, kiểm tra cấu hình API GHN.')
+    }
     localStorage.setItem(cacheKey, JSON.stringify(provinces.value))
-  } catch {
+  } catch (error) {
     showError('Không tải được danh sách tỉnh.')
+    console.error('Error loading provinces:', error.response ? error.response.data : error)
+    provinces.value = []
   }
 }
 
-const loadDistrictsAppend = async (provinceId) => {
+const loadDistricts = async (provinceId) => {
+  districts.value = districts.value.filter(d => d.ProvinceID !== provinceId)
   if (!provinceId) return
   const cacheKey = `ghn_districts_${provinceId}`
   const cache = localStorage.getItem(cacheKey)
   if (cache) {
-    const parsed = JSON.parse(cache)
-    const ids = parsed.map(d => d.DistrictID)
-    if (!districts.value.some(d => ids.includes(d.DistrictID))) {
-      districts.value.push(...parsed)
-    }
+    districts.value = [...districts.value, ...JSON.parse(cache)]
     return
   }
   try {
     const res = await axios.post(`${apiBase}/ghn/districts`, { province_id: provinceId })
-    const data = res.data.data || []
-    localStorage.setItem(cacheKey, JSON.stringify(data))
-    districts.value.push(...data.filter(d => !districts.value.some(existing => existing.DistrictID === d.DistrictID)))
-  } catch {
+    districts.value = [...districts.value, ...(res.data.data || [])]
+    if (districts.value.length === 0) {
+      console.warn(`Danh sách quận cho province_id ${provinceId} rỗng, kiểm tra API GHN.`)
+    }
+    localStorage.setItem(cacheKey, JSON.stringify(res.data.data || []))
+  } catch (error) {
     showError('Không tải được danh sách quận.')
+    console.error('Error loading districts for province_id', provinceId, ':', error.response ? error.response.data : error)
+    districts.value = districts.value.filter(d => d.ProvinceID !== provinceId)
   }
 }
 
-const loadWardsAppend = async (districtId) => {
+const loadWards = async (districtId) => {
+  wards.value = wards.value.filter(w => w.DistrictID !== districtId)
   if (!districtId) return
   const cacheKey = `ghn_wards_${districtId}`
   const cache = localStorage.getItem(cacheKey)
   if (cache) {
-    const parsed = JSON.parse(cache)
-    const codes = parsed.map(w => w.WardCode)
-    if (!wards.value.some(w => codes.includes(w.WardCode))) {
-      wards.value.push(...parsed)
-    }
+    wards.value = [...wards.value, ...JSON.parse(cache)]
     return
   }
   try {
     const res = await axios.post(`${apiBase}/ghn/wards`, { district_id: districtId })
-    const data = res.data.data || []
-    localStorage.setItem(cacheKey, JSON.stringify(data))
-    wards.value.push(...data.filter(w => !wards.value.some(existing => existing.WardCode === w.WardCode)))
-  } catch {
+    wards.value = [...wards.value, ...(res.data.data || [])]
+    if (wards.value.length === 0) {
+      console.warn(`Danh sách phường cho district_id ${districtId} rỗng, kiểm tra API GHN.`)
+    }
+    localStorage.setItem(cacheKey, JSON.stringify(res.data.data || []))
+  } catch (error) {
     showError('Không tải được danh sách phường.')
+    console.error('Error loading wards for district_id', districtId, ':', error.response ? error.response.data : error)
+    wards.value = wards.value.filter(w => w.DistrictID !== districtId)
   }
-}
-
-const resolveAddressText = async (address) => {
-  await Promise.all([
-    loadDistrictsAppend(address.province_id),
-    loadWardsAppend(address.district_id)
-  ])
-  const ward = getWardName(address.ward_code, address.district_id)
-  const district = getDistrictName(address.district_id)
-  const province = getProvinceName(address.province_id)
-  return `${address.detail}, ${ward}, ${district}, ${province}`
 }
 
 const loadAddresses = async () => {
   loading.value = true
   try {
     const res = await axios.get(`${apiBase}/address`, useAuthHeaders())
+    console.log('Loaded addresses data:', res.data.data)
     addresses.value = res.data.data || []
-    await Promise.all(addresses.value.map(addr => resolveAddressText(addr).then(text => {
-      resolved[addr.id] = text
-    })))
-  } catch {
+    if (addresses.value.length === 0) {
+      console.warn('Danh sách địa chỉ từ API rỗng, kiểm tra API /address.')
+    }
+    const uniqueProvinceIds = [...new Set(addresses.value.map(addr => addr.province_id))]
+    const uniqueDistrictIds = [...new Set(addresses.value.map(addr => addr.district_id))]
+    await Promise.all(uniqueProvinceIds.map(pid => loadDistricts(pid)))
+    await Promise.all(uniqueDistrictIds.map(did => loadWards(did)))
+  } catch (error) {
     showError('Không thể tải địa chỉ.')
+    console.error('Error loading addresses:', error.response ? error.response.data : error)
   } finally {
     loading.value = false
   }
 }
 
 const calculateShippingFee = async () => {
-  const { province_id, district_id, ward_code } = form.value
+  const { province_id, district_id, ward_code } = form
   if (!province_id || !district_id || !ward_code) {
     shippingFee.value = 0
     return
@@ -320,9 +327,10 @@ const calculateShippingFee = async () => {
   try {
     const res = await axios.post(`${apiBase}/shipping/calculate-fee`, { province_id, district_id, ward_code })
     shippingFee.value = res.data.fee || 0
-  } catch {
+  } catch (error) {
     shippingFee.value = 0
     showError('Không thể tính phí giao hàng.')
+    console.error('Error calculating shipping fee:', error.response ? error.response.data : error)
   }
 }
 
@@ -333,14 +341,14 @@ const submitForm = async () => {
   }
 
   const payload = {
-    name: form.value.name.trim(),
-    phone: form.value.phone.trim(),
-    province_id: form.value.province_id,
-    district_id: form.value.district_id,
-    ward_code: form.value.ward_code,
-    detail: form.value.detail.trim(),
-    address_type: form.value.address_type,
-    is_default: form.value.is_default ? 1 : 0
+    name: form.name.trim(),
+    phone: form.phone.trim(),
+    province_id: form.province_id,
+    district_id: form.district_id,
+    ward_code: form.ward_code,
+    detail: form.detail.trim(),
+    address_type: form.address_type,
+    is_default: form.is_default ? 1 : 0
   }
 
   const confirm = await Swal.fire({
@@ -364,11 +372,14 @@ const submitForm = async () => {
       await axios.post(`${apiBase}/address`, payload, useAuthHeaders())
       showSuccess('Thêm địa chỉ thành công!')
     }
-    await loadAddresses()
+    // Reload trang để làm mới dữ liệu
+    window.location.reload()
+  } catch (error) {
+    showError(error.response?.data?.message || 'Lỗi khi lưu địa chỉ.')
+    console.error('Error submitting form:', error)
+  } finally {
     resetForm()
     showNewAddressForm.value = false
-  } catch (e) {
-    showError(e.response?.data?.message || 'Lỗi khi lưu địa chỉ.')
   }
 }
 
@@ -390,14 +401,15 @@ const deleteAddress = async (id) => {
     await axios.delete(`${apiBase}/address/${id}`, useAuthHeaders())
     showSuccess('Xóa địa chỉ thành công!')
     await loadAddresses()
-  } catch {
+  } catch (error) {
     showError('Không thể xóa địa chỉ.')
+    console.error('Error deleting address:', error)
   }
 }
 
 const startEditAddress = async (addr) => {
   editAddress.value = addr
-  Object.assign(form.value, {
+  Object.assign(form, {
     name: addr.name,
     phone: addr.phone,
     province_id: addr.province_id,
@@ -408,10 +420,8 @@ const startEditAddress = async (addr) => {
     is_default: addr.is_default === 1
   })
   showNewAddressForm.value = true
-  await Promise.all([
-    loadDistrictsAppend(form.value.province_id),
-    loadWardsAppend(form.value.district_id)
-  ])
+  await loadDistricts(addr.province_id)
+  await loadWards(addr.district_id)
 }
 
 const toggleNewAddressForm = () => {
@@ -420,7 +430,7 @@ const toggleNewAddressForm = () => {
 }
 
 const resetForm = () => {
-  Object.assign(form.value, {
+  Object.assign(form, {
     name: '',
     phone: '',
     province_id: '',
@@ -436,6 +446,26 @@ const resetForm = () => {
   wards.value = []
 }
 
+const onProvinceChange = async () => {
+  form.district_id = ''
+  form.ward_code = ''
+  districts.value = []
+  wards.value = []
+  if (form.province_id) {
+    console.log('Selected province_id:', form.province_id)
+    await loadDistricts(form.province_id)
+  }
+}
+
+const onDistrictChange = async () => {
+  form.ward_code = ''
+  wards.value = []
+  if (form.district_id) {
+    console.log('Selected district_id:', form.district_id)
+    await loadWards(form.district_id)
+  }
+}
+
 onMounted(async () => {
   await Promise.all([
     loadProvinces(),
@@ -444,27 +474,12 @@ onMounted(async () => {
 })
 
 watchEffect(() => {
-  if (form.value.province_id) loadDistrictsAppend(form.value.province_id)
-})
-
-watchEffect(() => {
-  if (form.value.district_id) loadWardsAppend(form.value.district_id)
-})
-
-watchEffect(() => {
-  if (form.value.ward_code) calculateShippingFee()
+  if (form.ward_code) calculateShippingFee()
 })
 </script>
 
-
-
-
-
-
 <style>
-/* Bạn có thể thêm các style tùy chỉnh nếu cần */
 body {
   margin: 0;
-  /* Đảm bảo không có margin mặc định từ body */
 }
 </style>

@@ -43,6 +43,7 @@
             <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Loại</th>
             <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Ngày tạo</th>
             <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Hành động</th>
+            <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">LINK</th>
           </tr>
         </thead>
         <tbody>
@@ -125,6 +126,14 @@
                   </div>
                 </div>
               </div>
+            </td>
+            <td class="px-4 py-3 whitespace-nowrap text-sm">
+              <template v-if="banner.link">
+                <a :href="banner.link" target="_blank" rel="noopener" class="text-blue-600 underline hover:text-blue-800">Truy cập</a>
+              </template>
+              <template v-else>
+                <span class="text-gray-400">---</span>
+              </template>
             </td>
           </tr>
           <tr v-if="filteredBanners.length === 0">

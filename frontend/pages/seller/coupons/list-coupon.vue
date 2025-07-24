@@ -444,8 +444,7 @@
   // Fetch coupons from API
   const fetchCoupons = async () => {
     try {
-      const response = await secureFetch(`${apiBase}/seller/discounts`, {}, ['seller']);
-      const data = await response.json();
+      const data = await secureFetch(`${apiBase}/seller/discounts`, {}, ['seller']);
       coupons.value = data.data;
       totalCoupons.value = data.data.length;
       activeCoupons.value = data.data.filter(c => c.status === 'active').length;
@@ -547,17 +546,16 @@
       `Bạn có chắc chắn muốn xóa mã giảm giá "${coupon.code}" không?`,
       async () => {
         try {
-          const response = await secureFetch(`${apiBase}/seller/discounts/${coupon.id}`, {
+          const result = await secureFetch(`${apiBase}/seller/discounts/${coupon.id}`, {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' }
           }, ['seller']);
 
-          if (response.ok) {
+          if (result && result.success) {
             showSuccessNotification('Xóa mã giảm giá thành công!');
             await fetchCoupons();
           } else {
-            const data = await response.json();
-            showSuccessNotification(data.message || 'Có lỗi xảy ra khi xóa mã giảm giá');
+            showSuccessNotification(result?.message || 'Có lỗi xảy ra khi xóa mã giảm giá');
           }
         } catch (error) {
           console.error('Error:', error);

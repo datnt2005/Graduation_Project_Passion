@@ -9,6 +9,9 @@
     <div v-if="errorMessage" class="text-red-500 text-xs mt-2">
       {{ errorMessage }}
       <button @click="retryCalculateFees" class="text-blue-500 underline ml-2">Thử lại</button>
+      <span v-if="errorMessage.includes('2000g')" class="ml-2 text-gray-600 text-xs">
+        (Hoặc liên hệ hỗ trợ để kích hoạt dịch vụ Hàng nhẹ.)
+      </span>
     </div>
 
     <div v-else class="space-y-6">
@@ -22,22 +25,24 @@
           }">
           <div class="flex items-center gap-3">
             <input class="w-4 h-4 text-[14px] text-blue-600 border-gray-300 accent-blue-600 focus:ring-blue-500"
-              type="radio" name="shipping_method" :value="defaultShippingMethod.service_id"
-              :checked="defaultShippingMethod.service_id === selectedMethod"
+              type="radio" name="shipping_method" :value="defaultShippingMethod.service_id" v-model="selectedMethod"
               @change="handleMethodChange(defaultShippingMethod.service_id)" />
-            <span :class="defaultShippingMethod.service_id === selectedMethod ? 'text-[14px] font-semibold' : 'text-[14px]'">
+            <span
+              :class="defaultShippingMethod.service_id === selectedMethod ? 'text-[14px] font-semibold' : 'text-[14px]'">
               {{ defaultShippingMethod.short_name || 'Dịch vụ GHN' }}
             </span>
           </div>
         </label>
       </form>
       <div v-if="!defaultShippingMethod" class="text-red-500 text-sm">
-        {{ errorMessage || 'Không có dịch vụ vận chuyển khả dụng. Vui lòng liên hệ hỗ trợ.' }}
+        Không có phương thức giao hàng khả dụng. Vui lòng kiểm tra lại giỏ hàng hoặc liên hệ hỗ trợ.
+        <button @click="retryCalculateFees" class="text-blue-500 underline ml-2">Thử lại</button>
       </div>
     </div>
 
     <div class="space-y-8">
-      <div v-for="shop in localCartItems" :key="shop.seller_id" class="border border-gray-300 rounded p-4 bg-white shadow">
+      <div v-for="shop in localCartItems" :key="shop.seller_id"
+        class="border border-gray-300 rounded p-4 bg-white shadow">
         <div class="flex justify-between items-center mb-4">
           <NuxtLink :to="`${shop.store_url}`" class="text-sm font-semibold text-blue-600">
             <i class="fa-solid fa-shop"></i> {{ shop.store_name || 'Cửa hàng' }}
@@ -57,7 +62,7 @@
             <div class="flex-1">
               <div class="font-medium text-sm">{{ item.product?.name || 'Sản phẩm' }}</div>
               <div class="text-gray-500 text-xs">
-                {{ item.productVariant?.attributes?.map(attr => attr.value).join(' - ') || 'Không có thuộc tính' }}
+                {{item.productVariant?.attributes?.map(attr => attr.value).join(' - ') || 'Không có thuộc tính'}}
               </div>
               <div class="text-gray-500 text-xs">Số lượng: x{{ item.quantity }}</div>
             </div>
@@ -70,9 +75,7 @@
         <div class="flex items-center justify-between gap-4 mt-4">
           <div class="flex-1">
             <label class="block text-xs text-gray-600 mb-1">Ghi chú cho cửa hàng</label>
-            <textarea
-              v-model="shop.note"
-              rows="1"
+            <textarea v-model="shop.note" rows="1"
               class="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
               placeholder="Nhập ghi chú cho cửa hàng này..."></textarea>
           </div>
@@ -84,7 +87,8 @@
                 <button @click="removeDiscount(shop)" class="ml-2 text-red-500 underline text-xs">Huỷ mã</button>
               </div>
               <div>
-                Tổng tiền: <span class="text-blue-600 text-base font-bold">{{ formatPrice(shop.store_total - (shop.discount || 0)) }}</span>
+                Tổng tiền: <span class="text-blue-600 text-base font-bold">{{ formatPrice(shop.store_total -
+                  (shop.discount || 0)) }}</span>
               </div>
               <div class="text-xs text-green-600 mt-1">
                 <i class="fas fa-ticket-alt mr-1"></i>Đã áp dụng mã giảm giá
@@ -107,7 +111,7 @@
     </div>
     <div class="text-right text-sm font-semibold text-gray-900 mt-4">
       Tổng tiền vận chuyển: <span id="shipping-fee-display">
-        {{ formatPrice(Object.values(fees).filter(f => f !== 'Lỗi').reduce((sum, f) => sum + parsePrice(f), 0)) }}
+        {{formatPrice(Object.values(fees).filter(f => f !== 'Lỗi').reduce((sum, f) => sum + parsePrice(f), 0))}}
       </span>
     </div>
     <div v-if="Object.values(fees).includes('Lỗi')" class="text-red-500 text-xs mt-2">
@@ -129,27 +133,31 @@
           <li v-if="loadingCoupons" class="col-span-2">Đang tải mã giảm giá...</li>
           <li v-else-if="filteredVouchersSearched.length === 0" class="col-span-2">Không có mã giảm giá nào</li>
           <li v-for="discount in filteredVouchersSearched" :key="discount.id">
-            <div class="flex items-center bg-white rounded-xl shadow-sm border border-gray-200 px-3 py-2 gap-3 min-h-[72px]">
+            <div
+              class="flex items-center bg-white rounded-xl shadow-sm border border-gray-200 px-3 py-2 gap-3 min-h-[72px]">
               <div class="flex flex-col items-center justify-center min-w-[48px]">
                 <div class="bg-blue-100 rounded-lg w-10 h-10 flex items-center justify-center mb-1">
                   <i class="fas fa-ticket-alt text-blue-500 text-lg"></i>
                 </div>
-                <span v-if="discount.level" class="text-[10px] text-blue-600 bg-blue-50 rounded px-1 py-0.5 font-medium">{{ discount.level }}</span>
+                <span v-if="discount.level"
+                  class="text-[10px] text-blue-600 bg-blue-50 rounded px-1 py-0.5 font-medium">{{ discount.level
+                  }}</span>
               </div>
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2 mb-0.5">
                   <span class="text-xs font-semibold text-gray-800 truncate">{{ discount.name }}</span>
-                  <span v-if="discount.code" class="text-[10px] bg-blue-50 text-blue-700 rounded px-1 ml-1 uppercase">{{ discount.code }}</span>
+                  <span v-if="discount.code" class="text-[10px] bg-blue-50 text-blue-700 rounded px-1 ml-1 uppercase">{{
+                    discount.code }}</span>
                 </div>
                 <div class="text-xs font-bold text-blue-600 mb-0.5">{{ getDiscountLabel(discount) }}</div>
                 <div class="text-xs text-gray-600 truncate">{{ discount.description }}</div>
                 <div class="text-[11px] text-gray-500 mt-0.5">
                   <span v-if="discount.min_order_value">Đơn từ {{ formatPrice(discount.min_order_value) }}</span>
-                  <span v-if="discount.end_date" class="ml-2">HSD: {{ (new Date(discount.end_date)).toLocaleDateString('vi-VN') }}</span>
+                  <span v-if="discount.end_date" class="ml-2">HSD: {{ (new
+                    Date(discount.end_date)).toLocaleDateString('vi-VN') }}</span>
                 </div>
               </div>
-              <button
-                @click="applyDiscount(discount)"
+              <button @click="applyDiscount(discount)"
                 class="bg-blue-500 hover:bg-blue-600 text-white text-xs font-semibold rounded px-3 py-1 shadow-sm transition">
                 Chọn
               </button>
@@ -192,10 +200,19 @@ const props = defineProps({
 
 const emit = defineEmits(['update:selectedMethod', 'update:shippingFee', 'update:shopDiscount', 'update:totalShippingFee']);
 
-const { sellerAddresses, fetchSellerAddress, fetchGHNServiceId, fetchDefaultAddress } = useCheckout();
+// Sử dụng defineModel cho selectedMethod
+const selectedMethod = defineModel('selectedMethod', { default: null });
 
-// Sử dụng selectedMethod thay vì selectedMethods để quản lý một phương thức chung
-const selectedMethod = ref(props.selectedMethod || null);
+// Biến trung gian để lưu giá trị mặc định ban đầu từ props
+const initialSelectedMethod = ref(props.selectedMethod || null);
+
+// Khởi tạo useCheckout
+const { sellerAddresses, fetchSellerAddress, fetchGHNServiceId, fetchDefaultAddress, cartItems, defaultShippingMethod } = useCheckout(
+  null, // shippingRef
+  selectedMethod, // selectedShippingMethod
+  props.address, // selectedAddress
+  ref({}) // storeNotes
+);
 
 watch(selectedMethod, (newVal) => {
   emit('update:selectedMethod', newVal);
@@ -227,7 +244,7 @@ const formatPrice = (price) => {
 
 const calculateTotalWeight = (shop) => {
   const totalWeight = shop.items.reduce((sum, item) => {
-    const itemWeight = item.productVariant?.weight || 500; // Trọng lượng mặc định 500g
+    const itemWeight = item.productVariant?.weight || 2000; // Trọng lượng mặc định 500g
     return sum + itemWeight * item.quantity;
   }, 0);
   console.log(`Total weight for shop ${shop.seller_id}: ${totalWeight}g`);
@@ -266,13 +283,14 @@ const calculateShippingFee = async (shop, method, retryCount = 0) => {
     if (totalWeight < 50) {
       throw new Error('Cân nặng đơn hàng quá thấp. Tối thiểu 50g.');
     }
-    if (method.service_id === 100039 && totalWeight < 2000) {
-      throw new Error('Cân nặng không hợp lệ cho dịch vụ Hàng nặng: tối thiểu 2000g.');
-    }
 
-    if (!shippingMethods.value[sellerId]?.some(m => m.service_id === method.service_id)) {
-      console.warn(`Dịch vụ ${method.service_id} không được hỗ trợ cho shop ${sellerId}, thử tìm phương thức khác...`);
-      return null; // Trả về null để thử phương thức khác
+    if (method.service_id === 100039 && totalWeight < 2000) {
+      console.warn(`Trọng lượng ${totalWeight}g không đủ cho dịch vụ Hàng nặng. Thử dịch vụ khác...`);
+      const alternativeMethod = shippingMethods.value[sellerId]?.find(m => [53321, 53322].includes(m.service_id));
+      if (!alternativeMethod) {
+        throw new Error(`Không có dịch vụ vận chuyển thay thế cho shop ${sellerId}`);
+      }
+      method = alternativeMethod;
     }
 
     const districtId = shop.district_id;
@@ -331,20 +349,20 @@ const calculateShippingFee = async (shop, method, retryCount = 0) => {
 
       const data = await res.json();
       console.log(`Phản hồi từ /ghn/shipping-fee:`, JSON.stringify(data, null, 2));
-      const fee = (data?.data?.total ?? 0) / 100;
+      const rawFee = data?.data?.total ?? 0;
 
-      if (fee < 1000) {
-        throw new Error(`Phí vận chuyển ${fee} VNĐ quá thấp, có thể do lỗi dữ liệu từ API.`);
+      if (rawFee < 1000) {
+        throw new Error(`Phí vận chuyển ${rawFee} VNĐ quá thấp, có thể do lỗi dữ liệu từ API.`);
       }
 
-      setCachedFee(cacheKey, fee);
-      fees.value[`${sellerId}_${method.service_id}`] = formatPrice(fee);
+      setCachedFee(cacheKey, rawFee);
+      fees.value[`${sellerId}_${method.service_id}`] = formatPrice(rawFee);
 
       if (method.service_id === selectedMethod.value) {
-        emit('update:shippingFee', { sellerId, fee });
+        emit('update:shippingFee', { sellerId, fee: rawFee });
       }
 
-      return fee;
+      return rawFee;
     } catch (err) {
       if (err.name === 'AbortError' && retryCount < maxRetries) {
         console.log(`Thử lại lần ${retryCount + 2} cho shop ${sellerId}, dịch vụ ${method.service_id}`);
@@ -355,13 +373,12 @@ const calculateShippingFee = async (shop, method, retryCount = 0) => {
   } catch (err) {
     console.error(`Lỗi tính phí vận chuyển cho shop ${shop.seller_id}, dịch vụ ${method.service_id}:`, err.message);
     fees.value[`${shop.seller_id}_${method.service_id}`] = 'Lỗi';
-    errorMessage.value = 'Không thể tính phí vận chuyển cho một số cửa hàng. Vui lòng thử lại hoặc chọn phương thức khác.';
+    errorMessage.value = err.message || 'Không thể tính phí vận chuyển cho một số cửa hàng. Vui lòng thử lại.';
     return null;
   }
 };
 
 const availableShippingMethods = computed(() => {
-  // Lấy giao cắt của các phương thức từ tất cả các cửa hàng
   const methodsMap = new Map();
   localCartItems.value.forEach(shop => {
     if (shippingMethods.value[shop.seller_id]) {
@@ -373,13 +390,7 @@ const availableShippingMethods = computed(() => {
   return Array.from(methodsMap.values());
 });
 
-const defaultShippingMethod = computed(() => {
-  // Lấy phương thức mặc định đầu tiên từ availableShippingMethods
-  return availableShippingMethods.value.length > 0 ? availableShippingMethods.value[0] : null;
-});
-
 const getShippingFee = (sellerId) => {
-  // Tìm key trong fees dựa trên sellerId và phương thức thực tế
   const feeKeys = Object.keys(fees.value);
   const matchingKey = feeKeys.find(key => key.startsWith(`${sellerId}_`) && fees.value[key] !== 'Lỗi');
   return matchingKey ? fees.value[matchingKey] : 'Đang tính...';
@@ -395,6 +406,7 @@ const calculateAllShippingFees = async () => {
   console.time('calculateAllShippingFees');
   loadingShipping.value = true;
   errorMessage.value = '';
+  fees.value = {};
 
   const sellerAddressPromises = props.cartItems.map(async (shop) => {
     if (!shop.seller_id) {
@@ -417,7 +429,7 @@ const calculateAllShippingFees = async () => {
         const sellerAddress = await fetchSellerAddress(shop.seller_id);
         if (!sellerAddress || !sellerAddress.district_id || !sellerAddress.ward_code) {
           fees.value[`${shop.seller_id}_unknown`] = 'Lỗi';
-          errorMessage.value = 'Không thể tính phí vận chuyển. Vui lòng thử lại sau.';
+          errorMessage.value = `Không thể lấy địa chỉ cho shop ${shop.seller_id}. Vui lòng thử lại sau.`;
           return { shop, districtId: null, wardCode: null };
         }
         districtId = sellerAddress.district_id;
@@ -431,12 +443,6 @@ const calculateAllShippingFees = async () => {
           district_id: districtId,
           ward_code: wardCode,
         };
-      } else {
-        localCartItems.value.push({
-          ...shop,
-          district_id: districtId,
-          ward_code: wardCode,
-        });
       }
     }
 
@@ -459,50 +465,48 @@ const calculateAllShippingFees = async () => {
 
     if (!services || services.length === 0) {
       fees.value[`${shop.seller_id}_unknown`] = 'Lỗi';
-      errorMessage.value = 'Không thể tính phí vận chuyển. Vui lòng thử lại sau.';
+      errorMessage.value = 'Không có dịch vụ vận chuyển khả dụng. Vui lòng liên hệ hỗ trợ.';
       loadingFees.value[shop.seller_id] = false;
       return;
     }
 
-    shippingMethods.value[shop.seller_id] = services.filter(method => {
-      if (method.service_id === 100039 && totalWeight < 2000) {
-        return false;
+    shippingMethods.value[shop.seller_id] = services;
+
+    let effectiveMethod = shippingMethods.value[shop.seller_id].find(m => [53321, 53322].includes(m.service_id))?.service_id;
+    if (!effectiveMethod) {
+      const heavyService = shippingMethods.value[shop.seller_id].find(m => m.service_id === 100039);
+      if (heavyService && totalWeight < 2000) {
+        fees.value[`${shop.seller_id}_${heavyService.service_id}`] = 'Lỗi';
+        errorMessage.value = `Shop ${shop.seller_id} yêu cầu tối thiểu 2000g cho dịch vụ Hàng nặng. Vui lòng thêm sản phẩm hoặc liên hệ hỗ trợ.`;
+        loadingFees.value[shop.seller_id] = false;
+        return;
       }
-      return true;
-    });
-
-    console.log(`Dịch vụ vận chuyển đã lọc cho shop ${shop.seller_id}:`, JSON.stringify(shippingMethods.value[shop.seller_id], null, 2));
-
-    if (shippingMethods.value[shop.seller_id].length === 0) {
-      fees.value[`${shop.seller_id}_unknown`] = 'Lỗi';
-      errorMessage.value = 'Không thể tính phí vận chuyển. Vui lòng thử lại sau.';
-      loadingFees.value[shop.seller_id] = false;
-      return;
-    }
-
-    if (!selectedMethod.value && defaultShippingMethod.value) {
-      selectedMethod.value = defaultShippingMethod.value.service_id;
-      emit('update:selectedMethod', selectedMethod.value);
-    }
-
-    // Kiểm tra nếu selectedMethod không hỗ trợ cho shop này, chọn phương thức đầu tiên của shop
-    let effectiveMethod = selectedMethod.value;
-    if (selectedMethod.value && !shippingMethods.value[shop.seller_id].some(m => m.service_id === selectedMethod.value)) {
-      console.warn(`Phương thức ${selectedMethod.value} không hỗ trợ cho shop ${shop.seller_id}, dùng phương thức mặc định ${shippingMethods.value[shop.seller_id][0].service_id}`);
       effectiveMethod = shippingMethods.value[shop.seller_id][0].service_id;
+      console.warn(`Không tìm thấy dịch vụ Hàng nhẹ, sử dụng ${effectiveMethod} cho shop ${shop.seller_id}`);
     }
 
-    const fee = await calculateShippingFee({
-      ...shop,
-      district_id: districtId,
-      ward_code: wardCode,
-    }, { service_id: effectiveMethod });
-    if (fee !== null) {
-      fees.value[`${shop.seller_id}_${effectiveMethod}`] = formatPrice(fee);
-      emit('update:shippingFee', { sellerId: shop.seller_id, fee });
-    } else {
+    if (selectedMethod.value !== effectiveMethod) {
+      selectedMethod.value = effectiveMethod;
+      emit('update:selectedMethod', effectiveMethod);
+    }
+
+    try {
+      const fee = await calculateShippingFee({
+        ...shop,
+        district_id: districtId,
+        ward_code: wardCode,
+      }, { service_id: effectiveMethod });
+      if (fee !== null) {
+        fees.value[`${shop.seller_id}_${effectiveMethod}`] = formatPrice(fee);
+        emit('update:shippingFee', { sellerId: shop.seller_id, fee });
+      } else {
+        fees.value[`${shop.seller_id}_${effectiveMethod}`] = 'Lỗi';
+        errorMessage.value = `Không thể tính phí vận chuyển cho shop ${shop.seller_id} với dịch vụ ${effectiveMethod}. Vui lòng thử lại.`;
+      }
+    } catch (error) {
       fees.value[`${shop.seller_id}_${effectiveMethod}`] = 'Lỗi';
-      errorMessage.value = 'Không thể tính phí vận chuyển cho một số cửa hàng. Vui lòng thử lại hoặc chọn phương thức khác.';
+      errorMessage.value = `Lỗi tính phí cho shop ${shop.seller_id}: ${error.message || 'Không xác định'}. Vui lòng liên hệ hỗ trợ.`;
+      console.error(`Lỗi tính phí vận chuyển cho shop ${shop.seller_id}, dịch vụ ${effectiveMethod}:`, error);
     }
 
     loadingFees.value[shop.seller_id] = false;
@@ -510,29 +514,15 @@ const calculateAllShippingFees = async () => {
 
   await Promise.all(shippingPromises);
 
-  console.log(`Fees sau khi tính toán:`, JSON.stringify(fees.value, null, 2));
+  // Tính tổng phí vận chuyển và phát sự kiện
   const totalShippingFee = Object.values(fees.value)
     .filter(f => f !== 'Lỗi')
     .reduce((sum, f) => sum + parsePrice(f), 0);
+  console.log(`Tổng phí vận chuyển: ${totalShippingFee}`);
   emit('update:totalShippingFee', totalShippingFee);
-
-  await nextTick();
-  const display = document.getElementById('shipping-fee-display');
-  if (display) {
-    display.textContent = formatPrice(totalShippingFee);
-  }
 
   loadingShipping.value = false;
   console.timeEnd('calculateAllShippingFees');
-};
-
-const retryCalculateFees = async () => {
-  fees.value = {};
-  errorMessage.value = '';
-  selectedMethod.value = null;
-  shippingFeeCache.value.clear();
-  emit('update:selectedMethod', null);
-  await calculateAllShippingFees();
 };
 
 const userVouchers = ref([]);
@@ -630,14 +620,13 @@ const selectShopDiscount = (sellerId) => {
 };
 
 const handleMethodChange = async (methodId) => {
-  if (!availableShippingMethods.some(m => m.service_id === methodId)) {
+  if (!availableShippingMethods.value.some(m => m.service_id === methodId)) {
     toast('error', `Dịch vụ vận chuyển ${methodId} không hợp lệ. Vui lòng chọn dịch vụ khác.`);
     return;
   }
   selectedMethod.value = methodId;
-  emit('update:selectedMethod', selectedMethod.value);
+  emit('update:selectedMethod', methodId);
 
-  // Tính lại phí vận chuyển cho tất cả các cửa hàng với phương thức mới
   for (const shop of props.cartItems) {
     loadingFees.value[shop.seller_id] = true;
     const fee = await calculateShippingFee(shop, { service_id: methodId });
@@ -678,7 +667,6 @@ const removeDiscount = (shop) => {
 };
 
 const localCartItems = ref([]);
-
 watch(() => props.cartItems, (val) => {
   localCartItems.value = val.map(shop => ({
     ...shop,

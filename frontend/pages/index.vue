@@ -25,8 +25,16 @@
   <div v-if="showPopup && popupBanner && popupBanner.type === 'popup'"
     class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
     <div class="relative">
-      <img :src="popupBanner.image_url" :alt="popupBanner.title"
+      <a v-if="popupBanner.link" :href="popupBanner.link" target="_blank" rel="noopener">
+        <img :src="popupBanner.image_url" :alt="popupBanner.title"
         class="rounded-xl shadow-2xl border-4 border-white max-w-[90vw] max-h-[80vh] object-contain" />
+      </a>
+      <img
+        v-else
+        :src="popupBanner.image_url"
+        :alt="popupBanner.title"
+        class="rounded-xl shadow-2xl border-4 border-white max-w-[90vw] max-h-[80vh] object-contain"
+      />
       <!-- Nút đóng -->
       <button @click="closePopup"
         class="absolute top-2 right-2 bg-white rounded-full shadow p-1 text-gray-600 hover:text-red-500 text-2xl font-bold"

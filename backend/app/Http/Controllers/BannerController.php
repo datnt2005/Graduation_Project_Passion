@@ -30,6 +30,8 @@ class BannerController extends Controller
 
             foreach ($banners as $banner) {
                 $banner->image_url = Storage::disk('r2')->url($banner->image);
+                // Đảm bảo trả về trường link
+                $banner->link = $banner->link;
             }
 
             return response()->json([
@@ -54,6 +56,7 @@ class BannerController extends Controller
                 'image' => 'required|image|mimes:jpeg,png,jpg,gif,svg,webp|max:4048',
                 'status' => 'required|in:active,inactive',
                 'type' => 'required|in:banner,popup', // validate type
+                'link' => 'nullable|url', // validate link
             ], [
                 'title.required' => 'Tiêu đề là bắt buộc.',
                 'title.string' => 'Tiêu đề phải là chuỗi.',
@@ -93,6 +96,7 @@ class BannerController extends Controller
                 'image' => $imagePath,
                 'status' => $validated['status'],
                 'type' => $validated['type'], // lưu type
+                'link' => $validated['link'] ?? null,
             ]);
 
             return response()->json([
@@ -120,6 +124,7 @@ class BannerController extends Controller
         try {
             $banner = Banner::findOrFail($id);
             $banner->image_url = Storage::disk('r2')->url($banner->image);
+            $banner->link = $banner->link;
 
             return response()->json([
                 'success' => true,
@@ -146,6 +151,7 @@ class BannerController extends Controller
                 'image' => 'sometimes|image|mimes:jpeg,png,jpg,gif,svg,webp|max:4048',
                 'status' => 'sometimes|required|in:active,inactive',
                 'type' => 'sometimes|required|in:banner,popup', // validate type
+                'link' => 'nullable|url', // validate link
             ], [
                 'title.required' => 'Tiêu đề là bắt buộc.',
                 'title.string' => 'Tiêu đề phải là chuỗi.',
@@ -184,6 +190,7 @@ class BannerController extends Controller
                 'message' => 'Cập nhật banner thành công',
                 'data' => tap($banner->fresh(), function ($b) {
                     $b->image_url = Storage::disk('r2')->url($b->image);
+                    $b->link = $b->link;
                 })
             ], 200);
         } catch (ValidationException $e) {

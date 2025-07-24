@@ -502,16 +502,18 @@
   import { useRuntimeConfig } from '#imports'
   import { secureFetch } from '@/utils/secureFetch'
   import { useAuthHeaders } from '@/composables/useAuthHeaders'
-  
+  import { useAlert } from '@/composables/useAlert';
+
   definePageMeta({
     layout: 'default-seller'
   });
-  
+
   const router = useRouter();
   const route = useRoute();
   const config = useRuntimeConfig()
   const apiBase = config.public.apiBaseUrl
-  
+  const { showMessage } = useAlert();
+
   const activeTab = ref('overview');
   const loading = ref(false);
   const errors = reactive({});
@@ -650,11 +652,15 @@
   
   const fetchCouponData = async () => {
     try {
+      if (!route.params.id) {
+        showErrorNotification('ID mã giảm giá không hợp lệ');
+        router.push('/seller/coupons/list-coupon');
+        return;
+      }
+
       loading.value = true;
-      const { headers } = useAuthHeaders();
-      const response = await secureFetch(`${apiBase}/seller/discounts/${route.params.id}`, { headers }, ['seller']);
-      const data = await response.json();
-  
+      const data = await secureFetch(`${apiBase}/seller/discounts/${route.params.id}`, {}, ['seller']);
+
       if (data.success) {
         const coupon = data.data;
         Object.keys(formData).forEach(key => {
@@ -664,7 +670,7 @@
             formData[key] = coupon[key];
           }
         });
-  
+
         // Gán đúng selected, không tự động chọn tất cả nếu rỗng
         selectedProducts.value = Array.isArray(coupon.products) && coupon.products.length > 0
           ? products.value.filter(p => coupon.products.some(cp => cp.id === p.id))
@@ -673,81 +679,77 @@
           ? categories.value.filter(c => coupon.categories.some(cc => cc.id === c.id))
           : [];
       } else {
-        showSuccessNotification('Không thể tải thông tin mã giảm giá');
-        router.push('/seller/coupons');
+        showErrorNotification(data.message || 'Không thể tải thông tin mã giảm giá');
+        router.push('/seller/coupons/list-coupon');
       }
     } catch (error) {
-      console.error('Error:', error);
-      showSuccessNotification('Có lỗi xảy ra khi tải thông tin mã giảm giá');
-      router.push('/seller/coupons');
+      console.error('Error in fetchCouponData:', error);
+      showErrorNotification('Có lỗi xảy ra khi tải thông tin mã giảm giá');
+      router.push('/seller/coupons/list-coupon');
     } finally {
       loading.value = false;
     }
   };
   
   const showSuccessNotification = (message) => {
-    notificationMessage.value = message;
-    showNotification.value = true;
-    setTimeout(() => {
-      showNotification.value = false;
-    }, 3000);
+    showMessage(message, 'success');
   };
   
+  const showErrorNotification = (message) => {
+    showMessage(message, 'error');
+  };
+
   const updateCoupon = async () => {
     if (!validateForm()) {
       return;
     }
-  
+
     try {
       loading.value = true;
-      const { headers } = useAuthHeaders();
-  
+
       // Step 1: Update basic discount information
-      const updateResponse = await secureFetch(`${apiBase}/seller/discounts/${route.params.id}`, {
+      const data = await secureFetch(`${apiBase}/seller/discounts/${route.params.id}`, {
         method: 'PUT',
         headers: {
-          ...headers,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(formData)
       }, ['seller']);
-  
-      const data = await updateResponse.json();
-  
+
       if (!data.success) {
         if (data.errors) {
           Object.keys(data.errors).forEach(key => {
             errors[key] = data.errors[key][0];
           });
         } else {
-          showSuccessNotification(data.message || 'Có lỗi xảy ra khi cập nhật mã giảm giá');
+          showErrorNotification(data.message || 'Có lỗi xảy ra khi cập nhật mã giảm giá');
         }
         return;
       }
-  
+
       // Step 2: Assign products, categories (có thể là mảng rỗng)
       if (selectedProducts.value.length > 0) {
         await secureFetch(`${apiBase}/seller/discounts/${route.params.id}/products`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...headers },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ product_ids: selectedProducts.value.map(p => p.id) })
         }, ['seller']);
       }
       if (selectedCategories.value.length > 0) {
         await secureFetch(`${apiBase}/seller/discounts/${route.params.id}/categories`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...headers },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ category_ids: selectedCategories.value.map(c => c.id) })
         }, ['seller']);
       }
-  
+
       showSuccessNotification('Cập nhật mã giảm giá thành công!');
       setTimeout(() => {
         router.push('/seller/coupons/list-coupon');
-      }, 1000);
+      }, 1200);
     } catch (error) {
       console.error('Error:', error);
-      showSuccessNotification('Có lỗi xảy ra khi cập nhật mã giảm giá');
+      showErrorNotification('Có lỗi xảy ra khi cập nhật mã giảm giá');
     } finally {
       loading.value = false;
     }

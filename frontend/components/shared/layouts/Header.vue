@@ -705,20 +705,27 @@ const fetchNotifications = async () => {
   }
 };
 const markAsRead = async (item) => {
-  const token = localStorage.getItem("access_token");
-  if (!token || item.is_read === 1) return;
+    const token = localStorage.getItem("access_token");
+    if (!token || item.is_read === 1) return;
 
-  try {
-    await fetch(`${api}/notifications/${item.id}/read`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    try {
+        const response = await fetch(`${api}/notifications/${item.id}/read`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+        });
 
-    item.is_read = 1;
-    unreadCount.value = notifications.value.filter((n) => !n.is_read).length;
-  } catch (err) {
-    console.error("Lỗi đánh dấu đã đọc:", err);
-  }
+        const data = await response.json();
+        if (response.ok) {
+            // Cập nhật toàn bộ danh sách notifications
+            const index = notifications.value.findIndex(n => n.id === item.id);
+            if (index !== -1) {
+                notifications.value[index] = data.data; // Sử dụng dữ liệu từ API
+            }
+            unreadCount.value = notifications.value.filter((n) => !n.is_read).length;
+        }
+    } catch (err) {
+        console.error("Lỗi đánh dấu đã đọc:", err);
+    }
 };
 
 // NEW từ dat_dev: dùng cho categories động

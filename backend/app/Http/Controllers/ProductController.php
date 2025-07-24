@@ -27,6 +27,8 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Cache;
 use App\Services\SearchService;
 use App\Models\StockMovement;
+use App\Models\Notification;
+use App\Models\User;
 
 
 class ProductController extends Controller
@@ -431,6 +433,21 @@ class ProductController extends Controller
                     }
                 }
             }
+
+            $admins = User::where('role', 'admin')->get();
+            $notification = Notification::create([
+                'title' =>" Người bán {$user->name} đã thêm sản phẩm mới",
+                'content' => "Sản phẩm '{$request->name}' đã được {$user->name} thêm và đang chờ xét duyệt vào " . now()->format('d/m/Y H:i'),
+                'type' => 'system',
+                 'user_id' => $user->id,
+                'to_roles' => json_encode(['admin']),
+                'link' => 'admin/products/product-pending',
+                'from_role' => 'system',
+                'status' => 'sent',
+                'channels' => json_encode(['dashboard']),
+                 'created_at' => now(),
+                'updated_at' => now(),
+            ]);
 
             DB::commit();
             $this->clearProductCache();

@@ -13,6 +13,7 @@ foreach (glob(__DIR__.'/api/*.php') as $routeFile) {
 // use App\Http\Controllers\SellerController;
 // use App\Http\Controllers\AdminSellerController;
 // use App\Http\Controllers\SellerFollowerController;
+// use App\Http\Controllers\ChatController;
 
 // api chat user width seller
 // use App\Http\Controllers\SettingController;

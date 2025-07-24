@@ -1,4 +1,3 @@
-```vue
 <template>
   <div class="bg-gray-100 text-gray-700 font-sans min-h-screen">
     <div class="max-w-full overflow-x-auto">
@@ -251,7 +250,7 @@
               <!-- Danh sách sản phẩm -->
               <div class="border border-gray-200 rounded-lg mb-6">
                 <div class="border-b px-4 py-2 font-medium text-sm bg-gray-50 text-gray-800">Sản phẩm đã đặt</div>
-                <div v-for="item in selectedOrder.order_items || []" :key="item.product?.id + '-' + (item.variant?.id || '')" class="flex items-start justify-between p-4 border-b last:border-0">
+                <div v-for="item in selectedOrder.order_items || []" :key="item.id" class="flex items-start justify-between p-4 border-b last:border-0">
                   <div class="flex gap-3">
                     <img
                       :src="getProductImage(item.product?.thumbnail)"
@@ -515,7 +514,7 @@
               <table class="min-w-full border-collapse border border-gray-300 text-sm">
                 <thead>
                   <tr>
-                    <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">MÃ PAYOUT</th>
+                    <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">MÃ VẬN ĐƠN</th>
                     <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">SỐ TIỀN</th>
                     <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">NGÀY YÊU CẦU</th>
                     <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">NGÀY DUYỆT</th>
@@ -526,7 +525,7 @@
                 <tbody>
                   <tr v-for="item in payoutPaginatedData" :key="item.id" class="hover:bg-blue-50 transition">
                     <td class="px-4 py-3 whitespace-nowrap text-sm font-semibold text-blue-700">
-                      {{ getTrackingCode(item.order_id) }}
+                      {{ item.order?.shipping?.tracking_code || '-' }}
                     </td>
                     <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ formatNumber(item.amount) }} đ</td>
                     <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ formatDate(item.created_at) }}</td>
@@ -548,6 +547,12 @@
         </div>
       </div>
       <div v-else-if="activeTab === 'withdraw'">
+        <!-- Nút yêu cầu rút tiền đặt ở trên -->
+        <div class="flex justify-end mb-4">
+          <button @click="openWithdrawModal" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+            + Yêu cầu rút tiền
+          </button>
+        </div>
         <!-- Bảng lịch sử rút tiền -->
         <div class="bg-white p-4 rounded shadow w-full overflow-x-auto mb-6">
           <h3 class="text-lg font-bold mb-2 text-blue-700">Lịch sử rút tiền</h3>
@@ -754,8 +759,12 @@ const fetchOrders = async () => {
     if (filters.value.from_date) params.append('from_date', filters.value.from_date);
     if (filters.value.to_date) params.append('to_date', filters.value.to_date);
     if (filters.value.order_id) params.append('order_id', filters.value.order_id);
+    if (trackingCode.value) params.append('tracking_code', trackingCode.value);
+    params.append('page', orderPage.value);
+    params.append('per_page', orderPageSize.value);
+    const url = `${apiBase}/orders?${params.toString()}`;
 
-    const response = await fetch(`${apiBase}/orders/seller?${params.toString()}`, {
+    const response = await fetch(url, {
       headers: token ? { 'Authorization': `Bearer ${token}` } : {}
     });
     const data = await response.json();
@@ -857,20 +866,35 @@ const statusClass = (status) => {
 };
 
 const showOrderDetails = async (order) => {
-  selectedOrder.value = order;
-  if (
-    selectedOrder.value.address &&
-    (!selectedOrder.value.address.ward_name || !selectedOrder.value.address.district_name || !selectedOrder.value.address.province_name)
-  ) {
-    await loadProvinces();
-    await loadDistricts(selectedOrder.value.address.province_id);
-    await loadWards(selectedOrder.value.address.district_id);
-    const province = provinces.value.find(p => p.ProvinceID == selectedOrder.value.address.province_id);
-    const district = districts.value.find(d => d.DistrictID == selectedOrder.value.address.district_id);
-    const ward = wards.value.find(w => w.WardCode == selectedOrder.value.address.ward_code);
-    selectedOrder.value.address.province_name = province?.ProvinceName || '';
-    selectedOrder.value.address.district_name = district?.DistrictName || '';
-    selectedOrder.value.address.ward_name = ward?.WardName || '';
+  let token = null;
+  if (process.client) {
+    token = localStorage.getItem('access_token');
+  }
+  try {
+    const res = await fetch(`${apiBase}/orders/seller/${order.id}`, {
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+    });
+    if (!res.ok) throw new Error('Không lấy được chi tiết đơn hàng');
+    const data = await res.json();
+    selectedOrder.value = data;
+    // Bổ sung địa chỉ nếu thiếu tên tỉnh/huyện/xã
+    if (
+      selectedOrder.value.address &&
+      (!selectedOrder.value.address.ward_name || !selectedOrder.value.address.district_name || !selectedOrder.value.address.province_name)
+    ) {
+      await loadProvinces();
+      await loadDistricts(selectedOrder.value.address.province_id);
+      await loadWards(selectedOrder.value.address.district_id);
+      const province = provinces.value.find(p => p.ProvinceID == selectedOrder.value.address.province_id);
+      const district = districts.value.find(d => d.DistrictID == selectedOrder.value.address.district_id);
+      const ward = wards.value.find(w => w.WardCode == selectedOrder.value.address.ward_code);
+      selectedOrder.value.address.province_name = province?.ProvinceName || '';
+      selectedOrder.value.address.district_name = district?.DistrictName || '';
+      selectedOrder.value.address.ward_name = ward?.WardName || '';
+    }
+  } catch (e) {
+    showNotificationMessage('Lỗi khi tải chi tiết đơn hàng!', 'error');
+    selectedOrder.value = null;
   }
 };
 
@@ -1084,7 +1108,10 @@ console.log('Payload gửi đi:', payload);
                 showNotificationMessage(`Lỗi gửi email cảnh báo: ${data.warning_email_error}`, 'error');
             }
         } else {
-            throw new Error(data.message || `Lỗi ${response.status}: Không thể cập nhật trạng thái`);
+            // Nếu backend trả về message lỗi, hiển thị cho user
+            const msg = data.message || data.error || `Lỗi ${response.status}: Không thể cập nhật trạng thái`;
+            showNotificationMessage(msg, 'error');
+            throw new Error(msg);
         }
     } catch (e) {
         console.error('Error in confirmUpdateStatus:', e.message, e.stack);
@@ -1213,7 +1240,7 @@ const fetchPayoutData = async () => {
     if (process.client) {
       token = localStorage.getItem('access_token');
     }
-    const res = await fetch(`${apiBase}/payout/list-approved`, {
+    const res = await fetch(`${apiBase}/seller/payout/list-approved`, {
       headers: token ? { 'Authorization': `Bearer ${token}` } : {}
     });
     if (!res.ok) {
@@ -1221,7 +1248,7 @@ const fetchPayoutData = async () => {
       throw new Error(errorData.message || `Lỗi ${res.status}: Không lấy được dữ liệu payout`);
     }
     const resData = await res.json();
-    payoutData.value = Array.isArray(resData) ? resData : (resData.data || []);
+    payoutData.value = Array.isArray(resData.data) ? resData.data : [];
     payoutFilteredData.value = [...payoutData.value];
   } catch (e) {
     payoutError.value = `Không thể tải dữ liệu payout: ${e.message}`;
@@ -1427,6 +1454,26 @@ const withdrawHistoryFiltered = computed(() => {
   });
   return arr;
 });
+
+const receivePayout = async (order) => {
+  try {
+    const token = localStorage.getItem('access_token');
+    const res = await fetch(`${apiBase}/payouts/${order.payout_id}/receive`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    if (data.success) {
+      showNotification('Nhận tiền payout thành công!');
+      order.payout_status = 'completed';
+      order.transferred_at = data.data.transferred_at;
+    } else {
+      showNotification(data.message || 'Lỗi nhận payout', false);
+    }
+  } catch (e) {
+    showNotification('Lỗi kết nối server', false);
+  }
+};
 </script>
 
 <style scoped>
@@ -1444,4 +1491,3 @@ const withdrawHistoryFiltered = computed(() => {
   max-height: none !important;
 }
 </style>
-```

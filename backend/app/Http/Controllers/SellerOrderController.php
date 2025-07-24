@@ -141,6 +141,23 @@ class SellerOrderController extends Controller
             return response()->json(['success' => false, 'message' => 'Bạn không phải seller!'], 403);
         }
 
+        // Validate dữ liệu đầu vào
+        $status = $request->input('status');
+        if (!$status) {
+            return response()->json(['success' => false, 'message' => 'Thiếu trạng thái đơn hàng!'], 422);
+        }
+        if (in_array($status, ['failed', 'failed_delivery', 'rejected_by_customer'])) {
+            if (!$request->filled('failure_reason')) {
+                return response()->json(['success' => false, 'message' => 'Vui lòng nhập lý do thất bại!'], 422);
+            }
+        }
+        if ($status === 'shipping') {
+            $trackingCode = $request->input('tracking_code');
+            if (!$trackingCode || !preg_match('/^[A-Za-z0-9]{6}$/', $trackingCode)) {
+                return response()->json(['success' => false, 'message' => 'Mã vận đơn phải gồm 6 ký tự chữ cái hoặc số!'], 422);
+            }
+        }
+
         $order = Order::with('user', 'shipping', 'orderItems.product', 'orderItems.productVariant')->findOrFail($id);
 
         // Chỉ cho phép cập nhật nếu seller có sản phẩm trong order này
@@ -152,27 +169,28 @@ class SellerOrderController extends Controller
         }
 
         $oldStatus = $order->status;
-        $order->status = $request->input('status');
+        $order->status = $status;
         $order->save();
 
-        // Tự động tạo payout khi đơn hàng chuyển sang delivered lần đầu
+        // Tự động tạo payout khi đơn hàng chuyển sang delivered lần đầu (cho seller này)
         if ($oldStatus !== 'delivered' && $order->status === 'delivered') {
-            // Lấy seller thực sự của sản phẩm trong order (trường hợp nhiều seller thì payout cho từng seller riêng, ở đây demo payout cho seller đầu tiên)
-            $orderSeller = $order->orderItems->first()->product->seller ?? null;
-            if ($orderSeller) {
-                $shippingFee = $order->shipping ? $order->shipping->shipping_fee : 0;
-                $baseAmount = $order->final_price - $shippingFee;
-                if ($baseAmount < 0) $baseAmount = 0;
-                $adminFee = round($baseAmount * 0.05, 2);
-                $sellerAmount = round($baseAmount * 0.95, 2);
+            // Lấy các item thuộc seller này
+            $filteredItems = $order->orderItems->filter(function ($item) use ($seller) {
+                return $item->product && $item->product->seller_id == $seller->id;
+            });
+            $totalPrice = $filteredItems->sum(function ($item) {
+                return $item->price * $item->quantity;
+            });
+            $amount = round($totalPrice * 0.95, 2);
+            // Chỉ tạo payout nếu chưa có payout cho seller này và order này
+            $existingPayout = Payout::where('order_id', $order->id)->where('seller_id', $seller->id)->first();
+            if (!$existingPayout && $amount > 0) {
                 Payout::create([
-                    'seller_id' => $orderSeller->id,
+                    'seller_id' => $seller->id,
                     'order_id' => $order->id,
-                    'amount' => $sellerAmount,
+                    'amount' => $amount,
                     'status' => 'pending',
                 ]);
-                // (Tùy chọn) Log admin fee
-                \Log::info('Admin fee for order '.$order->id.': '.$adminFee);
             }
         }
 
@@ -202,18 +220,16 @@ class SellerOrderController extends Controller
             'shipping',
         ])->findOrFail($id);
 
-        // Kiểm tra seller có sản phẩm trong order này không
-        $hasProduct = $order->orderItems()->whereHas('product', function($q) use ($seller) {
-            $q->where('seller_id', $seller->id);
-        })->exists();
-        if (!$hasProduct) {
-            return response()->json(['success' => false, 'message' => 'Không có quyền xem đơn này!'], 403);
-        }
-
+        // Chỉ lấy các item thuộc seller này
         $filteredItems = $order->orderItems->filter(function ($item) use ($seller) {
             return $item->product && $item->product->seller_id == $seller->id;
         })->values();
-        $payout = \App\Models\Payout::where('order_id', $order->id)->first();
+
+        $payout = \App\Models\Payout::where('order_id', $order->id)->where('seller_id', $seller->id)->first();
+
+        $totalPrice = $filteredItems->sum(function ($item) {
+            return $item->price * $item->quantity;
+        });
 
         return response()->json([
             'id' => $order->id,
@@ -225,7 +241,7 @@ class SellerOrderController extends Controller
             'address' => $order->address,
             'note' => $order->note,
             'status' => $order->status,
-            'total_price' => $order->total_price,
+            'total_price' => $totalPrice,
             'discount_price' => $order->discount_price,
             'final_price' => $order->final_price,
             'shipping' => $order->shipping,
@@ -245,7 +261,7 @@ class SellerOrderController extends Controller
                         'name' => ($item->productVariant->attributes && $item->productVariant->attributes->count())
                             ? $item->productVariant->attributes->map(function($attr) {
                                 $value = $attr->values->where('id', $attr->pivot->value_id)->first();
-                                return $value ? $value->value : null;
+                                return $value ? $attr->name . ': ' . $value->value : null;
                             })->filter()->implode(' - ')
                             : $item->productVariant->name,
                     ] : null,
@@ -264,9 +280,7 @@ class SellerOrderController extends Controller
                 ];
             }),
             'payout_amount' => $payout ? (float)$payout->amount : 0,
-            'estimated_payout' => round($filteredItems->sum(function ($item) {
-                return $item->price * $item->quantity;
-            }) * 0.95, 2),
+            'estimated_payout' => round($totalPrice * 0.95, 2),
             'payout_status' => $payout ? $payout->status : null,
             'transferred_at' => $payout ? $payout->transferred_at : null,
         ]);
