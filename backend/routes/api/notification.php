@@ -10,6 +10,8 @@ Route::prefix('notifications')->middleware('auth:sanctum')->group(function () {
     Route::get('/{id}', [NotificationController::class, 'show']);
     Route::put('/{id}', [NotificationController::class, 'update']);
     Route::post('/mark-read', [NotificationController::class, 'markAsRead']);
+    Route::post('/{id}/read', [NotificationController::class, 'markAsRead']);
+    Route::post('/mark-multiple-read', [NotificationController::class, 'markMultipleAsRead']);
     Route::delete('/{id}', [NotificationController::class, 'destroy']);
     Route::post('/send-multiple', [NotificationController::class, 'sendMultiple']);
     Route::post('/send-all', [NotificationController::class, 'sendAll']);
