@@ -17,7 +17,7 @@ class TagController extends Controller
     // Lấy danh sách tag (API)
 public function index(Request $request)
 {
-    $perPage = $request->input('per_page', 10); // Mặc định 10, có thể truyền ?per_page=15 nếu muốn
+    $perPage = $request->input('per_page', 10);
 
     $tags = Tag::paginate($perPage);
 

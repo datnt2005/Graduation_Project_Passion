@@ -7,6 +7,8 @@ use Illuminate\Http\Request;
 use App\Models\Support;
 use Illuminate\Support\Facades\Mail;
 use Carbon\Carbon;
+use App\Models\User;
+use App\Models\Notification;
 
 class SupportController extends Controller
 {
@@ -31,6 +33,23 @@ class SupportController extends Controller
             \Log::error('Mail send error (support created): ' . $e->getMessage());
             // Không trả lỗi cho user, chỉ log lại
         }
+        // Gửi thông báo đến admin\
+
+        $user = auth()->user();
+        $admins = User::where('role', 'admin')->get();
+        $notification = Notification::create([
+            'title' => 'Yêu cầu hỗ trợ mới',
+            'content' => "Người dùng {$support->name} ({$support->email}) đã gửi yêu cầu hỗ trợ vào " . now()->format('d/m/Y H:i'),
+            'type' => 'system',
+            'to_roles' => json_encode(['admin']),
+            'link' => "/admin/supports",
+            'user_id' => 2,
+            'from_role' => 'system',
+            'status' => 'sent',
+            'channels' => json_encode(['dashboard']),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
         return response()->json(['success' => true, 'message' => 'Gửi hỗ trợ thành công!']);
     }
@@ -52,7 +71,7 @@ class SupportController extends Controller
     // Admin lấy chi tiết yêu cầu hỗ trợ
     public function show($id)
     {
-        $support = Support::findOrFail($id);    
+        $support = Support::findOrFail($id);
         return response()->json(['success' => true, 'data' => $support]);
     }
     // Admin đánh dấu đã xử lý

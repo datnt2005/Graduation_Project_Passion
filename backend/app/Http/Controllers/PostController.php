@@ -8,6 +8,9 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use App\Models\Notification;
+use App\Models\User;
+
 
 class PostController extends Controller
 {
@@ -118,6 +121,23 @@ class PostController extends Controller
             $post = Post::create($validated);
 
             $post->thumbnail_url = $thumbnailPath ? Storage::disk('r2')->url($thumbnailPath) : null;
+
+
+            $user = Auth::user();
+           $admins = User::where('role', 'admin')->get();
+            $notification = Notification::create([
+                'title' => 'Bài viết mới được tạo',
+                'content' => "Bài viết '{$request->title}' đã được {$user->name} tạo thành công vào " . now()->format('d/m/Y H:i'),
+                'type' => 'system',
+                'to_roles' => json_encode(['admin']),
+                'link' => "/admin/posts",
+                'user_id' => $user->id,
+                'from_role' => 'system',
+                'status' => 'sent',
+                'channels' => json_encode(['dashboard']),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
 
             return response()->json([
                 'success' => true,

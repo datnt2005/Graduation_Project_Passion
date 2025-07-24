@@ -59,4 +59,23 @@ class AdminSellerController extends Controller
 
         return response()->json(['message' => 'Đã từ chối seller và gửi email thông báo.']);
     }
+
+ public function ban($id)
+{
+    $seller = Seller::with('user')->where('id', $id)->first();
+
+    if (!$seller) {
+        return response()->json(['message' => 'Seller không tồn tại.'], 404);
+    }
+
+    $seller->verification_status = 'banned';
+    $seller->save();
+
+    $user = $seller->user;
+    $user->role = 'user';
+    $user->save(); 
+
+    return response()->json(['message' => 'Đã cấm seller thành công.']);
+}
+
 }
