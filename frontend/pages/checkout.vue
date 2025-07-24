@@ -39,9 +39,13 @@
                 <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
               </div>
               <!-- Shipping Selector -->
-              <ShippingSelector ref="shippingRef" :address="selectedAddress"
-                v-model:selectedMethod="selectedShippingMethod" :cart-items="cartItems"
-                @update:shop-discount="handleShopDiscountUpdate" @update:totalShippingFee="totalShippingFee = $event" />
+              <ShippingSelector 
+          v-model:selectedMethod="selectedShippingMethod" 
+          :address="selectedAddress"
+          :cart-items="cartItems" 
+          @update:shippingFee="updateShippingFee"
+          @update:totalShippingFee="handleTotalShippingFeeUpdate"
+          @update:shopDiscount="handleShopDiscountUpdate" />
 
               <!-- Payment Methods -->
               <section class="bg-white rounded-[4px] p-5">
@@ -399,9 +403,9 @@
                     <span class="text-[14px] text-gray-800">{{ formattedTotal }}</span>
                   </div>
                   <div class="flex justify-between">
-                    <span class="text-[14px]">Tổng phí vận chuyển</span>
-                    <span class="text-[14px] text-gray-800">{{ formatPrice(totalShippingFee) }} đ</span>
-                  </div>
+  <span class="text-[14px]">Tổng phí vận chuyển</span>
+  <span class="text-[14px] text-gray-800">{{ formatPrice(totalShippingFee) }} đ</span>
+</div>
                   <div class="flex justify-between">
                     <span class="text-[14px]">Giảm giá phí ship</span>
                     <span class="text-green-600">- {{ formatPrice(totalShippingDiscount) }} đ</span>
@@ -557,6 +561,14 @@ const handleShopDiscountUpdate = (data) => {
     updateShopDiscount(data.sellerId, data.discount, data.discountId);
   }
 };
+// Cập nhật phí vận chuyển cho từng shop
+const updateShippingFee = ({ sellerId, fee }) => {
+  console.log(`Cập nhật phí vận chuyển cho shop ${sellerId}: ${fee}`);
+  const shopIndex = cartItems.value.findIndex(shop => shop.seller_id === sellerId);
+  if (shopIndex !== -1) {
+    cartItems.value[shopIndex].shippingFee = fee;
+  }
+};
 
 const shopsWithDiscount = computed(() => {
   return cartItems.value.filter(shop => shop.discount > 0);
@@ -578,6 +590,12 @@ const shopCount = computed(() => cartItems.value.length);
 const totalShippingDiscount = computed(() => {
   return typeof getShippingDiscount === 'function' ? getShippingDiscount(total.value) : 0;
 });
+
+// Hàm xử lý sự kiện update:totalShippingFee
+const handleTotalShippingFeeUpdate = (newTotal) => {
+  console.log(`Cập nhật totalShippingFee: ${newTotal}`);
+  totalShippingFee.value = newTotal || 0;
+};
 
 const realShippingFee = computed(() => {
   return Math.max(0, totalShippingFee.value - totalShippingDiscount.value);
@@ -802,6 +820,10 @@ watch(selectedAddress, async (newAddress) => {
 watch(cartItems, () => {
   console.log('cartItems đã thay đổi, cập nhật totalShippingFee:', cartItems.value);
 }, { deep: true });
+
+watch(selectedShippingMethod, (newVal) => {
+  console.log('Selected shipping method in checkout.vue:', newVal); // Debug
+});
 
 onMounted(async () => {
   try {

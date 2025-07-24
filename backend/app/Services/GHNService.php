@@ -3,9 +3,9 @@
 namespace App\Services;
 
 use App\Models\OrderItem;
+use App\Models\Seller;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use App\Models\Seller;
 
 class GHNService
 {
@@ -344,7 +344,7 @@ class GHNService
                 throw new \Exception("Đơn hàng không có sản phẩm");
             }
 
-            $sellerId = $orderItems->first()->seller_id;
+            $sellerId = $orderItems->first()->product->seller_id;
             $seller = Seller::find($sellerId);
             if (!$seller) {
                 Log::error("Seller not found: {$sellerId}", ['order_id' => $order->id]);
@@ -353,12 +353,12 @@ class GHNService
 
             $shopId = $seller->ghn_shop_id ?? (int) config('services.ghn.shop_id');
             if (empty($shopId)) {
-                Log::error('GHN shop_id is not configured for seller or in config/services.php', ['seller_id' => $sellerId]);
+                Log::error('GHN shop_id is not configured', ['seller_id' => $sellerId]);
                 throw new \Exception('Cấu hình shop_id GHN không hợp lệ');
             }
 
             $fromDistrictId = (int) $seller->district_id;
-            $fromWardCode = $seller->ward_id;
+            $fromWardCode = (string) $seller->ward_id;
 
             // Kiểm tra ward_code của seller
             $wardResponse = Http::withHeaders($this->headers($shopId))
@@ -382,6 +382,30 @@ class GHNService
                     'available_wards' => $wards,
                 ]);
                 throw new \Exception("Mã phường/xã {$fromWardCode} không hợp lệ cho quận/huyện {$fromDistrictId}");
+            }
+
+            // Kiểm tra to_ward_code
+            $toWardResponse = Http::withHeaders($this->headers($shopId))
+                ->post("{$this->baseUrl}/master-data/ward", [
+                    'district_id' => (int) $address->district_id,
+                ]);
+
+            if (!$toWardResponse->successful()) {
+                Log::error('GHN API error for to_ward:', [
+                    'district_id' => $address->district_id,
+                    'status' => $toWardResponse->status(),
+                    'response' => $toWardResponse->json(),
+                ]);
+                throw new \Exception('Không thể lấy danh sách phường/xã điểm đến từ GHN');
+            }
+
+            $toWards = $toWardResponse->json()['data'] ?? [];
+            if (!in_array($address->ward_code, array_column($toWards, 'WardCode'))) {
+                Log::error("Invalid to_ward_code: {$address->ward_code} for district_id: {$address->district_id}", [
+                    'order_id' => $order->id,
+                    'available_wards' => $toWards,
+                ]);
+                throw new \Exception("Mã phường/xã điểm đến {$address->ward_code} không hợp lệ");
             }
 
             // Kiểm tra service_id
@@ -456,13 +480,13 @@ class GHNService
             $payload = [
                 'shop_id' => $shopId,
                 'from_district_id' => $fromDistrictId,
-                'from_ward_code' => $fromWardCode,
-                'service_id' => (int) $serviceId,
+                'from_ward_code' => (string) $fromWardCode,
                 'to_name' => $address->name,
                 'to_phone' => $address->phone,
                 'to_address' => $address->detail,
-                'to_ward_code' => $address->ward_code,
+                'to_ward_code' => (string) $address->ward_code,
                 'to_district_id' => (int) $address->district_id,
+                'service_id' => (int) $serviceId,
                 'weight' => (int) $totalWeight,
                 'length' => (int) $maxLength,
                 'width' => (int) $maxWidth,
@@ -473,13 +497,17 @@ class GHNService
                 'items' => $items,
             ];
 
-            Log::info('GHN createShippingOrder Payload:', $payload);
+            Log::info('GHN createShippingOrder Payload:', [
+                'order_id' => $order->id,
+                'payload' => $payload,
+            ]);
 
             $response = Http::withHeaders($this->headers($shopId))
                 ->post("{$this->baseUrl}/v2/shipping-order/create", $payload);
 
             if (!$response->successful()) {
                 Log::error('GHN createShippingOrder Error:', [
+                    'order_id' => $order->id,
                     'status' => $response->status(),
                     'response' => $response->json(),
                     'payload' => $payload,
@@ -488,16 +516,25 @@ class GHNService
             }
 
             $result = $response->json()['data'];
-            Log::info('GHN createShippingOrder Response:', [
-                'status' => $response->status(),
-                'data' => $result,
+            if (empty($result['order_code'])) {
+                Log::error('GHN response missing order_code', [
+                    'order_id' => $order->id,
+                    'response' => $response->json(),
+                ]);
+                throw new \Exception('GHN không trả về order_code');
+            }
+
+            Log::info('GHN createShippingOrder Success:', [
+                'order_id' => $order->id,
+                'order_code' => $result['order_code'],
+                'expected_delivery_time' => $result['expected_delivery_time'],
             ]);
 
             return $result;
         } catch (\Exception $e) {
             Log::error('GHN createShippingOrder Exception:', [
-                'error' => $e->getMessage(),
                 'order_id' => $order->id,
+                'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
             throw $e;

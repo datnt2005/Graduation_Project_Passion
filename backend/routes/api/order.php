@@ -4,7 +4,9 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\OrderController;
 
 Route::middleware('auth:sanctum')->get('/orders/check-cod-eligibility', [OrderController::class, 'checkCodEligibility']);
-
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/shipping-methods', [OrderController::class, 'GetShipping']);
+});
 Route::prefix('orders')->middleware(['auth:sanctum'])->group(function () {
 
     // Admin hoặc Seller được quyền xem danh sách & chi tiết đơn hàng
