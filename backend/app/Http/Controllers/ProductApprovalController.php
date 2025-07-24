@@ -129,7 +129,7 @@ class ProductApprovalController extends Controller
         } catch (\Exception $e) {
         }
     }
-public function approveProduct($id, Request $request)
+    public function approveProduct($id, Request $request)
 {
     try {
         if (!Auth::check()) {

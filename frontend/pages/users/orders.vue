@@ -540,13 +540,9 @@ function returnOrder(order) {
 // Tabs configuration
 const tabs = ref([
   { label: 'Tất cả', value: 'all', count: 0 },
-  { label: 'Chờ xử lý', value: 'pending', count: 0 },
   { label: 'Đang xử lý', value: 'processing', count: 0 },
-  { label: 'Đang giao hàng', value: 'shipping', count: 0 },
   { label: 'Đã giao hàng', value: 'delivered', count: 0 },
   { label: 'Đã hủy', value: 'cancelled', count: 0 },
-  { label: 'Giao không thành công', value: 'failed_delivery', count: 0 },
-  { label: 'Khách từ chối', value: 'rejected_by_customer', count: 0 },
   { label: 'Yêu cầu hoàn tiền', value: 'refunds', count: 0 }
 ]);
 
