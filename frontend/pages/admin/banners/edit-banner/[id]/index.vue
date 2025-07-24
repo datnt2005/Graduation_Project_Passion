@@ -43,11 +43,23 @@
                   </select>
                 </div>
                 <div class="mb-4">
-                  <label class="block font-medium mb-1">Loại banner</label>
-                  <select v-model="type" class="form-input">
-                    <option value="banner">Banner thường</option>
-                    <option value="popup">Popup (hiện popup trang chủ)</option>
-                  </select>
+                  <label class="block text-gray-700 font-bold mb-2">Loại banner</label>
+                  <div class="flex gap-6 items-center">
+                    <label class="inline-flex items-center cursor-pointer">
+                      <input type="radio" v-model="type" value="banner" class="form-radio text-blue-600" />
+                      <span class="ml-2">Banner thường</span>
+                    </label>
+                    <label class="inline-flex items-center cursor-pointer">
+                      <input type="radio" v-model="type" value="popup" class="form-radio text-blue-600" />
+                      <span class="ml-2">Popup</span>
+                    </label>
+                  </div>
+                </div>
+                <div class="mb-4">
+                  <label class="block text-gray-700 font-bold mb-2">Link chuyển hướng (nếu có)</label>
+                  <input v-model="link" type="url" class="form-input w-full rounded-lg border border-gray-300 focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50" placeholder="https://example.com" />
+                  <p class="text-xs text-gray-500 mt-1">Nhập đường dẫn khi click vào banner sẽ chuyển hướng (có thể bỏ trống).</p>
+                  <span v-if="errors.link" class="text-red-500 text-xs">{{ errors.link }}</span>
                 </div>
               </div>
             </section>
@@ -199,6 +211,8 @@ const image = ref(null)
 const imageUrl = ref('')
 const preview = ref(null)
 const loading = ref(false)
+const link = ref('')
+const errors = ref({})
 
 const router = useRouter()
 const route = useRoute()
@@ -219,6 +233,7 @@ const fetchBanner = async () => {
     imageUrl.value = data.data.image_url
     status.value = data.data.status || 'active'
     type.value = data.data.type || 'banner'
+    link.value = data.data.link || ''
   } catch (err) {
     showNotificationMessage('Không thể tải thông tin banner.', 'error')
   }
@@ -260,8 +275,10 @@ const showNotificationMessage = (message, type = 'success') => {
 
 const submitEdit = async () => {
   loading.value = true
+  errors.value = {}
 
   if (!title.value) {
+    errors.value.title = 'Vui lòng nhập tiêu đề.'
     showNotificationMessage('Vui lòng nhập tiêu đề.', 'error')
     loading.value = false
     return
@@ -274,6 +291,7 @@ const submitEdit = async () => {
     formData.append('status', status.value)
     formData.append('type', type.value)
     if (image.value) formData.append('image', image.value)
+    if (link.value) formData.append('link', link.value.split('\n')[0].trim());
 
     const token = localStorage.getItem('access_token')
     await $fetch(`${apiBase}/banners/${route.params.id}`, {
@@ -290,6 +308,7 @@ const submitEdit = async () => {
   } catch (err) {
     let errorMessage = 'Có lỗi xảy ra khi cập nhật banner.'
     if (err?.data?.errors) {
+      errors.value = err.data.errors
       errorMessage = Object.values(err.data.errors).flat().join(', ')
     }
     showNotificationMessage(errorMessage, 'error')

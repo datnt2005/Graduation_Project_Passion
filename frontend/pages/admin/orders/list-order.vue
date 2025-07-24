@@ -107,7 +107,7 @@
                 <span class="text-xs">{{ order.user?.email || 'N/A' }}</span>
               </td>
               <td class="border border-gray-300 px-3 py-2 text-left">{{ formatPrice(order.final_price) }}</td>
-              <td class="border border-gray-300 px-3 py-2 text-left">{{ getPaymentMethodText(order.payments[0]?.method)
+              <td class="border border-gray-300 px-3 py-2 text-left">{{ getPaymentMethodText(order.payment_method)
                 }}</td>
               <td class="border border-gray-300 px-3 py-2 text-left">
                 <span :class="getStatusClass(order.status)"
@@ -253,8 +253,9 @@
             <tbody>
               <tr v-for="item in payoutTrackingPaginatedData" :key="item.id" class="hover:bg-blue-50 transition">
                 <td class="px-4 py-3 whitespace-nowrap text-sm font-semibold text-blue-700">{{ item.id }}</td>
-                <td class="px-4 py-3 whitespace-nowrap text-sm font-semibold text-blue-700">{{
-                  getTrackingCode(item.order_id) }}</td>
+                <td class="px-4 py-3 whitespace-nowrap text-sm font-semibold text-blue-700">
+                  {{ item.order?.shipping?.tracking_code || '-' }}
+                </td>
                 <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ formatPrice(item.amount) }}</td>
                 <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ formatDate(item.created_at) }}</td>
                 <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ formatDate(item.transferred_at) }}
@@ -476,7 +477,7 @@
                   formatPrice(selectedOrder.shipping.shipping_fee) }}</p>
                 <p v-if="selectedOrder.discount_price > 0"><b>Giảm giá:</b> {{ formatPrice(selectedOrder.discount_price)
                   }}</p>
-                <p><b>Phương thức thanh toán:</b> {{ getPaymentMethodText(selectedOrder.payments[0]?.method) }}</p>
+                <p><b>Phương thức thanh toán:</b> {{ getPaymentMethodText(selectedOrder.payment_method) }}</p>
               </div>
             </div>
             <!-- Thông tin thanh toán cho shop -->
@@ -711,7 +712,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, onUnmounted, watch } from 'vue';
+import { ref, onMounted, computed, nextTick, watch } from 'vue';
+import { useRouter } from 'vue-router';
+import { useAuthStore } from '~/stores/auth';
 import { useRuntimeConfig } from '#app';
 import Swal from 'sweetalert2';
 
@@ -770,6 +773,9 @@ const rejectWithdrawLoading = ref(false);
 const withdrawSearch = ref('');
 const withdrawSortDate = ref('desc'); // 'desc' = mới nhất, 'asc' = cũ nhất
 const withdrawSortAmount = ref('desc'); // 'desc' = cao->thấp, 'asc' = thấp->cao
+
+const router = useRouter();
+const authStore = useAuthStore();
 
 const withdrawListFiltered = computed(() => {
   let arr = [...withdrawList.value];
@@ -946,11 +952,12 @@ const payoutStatusClass = (status) => {
   }[status] || 'bg-gray-100 text-gray-800';
 };
 const payoutStatusText = (status) => {
+  if (!status) return 'Chờ xử lý';
   return {
     pending: 'Chờ xử lý',
     completed: 'Đã chuyển khoản',
     failed: 'Thất bại'
-  }[status] || status || 'Không xác định';
+  }[status] || status;
 };
 const payoutStatusLabel = (status) => {
   return {
@@ -1004,12 +1011,16 @@ const showOrderDetails = (order) => {
 const fetchOrders = async () => {
   try {
     loading.value = true;
-    const params = {
-      ...filters.value,
-      page: currentPage.value,
-      per_page: perPage.value
-    };
-    const url = `${apiBase}/orders?` + new URLSearchParams(params).toString();
+    let params = [];
+    if (filters.value.status) params.push(`status=${encodeURIComponent(filters.value.status)}`);
+    if (filters.value.payment_method) params.push(`payment_method=${encodeURIComponent(filters.value.payment_method)}`);
+    if (filters.value.from_date) params.push(`from_date=${encodeURIComponent(filters.value.from_date)}`);
+    if (filters.value.to_date) params.push(`to_date=${encodeURIComponent(filters.value.to_date)}`);
+    if (filters.value.order_id) params.push(`order_id=${encodeURIComponent(filters.value.order_id)}`);
+    if (filters.value.tracking_code) params.push(`tracking_code=${encodeURIComponent(filters.value.tracking_code)}`);
+    params.push(`page=${currentPage.value}`);
+    params.push(`per_page=${perPage.value}`);
+    const url = `${apiBase}/admin/orders?${params.join('&')}`;
     const token = localStorage.getItem('access_token');
     if (!token) throw new Error('Không tìm thấy access token. Vui lòng đăng nhập lại.');
 
@@ -1091,7 +1102,7 @@ const fetchPayoutData = async () => {
     const token = localStorage.getItem('access_token');
     if (!token) throw new Error('Không tìm thấy access token. Vui lòng đăng nhập lại.');
 
-    const res = await fetch(`${apiBase}/payout/list-approved`, {
+    const res = await fetch(`${apiBase}/admin/payouts/approved`, {
       headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
     });
 
@@ -1604,59 +1615,22 @@ const createPayout = async (order) => {
 };
 
 const approvePayout = async (order) => {
-  const result = await Swal.fire({
-    title: 'Xác nhận duyệt payout',
-    text: `Bạn có chắc chắn muốn duyệt payout cho đơn hàng ${order.shipping?.tracking_code || order.id}?`,
-    icon: 'question',
-    showCancelButton: true,
-    confirmButtonText: 'Duyệt',
-    cancelButtonText: 'Hủy',
-    confirmButtonColor: '#16a34a',
-    cancelButtonColor: '#6b7280'
-  });
-
-  if (!result.isConfirmed) return;
-
   try {
-    loading.value = true;
     const token = localStorage.getItem('access_token');
-    if (!token) throw new Error('Không tìm thấy access token. Vui lòng đăng nhập lại.');
-
-    const response = await fetch(`${apiBase}/payouts/${order.payout_id}/approve`, {
+    const res = await fetch(`${apiBase}/payouts/${order.payout_id}/approve`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/json'
-      }
+      headers: { 'Authorization': `Bearer ${token}` }
     });
-
-    const contentType = response.headers.get('Content-Type');
-    if (!contentType || !contentType.includes('application/json')) {
-      const text = await response.text();
-      console.error('Non-JSON response:', text.slice(0, 200));
-      throw new Error(`Phản hồi không phải JSON: ${text.slice(0, 100)}...`);
-    }
-
-    const data = await response.json();
-    if (response.ok) {
-      showNotification('Duyệt payout thành công', true);
-      await Promise.all([fetchOrders(), fetchPayoutData()]);
-      if (selectedOrder.value?.id === order.id) {
-        selectedOrder.value = {
-          ...selectedOrder.value,
-          payout_status: 'completed',
-          transferred_at: data.data.transferred_at || null
-        };
-      }
+    const data = await res.json();
+    if (data.success) {
+      showNotification('Duyệt payout thành công!');
+      order.payout_status = 'completed';
+      order.transferred_at = data.data.transferred_at;
     } else {
-      throw new Error(data.message || `Lỗi ${response.status}: Không thể duyệt payout`);
+      showNotification(data.message || 'Lỗi duyệt payout', false);
     }
-  } catch (error) {
-    console.error('Error approving payout:', error.message);
-    showNotification(`Lỗi khi duyệt payout: ${error.message}`, false);
-  } finally {
-    loading.value = false;
+  } catch (e) {
+    showNotification('Lỗi kết nối server', false);
   }
 };
 
@@ -1741,7 +1715,7 @@ const deleteOrder = async (orderId) => {
     const token = localStorage.getItem('access_token');
     if (!token) throw new Error('Không tìm thấy access token. Vui lòng đăng nhập lại.');
 
-    const response = await fetch(`${apiBase}/orders/${orderId}`, {
+    const response = await fetch(`${apiBase}/admin/orders/${orderId}`, {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -1892,7 +1866,12 @@ async function submitRejectWithdraw() {
 }
 
 // Lifecycle hooks
-onMounted(() => {
+onMounted(async () => {
+  await authStore.fetchUser?.();
+  if (!authStore.currentUser || authStore.currentUser.role !== 'admin') {
+    router.replace('/');
+    return;
+  }
   fetchOrders();
   fetchPaymentMethods();
   fetchPayoutData();

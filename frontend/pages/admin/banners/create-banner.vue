@@ -43,11 +43,23 @@
                   </select>
                 </div>
                 <div class="mb-4">
-                  <label class="block font-medium mb-1">Loại banner</label>
-                  <select v-model="type" class="form-input">
-                    <option value="banner">Banner thường</option>
-                    <option value="popup">Popup (hiện popup trang chủ)</option>
-                  </select>
+                  <label class="block text-gray-700 font-bold mb-2">Loại banner</label>
+                  <div class="flex gap-6 items-center">
+                    <label class="inline-flex items-center cursor-pointer">
+                      <input type="radio" v-model="type" value="banner" class="form-radio text-blue-600" />
+                      <span class="ml-2">Banner thường</span>
+                    </label>
+                    <label class="inline-flex items-center cursor-pointer">
+                      <input type="radio" v-model="type" value="popup" class="form-radio text-blue-600" />
+                      <span class="ml-2">Popup</span>
+                    </label>
+                  </div>
+                </div>
+                <div class="mb-4">
+                  <label class="block text-gray-700 font-bold mb-2">Link chuyển hướng (nếu có)</label>
+                  <input v-model="link" type="url" class="form-input w-full rounded-lg border border-gray-300 focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50" placeholder="https://example.com" />
+                  <p class="text-xs text-gray-500 mt-1">Nhập đường dẫn khi click vào banner sẽ chuyển hướng (có thể bỏ trống).</p>
+                  <span v-if="errors.link" class="text-red-500 text-xs">{{ errors.link }}</span>
                 </div>
               </div>
             </section>
@@ -237,6 +249,8 @@ const fileInput = ref(null)
 const showNotification = ref(false)
 const notificationMessage = ref('')
 const notificationType = ref('success')
+const link = ref('')
+const errors = ref({})
 
 const onFileChange = (e) => {
   const file = e.target.files[0]
@@ -274,6 +288,7 @@ const showNotificationMessage = (message, type = 'success') => {
 
 const submitBanner = async () => {
   loading.value = true
+  errors.value = {}
 
   if (!title.value || !image.value) {
     showNotificationMessage('Vui lòng nhập tiêu đề và chọn hình ảnh.', 'error')
@@ -288,6 +303,7 @@ const submitBanner = async () => {
     formData.append('image', image.value)
     formData.append('status', status.value)
     formData.append('type', type.value)
+    if (link.value) formData.append('link', link.value.split('\n')[0].trim());
 
     const token = localStorage.getItem('access_token')
     await $fetch(`${apiBase}/banners`, {
@@ -303,6 +319,7 @@ const submitBanner = async () => {
   } catch (err) {
     let errorMessage = 'Có lỗi xảy ra khi thêm banner.'
     if (err?.data?.errors) {
+      errors.value = err.data.errors
       errorMessage = Object.values(err.data.errors).flat().join(', ')
     }
     showNotificationMessage(errorMessage, 'error')

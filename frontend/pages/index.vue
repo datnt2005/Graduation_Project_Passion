@@ -26,7 +26,15 @@
   <!-- Popup Banner Modal -->
   <div v-if="showPopup && popupBanner && popupBanner.type === 'popup'" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
     <div class="relative">
+      <a v-if="popupBanner.link" :href="popupBanner.link" target="_blank" rel="noopener">
+        <img
+          :src="popupBanner.image_url"
+          :alt="popupBanner.title"
+          class="rounded-xl shadow-2xl border-4 border-white max-w-[90vw] max-h-[80vh] object-contain cursor-pointer"
+        />
+      </a>
       <img
+        v-else
         :src="popupBanner.image_url"
         :alt="popupBanner.title"
         class="rounded-xl shadow-2xl border-4 border-white max-w-[90vw] max-h-[80vh] object-contain"

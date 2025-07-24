@@ -3,366 +3,346 @@
 namespace App\Http\Controllers;
 
 use App\Models\Payout;
-use App\Models\Seller;
 use App\Models\Order;
+use App\Models\Seller;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Validator;
 
 class PayoutController extends Controller
 {
-    public function index(Request $request)
-    {
-        try {
-            $user = Auth::user();
-            if ($user->role === 'admin' && $request->has('seller_id')) {
-                $seller = Seller::findOrFail($request->seller_id);
-            } else {
-            $seller = Seller::where('user_id', $user->id)->firstOrFail();
-            }
-            $payouts = Payout::where('seller_id', $seller->id)
-                ->with(['order', 'order.shipping'])
-                ->orderBy('created_at', 'desc')
-                ->get();
-            return response()->json([
-                'data' => $payouts->map(function ($payout) {
-                    return [
-                        'id' => $payout->id,
-                        'order_id' => $payout->order_id,
-                        'shop_id' => $payout->seller_id,
-                        'amount' => (float)$payout->amount,
-                        'status' => $payout->status,
-                        'note' => $payout->note ?? 'Payout cho đơn hàng ' . ($payout->order->shipping->tracking_code ?? $payout->order_id),
-                        'created_at' => $payout->created_at ? \Carbon\Carbon::parse($payout->created_at)->format('d/m/Y H:i:s') : null,
-                        'transferred_at' => $payout->transferred_at ? \Carbon\Carbon::parse($payout->transferred_at)->format('d/m/Y H:i:s') : null,
-                    ];
-                })
-            ], 200);
-        } catch (\Exception $e) {
-            Log::error('Payout index error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
-            return response()->json([
-                'message' => 'Lỗi khi lấy danh sách payout',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
     /**
-     * Tạo mới payout
-     *
-     * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * Lấy danh sách payout đã duyệt cho admin
      */
-    public function store(Request $request)
+    public function approvedList(Request $request)
     {
+        $user = auth()->user();
+        \Log::info('approvedList debug', [
+            'user_id' => $user?->id,
+            'role' => $user?->role,
+            'email' => $user?->email,
+            'request_token' => $request->bearerToken(),
+        ]);
         try {
-            $request->validate([
-                'order_id' => 'required|exists:orders,id',
-                'shop_id' => 'required|exists:sellers,id',
-                'amount' => 'required|numeric|min:0',
-                'status' => 'nullable|in:pending,completed,failed',
-                'note' => 'nullable|string'
-            ]);
+            $query = Payout::with(['order.shipping', 'seller.user'])
+                ->where('status', 'completed')
+                ->latest('transferred_at');
 
-            $user = Auth::user();
-            if ($user->role === 'seller') {
-                $seller = Seller::where('user_id', $user->id)->firstOrFail();
-                if ($request->shop_id !== $seller->id) {
+            if ($user && $user->role === 'seller') {
+                $seller = Seller::where('user_id', $user->id)->first();
+                \Log::info('approvedList seller', [
+                    'seller_id' => $seller?->id,
+                    'user_id' => $user->id
+                ]);
+                if ($seller) {
+                    $query->where('seller_id', $seller->id);
+                } else {
+                    // Nếu không tìm thấy seller, trả về mảng rỗng
                     return response()->json([
-                        'message' => 'Bạn không có quyền tạo payout cho shop này'
-                    ], 403);
+                        'success' => true,
+                        'data' => [],
+                        'meta' => [],
+                        'message' => 'Không có payout nào.'
+                    ]);
                 }
+            } else if ($request->has('seller_id')) {
+                $query->where('seller_id', $request->seller_id);
             }
 
-            $order = Order::findOrFail($request->order_id);
-            if ($order->payout_id) {
+            // Phân trang
+            $perPage = $request->input('per_page', 10);
+            $payouts = $query->paginate($perPage);
+
+            if ($payouts->isEmpty()) {
                 return response()->json([
-                    'message' => 'Đơn hàng đã có payout'
-                ], 400);
-            }
-
-            $payout = Payout::create([
-                'seller_id' => $request->shop_id,
-                'order_id' => $request->order_id,
-                'amount' => $request->amount,
-                'status' => $request->status ?? 'pending',
-                'note' => $request->note,
-                'created_at' => \Carbon\Carbon::now(),
-                'transferred_at' => $request->status === 'completed' ? \Carbon\Carbon::now() : null,
-            ]);
-
-            $order->update([
-                'payout_id' => $payout->id,
-                'payout_status' => $payout->status,
-                'payout_amount' => $payout->amount
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Tạo payout thành công',
-                'data' => [
-                    'id' => $payout->id,
-                    'order_id' => $payout->order_id,
-                    'shop_id' => $payout->seller_id,
-                    'amount' => (float)$payout->amount,
-                    'status' => $payout->status,
-                    'note' => $payout->note,
-                    'created_at' => $payout->created_at ? \Carbon\Carbon::parse($payout->created_at)->format('d/m/Y H:i:s') : null,
-                    'transferred_at' => $payout->transferred_at ? \Carbon\Carbon::parse($payout->transferred_at)->format('d/m/Y H:i:s') : null,
-                ]
-            ], 201);
-        } catch (\Exception $e) {
-            Log::error('Payout creation error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Hiển thị chi tiết payout
-     *
-     * @param string $id
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function show($id)
-    {
-        try {
-            $payout = Payout::with(['order', 'order.shipping'])->findOrFail($id);
-            $user = Auth::user();
-            if ($user->role === 'seller') {
-                $seller = Seller::where('user_id', $user->id)->firstOrFail();
-                if ($payout->seller_id !== $seller->id) {
-                    return response()->json([
-                        'message' => 'Bạn không có quyền xem payout này'
-                    ], 403);
-                }
-            }
-            return response()->json([
-                'data' => [
-                    'id' => $payout->id,
-                    'order_id' => $payout->order_id,
-                    'shop_id' => $payout->seller_id,
-                    'amount' => (float)$payout->amount,
-                    'status' => $payout->status,
-                    'note' => $payout->note,
-                    'created_at' => $payout->created_at ? \Carbon\Carbon::parse($payout->created_at)->format('d/m/Y H:i:s') : null,
-                    'transferred_at' => $payout->transferred_at ? \Carbon\Carbon::parse($payout->transferred_at)->format('d/m/Y H:i:s') : null,
-                ]
-            ], 200);
-        } catch (\Exception $e) {
-            Log::error('Payout show error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
-            return response()->json([
-                'message' => 'Lỗi khi lấy chi tiết payout',
-                'error' => $e->getMessage()
-            ], 404);
-        }
-    }
-
-    /**
-     * Cập nhật payout
-     *
-     * @param \Illuminate\Http\Request $request
-     * @param string $id
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function update(Request $request, $id)
-    {
-        try {
-            $validator = Validator::make($request->all(), [
-                'status' => 'required|in:pending,completed,failed',
-                'transferred_at' => 'nullable|date',
-                'amount' => 'nullable|numeric|min:0' // Thêm validation cho amount
-            ]);
-
-            if ($validator->fails()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Validation failed',
-                    'errors' => $validator->errors()
-                ], 422);
-            }
-
-            $payout = Payout::findOrFail($id);
-            $user = Auth::user();
-            if ($user->role === 'seller') {
-                $seller = Seller::where('user_id', $user->id)->firstOrFail();
-                if ($payout->seller_id !== $seller->id) {
-                    return response()->json([
-                        'message' => 'Bạn không có quyền cập nhật payout này'
-                    ], 403);
-                }
-            }
-
-            // Cập nhật trạng thái
-            $payout->status = $request->status;
-
-            // Tính lại amount nếu trạng thái là completed
-            if ($request->status === 'completed' && $payout->order_id) {
-                $order = Order::findOrFail($payout->order_id);
-                $payout->amount = max(($order->final_price - ($order->shipping->shipping_fee ?? 0)) * 0.95, 0);
-            } elseif ($request->has('amount')) {
-                $payout->amount = $request->amount; // Cho phép cập nhật amount nếu được gửi
-            }
-
-            // Cập nhật transferred_at
-            $payout->transferred_at = $request->status === 'completed' ? ($request->transferred_at ? \Carbon\Carbon::parse($request->transferred_at)->format('Y-m-d H:i:s') : \Carbon\Carbon::now()->format('Y-m-d H:i:s')) : null;
-            $payout->save();
-
-            // Cập nhật order
-            if ($payout->order_id) {
-                $order = Order::findOrFail($payout->order_id);
-                $order->update([
-                    'payout_status' => $payout->status,
-                    'payout_amount' => $payout->amount
+                    'success' => true,
+                    'data' => [],
+                    'meta' => [
+                        'current_page' => $payouts->currentPage(),
+                        'last_page' => $payouts->lastPage(),
+                        'per_page' => $payouts->perPage(),
+                        'total' => $payouts->total(),
+                    ],
+                    'message' => 'Không có payout nào.'
                 ]);
             }
 
+            // Format response
+            $formattedPayouts = $payouts->through(function($payout) {
+                return [
+                    'id' => $payout->id,
+                    'amount' => $payout->amount,
+                    'created_at' => $payout->created_at,
+                    'transferred_at' => $payout->transferred_at,
+                    'order' => $payout->order ? [
+                        'id' => $payout->order->id,
+                        'shipping' => [
+                            'tracking_code' => $payout->order->shipping?->tracking_code
+                        ]
+                    ] : null,
+                    'seller' => $payout->seller ? [
+                        'id' => $payout->seller->id,
+                        'store_name' => $payout->seller->store_name,
+                        'user' => [
+                            'name' => $payout->seller->user->name,
+                            'email' => $payout->seller->user->email
+                        ]
+                    ] : null,
+                    'note' => $payout->note,
+                    'status' => $payout->status
+                ];
+            });
+
             return response()->json([
                 'success' => true,
-                'message' => 'Cập nhật payout thành công',
-                'data' => [
-                    'id' => $payout->id,
-                    'order_id' => $payout->order_id,
-                    'shop_id' => $payout->seller_id,
-                    'amount' => (float)$payout->amount,
-                    'status' => $payout->status,
-                    'note' => $payout->note,
-                    'created_at' => $payout->created_at ? \Carbon\Carbon::parse($payout->created_at)->format('d/m/Y H:i:s') : null,
-                    'transferred_at' => $payout->transferred_at ? \Carbon\Carbon::parse($payout->transferred_at)->format('d/m/Y H:i:s') : null,
-                ]
-            ], 200);
-        } catch (\Exception $e) {
-            Log::error('Payout update error: ' . $e->getMessage(), [
-                'payout_id' => $id,
-                'user_id' => Auth::id(),
-                'request_data' => $request->all(),
-                'trace' => $e->getTraceAsString()
+                'data' => $formattedPayouts->items(),
+                'meta' => [
+                    'current_page' => $formattedPayouts->currentPage(),
+                    'from' => $formattedPayouts->firstItem(),
+                    'last_page' => $formattedPayouts->lastPage(),
+                    'path' => $formattedPayouts->path(),
+                    'per_page' => $formattedPayouts->perPage(),
+                    'to' => $formattedPayouts->lastItem(),
+                    'total' => $formattedPayouts->total(),
+                ],
+                'message' => 'Lấy danh sách payout thành công'
             ]);
+        } catch (\Exception $e) {
+            Log::error('Error in PayoutController@approvedList: ' . $e->getMessage());
+            Log::error($e->getTraceAsString());
+            
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to update payout: ' . $e->getMessage()
+                'message' => 'Lỗi khi lấy danh sách payout: ' . $e->getMessage()
             ], 500);
         }
     }
 
     /**
-     * Lấy danh sách payout đã duyệt
-     *
-     * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * Lấy thống kê payout cho admin
      */
-    public function listApproved(Request $request)
+    public function stats(Request $request)
     {
         try {
-            $user = Auth::user();
-            $query = Payout::with(['order', 'order.shipping'])
-                ->where('status', 'completed')
-                ->orderByDesc('transferred_at');
+            $query = Payout::where('status', 'completed');
 
-            if ($user->role === 'admin' && $request->has('seller_id')) {
+            // Filter theo seller nếu có
+            if ($request->has('seller_id')) {
                 $query->where('seller_id', $request->seller_id);
-            } elseif ($user->role === 'seller') {
-                $seller = Seller::where('user_id', $user->id)->firstOrFail();
-                $query->where('seller_id', $seller->id);
             }
 
-            $payouts = $query->get();
+            // Tổng số payout
+            $totalPayouts = $query->count();
+
+            // Tổng số tiền đã thanh toán
+            $totalAmount = $query->sum('amount');
+
+            // Tổng chiết khấu admin (5%)
+            $totalCommission = $totalAmount * 5 / 95;
+
+            // Thống kê theo tháng này
+            $thisMonth = Carbon::now()->startOfMonth();
+            $monthlyStats = $query->whereMonth('transferred_at', $thisMonth->month)
+                ->whereYear('transferred_at', $thisMonth->year)
+                ->get();
+            $monthlyPayouts = $monthlyStats->count();
+            $monthlyAmount = $monthlyStats->sum('amount');
+            $monthlyCommission = $monthlyAmount * 5 / 95;
 
             return response()->json([
-                'data' => $payouts->map(function ($payout) {
-                    return [
-                        'id' => $payout->id,
-                        'order_id' => $payout->order_id,
-                        'shop_id' => $payout->seller_id,
-                        'amount' => (float)$payout->amount,
-                        'status' => $payout->status,
-                        'note' => $payout->note ?? 'Payout cho đơn hàng ' . ($payout->order->shipping->tracking_code ?? $payout->order_id),
-                        'created_at' => $payout->created_at ? \Carbon\Carbon::parse($payout->created_at)->format('d/m/Y H:i:s') : null,
-                        'transferred_at' => $payout->transferred_at ? \Carbon\Carbon::parse($payout->transferred_at)->format('d/m/Y H:i:s') : null,
-                    ];
-                })
-            ], 200);
+                'success' => true,
+                'data' => [
+                    'total_payouts' => $totalPayouts,
+                    'total_amount' => $totalAmount,
+                    'total_commission' => $totalCommission,
+                    'monthly_payouts' => $monthlyPayouts,
+                    'monthly_amount' => $monthlyAmount,
+                    'monthly_commission' => $monthlyCommission
+                ],
+                'message' => 'Lấy thống kê payout thành công'
+            ]);
         } catch (\Exception $e) {
-            Log::error('Payout list-approved error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            Log::error('Error in PayoutController@stats: ' . $e->getMessage());
+            Log::error($e->getTraceAsString());
+            
             return response()->json([
-                'message' => 'Lỗi khi lấy danh sách payout đã duyệt',
-                'error' => $e->getMessage()
+                'success' => false,
+                'message' => 'Lỗi khi lấy thống kê payout: ' . $e->getMessage()
             ], 500);
         }
     }
 
-    public function approve(Request $request, $id)
-{
-    try {
-        $payout = Payout::find($id);
+    /**
+     * Lấy dữ liệu biểu đồ payout cho admin
+     */
+    public function chart(Request $request)
+    {
+        try {
+            $type = $request->input('type', 'month'); // day, month, year
+            $now = Carbon::now();
+            $labels = [];
+            $data = [];
+
+            switch ($type) {
+                case 'day':
+                    // 7 ngày gần nhất
+                    for ($i = 6; $i >= 0; $i--) {
+                        $date = $now->copy()->subDays($i);
+                        $labels[] = $date->format('d/m');
+                        
+                        $amount = Payout::where('status', 'completed')
+                            ->whereDate('transferred_at', $date->format('Y-m-d'))
+                            ->when($request->has('seller_id'), function($q) use ($request) {
+                                $q->where('seller_id', $request->seller_id);
+                            })
+                            ->sum('amount');
+                        $data[] = round($amount * 5 / 95); // Chiết khấu 5%
+                    }
+                    break;
+
+                case 'month':
+                    // 12 tháng gần nhất
+                    for ($i = 11; $i >= 0; $i--) {
+                        $date = $now->copy()->subMonths($i);
+                        $labels[] = $date->format('m/Y');
+                        
+                        $amount = Payout::where('status', 'completed')
+                            ->whereYear('transferred_at', $date->year)
+                            ->whereMonth('transferred_at', $date->month)
+                            ->when($request->has('seller_id'), function($q) use ($request) {
+                                $q->where('seller_id', $request->seller_id);
+                            })
+                            ->sum('amount');
+                        $data[] = round($amount * 5 / 95);
+                    }
+                    break;
+
+                case 'year':
+                    // 5 năm gần nhất
+                    for ($i = 4; $i >= 0; $i--) {
+                        $year = $now->copy()->subYears($i)->year;
+                        $labels[] = (string)$year;
+                        
+                        $amount = Payout::where('status', 'completed')
+                            ->whereYear('transferred_at', $year)
+                            ->when($request->has('seller_id'), function($q) use ($request) {
+                                $q->where('seller_id', $request->seller_id);
+                            })
+                            ->sum('amount');
+                        $data[] = round($amount * 5 / 95);
+                    }
+                    break;
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'labels' => $labels,
+                    'data' => $data
+                ],
+                'message' => 'Lấy dữ liệu biểu đồ payout thành công'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error in PayoutController@chart: ' . $e->getMessage());
+            Log::error($e->getTraceAsString());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi khi lấy dữ liệu biểu đồ payout: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Trả về payout theo id (chưa hỗ trợ)
+     */
+    public function show($id)
+    {
+        $user = auth()->user();
+        $payout = Payout::with(['order.shipping', 'seller.user'])->find($id);
         if (!$payout) {
             return response()->json([
                 'success' => false,
-                'message' => 'Không tìm thấy payout với ID: ' . $id
+                'message' => 'Không tìm thấy payout.'
             ], 404);
         }
-
-        $user = Auth::user();
         if ($user->role === 'seller') {
-            $seller = Seller::where('user_id', $user->id)->firstOrFail();
-            if ($payout->seller_id !== $seller->id) {
+            $seller = Seller::where('user_id', $user->id)->first();
+            if (!$seller || $payout->seller_id !== $seller->id) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Bạn không có quyền duyệt payout này'
+                    'message' => 'Bạn không có quyền xem payout này.'
                 ], 403);
             }
         }
-
-        if ($payout->status === 'completed') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Payout đã được duyệt trước đó'
-            ], 400);
-        }
-
-        $payout->update([
-            'status' => 'completed',
-            'transferred_at' => Carbon::now()->setTimezone('Asia/Ho_Chi_Minh')->format('Y-m-d H:i:s')
-        ]);
-
-        // Cập nhật trạng thái payout trong order
-        $order = Order::find($payout->order_id);
-        if ($order) {
-            $order->update([
-                'payout_status' => 'completed',
-                'payout_amount' => $payout->amount,
-                'transferred_at' => $payout->transferred_at
-            ]);
-        }
-
+        // Trả về chi tiết payout
         return response()->json([
             'success' => true,
-            'message' => 'Duyệt payout thành công',
             'data' => [
                 'id' => $payout->id,
-                'order_id' => $payout->order_id,
-                'shop_id' => $payout->seller_id,
-                'amount' => (float)$payout->amount,
-                'status' => $payout->status,
-                'created_at' => $payout->created_at ? Carbon::parse($payout->created_at)->format('d/m/Y H:i:s') : null,
-                'transferred_at' => $payout->transferred_at ? Carbon::parse($payout->transferred_at)->format('d/m/Y H:i:s') : null,
+                'amount' => $payout->amount,
+                'transferred_at' => $payout->transferred_at,
+                'order' => $payout->order ? [
+                    'id' => $payout->order->id,
+                    'shipping' => [
+                        'tracking_code' => $payout->order->shipping?->tracking_code
+                    ]
+                ] : null,
+                'seller' => $payout->seller ? [
+                    'id' => $payout->seller->id,
+                    'store_name' => $payout->seller->store_name,
+                    'user' => [
+                        'name' => $payout->seller->user->name,
+                        'email' => $payout->seller->user->email
+                    ]
+                ] : null,
+                'note' => $payout->note,
+                'status' => $payout->status
             ]
-        ], 200);
-    } catch (\Exception $e) {
-        Log::error('Payout approval error: ' . $e->getMessage(), [
-            'payout_id' => $id,
-            'user_id' => Auth::id(),
-            'request_data' => $request->all(),
-            'trace' => $e->getTraceAsString()
         ]);
-        return response()->json([
-            'success' => false,
-            'message' => 'Lỗi khi duyệt payout: ' . $e->getMessage()
-        ], 500);
     }
-}
+
+    /**
+     * Seller nhận payout (tự động)
+     */
+    public function sellerReceive($id)
+    {
+        $user = auth()->user();
+        if ($user->role !== 'seller') {
+            return response()->json(['success' => false, 'message' => 'Bạn không có quyền nhận payout!'], 403);
+        }
+        $payout = \App\Models\Payout::findOrFail($id);
+        if ($payout->status !== 'pending') {
+            return response()->json(['success' => false, 'message' => 'Payout không ở trạng thái chờ nhận!'], 400);
+        }
+        // Kiểm tra seller có quyền nhận payout này không
+        $seller = \App\Models\Seller::where('user_id', $user->id)->first();
+        if (!$seller || $payout->seller_id !== $seller->id) {
+            return response()->json(['success' => false, 'message' => 'Bạn không có quyền nhận payout này!'], 403);
+        }
+        $payout->status = 'completed';
+        $payout->transferred_at = now();
+        $payout->save();
+        return response()->json(['success' => true, 'message' => 'Nhận tiền payout thành công!', 'data' => $payout]);
+    }
+
+    /**
+     * Admin duyệt payout thủ công
+     */
+    public function approve($id)
+    {
+        $user = auth()->user();
+        if ($user->role !== 'admin') {
+            return response()->json(['success' => false, 'message' => 'Bạn không có quyền duyệt payout!'], 403);
+        }
+        $payout = \App\Models\Payout::findOrFail($id);
+        if ($payout->status !== 'pending') {
+            return response()->json(['success' => false, 'message' => 'Payout không ở trạng thái chờ duyệt!'], 400);
+        }
+        $payout->status = 'completed';
+        $payout->transferred_at = now();
+        $payout->save();
+        return response()->json(['success' => true, 'message' => 'Duyệt payout thành công!', 'data' => $payout]);
+    }
 }

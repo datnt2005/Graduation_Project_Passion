@@ -13,13 +13,12 @@
           class="flex transition-transform duration-700 ease-in-out"
           :style="{ transform: `translateX(-${index * 100}%)` }"
         >
-          <img
-            v-for="(img, i) in banners"
-            :key="i"
-            :src="img"
-            :alt="`Slide ${i + 1}`"
-            class="w-full flex-shrink-0 object-contain"
-          />
+          <template v-for="(banner, i) in banners" :key="i">
+            <a v-if="banner.link" :href="banner.link" target="_blank" rel="noopener">
+              <img :src="banner.image_url" :alt="`Slide ${i + 1}`" class="w-full flex-shrink-0 object-contain" />
+            </a>
+            <img v-else :src="banner.image_url" :alt="`Slide ${i + 1}`" class="w-full flex-shrink-0 object-contain" />
+          </template>
         </div>
 
         <!-- Dots -->
@@ -106,7 +105,7 @@ let timer = null;
 async function fetchBanners() {
   try {
     const res = await $fetch(`${apiBase}/banners?status=active&type=banner`)
-    banners.value = (res.data || []).map(b => b.image_url).filter(Boolean)
+    banners.value = (res.data || []).map(b => ({ image_url: b.image_url, link: b.link })).filter(b => b.image_url)
     if (index.value >= banners.value.length) index.value = 0
   } catch (e) {
     banners.value = [];

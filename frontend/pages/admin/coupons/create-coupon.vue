@@ -529,8 +529,11 @@ definePageMeta({
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useRuntimeConfig } from '#imports'
-import { secureFetch } from '@/utils/secureFetch' 
+import { secureFetch } from '@/utils/secureFetch'
 
+const products = ref([]);
+const categories = ref([]);
+const users = ref([]);
 
 const router = useRouter();
 const config = useRuntimeConfig()
@@ -558,6 +561,15 @@ const showSuccessNotification = (message) => {
   }, 3000);
 };
 
+const showErrorNotification = (message) => {
+  notificationMessage.value = message;
+  showNotification.value = true;
+  // Có thể thêm style màu đỏ hoặc icon lỗi nếu muốn
+  setTimeout(() => {
+    showNotification.value = false;
+  }, 3000);
+};
+
 const formData = reactive({
   name: '',
   code: '',
@@ -579,28 +591,6 @@ const userSearch = ref('');
 const selectedProducts = ref([]);
 const selectedCategories = ref([]);
 const selectedUsers = ref([]);
-
-// Mock data (thay thế bằng API call sau)
-const products = ref([
-  { id: 1, name: 'Áo len nữ dài tay cổ tròn' },
-  { id: 2, name: 'Áo len nữ dài tay cổ tròn - Đỏ' },
-  { id: 3, name: 'Áo len nữ dài tay cổ tròn - Hồng' },
-  { id: 4, name: 'Áo khoác dạ nữ hai lớp cổ bẻ dáng suông' },
-  { id: 5, name: 'Áo len polo nam cộc tay' },
-]);
-
-const categories = ref([
-  { id: 1, name: 'Áo len nữ' },
-  { id: 2, name: 'Áo khoác nữ' },
-  { id: 3, name: 'Áo len nam' },
-  { id: 4, name: 'Áo khoác nam' },
-]);
-
-const users = ref([
-  { id: 1, name: 'Nguyễn Văn A' },
-  { id: 2, name: 'Trần Thị B' },
-  { id: 3, name: 'Lê Văn C' },
-]);
 
 // Computed properties cho filtered items với tìm kiếm không phân biệt dấu
 const removeVietnameseTones = (str) => {
@@ -806,62 +796,45 @@ const generateCode = () => {
 const createCoupon = async () => {
   if (!validateForm()) return;
 
-  const requestData = { ...formData };
-
   try {
     loading.value = true;
-    const response = await secureFetch(`${apiBase}/discounts`, {
+    const data = await secureFetch(`${apiBase}/discounts`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(requestData)
+      body: JSON.stringify(formData)
     }, ['admin']);
-    const data = await response.json();
-
-    if (data.success) {
-      const couponId = data.data.id;
-
-    // Gán sản phẩm
-if (selectedProducts.value.length > 0) {
-  await secureFetch(`${apiBase}/discounts/${couponId}/products`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ product_ids: selectedProducts.value.map(p => p.id) }),
-  }, ['admin'])
-}
-
-// Gán danh mục
-if (selectedCategories.value.length > 0) {
-  await secureFetch(`${apiBase}/discounts/${couponId}/categories`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ category_ids: selectedCategories.value.map(c => c.id) }),
-  }, ['admin'])
-}
-
-// Gán user
-if (selectedUsers.value.length > 0) {
-  await secureFetch(`${apiBase}/discounts/${couponId}/users`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ user_ids: selectedUsers.value.map(u => u.id) }),
-  }, ['admin'])
-}
-  
-
+    if (data && data.id) {
       showSuccessNotification('Tạo mã giảm giá thành công!');
+      // Gán sản phẩm, danh mục, user nếu có
+      if (selectedProducts.value.length > 0) {
+        await secureFetch(`${apiBase}/discounts/${data.id}/products`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ product_ids: selectedProducts.value.map(p => p.id) })
+        }, ['admin']);
+      }
+      if (selectedCategories.value.length > 0) {
+        await secureFetch(`${apiBase}/discounts/${data.id}/categories`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ category_ids: selectedCategories.value.map(c => c.id) })
+        }, ['admin']);
+      }
+      if (selectedUsers.value.length > 0) {
+        await secureFetch(`${apiBase}/discounts/${data.id}/users`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_ids: selectedUsers.value.map(u => u.id) })
+        }, ['admin']);
+      }
       setTimeout(() => {
         router.push('/admin/coupons/list-coupon');
-      }, 1000);
+      }, 1200);
     } else {
-      // Hiển thị lỗi rõ ràng
-      showNotification.value = true;
-      notificationMessage.value = data.message || 'Tạo mã giảm giá thất bại';
-      console.error('Lỗi tạo coupon:', data);
+      showErrorNotification(data && data.message ? data.message : 'Có lỗi xảy ra khi tạo mã giảm giá');
     }
   } catch (error) {
-    showNotification.value = true;
-    notificationMessage.value = 'Lỗi kết nối hoặc lỗi hệ thống';
-    console.error('Lỗi tạo coupon:', error);
+    showErrorNotification('Lỗi tạo coupon: ' + error);
   } finally {
     loading.value = false;
   }
@@ -869,31 +842,52 @@ if (selectedUsers.value.length > 0) {
 
 const fetchProducts = async () => {
   try {
-    const res = await fetch(`${apiBase}/products?per_page=1000`)
-    const data = await res.json()
-    products.value = data.data?.data || data.data || []
+    const data = await secureFetch(`${apiBase}/products?per_page=1000`, {}, ['admin']);
+    if (data.data && Array.isArray(data.data.data)) {
+      products.value = data.data.data;
+    } else if (Array.isArray(data.data)) {
+      products.value = data.data;
+    } else if (Array.isArray(data)) {
+      products.value = data;
+    } else {
+      products.value = [];
+    }
   } catch (e) {
-    products.value = []
+    products.value = [];
   }
 }
 
 const fetchCategories = async () => {
   try {
-    const res = await fetch(`${apiBase}/categories`)
-    const data = await res.json()
-    categories.value = data.categories || data.data || []
+    const data = await secureFetch(`${apiBase}/categories`, {}, ['admin']);
+    if (data.data && Array.isArray(data.data.data)) {
+      categories.value = data.data.data;
+    } else if (Array.isArray(data.data)) {
+      categories.value = data.data;
+    } else if (Array.isArray(data)) {
+      categories.value = data;
+    } else {
+      categories.value = [];
+    }
   } catch (e) {
-    categories.value = []
+    categories.value = [];
   }
 }
 
 const fetchUsers = async () => {
   try {
-    const res = await fetch(`${apiBase}/users`)
-    const data = await res.json()
-    users.value = data.data || []
+    const data = await secureFetch(`${apiBase}/users`, {}, ['admin']);
+    if (data.data && Array.isArray(data.data.data)) {
+      users.value = data.data.data;
+    } else if (Array.isArray(data.data)) {
+      users.value = data.data;
+    } else if (Array.isArray(data)) {
+      users.value = data;
+    } else {
+      users.value = [];
+    }
   } catch (e) {
-    users.value = []
+    users.value = [];
   }
 }
 

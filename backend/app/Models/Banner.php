@@ -16,5 +16,6 @@ class Banner extends Model
         'image',
         'status',
         'type',
+        'link', // Thêm trường link
     ];
 }

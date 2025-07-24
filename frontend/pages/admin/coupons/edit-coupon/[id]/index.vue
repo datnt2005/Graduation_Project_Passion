@@ -547,7 +547,7 @@ const fetchProducts = async () => {
 };
 const fetchCategories = async () => {
   try {
-    const res = await fetch(`${apiBase}/categories`);
+    const res = await secureFetch(`${apiBase}/categories`, {}, ['admin']);
     const data = await res.json();
     categories.value = data.categories || data.data || [];
   } catch (e) {
@@ -556,7 +556,7 @@ const fetchCategories = async () => {
 };
 const fetchUsers = async () => {
   try {
-    const res = await fetch(`${apiBase}/users`);
+    const res = await secureFetch(`${apiBase}/users`, {}, ['admin']);
     const data = await res.json();
     users.value = data.data || [];
   } catch (e) {
@@ -638,7 +638,9 @@ const closeDropdowns = (event) => {
 
 onMounted(async () => {
   document.addEventListener('click', closeDropdowns);
-  await Promise.all([fetchProducts(), fetchCategories(), fetchUsers()]);
+  await fetchProducts();
+  await fetchCategories();
+  await fetchUsers();
   await fetchCouponData();
 });
 
@@ -662,37 +664,40 @@ const formData = reactive({
 const fetchCouponData = async () => {
   try {
     loading.value = true;
-    const response = await secureFetch(`${apiBase}/discounts/${route.params.id}`,{}, ['admin']);
-    const data = await response.json();
+    const data = await secureFetch(`${apiBase}/discounts/${route.params.id}`, {}, ['admin']);
 
-    if (data.success) {
-      const coupon = data.data;
-      Object.keys(formData).forEach(key => {
-        if (key === 'start_date' || key === 'end_date') {
-          formData[key] = coupon[key] ? coupon[key].split('T')[0] : '';
-        } else {
-          formData[key] = coupon[key];
-        }
-      });
-
-      // Gán đúng selected, không tự động chọn tất cả nếu rỗng
-      selectedProducts.value = Array.isArray(coupon.products) && coupon.products.length > 0
-        ? products.value.filter(p => coupon.products.some(cp => cp.id === p.id))
-        : [];
-      selectedCategories.value = Array.isArray(coupon.categories) && coupon.categories.length > 0
-        ? categories.value.filter(c => coupon.categories.some(cc => cc.id === c.id))
-        : [];
-      selectedUsers.value = Array.isArray(coupon.users) && coupon.users.length > 0
-        ? users.value.filter(u => coupon.users.some(cu => cu.id === u.id))
-        : [];
-    } else {
-      showSuccessNotification('Không thể tải thông tin mã giảm giá');
-      router.push('/admin/coupons');
+    if (!data.success) {
+      showSuccessNotification(data.message || 'Không tìm thấy mã giảm giá');
+      setTimeout(() => {
+        router.push('/admin/coupons/list-coupon');
+      }, 1200);
+      return;
     }
+    const coupon = data.data;
+    Object.keys(formData).forEach(key => {
+      if (key === 'start_date' || key === 'end_date') {
+        formData[key] = coupon[key] ? coupon[key].split('T')[0] : '';
+      } else {
+        formData[key] = coupon[key];
+      }
+    });
+
+    // Đảm bảo products, categories, users là mảng trước khi filter
+    selectedProducts.value = Array.isArray(coupon.products) && coupon.products.length > 0 && Array.isArray(products.value)
+      ? products.value.filter(p => coupon.products.some(cp => cp.id === p.id))
+      : [];
+    selectedCategories.value = Array.isArray(coupon.categories) && coupon.categories.length > 0 && Array.isArray(categories.value)
+      ? categories.value.filter(c => coupon.categories.some(cc => cc.id === c.id))
+      : [];
+    selectedUsers.value = Array.isArray(coupon.users) && coupon.users.length > 0 && Array.isArray(users.value)
+      ? users.value.filter(u => coupon.users.some(cu => cu.id === u.id))
+      : [];
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error in fetchCouponData:', error);
     showSuccessNotification('Có lỗi xảy ra khi tải thông tin mã giảm giá');
-    router.push('/admin/coupons');
+    setTimeout(() => {
+      router.push('/admin/coupons/list-coupon');
+    }, 1200);
   } finally {
     loading.value = false;
   }
@@ -715,15 +720,13 @@ const updateCoupon = async () => {
     loading.value = true;
 
     // Step 1: Update basic discount information
-    const response = await secureFetch(`${apiBase}/discounts/${route.params.id}`, {
+    const data = await secureFetch(`${apiBase}/discounts/${route.params.id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(formData)
     }, ['admin']);
-
-    const data = await response.json();
 
     if (!data.success) {
       if (data.errors) {
@@ -737,26 +740,47 @@ const updateCoupon = async () => {
     }
 
     // Step 2: Assign products, categories, and users (có thể là mảng rỗng)
-    await secureFetch(`${apiBase}/discounts/${route.params.id}/products`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ product_ids: selectedProducts.value.map(p => p.id) })
-    }, ['admin']);
-    await secureFetch(`${apiBase}/discounts/${route.params.id}/categories`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ category_ids: selectedCategories.value.map(c => c.id) })
-    }, ['admin']);
-    await secureFetch(`${apiBase}/discounts/${route.params.id}/users`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_ids: selectedUsers.value.map(u => u.id) })
-    }, ['admin']);
+    try {
+      if (selectedProducts.value && selectedProducts.value.length > 0) {
+        await secureFetch(`${apiBase}/discounts/${route.params.id}/products`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ product_ids: selectedProducts.value.map(p => p.id) })
+        }, ['admin']);
+      }
+    } catch (error) {
+      console.error('Error assigning products:', error);
+      // Có thể show thông báo riêng nếu cần
+    }
+
+    try {
+      if (selectedCategories.value && selectedCategories.value.length > 0) {
+        await secureFetch(`${apiBase}/discounts/${route.params.id}/categories`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ category_ids: selectedCategories.value.map(c => c.id) })
+        }, ['admin']);
+      }
+    } catch (error) {
+      console.error('Error assigning categories:', error);
+    }
+
+    try {
+      if (selectedUsers.value && selectedUsers.value.length > 0) {
+        await secureFetch(`${apiBase}/discounts/${route.params.id}/users`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_ids: selectedUsers.value.map(u => u.id) })
+        }, ['admin']);
+      }
+    } catch (error) {
+      console.error('Error assigning users:', error);
+    }
 
     showSuccessNotification('Cập nhật mã giảm giá thành công!');
     setTimeout(() => {
       router.push('/admin/coupons/list-coupon');
-    }, 1000);
+    }, 1200);
   } catch (error) {
     console.error('Error:', error);
     showSuccessNotification('Có lỗi xảy ra khi cập nhật mã giảm giá');

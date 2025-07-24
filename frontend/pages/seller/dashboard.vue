@@ -383,34 +383,17 @@ const paginatedInventoryData = computed(() => {
   return filteredData.value.slice(start, start + inventoryPageSize.value)
 })
 
-async function fetchInventory() {
-  loadingInventory.value = true;
-  inventoryError.value = '';
-  try {
-    const res = await secureFetch(`${apiBaseUrl}/inventory/list`, {}, ['seller']);
-    if (!res.ok) throw new Error('Không lấy được dữ liệu tồn kho');
-    const data = await res.json();
-    inventoryList.value = data;
-    filteredData.value = [...data];
-  } catch (e) {
-    inventoryError.value = 'Không thể tải dữ liệu tồn kho!';
-    inventoryList.value = [];
-    filteredData.value = [];
-  } finally {
-    loadingInventory.value = false;
-  }
-}
-
 onMounted(async () => {
   console.log('Dashboard mounted')
   loadingStats.value = true
   try {
     const res = await secureFetch(`${apiBaseUrl}/dashboard/seller-stats-list`, {}, ['seller'])
-    if (!res.ok) throw new Error('Không lấy được dữ liệu thống kê')
-    dashboardStats.value = await res.json()
+    console.log('Stats response:', res)
+    if (!res.success) throw new Error(res.message || 'Không lấy được dữ liệu thống kê')
+    dashboardStats.value = res.data
   } catch (e) {
-    console.error(e)
-    statsError.value = 'Không thể tải thống kê!'
+    console.error('Stats error:', e)
+    statsError.value = e.message || 'Không thể tải thống kê!'
   } finally {
     loadingStats.value = false
   }
@@ -430,16 +413,36 @@ async function fetchChartData(type = 'month') {
     const url = new URL(`${apiBaseUrl}/dashboard/seller-revenue-profit-chart`)
     url.searchParams.set('type', type)
 
-    const res = await secureFetch(url.toString(), {}, ['seller'])  
+    const data = await secureFetch(url.toString(), {}, ['seller'])
+    console.log('Chart response:', data)
 
-    if (!res.ok) throw new Error('Không lấy được dữ liệu biểu đồ')
-    chartDataApi.value = await res.json()
+    if (!data.success) throw new Error(data.message || 'Không lấy được dữ liệu biểu đồ')
+    chartDataApi.value = data.data
 
   } catch (e) {
-    console.error(e)
-    chartError.value = 'Không thể tải dữ liệu biểu đồ!'
+    console.error('Chart error:', e)
+    chartError.value = e.message || 'Không thể tải dữ liệu biểu đồ!'
   } finally {
     chartLoading.value = false
+  }
+}
+
+async function fetchInventory() {
+  loadingInventory.value = true;
+  inventoryError.value = '';
+  try {
+    const data = await secureFetch(`${apiBaseUrl}/inventory/seller-list`, {}, ['seller']);
+    console.log('Inventory response:', data)
+    if (!data.success) throw new Error(data.message || 'Không lấy được dữ liệu tồn kho');
+    inventoryList.value = data.data;
+    filteredData.value = [...data.data];
+  } catch (e) {
+    console.error('Inventory error:', e)
+    inventoryError.value = e.message || 'Không thể tải dữ liệu tồn kho!';
+    inventoryList.value = [];
+    filteredData.value = [];
+  } finally {
+    loadingInventory.value = false;
   }
 }
 
@@ -618,12 +621,13 @@ async function fetchBestSellers() {
   loadingBestSellers.value = true
   bestSellersError.value = ''
   try {
-    const res = await secureFetch(`${apiBaseUrl}/inventory/best-sellers`, {}, ['seller'])
-    if (!res.ok) throw new Error('Không lấy được dữ liệu sản phẩm bán chạy')
-    const data = await res.json()
-    bestSellers.value = data
+    const data = await secureFetch(`${apiBaseUrl}/inventory/seller-best-sellers`, {}, ['seller'])
+    console.log('Best sellers response:', data)
+    if (!data.success) throw new Error(data.message || 'Không lấy được dữ liệu sản phẩm bán chạy')
+    bestSellers.value = data.data
   } catch (e) {
-    bestSellersError.value = 'Không thể tải dữ liệu sản phẩm bán chạy!'
+    console.error('Best sellers error:', e)
+    bestSellersError.value = e.message || 'Không thể tải dữ liệu sản phẩm bán chạy!'
     bestSellers.value = []
   } finally {
     loadingBestSellers.value = false
