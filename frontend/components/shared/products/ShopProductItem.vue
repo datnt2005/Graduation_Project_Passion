@@ -17,6 +17,12 @@
 
 <script setup>
 import { computed } from 'vue';
+import { useSearchStore } from "~/stores/search";
+
+const config = useRuntimeConfig();
+const apiBase = config.public.apiBaseUrl;
+const mediaBase = config.public.mediaBaseUrl;
+
 
 const props = defineProps({
     product: {

@@ -28,7 +28,7 @@
       </NuxtLink>
 
       <NuxtLink
-        to="/hoan-tien"
+        to="/commitment"
         class="pl-2 border-l border-gray-300 flex items-center gap-2 whitespace-nowrap hover:underline"
       >
         <i
@@ -48,7 +48,7 @@
       </NuxtLink>
 
       <NuxtLink
-        to="/giao-nhanh"
+        to="/commitment"
         class="pl-2 border-l border-gray-300 flex items-center gap-2 whitespace-nowrap hover:underline"
       >
         <i

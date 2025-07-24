@@ -471,434 +471,447 @@ class ProductController extends Controller
             ], 500);
         }
     }
-public function update(Request $request, $id)
-{
-    if (!Auth::check()) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Chưa đăng nhập. Vui lòng đăng nhập để tiếp tục.',
-            'code' => 'AUTH_REQUIRED'
-        ], 401);
-    }
-
-    $user = Auth::user();
-    $isAdmin = $user->role === 'admin';
-    $product = Product::find($id);
-
-    if (!$product) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Không tìm thấy sản phẩm.',
-        ], 404);
-    }
-
-    // Kiểm tra quyền sở hữu sản phẩm
-    if (!$isAdmin && $product->seller_id != Seller::where('user_id', $user->id)->value('id')) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Bạn không có quyền chỉnh sửa sản phẩm này.',
-        ], 403);
-    }
-
-    // Lấy seller_id mặc định cho Seller
-    $defaultSellerId = null;
-    if (!$isAdmin) {
-        $seller = Seller::where('user_id', $user->id)->first();
-        $defaultSellerId = $seller ? $seller->id : null;
-        if (!$defaultSellerId) {
+    public function update(Request $request, $id)
+    {
+        if (!Auth::check()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Bạn không có thông tin người bán. Vui lòng liên hệ admin.',
-            ], 422);
+                'message' => 'Chưa đăng nhập. Vui lòng đăng nhập để tiếp tục.',
+                'code' => 'AUTH_REQUIRED'
+            ], 401);
         }
-        // Kiểm tra seller_id nếu có
-        if ($request->has('sellers') && $request->sellers != $defaultSellerId) {
+
+        $user = Auth::user();
+        $isAdmin = $user->role === 'admin';
+        $product = Product::find($id);
+
+        if (!$product) {
             return response()->json([
                 'success' => false,
-                'message' => 'Bạn chỉ được chỉnh sửa sản phẩm cho chính mình.',
+                'message' => 'Không tìm thấy sản phẩm.',
+            ], 404);
+        }
+
+        // Kiểm tra quyền sở hữu sản phẩm
+        if (!$isAdmin && $product->seller_id != Seller::where('user_id', $user->id)->value('id')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bạn không có quyền chỉnh sửa sản phẩm này.',
             ], 403);
         }
-    }
 
-    $validator = Validator::make($request->all(), [
-        'name' => 'required|string|max:255|unique:products,name,' . $id,
-        'slug' => 'nullable|string|max:255|unique:products,slug,' . $id . '|regex:/^[a-zA-Z0-9-]+$/',
-        'description' => 'nullable|string',
-        'status' => 'nullable|in:active,inactive,draft,trash',
-        'sellers' => $isAdmin ? 'nullable|exists:sellers,id' : 'prohibited',
-        'categories' => 'nullable|array',
-        'categories.*' => 'exists:categories,id',
-        'tags' => 'nullable|array',
-        'tags.*' => 'exists:tags,id',
-        'variants' => 'nullable|array',
-        'variants.*.id' => 'nullable|exists:product_variants,id',
-        'variants.*.price' => 'required_with:variants|numeric|min:0',
-        'variants.*.sale_price' => 'nullable|numeric|min:0',
-        'variants.*.cost_price' => 'required_with:variants|numeric|min:0',
-        'variants.*.attributes' => 'nullable|array',
-        'variants.*.attributes.*.attribute_id' => 'required_with:variants.*.attributes|exists:attributes,id',
-        'variants.*.attributes.*.value_id' => 'required_with:variants.*.attributes|exists:attribute_values,id',
-        'variants.*.inventory' => 'nullable|array',
-        'variants.*.inventory.*.id' => 'nullable|exists:inventory,id',
-        'variants.*.inventory.*.quantity' => 'required_with:variants.*.inventory|integer|min:0',
-        'variants.*.inventory.*.location' => 'nullable|string|max:255',
-        'variants.*.inventory.*.batch_number' => 'nullable|string|max:255',
-        'variants.*.inventory.*.import_source' => 'nullable|string|max:255',
-        'variants.*.inventory.*.note' => 'nullable|string|max:255',
-        'variants.*.thumbnail' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:4048',
-        'images' => 'nullable|array',
-        'images.*' => 'image|mimes:jpeg,png,jpg,gif,svg,webp|max:4048',
-        'removed_images' => 'nullable|array',
-        'removed_images.*' => 'integer|exists:product_pics,id,product_id,' . $id,
-    ], [
-        'name.required' => 'Tên sản phẩm là bắt buộc.',
-        'name.max' => 'Tên sản phẩm không được vượt quá 255 ký tự.',
-        'name.unique' => 'Tên sản phẩm đã tồn tại.',
-        'slug.unique' => 'Slug đã tồn tại.',
-        'slug.regex' => 'Slug chỉ được chứa chữ cái, số và dấu gạch ngang, không được chứa khoảng trắng hoặc ký tự đặc biệt.',
-        'slug.max' => 'Slug không được vượt quá 255 ký tự.',
-        'sellers.exists' => 'Người bán không hợp lệ.',
-        'sellers.prohibited' => 'Người dùng không phải admin không được phép thay đổi người bán.',
-        'categories.array' => 'Danh mục phải là một mảng.',
-        'categories.*.exists' => 'Danh mục không hợp lệ.',
-        'tags.array' => 'Thẻ phải là một mảng.',
-        'tags.*.exists' => 'Thẻ không hợp lệ.',
-        'variants.*.id.exists' => 'ID biến thể không hợp lệ.',
-        'variants.*.price.required_with' => 'Giá sản phẩm là bắt buộc khi có biến thể.',
-        'variants.*.price.numeric' => 'Giá phải là số.',
-        'variants.*.price.min' => 'Giá không được nhỏ hơn 0.',
-        'variants.*.sale_price.numeric' => 'Giá khuyến mãi phải là số.',
-        'variants.*.sale_price.min' => 'Giá khuyến mãi không được nhỏ hơn 0.',
-        'variants.*.cost_price.required_with' => 'Giá vốn là bắt buộc khi có biến thể.',
-        'variants.*.cost_price.numeric' => 'Giá vốn phải là số.',
-        'variants.*.cost_price.min' => 'Giá vốn không được nhỏ hơn 0.',
-        'variants.*.attributes.*.attribute_id.required_with' => 'ID thuộc tính là bắt buộc khi có thuộc tính.',
-        'variants.*.attributes.*.attribute_id.exists' => 'Thuộc tính không hợp lệ.',
-        'variants.*.attributes.*.value_id.required_with' => 'ID giá trị thuộc tính là bắt buộc khi có thuộc tính.',
-        'variants.*.attributes.*.value_id.exists' => 'Giá trị thuộc tính không hợp lệ.',
-        'variants.*.inventory.*.id.exists' => 'ID kho không hợp lệ.',
-        'variants.*.inventory.*.quantity.required_with' => 'Số lượng kho là bắt buộc khi có kho.',
-        'variants.*.inventory.*.quantity.integer' => 'Số lượng kho phải là số nguyên.',
-        'variants.*.inventory.*.quantity.min' => 'Số lượng kho không được nhỏ hơn 0.',
-        'variants.*.inventory.*.location.max' => 'Vị trí kho không được vượt quá 255 ký tự.',
-        'variants.*.inventory.*.batch_number.max' => 'Mã lô không được vượt quá 255 ký tự.',
-        'variants.*.inventory.*.import_source.max' => 'Nguồn nhập không được vượt quá 255 ký tự.',
-        'variants.*.inventory.*.note.max' => 'Ghi chú không được vượt quá 255 ký tự.',
-        'variants.*.thumbnail.image' => 'Thumbnail phải là hình ảnh.',
-        'variants.*.thumbnail.mimes' => 'Thumbnail phải có định dạng jpeg, png, jpg, gif, svg hoặc webp.',
-        'variants.*.thumbnail.max' => 'Thumbnail không được vượt quá 4MB.',
-        'images.*' => 'Hình ảnh sản phẩm không hợp lệ.',
-        'images.*.image' => 'Tệp phải là hình ảnh.',
-        'images.*.mimes' => 'Hình ảnh phải có định dạng jpeg, png, jpg, gif, svg hoặc webp.',
-        'images.*.max' => 'Hình ảnh không được vượt quá 4MB.',
-        'removed_images.*.exists' => 'Hình ảnh cần xóa không tồn tại.',
-    ]);
-
-    if ($validator->fails()) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Dữ liệu không hợp lệ.',
-            'errors' => $validator->errors()
-        ], 422);
-    }
-
-    // Kiểm tra trùng lặp thuộc tính trong một biến thể
-    if ($request->has('variants') && !empty($request->variants)) {
-        foreach ($request->variants as $index => $variant) {
-            if (!empty($variant['attributes'])) {
-                $attributeIds = collect($variant['attributes'])
-                    ->pluck('attribute_id')
-                    ->filter()
-                    ->toArray();
-                if (count($attributeIds) !== count(array_unique($attributeIds))) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => "Biến thể tại vị trí " . ($index + 1) . " có thuộc tính bị lặp (ví dụ: chọn 2 lần màu sắc).",
-                        'errors' => [
-                            "variants.$index.attributes" => ["Không được chọn trùng thuộc tính trong một biến thể."]
-                        ]
-                    ], 422);
-                }
-            }
-
-            // Kiểm tra trùng lặp tổ hợp location và batch_number trong kho của biến thể
-            if (!empty($variant['inventory'])) {
-                $inventoryCombinations = collect($variant['inventory'])->map(function ($inv) {
-                    return ($inv['location'] ?? '') . '|' . ($inv['batch_number'] ?? '');
-                })->filter()->toArray();
-
-                if (count($inventoryCombinations) !== count(array_unique($inventoryCombinations))) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => "Biến thể tại vị trí " . ($index + 1) . " có tổ hợp vị trí và mã lô bị lặp.",
-                        'errors' => [
-                            "variants.$index.inventory" => ["Tổ hợp vị trí và mã lô không được trùng lặp trong cùng một biến thể."]
-                        ]
-                    ], 422);
-                }
-
-                // Kiểm tra độ dài các trường và số lượng hợp lệ
-                foreach ($variant['inventory'] as $invIndex => $inv) {
-                    if (isset($inv['location']) && strlen($inv['location']) > 255) {
-                        return response()->json([
-                            'success' => false,
-                            'message' => "Vị trí kho tại biến thể " . ($index + 1) . " không hợp lệ.",
-                            'errors' => [
-                                "variants.$index.inventory.$invIndex.location" => ["Vị trí không được vượt quá 255 ký tự."]
-                            ]
-                        ], 422);
-                    }
-                    if (isset($inv['batch_number']) && strlen($inv['batch_number']) > 255) {
-                        return response()->json([
-                            'success' => false,
-                            'message' => "Mã lô tại biến thể " . ($index + 1) . " không hợp lệ.",
-                            'errors' => [
-                                "variants.$index.inventory.$invIndex.batch_number" => ["Mã lô không được vượt quá 255 ký tự."]
-                            ]
-                        ], 422);
-                    }
-                    if (isset($inv['import_source']) && strlen($inv['import_source']) > 255) {
-                        return response()->json([
-                            'success' => false,
-                            'message' => "Nguồn nhập tại biến thể " . ($index + 1) . " không hợp lệ.",
-                            'errors' => [
-                                "variants.$index.inventory.$invIndex.import_source" => ["Nguồn nhập không được vượt quá 255 ký tự."]
-                            ]
-                        ], 422);
-                    }
-                    if (isset($inv['note']) && strlen($inv['note']) > 255) {
-                        return response()->json([
-                            'success' => false,
-                            'message' => "Ghi chú tại biến thể " . ($index + 1) . " không hợp lệ.",
-                            'errors' => [
-                                "variants.$index.inventory.$invIndex.note" => ["Ghi chú không được vượt quá 255 ký tự."]
-                            ]
-                        ], 422);
-                    }
-                    if (isset($inv['quantity']) && (!is_numeric($inv['quantity']) || $inv['quantity'] < 0)) {
-                        return response()->json([
-                            'success' => false,
-                            'message' => "Số lượng tại biến thể " . ($index + 1) . " không hợp lệ.",
-                            'errors' => [
-                                "variants.$index.inventory.$invIndex.quantity" => ["Số lượng phải là số nguyên không âm."]
-                            ]
-                        ], 422);
-                    }
-                }
-            }
-
-            // Kiểm tra giá trị sale_price nhỏ hơn price
-            if (isset($variant['sale_price']) && $variant['sale_price'] !== null && $variant['sale_price'] >= $variant['price']) {
+        // Lấy seller_id mặc định cho Seller
+        $defaultSellerId = null;
+        if (!$isAdmin) {
+            $seller = Seller::where('user_id', $user->id)->first();
+            $defaultSellerId = $seller ? $seller->id : null;
+            if (!$defaultSellerId) {
                 return response()->json([
                     'success' => false,
-                    'message' => "Biến thể tại vị trí " . ($index + 1) . " có giá khuyến mãi không hợp lệ.",
+                    'message' => 'Bạn không có thông tin người bán. Vui lòng liên hệ admin.',
+                ], 422);
+            }
+            // Kiểm tra seller_id nếu có
+            if ($request->has('sellers') && $request->sellers != $defaultSellerId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Bạn chỉ được chỉnh sửa sản phẩm cho chính mình.',
+                ], 403);
+            }
+        }
+
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:255|unique:products,name,' . $id,
+            'slug' => 'nullable|string|max:255|unique:products,slug,' . $id . '|regex:/^[a-zA-Z0-9-]+$/',
+            'description' => 'nullable|string',
+            'status' => 'nullable|in:active,inactive,draft,trash',
+            'sellers' => $isAdmin ? 'nullable|exists:sellers,id' : 'prohibited',
+            'categories' => 'nullable|array',
+            'categories.*' => 'exists:categories,id',
+            'tags' => 'nullable|array',
+            'tags.*' => 'exists:tags,id',
+            'variants' => 'nullable|array',
+            'variants.*.id' => 'nullable|exists:product_variants,id',
+            'variants.*.price' => 'required_with:variants|numeric|min:0',
+            'variants.*.sale_price' => 'nullable|numeric|min:0',
+            'variants.*.cost_price' => 'required_with:variants|numeric|min:0',
+            'variants.*.attributes' => 'nullable|array',
+            'variants.*.attributes.*.attribute_id' => 'required_with:variants.*.attributes|exists:attributes,id',
+            'variants.*.attributes.*.value_id' => 'required_with:variants.*.attributes|exists:attribute_values,id',
+            'variants.*.inventory' => 'nullable|array',
+            'variants.*.inventory.*.id' => 'nullable|exists:inventory,id',
+            'variants.*.inventory.*.quantity' => 'required_with:variants.*.inventory|integer|min:0',
+            'variants.*.inventory.*.location' => 'nullable|string|max:255',
+            'variants.*.inventory.*.batch_number' => 'nullable|string|max:255',
+            'variants.*.inventory.*.import_source' => 'nullable|string|max:255',
+            'variants.*.inventory.*.note' => 'nullable|string|max:255',
+            'variants.*.thumbnail' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:4048',
+            'images' => 'nullable|array',
+            'images.*' => 'image|mimes:jpeg,png,jpg,gif,svg,webp|max:4048',
+            'removed_images' => 'nullable|array',
+            'removed_images.*' => 'integer|exists:product_pics,id,product_id,' . $id,
+        ], [
+            'name.required' => 'Tên sản phẩm là bắt buộc.',
+            'name.max' => 'Tên sản phẩm không được vượt quá 255 ký tự.',
+            'name.unique' => 'Tên sản phẩm đã tồn tại.',
+            'slug.unique' => 'Slug đã tồn tại.',
+            'slug.regex' => 'Slug chỉ được chứa chữ cái, số và dấu gạch ngang, không được chứa khoảng trắng hoặc ký tự đặc biệt.',
+            'slug.max' => 'Slug không được vượt quá 255 ký tự.',
+            'sellers.exists' => 'Người bán không hợp lệ.',
+            'sellers.prohibited' => 'Người dùng không phải admin không được phép thay đổi người bán.',
+            'categories.array' => 'Danh mục phải là một mảng.',
+            'categories.*.exists' => 'Danh mục không hợp lệ.',
+            'tags.array' => 'Thẻ phải là một mảng.',
+            'tags.*.exists' => 'Thẻ không hợp lệ.',
+            'variants.*.id.exists' => 'ID biến thể không hợp lệ.',
+            'variants.*.price.required_with' => 'Giá sản phẩm là bắt buộc khi có biến thể.',
+            'variants.*.price.numeric' => 'Giá phải là số.',
+            'variants.*.price.min' => 'Giá không được nhỏ hơn 0.',
+            'variants.*.sale_price.numeric' => 'Giá khuyến mãi phải là số.',
+            'variants.*.sale_price.min' => 'Giá khuyến mãi không được nhỏ hơn 0.',
+            'variants.*.cost_price.required_with' => 'Giá vốn là bắt buộc khi có biến thể.',
+            'variants.*.cost_price.numeric' => 'Giá vốn phải là số.',
+            'variants.*.cost_price.min' => 'Giá vốn không được nhỏ hơn 0.',
+            'variants.*.attributes.*.attribute_id.required_with' => 'ID thuộc tính là bắt buộc khi có thuộc tính.',
+            'variants.*.attributes.*.attribute_id.exists' => 'Thuộc tính không hợp lệ.',
+            'variants.*.attributes.*.value_id.required_with' => 'ID giá trị thuộc tính là bắt buộc khi có thuộc tính.',
+            'variants.*.attributes.*.value_id.exists' => 'Giá trị thuộc tính không hợp lệ.',
+            'variants.*.inventory.*.id.exists' => 'ID kho không hợp lệ.',
+            'variants.*.inventory.*.quantity.required_with' => 'Số lượng kho là bắt buộc khi có kho.',
+            'variants.*.inventory.*.quantity.integer' => 'Số lượng kho phải là số nguyên.',
+            'variants.*.inventory.*.quantity.min' => 'Số lượng kho không được nhỏ hơn 0.',
+            'variants.*.inventory.*.location.max' => 'Vị trí kho không được vượt quá 255 ký tự.',
+            'variants.*.inventory.*.batch_number.max' => 'Mã lô không được vượt quá 255 ký tự.',
+            'variants.*.inventory.*.import_source.max' => 'Nguồn nhập không được vượt quá 255 ký tự.',
+            'variants.*.inventory.*.note.max' => 'Ghi chú không được vượt quá 255 ký tự.',
+            'variants.*.thumbnail.image' => 'Thumbnail phải là hình ảnh.',
+            'variants.*.thumbnail.mimes' => 'Thumbnail phải có định dạng jpeg, png, jpg, gif, svg hoặc webp.',
+            'variants.*.thumbnail.max' => 'Thumbnail không được vượt quá 4MB.',
+            'images.*' => 'Hình ảnh sản phẩm không hợp lệ.',
+            'images.*.image' => 'Tệp phải là hình ảnh.',
+            'images.*.mimes' => 'Hình ảnh phải có định dạng jpeg, png, jpg, gif, svg hoặc webp.',
+            'images.*.max' => 'Hình ảnh không được vượt quá 4MB.',
+            'removed_images.*.exists' => 'Hình ảnh cần xóa không tồn tại.',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Dữ liệu không hợp lệ.',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        // Kiểm tra trùng lặp thuộc tính trong một biến thể
+        if ($request->has('variants') && !empty($request->variants)) {
+            foreach ($request->variants as $index => $variant) {
+                if (!empty($variant['attributes'])) {
+                    $attributeIds = collect($variant['attributes'])
+                        ->pluck('attribute_id')
+                        ->filter()
+                        ->toArray();
+                    if (count($attributeIds) !== count(array_unique($attributeIds))) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => "Biến thể tại vị trí " . ($index + 1) . " có thuộc tính bị lặp (ví dụ: chọn 2 lần màu sắc).",
+                            'errors' => [
+                                "variants.$index.attributes" => ["Không được chọn trùng thuộc tính trong một biến thể."]
+                            ]
+                        ], 422);
+                    }
+                }
+
+                // Kiểm tra trùng lặp tổ hợp location và batch_number trong kho của biến thể
+                if (!empty($variant['inventory'])) {
+                    $inventoryCombinations = collect($variant['inventory'])->map(function ($inv) {
+                        return ($inv['location'] ?? '') . '|' . ($inv['batch_number'] ?? '');
+                    })->filter()->toArray();
+
+                    if (count($inventoryCombinations) !== count(array_unique($inventoryCombinations))) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => "Biến thể tại vị trí " . ($index + 1) . " có tổ hợp vị trí và mã lô bị lặp.",
+                            'errors' => [
+                                "variants.$index.inventory" => ["Tổ hợp vị trí và mã lô không được trùng lặp trong cùng một biến thể."]
+                            ]
+                        ], 422);
+                    }
+
+                    // Kiểm tra độ dài các trường và số lượng hợp lệ
+                    foreach ($variant['inventory'] as $invIndex => $inv) {
+                        if (isset($inv['location']) && strlen($inv['location']) > 255) {
+                            return response()->json([
+                                'success' => false,
+                                'message' => "Vị trí kho tại biến thể " . ($index + 1) . " không hợp lệ.",
+                                'errors' => [
+                                    "variants.$index.inventory.$invIndex.location" => ["Vị trí không được vượt quá 255 ký tự."]
+                                ]
+                            ], 422);
+                        }
+                        if (isset($inv['batch_number']) && strlen($inv['batch_number']) > 255) {
+                            return response()->json([
+                                'success' => false,
+                                'message' => "Mã lô tại biến thể " . ($index + 1) . " không hợp lệ.",
+                                'errors' => [
+                                    "variants.$index.inventory.$invIndex.batch_number" => ["Mã lô không được vượt quá 255 ký tự."]
+                                ]
+                            ], 422);
+                        }
+                        if (isset($inv['import_source']) && strlen($inv['import_source']) > 255) {
+                            return response()->json([
+                                'success' => false,
+                                'message' => "Nguồn nhập tại biến thể " . ($index + 1) . " không hợp lệ.",
+                                'errors' => [
+                                    "variants.$index.inventory.$invIndex.import_source" => ["Nguồn nhập không được vượt quá 255 ký tự."]
+                                ]
+                            ], 422);
+                        }
+                        if (isset($inv['note']) && strlen($inv['note']) > 255) {
+                            return response()->json([
+                                'success' => false,
+                                'message' => "Ghi chú tại biến thể " . ($index + 1) . " không hợp lệ.",
+                                'errors' => [
+                                    "variants.$index.inventory.$invIndex.note" => ["Ghi chú không được vượt quá 255 ký tự."]
+                                ]
+                            ], 422);
+                        }
+                        if (isset($inv['quantity']) && (!is_numeric($inv['quantity']) || $inv['quantity'] < 0)) {
+                            return response()->json([
+                                'success' => false,
+                                'message' => "Số lượng tại biến thể " . ($index + 1) . " không hợp lệ.",
+                                'errors' => [
+                                    "variants.$index.inventory.$invIndex.quantity" => ["Số lượng phải là số nguyên không âm."]
+                                ]
+                            ], 422);
+                        }
+                    }
+                }
+
+                // Kiểm tra giá trị sale_price nhỏ hơn price
+                if (isset($variant['sale_price']) && $variant['sale_price'] !== null && $variant['sale_price'] >= $variant['price']) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Biến thể tại vị trí " . ($index + 1) . " có giá khuyến mãi không hợp lệ.",
+                        'errors' => [
+                            "variants.$index.sale_price" => ["Giá khuyến mãi phải nhỏ hơn giá gốc."]
+                        ]
+                    ], 422);
+                }
+            }
+        }
+
+        // Kiểm tra trùng lặp tổ hợp thuộc tính giữa các biến thể
+        if ($request->has('variants') && !empty($request->variants)) {
+            $attributeSets = collect($request->variants)
+                ->filter(function ($variant) {
+                    return !empty($variant['attributes']);
+                })
+                ->map(function ($variant, $index) {
+                    return [
+                        'index' => $index,
+                        'attributes' => collect($variant['attributes'])
+                            ->filter(function ($attr) {
+                                return !empty($attr['attribute_id']) && !empty($attr['value_id']);
+                            })
+                            ->sortBy('attribute_id')
+                            ->map(function ($attr) {
+                                return $attr['attribute_id'] . ':' . $attr['value_id'];
+                            })->implode(',')
+                    ];
+                });
+
+            $duplicates = $attributeSets->groupBy('attributes')->filter(function ($group) {
+                return $group->count() > 1;
+            });
+
+            if ($duplicates->isNotEmpty()) {
+                $duplicateIndices = $duplicates->flatten(1)->pluck('index')->map(function ($index) {
+                    return $index + 1;
+                })->implode(', ');
+                return response()->json([
+                    'success' => false,
+                    'message' => "Các biến thể tại vị trí $duplicateIndices có thuộc tính trùng nhau.",
                     'errors' => [
-                        "variants.$index.sale_price" => ["Giá khuyến mãi phải nhỏ hơn giá gốc."]
+                        'variants' => ["Các biến thể tại vị trí $duplicateIndices có thuộc tính trùng nhau. Vui lòng sửa đổi các thuộc tính để đảm bảo mỗi biến thể là duy nhất."]
                     ]
                 ], 422);
             }
         }
-    }
 
-    // Kiểm tra trùng lặp tổ hợp thuộc tính giữa các biến thể
-    if ($request->has('variants') && !empty($request->variants)) {
-        $attributeSets = collect($request->variants)
-            ->filter(function ($variant) {
-                return !empty($variant['attributes']);
-            })
-            ->map(function ($variant, $index) {
-                return [
-                    'index' => $index,
-                    'attributes' => collect($variant['attributes'])
-                        ->filter(function ($attr) {
-                            return !empty($attr['attribute_id']) && !empty($attr['value_id']);
-                        })
-                        ->sortBy('attribute_id')
-                        ->map(function ($attr) {
-                            return $attr['attribute_id'] . ':' . $attr['value_id'];
-                        })->implode(',')
-                ];
-            });
-
-        $duplicates = $attributeSets->groupBy('attributes')->filter(function ($group) {
-            return $group->count() > 1;
-        });
-
-        if ($duplicates->isNotEmpty()) {
-            $duplicateIndices = $duplicates->flatten(1)->pluck('index')->map(function ($index) {
-                return $index + 1;
-            })->implode(', ');
-            return response()->json([
-                'success' => false,
-                'message' => "Các biến thể tại vị trí $duplicateIndices có thuộc tính trùng nhau.",
-                'errors' => [
-                    'variants' => ["Các biến thể tại vị trí $duplicateIndices có thuộc tính trùng nhau. Vui lòng sửa đổi các thuộc tính để đảm bảo mỗi biến thể là duy nhất."]
-                ]
-            ], 422);
-        }
-    }
-
-    DB::beginTransaction();
-    try {
-        $slug = $request->slug ?? Str::slug($request->name);
-        if ($slug !== $product->slug && Product::where('slug', $slug)->exists()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Slug đã tồn tại.',
-                'errors' => [
-                    'slug' => ['Slug đã tồn tại.']
-                ]
-            ], 422);
-        }
-
-        // Cập nhật seller_id chỉ khi là Admin và có seller_id mới
-        $sellerId = $product->seller_id;
-        if ($isAdmin && $request->has('sellers')) {
-            $sellerId = $request->sellers;
-            if (!$sellerId) {
+        DB::beginTransaction();
+        try {
+            $slug = $request->slug ?? Str::slug($request->name);
+            if ($slug !== $product->slug && Product::where('slug', $slug)->exists()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Không tìm thấy thông tin người bán.',
+                    'message' => 'Slug đã tồn tại.',
+                    'errors' => [
+                        'slug' => ['Slug đã tồn tại.']
+                    ]
                 ], 422);
             }
-        } elseif (!$isAdmin) {
-            $sellerId = $defaultSellerId;
-        }
 
-        $isAdminAdded = $isAdmin && $request->has('sellers') && $request->sellers != Seller::where('user_id', $user->id)->value('id');
+            // Cập nhật seller_id chỉ khi là Admin và có seller_id mới
+            $sellerId = $product->seller_id;
+            if ($isAdmin && $request->has('sellers')) {
+                $sellerId = $request->sellers;
+                if (!$sellerId) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Không tìm thấy thông tin người bán.',
+                    ], 422);
+                }
+            } elseif (!$isAdmin) {
+                $sellerId = $defaultSellerId;
+            }
 
-        // Cập nhật sản phẩm
-        $product->update([
-            'name' => $request->name,
-            'slug' => $slug,
-            'description' => $request->description,
-            'status' => $request->status ?? 'active',
-            'seller_id' => $sellerId,
-            'is_admin_added' => $isAdminAdded,
-            'admin_status' => 'pending',
-        ]);
+            $isAdminAdded = $isAdmin && $request->has('sellers') && $request->sellers != Seller::where('user_id', $user->id)->value('id');
 
-        // Đồng bộ danh mục
-        $product->categories()->sync($request->categories ?? []);
+            // Cập nhật sản phẩm
+            $product->update([
+                'name' => $request->name,
+                'slug' => $slug,
+                'description' => $request->description,
+                'status' => $request->status ?? 'active',
+                'seller_id' => $sellerId,
+                'is_admin_added' => $isAdminAdded,
+                'admin_status' => 'pending',
+            ]);
 
-        // Đồng bộ thẻ
-        $product->tags()->sync($request->tags ?? []);
+            // Đồng bộ danh mục
+            $product->categories()->sync($request->categories ?? []);
 
-        // Xử lý hình ảnh sản phẩm
-        if ($request->has('removed_images')) {
-            foreach ($request->removed_images as $imageId) {
-                $image = ProductPic::where('id', $imageId)->where('product_id', $id)->first();
-                if ($image) {
-                    Storage::disk('r2')->delete($image->imagePath);
-                    $image->delete();
+            // Đồng bộ thẻ
+            $product->tags()->sync($request->tags ?? []);
+
+            // Xử lý hình ảnh sản phẩm
+            if ($request->has('removed_images')) {
+                foreach ($request->removed_images as $imageId) {
+                    $image = ProductPic::where('id', $imageId)->where('product_id', $id)->first();
+                    if ($image) {
+                        Storage::disk('r2')->delete($image->imagePath);
+                        $image->delete();
+                    }
                 }
             }
-        }
 
-        if ($request->hasFile('images')) {
-            foreach ($request->file('images') as $image) {
-                $path = $image->store('products/images', 'r2');
-                $product->productPic()->create(['imagePath' => $path]);
-            }
-        }
-
-        // Xử lý biến thể
-        if ($request->has('variants') && !empty($request->variants)) {
-            $variantIdsFromRequest = collect($request->variants)->pluck('id')->filter()->all();
-            $product->productVariants()->whereNotIn('id', $variantIdsFromRequest)->delete();
-
-            foreach ($request->variants as $index => $variant) {
-                // Bỏ qua biến thể không hợp lệ
-                if (!isset($variant['price']) || !isset($variant['cost_price'])) {
-                    continue;
+            if ($request->hasFile('images')) {
+                foreach ($request->file('images') as $image) {
+                    $path = $image->store('products/images', 'r2');
+                    $product->productPic()->create(['imagePath' => $path]);
                 }
+            }
 
-                $sku = $this->generateSKU(
-                    $request->name,
-                    $request->categories[0] ?? null,
-                    $variant['attributes'] ?? [],
-                    $product->id
-                );
+            // Xử lý biến thể
+            if ($request->has('variants') && !empty($request->variants)) {
+                $variantIdsFromRequest = collect($request->variants)->pluck('id')->filter()->all();
+                $product->productVariants()->whereNotIn('id', $variantIdsFromRequest)->delete();
 
-                // Xử lý thumbnail
-                $thumbnailPath = null;
-                if ($request->hasFile("variants.$index.thumbnail")) {
-                    if (isset($variant['id'])) {
-                        $existingVariant = $product->productVariants()->find($variant['id']);
-                        if ($existingVariant && $existingVariant->thumbnail) {
-                            Storage::disk('r2')->delete($existingVariant->thumbnail);
+                foreach ($request->variants as $index => $variant) {
+                    // Bỏ qua biến thể không hợp lệ
+                    if (!isset($variant['price']) || !isset($variant['cost_price'])) {
+                        continue;
+                    }
+
+                    $sku = $this->generateSKU(
+                        $request->name,
+                        $request->categories[0] ?? null,
+                        $variant['attributes'] ?? [],
+                        $product->id
+                    );
+
+                    // Xử lý thumbnail
+                    $thumbnailPath = null;
+                    if ($request->hasFile("variants.$index.thumbnail")) {
+                        if (isset($variant['id'])) {
+                            $existingVariant = $product->productVariants()->find($variant['id']);
+                            if ($existingVariant && $existingVariant->thumbnail) {
+                                Storage::disk('r2')->delete($existingVariant->thumbnail);
+                            }
+                        }
+                        $thumbnailPath = $request->file("variants.$index.thumbnail")->store('products/variants/thumbnails', 'r2');
+                    } else {
+                        if (isset($variant['id'])) {
+                            $existingVariant = $product->productVariants()->find($variant['id']);
+                            $thumbnailPath = $existingVariant ? $existingVariant->thumbnail : null;
                         }
                     }
-                    $thumbnailPath = $request->file("variants.$index.thumbnail")->store('products/variants/thumbnails', 'r2');
-                } else {
-                    if (isset($variant['id'])) {
-                        $existingVariant = $product->productVariants()->find($variant['id']);
-                        $thumbnailPath = $existingVariant ? $existingVariant->thumbnail : null;
+
+                    // Tính tổng số lượng
+                    $totalQuantity = collect($variant['inventory'] ?? [])->sum('quantity');
+
+                    // Cập nhật hoặc tạo biến thể
+                    $variantData = [
+                        'sku' => $sku,
+                        'price' => $variant['price'],
+                        'sale_price' => $variant['sale_price'] ?? null,
+                        'cost_price' => $variant['cost_price'],
+                        'quantity' => $totalQuantity,
+                    ];
+                    if ($thumbnailPath) {
+                        $variantData['thumbnail'] = $thumbnailPath;
                     }
-                }
 
-                // Tính tổng số lượng
-                $totalQuantity = collect($variant['inventory'] ?? [])->sum('quantity');
+                    if (isset($variant['id']) && $existingVariant = $product->productVariants()->find($variant['id'])) {
+                        $existingVariant->update($variantData);
+                        $productVariant = $existingVariant;
+                    } else {
+                        $productVariant = $product->productVariants()->create($variantData);
+                    }
 
-                // Cập nhật hoặc tạo biến thể
-                $variantData = [
-                    'sku' => $sku,
-                    'price' => $variant['price'],
-                    'sale_price' => $variant['sale_price'] ?? null,
-                    'cost_price' => $variant['cost_price'],
-                    'quantity' => $totalQuantity,
-                ];
-                if ($thumbnailPath) {
-                    $variantData['thumbnail'] = $thumbnailPath;
-                }
+                    // Xử lý kho
+                    if (!empty($variant['inventory'])) {
+                        $inventoryIdsFromRequest = collect($variant['inventory'])->pluck('id')->filter()->all();
+                        $productVariant->inventories()->whereNotIn('id', $inventoryIdsFromRequest)->delete();
 
-                if (isset($variant['id']) && $existingVariant = $product->productVariants()->find($variant['id'])) {
-                    $existingVariant->update($variantData);
-                    $productVariant = $existingVariant;
-                } else {
-                    $productVariant = $product->productVariants()->create($variantData);
-                }
-
-                // Xử lý kho
-                if (!empty($variant['inventory'])) {
-                    $inventoryIdsFromRequest = collect($variant['inventory'])->pluck('id')->filter()->all();
-                    $productVariant->inventories()->whereNotIn('id', $inventoryIdsFromRequest)->delete();
-
-                    $inventoryData = collect($variant['inventory'])
-                        ->filter(function ($inventory) {
-                            return isset($inventory['quantity']) && $inventory['quantity'] >= 0;
-                        })
-                        ->map(function ($inventory) use ($productVariant, $user) {
-                            return [
-                                'id' => $inventory['id'] ?? null,
-                                'product_variant_id' => $productVariant->id,
-                                'quantity' => $inventory['quantity'],
-                                'location' => $inventory['location'] ?? 'Kho mặc định',
-                                'batch_number' => $inventory['batch_number'] ?? null,
-                                'import_source' => $inventory['import_source'] ?? null,
-                                'note' => $inventory['note'] ?? 'Nhập kho khi cập nhật sản phẩm',
-                                'status' => 'available',
-                                'is_locked' => false,
-                                'imported_at' => now(),
-                                'imported_by' => $user->name ?? 'system',
-                                'last_updated' => now(),
-                                'created_at' => now(),
-                                'updated_at' => now(),
-                            ];
-                        })->toArray();
-
-                    foreach ($inventoryData as $item) {
-                        if ($item['id']) {
-                            $existingInventory = $productVariant->inventories()->find($item['id']);
-                            if ($existingInventory) {
-                                $existingInventory->update([
-                                    'quantity' => $item['quantity'],
-                                    'location' => $item['location'],
-                                    'batch_number' => $item['batch_number'],
-                                    'import_source' => $item['import_source'],
-                                    'note' => $item['note'],
+                        $inventoryData = collect($variant['inventory'])
+                            ->filter(function ($inventory) {
+                                return isset($inventory['quantity']) && $inventory['quantity'] >= 0;
+                            })
+                            ->map(function ($inventory) use ($productVariant, $user) {
+                                return [
+                                    'id' => $inventory['id'] ?? null,
+                                    'product_variant_id' => $productVariant->id,
+                                    'quantity' => $inventory['quantity'],
+                                    'location' => $inventory['location'] ?? 'Kho mặc định',
+                                    'batch_number' => $inventory['batch_number'] ?? null,
+                                    'import_source' => $inventory['import_source'] ?? null,
+                                    'note' => $inventory['note'] ?? 'Nhập kho khi cập nhật sản phẩm',
+                                    'status' => 'available',
+                                    'is_locked' => false,
+                                    'imported_at' => now(),
+                                    'imported_by' => $user->name ?? 'system',
                                     'last_updated' => now(),
-                                ]);
+                                    'created_at' => now(),
+                                    'updated_at' => now(),
+                                ];
+                            })->toArray();
+
+                        foreach ($inventoryData as $item) {
+                            if ($item['id']) {
+                                $existingInventory = $productVariant->inventories()->find($item['id']);
+                                if ($existingInventory) {
+                                    $existingInventory->update([
+                                        'quantity' => $item['quantity'],
+                                        'location' => $item['location'],
+                                        'batch_number' => $item['batch_number'],
+                                        'import_source' => $item['import_source'],
+                                        'note' => $item['note'],
+                                        'last_updated' => now(),
+                                    ]);
+                                } else {
+                                    $inventory = Inventory::create($item);
+                                    StockMovement::create([
+                                        'product_variant_id' => $item['product_variant_id'],
+                                        'action_type' => 'import',
+                                        'quantity' => $item['quantity'],
+                                        'note' => $item['note'],
+                                        'created_by' => $user->id ?? 'system',
+                                        'created_by_type' => $user->role ?? 'admin',
+                                        'created_at' => now(),
+                                        'updated_at' => now(),
+                                    ]);
+                                }
                             } else {
                                 $inventory = Inventory::create($item);
                                 StockMovement::create([
@@ -912,68 +925,55 @@ public function update(Request $request, $id)
                                     'updated_at' => now(),
                                 ]);
                             }
-                        } else {
-                            $inventory = Inventory::create($item);
-                            StockMovement::create([
-                                'product_variant_id' => $item['product_variant_id'],
-                                'action_type' => 'import',
-                                'quantity' => $item['quantity'],
-                                'note' => $item['note'],
-                                'created_by' => $user->id ?? 'system',
-                                'created_by_type' => $user->role ?? 'admin',
-                                'created_at' => now(),
-                                'updated_at' => now(),
-                            ]);
+                        }
+                    } else {
+                        $productVariant->inventories()->delete();
+                    }
+
+                    // Xử lý thuộc tính
+                    $productVariant->attributes()->detach();
+                    $productVariant->attributeValues()->detach();
+                    if (!empty($variant['attributes'])) {
+                        $validAttributes = collect($variant['attributes'])
+                            ->filter(function ($attribute) {
+                                return !empty($attribute['attribute_id']) && !empty($attribute['value_id']);
+                            });
+                        if ($validAttributes->isNotEmpty()) {
+                            $attributes = $validAttributes->mapWithKeys(function ($attribute) {
+                                if (!Attribute::find($attribute['attribute_id']) || !AttributeValue::find($attribute['value_id'])) {
+                                    throw new \Exception('Invalid attribute_id or value_id');
+                                }
+                                return [$attribute['attribute_id'] => ['value_id' => $attribute['value_id']]];
+                            })->toArray();
+                            $productVariant->attributes()->attach($attributes);
+                            $productVariant->attributeValues()->sync(
+                                $validAttributes->pluck('value_id')->toArray()
+                            );
                         }
                     }
-                } else {
-                    $productVariant->inventories()->delete();
                 }
-
-                // Xử lý thuộc tính
-                $productVariant->attributes()->detach();
-                $productVariant->attributeValues()->detach();
-                if (!empty($variant['attributes'])) {
-                    $validAttributes = collect($variant['attributes'])
-                        ->filter(function ($attribute) {
-                            return !empty($attribute['attribute_id']) && !empty($attribute['value_id']);
-                        });
-                    if ($validAttributes->isNotEmpty()) {
-                        $attributes = $validAttributes->mapWithKeys(function ($attribute) {
-                            if (!Attribute::find($attribute['attribute_id']) || !AttributeValue::find($attribute['value_id'])) {
-                                throw new \Exception('Invalid attribute_id or value_id');
-                            }
-                            return [$attribute['attribute_id'] => ['value_id' => $attribute['value_id']]];
-                        })->toArray();
-                        $productVariant->attributes()->attach($attributes);
-                        $productVariant->attributeValues()->sync(
-                            $validAttributes->pluck('value_id')->toArray()
-                        );
-                    }
-                }
+            } else {
+                // Nếu không có biến thể, xóa tất cả biến thể hiện có
+                $product->productVariants()->delete();
             }
-        } else {
-            // Nếu không có biến thể, xóa tất cả biến thể hiện có
-            $product->productVariants()->delete();
+
+            DB::commit();
+            $this->clearProductCache();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Cập nhật sản phẩm thành công.',
+                'data' => $product->load('categories', 'productVariants.attributes', 'productVariants.inventories', 'productPic', 'tags')
+            ], 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Cập nhật sản phẩm thất bại: ' . $e->getMessage(),
+                'error' => $e->getMessage()
+            ], 500);
         }
-
-        DB::commit();
-        $this->clearProductCache();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Cập nhật sản phẩm thành công.',
-            'data' => $product->load('categories', 'productVariants.attributes', 'productVariants.inventories', 'productPic', 'tags')
-        ], 200);
-    } catch (\Exception $e) {
-        DB::rollBack();
-        return response()->json([
-            'success' => false,
-            'message' => 'Cập nhật sản phẩm thất bại: ' . $e->getMessage(),
-            'error' => $e->getMessage()
-        ], 500);
     }
-}
 
     public function destroy($id)
     {
@@ -1180,7 +1180,7 @@ public function update(Request $request, $id)
 
             // Seller information
             $seller = $product->seller;
-            $sellerProductsCount = $seller ? Product::where('seller_id', $seller->id)->where('status', 'active')->count() : 0;
+            $sellerProductsCount = $seller ? Product::where('seller_id', $seller->id)->where('status', 'active')->where('admin_status', 'approved')->count() : 0;
             $sellerRating = $seller ? round(
                 DB::table('reviews')
                     ->join('products', 'reviews.product_id', '=', 'products.id')
@@ -1703,33 +1703,98 @@ public function update(Request $request, $id)
     }
 
     public function getProductsBySellerId($id)
-    {
-        try {
-            $seller = Seller::findOrFail($id);
-            $products = Product::with([
+{
+    try {
+        $seller = Seller::findOrFail($id);
+
+        // Get categories associated with the seller's products
+        $categories = Product::where('seller_id', $seller->id)
+            ->where('status', 'active')
+            ->where('admin_status', 'approved')
+            ->with('categories')
+            ->get()
+            ->pluck('categories')
+            ->flatten()
+            ->pluck('id')
+            ->unique()
+            ->values();
+
+        if ($categories->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không tìm thấy danh mục nào cho seller này.',
+                'data' => []
+            ], 200);
+        }
+
+        // Initialize products collection and track fetched product IDs
+        $products = collect();
+        $fetchedProductIds = collect();
+        $remaining = 10; // Number of products to fetch
+
+        // Fetch products from the primary category
+        $primaryCategoryId = $categories->first();
+        $primaryProducts = Product::select('name', 'id', 'created_at', 'updated_at', 'slug')
+            ->with([
                 'categories',
-                'productVariants.inventories',
-                'productVariants.attributes',
+                'productVariants',
                 'productPic',
                 'tags'
             ])
+            ->where('seller_id', $seller->id)
+            ->where('status', 'active')
+            ->where('admin_status', 'approved')
+            ->whereHas('categories', function ($query) use ($primaryCategoryId) {
+                $query->where('categories.id', $primaryCategoryId);
+            })
+            ->orderBy('created_at', 'desc')
+            ->take($remaining)
+            ->get();
+
+        $products = $products->merge($primaryProducts);
+        $fetchedProductIds = $products->pluck('id');
+        $remaining = 10 - $products->count();
+
+        // Fetch additional products from other categories, excluding already fetched products
+        if ($remaining > 0 && $categories->count() > 1) {
+            $otherProducts = Product::select('name', 'id', 'created_at', 'updated_at', 'slug')
+                ->with([
+                    'categories',
+                    'productVariants',
+                    'productPic',
+                    'tags'
+                ])
                 ->where('seller_id', $seller->id)
                 ->where('status', 'active')
                 ->where('admin_status', 'approved')
+                ->whereNotIn('id', $fetchedProductIds)
+                ->whereHas('categories', function ($query) use ($categories, $primaryCategoryId) {
+                    $query->whereIn('categories.id', $categories->except(0)->values());
+                })
                 ->orderBy('created_at', 'desc')
-                ->paginate(10);
+                ->take($remaining)
+                ->get();
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Lấy danh sách sản phẩm của seller thành công.',
-                'data' => $products
-            ], 200);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Đã xảy ra lỗi khi lấy danh sách sản phẩm của seller.',
-                'error' => env('APP_DEBUG') ? $e->getMessage() : null,
-            ], 500);
+            $products = $products->merge($otherProducts);
         }
+
+        // Convert to paginated response
+        $perPage = 10;
+        $page = request()->input('page', 1);
+        $total = $products->count();
+        $products = $products->slice(($page - 1) * $perPage, $perPage);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Lấy danh sách sản phẩm của seller thành công.',
+            'data' => $products->values()
+        ], 200);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Đã xảy ra lỗi khi lấy danh sách sản phẩm của seller.',
+            'error' => env('APP_DEBUG') ? $e->getMessage() : null,
+        ], 500);
     }
+}
 }

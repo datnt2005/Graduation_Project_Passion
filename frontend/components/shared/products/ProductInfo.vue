@@ -4,8 +4,7 @@
     <div class="flex items-center justify-between">
       <h1 class="text-lg font-normal leading-tight">{{ product.name }}</h1>
       <button @click="toggleFavorite" class="text-red-500 text-xl focus:outline-none">
-          <!-- Thêm logic để hiển thị màu nút yêu thích dựa trên trạng thái -->
-          <i :class="[isFavorite ? 'fas' : 'far', 'fa-heart']"></i>
+        <i :class="[isFavorite ? 'fas' : 'far', 'fa-heart']"></i>
       </button>
     </div>
     <!-- Rating and sold -->
@@ -13,26 +12,65 @@
       <span>{{ product.rating }}</span>
       <div class="flex space-x-0.5 text-[#fdd835]">
         <i v-for="n in product.stars" :key="n" class="fas fa-star"></i>
-        <i
-          v-for="n in 5 - product.stars"
-          :key="'empty-' + n"
-          class="far fa-star"
-        ></i>
+        <i v-for="n in 5 - product.stars" :key="'empty-' + n" class="far fa-star"></i>
       </div>
       <span>(Đã bán: {{ product.sold }})</span>
+      <button @click="openReportModal" class="text-gray-400 ml-2 hover:text-red-500 text-xs font-semibold" aria-label="Report product">
+        Tố cáo
+      </button>
+    </div>
+    <!-- Report Modal -->
+    <div v-if="isReportModalOpen" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-lg p-6 w-full max-w-md">
+        <h2 class="text-lg font-semibold mb-4">Tố cáo sản phẩm</h2>
+        <div class="space-y-3">
+          <div v-for="reason in reportReasons" :key="reason.value" class="flex items-center">
+            <input
+              type="radio"
+              :id="reason.value"
+              :value="reason.value"
+              v-model="selectedReportReason"
+              class="mr-2"
+              :aria-label="reason.label"
+            />
+            <label :for="reason.value" class="text-sm text-gray-700">{{ reason.label }}</label>
+          </div>
+          <!-- Custom reason input for "Lý do khác" -->
+          <div v-if="selectedReportReason === 'other'" class="mt-3">
+            <textarea
+              v-model="customReportReason"
+              placeholder="Nhập lý do khác... (vui lòng nhập từ 10 đến 50 ký tự)"
+              class="w-full p-2 border border-gray-300 rounded-sm text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              rows="4"
+              aria-label="Custom report reason"
+            ></textarea>
+          </div>
+        </div>
+        <div class="flex justify-end space-x-4 mt-6">
+          <button
+            @click="closeReportModal"
+            class="border border-gray-300 text-gray-700 rounded-sm px-4 py-2 text-sm hover:bg-gray-100"
+            aria-label="Cancel report"
+          >
+            Hủy
+          </button>
+          <button
+            @click="submitReport"
+            :disabled="isSubmitDisabled"
+            class="bg-red-500 text-white rounded-sm px-4 py-2 text-sm hover:bg-red-600 disabled:opacity-50"
+            aria-label="Submit report"
+          >
+            Gửi tố cáo
+          </button>
+        </div>
+      </div>
     </div>
     <!-- Seller Info -->
-    <div
-      class="flex justify-between items-center bg-white border rounded-sm p-4"
-    >
+    <div class="flex justify-between items-center bg-white border rounded-sm p-4">
       <div class="flex items-center space-x-4">
         <img
           v-if="seller.avatar"
-          :src="
-            seller.avatar.startsWith('http')
-              ? seller.avatar
-              : `${mediaBase}${seller.avatar}`
-          "
+          :src="seller.avatar.startsWith('http') ? seller.avatar : `${mediaBase}${seller.avatar}`"
           alt="Avatar"
           class="w-14 h-14 rounded-full object-cover"
         />
@@ -69,31 +107,21 @@
     <div class="bg-[#fef0ef] p-4 rounded-sm flex items-center space-x-4">
       <div class="text-[#D82E44] font-bold flex items-center space-x-1">
         <span class="text-3xl">{{
-          parseFloat(selectedVariant.sale_price) <
-          parseFloat(selectedVariant.original_price)
+          parseFloat(selectedVariant.sale_price) < parseFloat(selectedVariant.original_price)
             ? formatPrice(selectedVariant.sale_price)
-            : formatPrice(
-                selectedVariant.original_price || selectedVariant.price
-              )
+            : formatPrice(selectedVariant.original_price || selectedVariant.price)
         }}</span>
         <sup class="text-sm">₫</sup>
       </div>
       <div
-        v-if="
-          parseFloat(selectedVariant.sale_price) <
-          parseFloat(selectedVariant.original_price)
-        "
+        v-if="parseFloat(selectedVariant.sale_price) < parseFloat(selectedVariant.original_price)"
         class="text-gray-500 line-through text-xl"
       >
-        {{
-          formatPrice(selectedVariant.original_price || selectedVariant.price)
-        }}
+        {{ formatPrice(selectedVariant.original_price || selectedVariant.price) }}
         <sup class="text-sm">₫</sup>
       </div>
       <div
-        v-if="
-          selectedVariant.sale_price && selectedVariant.discount_percent > 0
-        "
+        v-if="selectedVariant.sale_price && selectedVariant.discount_percent > 0"
         class="text-[#f15a24] text-xs font-semibold mt-1 bg-blue-50 rounded-full px-2 py-0.5"
       >
         -{{ selectedVariant.discount_percent }}%
@@ -101,13 +129,7 @@
     </div>
     <!-- Product Options -->
     <div>
-      <!-- All Variant Attributes -->
-      <div
-        :class="[
-          'p-4 rounded-sm',
-          validationMessage ? 'bg-[#FFF5F5]' : 'bg-white',
-        ]"
-      >
+      <div :class="['p-4 rounded-sm', validationMessage ? 'bg-[#FFF5F5]' : 'bg-white']">
         <div
           v-for="attr in variantAttributes"
           :key="attr.name"
@@ -141,14 +163,9 @@
             </button>
           </div>
         </div>
-        <!-- Số Lượng -->
-        <div
-          class="flex items-center space-x-2 text-sm font-medium text-gray-700 mb-1"
-        >
+        <div class="flex items-center space-x-2 text-sm font-medium text-gray-700 mb-1">
           <span class="w-20 shrink-0">Số Lượng</span>
-          <div
-            class="flex items-center border border-gray-300 rounded-md w-32 h-10 bg-white"
-          >
+          <div class="flex items-center border border-gray-300 rounded-md w-32 h-10 bg-white">
             <button
               class="w-10 h-10 text-gray-600 hover:bg-gray-100 rounded-l-md"
               :disabled="quantity <= 1"
@@ -177,22 +194,14 @@
               <i class="fas fa-plus"></i>
             </button>
           </div>
-          <span
-            v-if="selectedVariant?.stock >= 0"
-            class="text-gray-500 text-sm ml-2"
-          >
+          <span v-if="selectedVariant?.stock >= 0" class="text-gray-500 text-sm ml-2">
             {{ selectedVariant.stock }} sản phẩm có sẵn
           </span>
         </div>
-        <!-- Thông báo lỗi -->
-        <div
-          v-if="validationMessage"
-          class="text-red-500 text-sm mt-2 ml-[80px]"
-        >
+        <div v-if="validationMessage" class="text-red-500 text-sm mt-2 ml-[80px]">
           {{ validationMessage }}
         </div>
       </div>
-      <!-- Action Buttons -->
       <div class="flex space-x-4 mt-4">
         <button
           @click="handleAction('add-to-cart')"
@@ -215,9 +224,9 @@
     </div>
   </div>
 </template>
+
 <script setup>
-import { ref, onMounted, watch } from "vue";
-import { computed } from "vue";
+import { ref, onMounted, watch, computed } from "vue";
 import { useToast } from "@/composables/useToast";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "~/stores/auth";
@@ -261,66 +270,130 @@ const emit = defineEmits([
 ]);
 
 const isFavorite = ref(props.isFavorite);
+const isReportModalOpen = ref(false);
+const selectedReportReason = ref("");
+const customReportReason = ref("");
+const isSubmittingReport = ref(false);
+
+const reportReasons = [
+  { value: "not_matching_description", label: "Sản phẩm không đúng với mô tả" },
+  { value: "fraud_signs", label: "Sản phẩm có dấu hiệu lừa đảo" },
+  { value: "counterfeit", label: "Hàng giả, hàng nhái" },
+  { value: "unknown_origin", label: "Sản phẩm không rõ nguồn gốc, xuất xứ" },
+  { value: "unclear_images", label: "Hình ảnh sản phẩm không rõ ràng" },
+  { value: "offensive_content", label: "Sản phẩm có hình ảnh hoặc nội dung phản cảm" },
+  { value: "mismatched_name_image", label: "Tên sản phẩm không phù hợp với hình ảnh" },
+  { value: "prohibited_product", label: "Sản phẩm bị cấm buôn bán (như động vật hoang dã, sản phẩm 18+,...)" },
+  { value: "other", label: "Lý do khác" },
+];
+
+
+const isSubmitDisabled = computed(() => {
+  if (selectedReportReason.value === "other") {
+    return !customReportReason.value.trim() || isSubmittingReport.value;
+  }
+  return !selectedReportReason.value || isSubmittingReport.value;
+});
 
 async function toggleFavorite() {
-    const token = localStorage.getItem('access_token');
+  const token = localStorage.getItem('access_token');
 
-    if (!token || !auth.isLoggedIn || !auth.currentUser) {
-        toast('error', 'Vui lòng đăng nhập để sử dụng chức năng này!');
-        router.push('/login');
-        return;
-    }
+  if (!token || !auth.isLoggedIn || !auth.currentUser) {
+    toast('error', 'Vui lòng đăng nhập để sử dụng chức năng này!');
+    router.push('/login');
+    return;
+  }
 
-    try {
-        // Gọi API để thêm hoặc xóa sản phẩm khỏi danh sách yêu thích
-        const res = await $fetch(`${apiBase}/favorites/toggle`, {
-            method: 'POST',
-            body: { product_id: props.product.id },
-            headers: { Authorization: `Bearer ${token}` },
-        });
+  try {
+    const res = await $fetch(`${apiBase}/favorites/toggle`, {
+      method: 'POST',
+      body: { product_id: props.product.id },
+      headers: { Authorization: `Bearer ${token}` },
+    });
 
-        // Cập nhật trạng thái yêu thích sau khi toggle
-        isFavorite.value = res.favorited;
-
-        if (res.favorited) {
-            toast('success', 'Đã thêm sản phẩm vào yêu thích!');
-        } else {
-            toast('success', 'Đã xóa sản phẩm khỏi yêu thích!');
-        }
-    } catch (e) {
-        toast('error', e?.data?.message || 'Có lỗi xảy ra, vui lòng thử lại!');
-    }
+    isFavorite.value = res.favorited;
+  } catch (e) {
+    toast('error', e?.data?.message || 'Có lỗi xảy ra, vui lòng thử lại!');
+  }
 }
 
+function openReportModal() {
+  if (!auth.isLoggedIn) {
+    toast('error', 'Vui lòng đăng nhập để tố cáo sản phẩm!');
+    router.push('/login');
+    return;
+  }
+  isReportModalOpen.value = true;
+  selectedReportReason.value = "";
+  customReportReason.value = "";
+}
 
+function closeReportModal() {
+  isReportModalOpen.value = false;
+  selectedReportReason.value = "";
+  customReportReason.value = "";
+}
+
+async function submitReport() {
+  if (!selectedReportReason.value) {
+    toast('error', 'Vui lòng chọn lý do tố cáo!');
+    return;
+  }
+
+  if (selectedReportReason.value === "other" && !customReportReason.value.trim()) {
+    toast('error', 'Vui lòng nhập lý do tố cáo!');
+    return;
+  }
+
+  const token = localStorage.getItem('access_token');
+  isSubmittingReport.value = true;
+
+  try {
+    await $fetch(`${apiBase}/reports`, {
+      method: 'POST',
+      body: {
+        target_id: props.product.id,
+        type: "product",
+        reason: selectedReportReason.value === "other" ? customReportReason.value : selectedReportReason.value,
+      },
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    toast('success', 'Tố cáo đã được gửi thành công!');
+    closeReportModal();
+  } catch (e) {
+    toast('error', e?.data?.message || 'Có lỗi xảy ra khi gửi tố cáo, vui lòng thử lại!');
+  } finally {
+    isSubmittingReport.value = false;
+  }
+}
 
 onMounted(async () => {
-    const token = localStorage.getItem('access_token');
-    if (token && !auth.isLoggedIn) {
-        try {
-            const user = await $fetch('/user', {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            auth.currentUser = user;
-            auth.isLoggedIn = true;
-        } catch (err) {
-            auth.currentUser = null;
-            auth.isLoggedIn = false;
-        }
+  const token = localStorage.getItem('access_token');
+  if (token && !auth.isLoggedIn) {
+    try {
+      const user = await $fetch('/user', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      auth.currentUser = user;
+      auth.isLoggedIn = true;
+    } catch (err) {
+      auth.currentUser = null;
+      auth.isLoggedIn = false;
     }
+  }
 
-    // Kiểm tra trạng thái yêu thích khi reload trang
-    if (auth.isLoggedIn) {
-        try {
-            const res = await $fetch(`${apiBase}/favorites`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            const favoriteProductIds = res.data.map(item => item.product.id);
-            isFavorite.value = favoriteProductIds.includes(props.product.id);
-        } catch (e) {
-            console.error('Không thể tải danh sách yêu thích:', e);
-        }
+  if (auth.isLoggedIn) {
+    try {
+      const res = await $fetch(`${apiBase}/favorites`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const favoriteProductIds = res.data.map(item => item.product.id);
+      isFavorite.value = favoriteProductIds.includes(props.product.id);
+    } catch (e) {
+      console.error('Không thể tải danh sách yêu thích:', e);
     }
+  }
 });
 
 const localQuantity = ref(props.quantity);
@@ -358,7 +431,7 @@ function formatPrice(price) {
 
 function handleSelectOption(attrName, value) {
   emit("select-option", attrName, value);
-  emit("update:validationMessage", ""); // Clear validation message on option select
+  emit("update:validationMessage", "");
 }
 
 function handleQuantityInput(value) {

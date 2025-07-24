@@ -11,6 +11,7 @@ Route::prefix('products')->group(function () {
     Route::get('/search/{slug?}', [ProductController::class, 'getProducts']);
     Route::get('/category/{slug}', [ProductController::class, 'getProductBySlugCategory']);
     Route::get('/slug/{slug}', [ProductController::class, 'showBySlug']);
+    Route::get('/sellers/{id}', [ProductController::class, 'getProductsBySellerId'])->whereNumber('id');
 
     // ⚠️ Route động phải có điều kiện whereNumber để không nuốt nhầm các route tĩnh như /trash
     Route::get('/{id}', [ProductController::class, 'show'])->whereNumber('id');
@@ -20,7 +21,6 @@ Route::prefix('products')->group(function () {
         // Seller hoặc Admin đều có thể gọi
         Route::middleware('checkRole:admin,seller')->group(function () {
             Route::get('/sellers', [ProductController::class, 'getAllProductBySellers']);
-            Route::get('/sellers/{id}', [ProductController::class, 'getProductsBySellerId'])->whereNumber('id');
             Route::get('/sellers/trash', [ProductController::class, 'getTrashBySeller']);
             Route::get('/trash', [ProductController::class, 'getTrash']);
 

@@ -339,7 +339,7 @@ class SearchService
         return $ids;
     }
 
-    public function getTrendingProducts($limit = 10)
+    public function getTrendingProducts($limit = 20)
     {
         // Lấy top N sản phẩm theo tổng search_count + click_count
         $topProducts = DB::table('trends')
@@ -358,6 +358,8 @@ class SearchService
         // Lấy dữ liệu sản phẩm tương ứng
         return Product::whereIn('id', $productIds)
             ->select('id', 'name', 'slug')
+            ->where('status', 'active')
+            ->where('admin_status', 'approved')
             ->with(['productPic' => function ($query) {
                 $query->select('product_id', 'imagePath')->latest();
             }])
@@ -383,7 +385,7 @@ class SearchService
             ]
         );
     }
-    public function getTrendingCategories($limit = 10)
+    public function getTrendingCategories($limit = 20)
     {
         $topCategories = DB::table('trends')
             ->where('entity_type', 'category')

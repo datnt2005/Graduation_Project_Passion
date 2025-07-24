@@ -17,8 +17,8 @@
             >
           </div>
           <div class="flex items-center gap-1">
-            <i class="fa-solid fa-bullhorn"></i>
-            <span>Ưu đãi: Freeship toàn quốc đơn từ 99K</span>
+            <i class="fa-solid fa-handshake"></i>
+            <nuxt-link to="/sell-together-passion" class="hover:underline">Bán hàng cùng Passion</nuxt-link>
           </div>
         </div>
 
@@ -160,8 +160,8 @@
       >
         <!-- Ưu đãi: luôn hiển thị và căn giữa -->
         <div class="flex items-center gap-1 justify-center">
-          <i class="fa-solid fa-bullhorn"></i>
-          <span>Ưu đãi: Freeship toàn quốc đơn từ 99K</span>
+          <i class="fa-solid fa-handshake"></i>
+          <nuxt-link to="/sell-together-passion" class="hover:underline">Bán hàng cùng Passion</nuxt-link>
         </div>
       </div>
 
@@ -383,6 +383,7 @@
           <div class="relative group inline-block">
             <div
               class="cursor-pointer hover:text-blue-600 transition-colors duration-200 tracking-wide flex items-center gap-1"
+              :class="{ 'pointer-events-none': !isLoggedIn }"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -401,39 +402,42 @@
               Tài khoản
             </div>
             <ul
+              v-if="isLoggedIn"
               class="absolute left-0 top-full hidden group-hover:flex flex-col bg-white border border-gray-200 rounded shadow-lg w-48 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300 ease-in-out z-50 text-sm text-gray-700"
             >
               <li>
-                <a
-                  href="/users/profile"
+                <NuxtLink
+                  to="/users/profile"
                   class="block px-4 py-2 hover:bg-gray-100"
-                  >Thông tin tài khoản</a
+                  >Thông tin tài khoản</NuxtLink
                 >
               </li>
               <li>
-                <a
-                  href="/users/orders"
+                <NuxtLink
+                  to="/users/orders"
                   class="block px-4 py-2 hover:bg-gray-100"
-                  >Đơn hàng của tôi</a
+                  >Đơn hàng của tôi</NuxtLink
                 >
               </li>
               <li>
-                <a href="/support" class="block px-4 py-2 hover:bg-gray-100"
-                  >Trung tâm hỗ trợ</a
-                >
-              </li>
-              <li v-if="userRole === 'admin'">
-                <a
-                  href="/admin/dashboard"
+                <NuxtLink
+                  to="/support"
                   class="block px-4 py-2 hover:bg-gray-100"
-                  >Trang quản lý (Admin)</a
+                  >Trung tâm hỗ trợ</NuxtLink
                 >
               </li>
               <li v-if="userRole === 'seller'">
-                <a
-                  href="/seller/dashboard"
+                <NuxtLink
+                  to="/seller/dashboard"
                   class="block px-4 py-2 hover:bg-gray-100"
-                  >Trang quản lý (Seller)</a
+                  >Quản lý cửa hàng</NuxtLink
+                >
+              </li>
+              <li v-if="userRole === 'admin'">
+                <NuxtLink
+                  to="/admin/dashboard"
+                  class="block px-4 py-2 hover:bg-gray-100"
+                  >Quản lý hệ thống</NuxtLink
                 >
               </li>
             </ul>
@@ -520,13 +524,13 @@
           </svg>
         </button>
         <div class="space-y-4 mt-10 text-sm">
-          <a href="#" class="block text-gray-700 hover:text-blue-600"
-            ><font-awesome-icon :icon="['fas', 'house']" /> Trang chủ</a
+          <NuxtLink to="/" class="block text-gray-700 hover:text-blue-600"
+            ><font-awesome-icon :icon="['fas', 'house']" /> Trang chủ</NuxtLink
           >
           <div class="infor relative group inline-block">
-            <a
-              href="#"
-              class="block text-gray-700 hover:text-blue-600 font-semibold"
+            <div
+              class="flex items-center gap-1 text-gray-700 hover:text-blue-600 font-semibold"
+              :class="{ 'pointer-events-none': !isLoggedIn }"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -543,32 +547,53 @@
                 />
               </svg>
               Tài khoản
-            </a>
+            </div>
             <ul
+              v-if="isLoggedIn"
               class="absolute left-0 top-full hidden group-hover:flex flex-col bg-white border border-gray-200 rounded shadow-lg w-48 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300 ease-in-out z-50"
             >
               <li>
-                <a href="#" class="block px-4 py-2 hover:bg-gray-100"
-                  >Thông tin tài khoản</a
+                <NuxtLink
+                  to="/users/profile"
+                  class="block px-4 py-2 hover:bg-gray-100"
+                  >Thông tin tài khoản</NuxtLink
                 >
               </li>
               <li>
-                <a href="#" class="block px-4 py-2 hover:bg-gray-100"
-                  >Đơn hàng của tôi</a
+                <NuxtLink
+                  to="/users/orders"
+                  class="block px-4 py-2 hover:bg-gray-100"
+                  >Đơn hàng của tôi</NuxtLink
                 >
               </li>
               <li>
-                <a href="#" class="block px-4 py-2 hover:bg-gray-100"
-                  >Trung tâm hỗ trợ</a
+                <NuxtLink
+                  to="/support"
+                  class="block px-4 py-2 hover:bg-gray-100"
+                  >Trung tâm hỗ trợ</NuxtLink
+                >
+              </li>
+              <li v-if="userRole === 'seller'">
+                <NuxtLink
+                  to="/seller/dashboard"
+                  class="block px-4 py-2 hover:bg-gray-100"
+                  >Quản lý cửa hàng</NuxtLink
+                >
+              </li>
+              <li v-if="userRole === 'admin'">
+                <NuxtLink
+                  to="/admin/dashboard"
+                  class="block px-4 py-2 hover:bg-gray-100"
+                  >Quản lý hệ thống</NuxtLink
                 >
               </li>
             </ul>
           </div>
-          <a href="#" class="block text-gray-700 hover:text-blue-600"
-            ><font-awesome-icon :icon="['fas', 'cart-shopping']" /> Giỏ hàng</a
+          <NuxtLink to="/cart" class="block text-gray-700 hover:text-blue-600"
+            ><font-awesome-icon :icon="['fas', 'cart-shopping']" /> Giỏ hàng</NuxtLink
           >
-          <a href="#" class="block text-gray-700 hover:text-blue-600"
-            ><font-awesome-icon :icon="['fas', 'bell']" /> Thông báo</a
+          <NuxtLink to="/notifications" class="block text-gray-700 hover:text-blue-600"
+            ><font-awesome-icon :icon="['fas', 'bell']" /> Thông báo</NuxtLink
           >
           <NuxtLink
             to="/support"
@@ -806,10 +831,12 @@ const fetchUserProfile = async () => {
       headers: { Authorization: `Bearer ${token}` },
     });
     userName.value = res.data.data.name;
+    userRole.value = res.data.data.role; // Update userRole
     isLoggedIn.value = true;
   } catch (err) {
     isLoggedIn.value = false;
     userName.value = "";
+    userRole.value = "";
     localStorage.removeItem("access_token");
   }
 };
@@ -819,48 +846,23 @@ const updateLoginState = async () => {
   if (!token) {
     isLoggedIn.value = false;
     userName.value = "";
+    userRole.value = "";
     return;
   }
   await fetchUserProfile();
 };
 
-const showRoleBasedMenu = async () => {
-  const token = localStorage.getItem("access_token");
-  if (!token) return;
-  try {
-    const res = await axios.get(`${api}/me`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const role = res.data.data?.role;
-    if (role === "admin") {
-      document.getElementById("admin-menu")?.classList.remove("hidden");
-    }
-    if (role === "seller") {
-      document.getElementById("seller-menu")?.classList.remove("hidden");
-    }
-  } catch (error) {
-    console.error("Cannot fetch user role:", error);
-  }
-};
-
 const handleLoginSuccess = (userData) => {
   isLoggedIn.value = true;
   userName.value = userData.name;
+  userRole.value = userData.role; // Set role on login
   showModal.value = false;
-  showRoleBasedMenu();
 };
 
 onMounted(() => {
   updateLoginState();
   fetchCategories();
   fetchNotifications();
-  showRoleBasedMenu();
-  window.addEventListener("storage", (e) => {
-    if (e.key === "access_token") updateLoginState();
-  });
-  window.addEventListener("openLoginModal", () => {
-    openLogin();
-  });
 });
 
 onUnmounted(() => {

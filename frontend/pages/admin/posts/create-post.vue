@@ -65,7 +65,7 @@
                 <!-- Nội dung -->
                 <div>
                   <label class="block text-sm font-medium mb-1">Nội dung</label>
-                  <Editor
+                  <!-- <Editor
                     v-model="content"
                     api-key="aa4zr8h53q6wemx77swuav7tsmfd5njtlvgik26k4byi1e9z"
                     :init="{
@@ -74,7 +74,9 @@
                       plugins: 'lists link image preview',
                       toolbar: 'undo redo | formatselect | bold italic underline |alignjustify alignleft aligncenter alignright | bullist numlist | removeformat | preview | link image | code | h1 h2 h3',
                     }"
-                  />
+                  /> -->
+                  <TiptapEditor v-model="content"
+                  class="w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-sm placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500" />
                 </div>
               </div>
             </section>
@@ -209,8 +211,8 @@
 <script setup>
 import { ref, onMounted, reactive } from 'vue'
 import { useRouter } from 'vue-router'
-import Editor from '@tinymce/tinymce-vue'
 import { useRuntimeConfig } from '#app'
+import TiptapEditor from '@/components/TiptapEditor.vue'
 
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBaseUrl

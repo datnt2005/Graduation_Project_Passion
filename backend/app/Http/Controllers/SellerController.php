@@ -152,18 +152,21 @@ class SellerController extends Controller
         }
     }
 
-
 public function getMySellerInfo()
 {
     $user = auth()->user();
 
     $seller = Seller::with(['user:id,name,email,avatar'])->where('user_id', $user->id)->first();
 
-    if (!$seller) {
-        return response()->json([
-            'message' => 'Bạn không phải là người bán (seller).'
-        ], 403);
-    }
+        if (!$seller) {
+            return response()->json([
+                'message' => 'Bạn không phải là người bán (seller).'
+            ], 403);
+        }
+
+        $avatarUrl = $seller->user->avatar
+            ? env('R2_AVATAR_URL') . $seller->user->avatar
+            : env('R2_AVATAR_URL') . 'default.jpg';
 
     // Avatar xử lý URL nếu cần
     $seller->user->avatar_url = $seller->user->avatar
@@ -199,10 +202,48 @@ public function update(Request $request)
 
     if ($validator->fails()) {
         return response()->json([
-            'message' => 'Dữ liệu không hợp lệ',
-            'errors' => $validator->errors()
-        ], 422);
+            'seller' => [
+                'id' => $seller->id,
+                'store_name' => $seller->store_name,
+                'province_id' => $seller->province_id,
+                'district_id' => $seller->district_id,
+                'ward_id' => $seller->ward_id,
+                'address' => $seller->address,
+                'ghn_shop_id' => $seller->ghn_shop_id,
+                'user' => [
+                    'id' => $seller->user->id,
+                    'name' => $seller->user->name,
+                    'email' => $seller->user->email,
+                    'avatar_url' => $avatarUrl,
+                ],
+            ],
+        ], 200);
     }
+    public function update(Request $request)
+    {
+        $user = auth()->user();
+        $seller = Seller::where('user_id', $user->id)->firstOrFail();
+
+        $validator = Validator::make($request->all(), [
+            'store_name' => 'nullable|string|max:255',
+            'bio' => 'nullable|string',
+            'phone_number' => 'nullable|string|max:20',
+            'pickup_address' => 'nullable|string',
+            'document' => 'nullable|file|mimes:jpg,png,pdf|max:4048',
+        ], [
+            'store_name.max' => 'Tên cửa hàng không được vượt quá 255 ký tự.',
+            'phone_number.max' => 'Số điện thoại không được vượt quá 20 ký tự.',
+            'document.file' => 'Tài liệu phải là tệp hợp lệ.',
+            'document.mimes' => 'Tài liệu phải có định dạng: jpg, png, hoặc pdf.',
+            'document.max' => 'Tài liệu không được vượt quá 4MB.',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Dữ liệu không hợp lệ',
+                'errors' => $validator->errors()
+            ], 422);
+        }
 
         if ($validator->fails()) {
             return response()->json([
@@ -306,7 +347,7 @@ public function update(Request $request)
             );
 
             // Total active products
-            $productsCount = $seller->products()->where('status', 'active')->count();
+            $productsCount = $seller->products()->where('status', 'active')->where('admin_status', 'approved')->count();
 
             // Total sold items
             $totalSold = $seller->products->flatMap(function ($product) {
@@ -537,20 +578,18 @@ public function update(Request $request)
         }
     }
 
+    public function getVerifiedSellers()
+    {
+        $sellers = Seller::where('verification_status', 'verified')
+            ->select('id', 'store_name', 'store_slug')
+            ->get();
 
-public function getVerifiedSellers()
-{
-    $sellers = Seller::where('verification_status', 'verified')
-        ->select('id', 'store_name', 'store_slug')
-        ->get();
-
-    return response()->json([
-        'success' => true,
-        'message' => 'Lấy danh sách người bán thành công.',
-        'data' => $sellers
-    ]);
-}
-
+        return response()->json([
+            'success' => true,
+            'message' => 'Lấy danh sách người bán thành công.',
+            'data' => $sellers
+        ]);
+    }
 
     public function registerFull(Request $request)
     {
@@ -868,6 +907,24 @@ try {
         ]);
     }
 
+    public function getBrands()
+    {
+        $brands = Seller::where('verification_status', 'verified') // lọc trước
+            ->get()
+            ->map(function ($seller) {
+                return [
+                    'id' => $seller->id,
+                    'name' => $seller->store_name,
+                    'slug' => $seller->store_slug,
+                ];
+            })
+            ->toArray();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Lấy danh sách cửa hàng thành công.',
+            'data' => $brands
+        ]);
     /**
      * Lấy thống kê seller cho admin
      */

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Report;
 use App\Models\PostComment;
+use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -20,8 +21,9 @@ class ReportController extends Controller
             $query->with(['review.product', 'review.user']);
         } elseif ($type === 'post_comment') {
             $query->with(['postComment.user', 'postComment.media']);
+        } elseif ($type === 'product') {
+            $query->with(['product']);
         }
-
         $reports = $query->when($type, fn($q) => $q->where('type', $type))
             ->latest()
             ->get()
@@ -50,6 +52,10 @@ class ReportController extends Controller
                             'type' => $m->media_type,
                         ];
                     });
+                }
+
+                if ($report->type === 'product' && $report->product) {
+                    $data['product'] = $report->product->name ?? null;
                 }
 
                 return $data;
@@ -185,7 +191,10 @@ class ReportController extends Controller
         $report = Report::findOrFail($id);
         $report->delete();
 
-        return response()->json(['message' => 'Xóa báo cáo thành công.']);
+        return response()->json([
+            'message' => 'Xóa báo cáo thành công.',
+            'success' => true
+        ]);
     }
 
     public function sellerIndex(Request $request)
@@ -193,10 +202,10 @@ class ReportController extends Controller
         $userId = auth()->id();
 
         $reports = Report::with([
-                'review.product.seller',
-                'review.user',
-                'reporter'
-            ])
+            'review.product.seller',
+            'review.user',
+            'reporter'
+        ])
             ->where('type', 'review')
             ->whereHas('review.product.seller', function ($q) use ($userId) {
                 $q->where('user_id', $userId);
@@ -229,12 +238,12 @@ class ReportController extends Controller
         $userId = auth()->id();
 
         $report = Report::with([
-                'reporter',
-                'review.product.seller',
-                'review.user',
-                'review.reply',
-                'review.media',
-            ])
+            'reporter',
+            'review.product.seller',
+            'review.user',
+            'review.reply',
+            'review.media',
+        ])
             ->where('type', 'review')
             ->find($id);
 
@@ -308,4 +317,93 @@ class ReportController extends Controller
 
         return response()->json(['message' => 'Cập nhật trạng thái thành công']);
     }
+
+    public function getReportProduct(Request $request)
+    {
+        try {
+            // Validate query parameters
+            $perPage = $request->query('per_page', 10); // Default to 10 items per page
+            $page = $request->query('page', 1); // Default to page 1
+            $search = $request->query('search'); // Search query for product name
+            $sellerName = $request->query('seller_name'); // Filter by seller name
+
+            // Build query
+            $query = Report::with(['product.seller', 'reporter'])
+                ->where('type', 'product')
+                ->whereHas('product'); // Ensure product exists
+
+            // Apply search filter
+            if ($search) {
+                $query->whereHas('product', function ($q) use ($search) {
+                    $q->where('name', 'like', '%' . $search . '%');
+                });
+            }
+
+            // Apply seller name filter
+            if ($sellerName) {
+                $query->whereHas('product.seller', function ($q) use ($sellerName) {
+                    $q->where('store_name', $sellerName);
+                });
+            }
+
+            // Apply sorting (latest by default)
+            $query->latest('created_at');
+
+            // Paginate results
+            $reports = $query->paginate($perPage, ['*'], 'page', $page);
+
+            // Transform data
+            $formattedReports = $reports->getCollection()->map(function ($report) {
+                return [
+                    'report_id' => $report->id,
+                    'reason' => $report->reason,
+                    'status' => $report->status,
+                    'reported_at' => $report->created_at,
+                    'product' => [
+                        'id' => $report->product->id,
+                        'name' => $report->product->name,
+                        'image' => $report->product->image
+                            ? Storage::disk('r2')->url($report->product->image)
+                            : null,
+                        'description' => $report->product->description ?? '',
+                        'seller_name' => $report->product->seller->store_name ?? 'Không xác định',
+                    ],
+                    'reporter' => $report->reporter->name ?? 'Ẩn danh',
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => $formattedReports->values(),
+                'last_page' => $reports->lastPage(),
+                'current_page' => $reports->currentPage(),
+                'total' => $reports->total(),
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi khi tải báo cáo sản phẩm',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function getReportProductById($id)
+    {
+        try {
+            $report = Report::with(['product.seller', 'reporter'])->findOrFail($id);
+
+            return response()->json([
+                'success' => true,
+                'data' => $report,
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi khi tải báo cáo sản phẩm',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
 }
