@@ -30,6 +30,10 @@ use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\ProductApprovedMail;
 use App\Mail\ProductRejectedMail;
+use App\Models\Notification;
+use App\Models\User;
+use App\Models\NotificationRecipient;
+
 
 class ProductApprovalController extends Controller
 {
@@ -209,25 +213,52 @@ public function approveProduct($id, Request $request)
                 'message' => 'Không thể xử lý: seller hoặc email của user không tồn tại'
 
             ], 422);
-            
+
         }
 
         // Gửi email thông báo
-        try {
-            if ($request->admin_status === 'approved') {
-                Mail::to($sellerEmail)
-                    ->send(new ProductApprovedMail($product, $seller));
-            } else {
-                Mail::to($sellerEmail)
-                    ->send(new ProductRejectedMail($product, $seller, $request->reason));
-            }
-        } catch (\Exception $mailException) {
-                return response()->json([
-                'success' => true,
-                'message' => 'Duyệt sản phẩm thành công nhưng gửi email thất bại: ' . $mailException->getMessage(),
-                'data' => $product,
-            ], 200);
-        }
+      try {
+    // Tạo thông báo
+    $notification = Notification::create([
+        'title' => $request->admin_status === 'approved'
+            ? "Sản phẩm đã được duyệt"
+            : "Sản phẩm đã bị từ chối",
+        'content' => $request->admin_status === 'approved'
+            ? "Sản phẩm '{$product->name}' đã được duyệt vào lúc " . now()->format('d/m/Y H:i')
+            : "Sản phẩm '{$product->name}' đã bị từ chối lúc " . now()->format('d/m/Y H:i') . ". Lý do: {$request->reason}",
+        'type' => 'system',
+        'user_id' => auth()->id(), // Admin
+        'from_role' => 'admin',
+        'to_roles' => json_encode(['seller']),
+        'link' => 'seller/products/list-product',
+        'status' => 'sent',
+        'channels' => json_encode(['dashboard']),
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    // 🎯 Gửi thông báo cụ thể cho seller
+    NotificationRecipient::create([
+        'notification_id' => $notification->id,
+        'user_id' => $sellerUser->id,
+    ]);
+
+    // 📧 Gửi email
+    if ($request->admin_status === 'approved') {
+        Mail::to($sellerEmail)
+            ->send(new ProductApprovedMail($product, $seller));
+    } else {
+        Mail::to($sellerEmail)
+            ->send(new ProductRejectedMail($product, $seller, $request->reason));
+    }
+} catch (\Exception $mailException) {
+    return response()->json([
+        'success' => true,
+        'message' => 'Duyệt sản phẩm thành công nhưng gửi email thất bại: ' . $mailException->getMessage(),
+        'data' => $product,
+    ], 200);
+}
+
 
         // Xóa cache
         $this->clearProductCache();

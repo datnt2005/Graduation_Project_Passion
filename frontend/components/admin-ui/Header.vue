@@ -7,7 +7,8 @@ const emit = defineEmits(['toggle-sidebar'])
 const hasNewNotifications = ref(false)
 const notifications = ref([])
 const isNotificationOpen = ref(false)
-const router = useRouter()
+const config = useRuntimeConfig()
+const apiBase = config.public.apiBaseUrl
 let interval 
 
 // Thêm các ref states cho modal:
@@ -15,7 +16,7 @@ const isModalOpen = ref(false)
 const selectedNotification = ref(null)
 
 const STORAGE_KEY = 'admin_read_notifications'
-const STORAGE_EXPIRY_DAYS = 30 // Xóa data cũ sau 30 ngày
+const STORAGE_EXPIRY_DAYS = 30  
 
 // Utility functions cho localStorage
 const getReadNotificationsFromStorage = () => {
@@ -65,7 +66,6 @@ const removeReadNotificationFromStorage = (notificationId) => {
   }
 }
 
-// Merge server data với localStorage data
 const mergeNotificationsWithLocalStorage = (serverNotifications) => {
   const readNotifications = getReadNotificationsFromStorage()
   
@@ -75,10 +75,10 @@ const mergeNotificationsWithLocalStorage = (serverNotifications) => {
   }))
 }
 
-// Fetch notifications
+
 const fetchNotifications = async () => {
   try {
-    const response = await secureFetch('http://localhost:8000/api/admin/notifications/system', {}, ['admin'])
+    const response = await secureFetch(`${apiBase}/admin/notifications/system`, {}, ['admin'])
     const serverNotifications = response?.data || []
     
     notifications.value = mergeNotificationsWithLocalStorage(serverNotifications)
@@ -88,12 +88,10 @@ const fetchNotifications = async () => {
   }
 }
 
-// Toggle notification popup
 const toggleNotifications = () => {
   isNotificationOpen.value = !isNotificationOpen.value
 }
 
-// Mark all as read
 const markAllAsRead = async () => {
   try {
     notifications.value.forEach(notification => {
@@ -101,38 +99,25 @@ const markAllAsRead = async () => {
         saveReadNotificationToStorage(notification.id)
       }
     })
-    
+
     notifications.value = notifications.value.map(n => ({ ...n, read: true }))
     hasNewNotifications.value = false
     
-    await secureFetch('http://localhost:8000/api/admin/notifications/mark-read', {
-      method: 'POST'
-    }, ['admin'])
   } catch (error) {
     console.error('Failed to mark notifications as read:', error)
   }
 }
 
-// Handle notification click
 const handleNotificationClick = async (notification) => {
   const notificationIndex = notifications.value.findIndex(n => n.id === notification.id)
   if (notificationIndex !== -1 && !notifications.value[notificationIndex].read) {
     saveReadNotificationToStorage(notification.id)
     
-    // Cập nhật state
     notifications.value[notificationIndex].read = true
     hasNewNotifications.value = notifications.value.some(n => !n.read)
     
-    try {
-      await secureFetch(`http://localhost:8000/api/admin/notifications/${notification.id}/read`, {
-        method: 'POST'
-      }, ['admin'])
-    } catch (error) {
-      console.error('Failed to mark notification as read on server:', error)
-    }
   }
   
-  // Navigate nếu có link
 if (notification.link) {
   let link = notification.link
   if (!link.startsWith('/')) {
@@ -143,18 +128,15 @@ if (notification.link) {
   window.location.href = fullUrl
 }
 
-  
-  // Đóng dropdown
   isNotificationOpen.value = false
 }
 
-// Thêm functions để handle modal:
 const openNotificationModal = (notification, event) => {
   event.stopPropagation()
   selectedNotification.value = notification
   isModalOpen.value = true
   
-  // Mark as read when opening modal
+ // Mark as read when opening modal 
   if (!notification.read) {
     markAsRead(notification, event)
   }
@@ -170,37 +152,22 @@ const handleModalBackdropClick = (event) => {
     closeModal()
   }
 }
-
-// Handle ESC key
 const handleEscKey = (event) => {
   if (event.key === 'Escape' && isModalOpen.value) {
     closeModal()
   }
 }
-
-// Đánh dấu một notification cụ thể là đã đọc
 const markAsRead = async (notification, event) => {
   // Prevent event bubbling
   event.stopPropagation()
   
   const notificationIndex = notifications.value.findIndex(n => n.id === notification.id)
   if (notificationIndex !== -1 && !notifications.value[notificationIndex].read) {
-    // Cập nhật localStorage
     saveReadNotificationToStorage(notification.id)
     
-    // Optimistic update
     notifications.value[notificationIndex].read = true
     hasNewNotifications.value = notifications.value.some(n => !n.read)
-    
-    // Gọi API server (background)
-    try {
-      await secureFetch(`http://localhost:8000/api/admin/notifications/${notification.id}/read`, {
-        method: 'POST'
-      }, ['admin'])
-    } catch (error) {
-      console.error('Failed to mark notification as read on server:', error)
-      // Không rollback localStorage
-    }
+
   }
 }
 
@@ -217,14 +184,6 @@ const markAsUnread = async (notification, event) => {
     notifications.value[notificationIndex].read = false
     hasNewNotifications.value = notifications.value.some(n => !n.read)
     
-    // Gọi API server (nếu có endpoint)
-    try {
-      await secureFetch(`http://localhost:8000/api/admin/notifications/${notification.id}/unread`, {
-        method: 'POST'
-      }, ['admin'])
-    } catch (error) {
-      console.error('Failed to mark notification as unread on server:', error)
-    }
   }
 }
 

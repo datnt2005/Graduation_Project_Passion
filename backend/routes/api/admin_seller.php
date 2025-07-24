@@ -9,6 +9,8 @@ Route::prefix('admin')->group(function () {
    Route::get('/sellers/{id}', [AdminSellerController::class, 'show']);
    Route::post('/sellers/{id}/verify', [AdminSellerController::class, 'verify']);
    Route::post('/sellers/{id}/reject', [AdminSellerController::class, 'reject']);
+
+    Route::post('/sellers/{id}/ban', [AdminSellerController::class, 'ban']);
 });
 
 Route::middleware(['auth:sanctum'])->get('/orders/seller', [SellerOrderController::class, 'index']);

@@ -30,6 +30,9 @@ Route::prefix('seller/notifications')
         Route::post('/mark-all-read', [NotificationController::class, 'markAllAsRead']);
         Route::post('/delete-multiple', [NotificationController::class, 'deleteMultiple']);
         Route::delete('/delete-all', [NotificationController::class, 'deleteAll']);
+
+        Route::get('/notiseller', [NotificationController::class, 'sellerIndex']);
+        Route::get('/notiseller/{id}', [NotificationController::class, 'sellerShow']);
     });
 
 Route::prefix('admin/notifications')
