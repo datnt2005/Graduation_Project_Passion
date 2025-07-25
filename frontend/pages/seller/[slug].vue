@@ -1,6 +1,14 @@
 <template>
   <main class="bg-[#F5F5FA] py-2">
-    <div class="container bg-white p-4 min-h-screen shadow w-full mx-auto mt-4" v-if="seller">
+    <div class="w-full max-w-[1300px] mx-auto mb-4">
+      <div class="text-sm text-gray-500 px-4 py-2 rounded">
+        <NuxtLink to="/" class="text-gray-400">Trang chủ</NuxtLink>
+        <span class="mx-1">›</span>
+        <span class="text-black font-medium">Giỏ hàng</span>
+      </div>
+    </div>
+    <div class="max-w-[1300px] bg-white p-4 min-h-screen shadow w-full mx-auto mt-4" v-if="seller">
+
       <div v-if="loading" class="animate-pulse">
         <!-- Skeleton for Shop Header -->
         <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -807,7 +815,6 @@ const toggleFollow = async () => {
     await axios.post(url, {}, { headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` } });
     isFollowing.value = !isFollowing.value;
     followerCount.value += isFollowing.value ? 1 : -1;
-    toast('success', isFollowing.value ? 'Đã theo dõi cửa hàng!' : 'Đã bỏ theo dõi cửa hàng.');
   } catch (err) {
     console.error('Error toggling follow:', err);
     const success = await handleApiError(err, () => toggleFollow());

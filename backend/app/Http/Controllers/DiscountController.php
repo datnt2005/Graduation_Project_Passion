@@ -649,9 +649,19 @@ public function getStoreDiscounts($slug)
                 'message' => 'Bạn cần đăng nhập'
             ], 401);
         }
-        $vouchers = $user->discounts()->get();
-        Log::info('User ID: ' . $user->id);
-        Log::info('Vouchers: ' . $vouchers->toJson());
+        $vouchers = $user->discounts()
+            ->with([
+                'products' => function ($query) {
+                    $query->select('products.id', 'products.name', 'products.slug');
+                },
+                'categories' => function ($query) {
+                    $query->select('categories.id', 'categories.name', 'categories.slug');
+                },
+                'seller' => function ($query) {
+                    $query->select('sellers.id', 'sellers.store_name', 'sellers.store_slug', 'sellers.user_id');
+                }
+            ])
+            ->get();
         return response()->json([
             'success' => true,
             'data' => $vouchers

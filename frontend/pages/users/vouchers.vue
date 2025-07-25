@@ -59,11 +59,11 @@
               <!-- Logo -->
               <div class="flex flex-col items-center justify-center min-w-[60px]">
                 <img
-                  src="https://salt.tikicdn.com/ts/upload/30/6d/8a/6c6b6b8e6b6b6b8e6b6b6b8e6b6b6b8e.png"
-                  alt="Voucher Logo"
-                  class="w-10 h-10 object-contain mb-1"
+                  :src="imageVoucher" alt="Voucher Logo"
+                  class="w-12 h-12 object-contain mb-1"
                 />
-                <div class="text-[10px] font-bold text-blue-700 bg-blue-100 rounded px-1 py-0.5">PASSION VIP</div>
+                <div v-if="voucher.seller" class="text-[10px] font-bold text-blue-700 bg-blue-100 rounded px-1 py-0.5">{{ voucher.seller.store_name }} </div>
+                <div v-else class="text-[10px] font-bold text-blue-700 bg-blue-100 rounded px-1 py-0.5">PASSION VIP</div>
               </div>
               <!-- Nội dung -->
               <div class="flex-1 flex flex-col justify-between min-w-0">
@@ -78,6 +78,7 @@
                   <span v-else>Giảm {{ formatCurrency(voucher.discount_value) }}</span>
                   <span>Đơn từ {{ formatCurrency(voucher.min_order_value) }}</span>
                 </div>
+                <div v-if="voucher.products.length > 0" class="text-xs text-blue-500 mt-1 w-full">Sản phẩm nhất định</div>
                 <div class="text-xs text-gray-500 w-full mb-1 mt-3">HSD: {{ formatDate(voucher.end_date) }}</div>
                 <!-- Nút Dùng ngay ở dưới cùng -->
                 <div class="flex justify-end mt-2">
@@ -198,6 +199,7 @@ import { useDiscount } from '~/composables/useDiscount'
 import { useRouter } from 'vue-router'
 import { useNotification } from '~/composables/useNotification'
 import { useToast } from '~/composables/useToast'
+import imageVoucher from '~/images/voucher.png'
 
 // Chỉ giữ lại tab 'Tất cả'
 const tabs = [

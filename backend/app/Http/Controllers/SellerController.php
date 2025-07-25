@@ -417,7 +417,7 @@ class SellerController extends Controller
                     'sold' => (int) ($product->productVariants->flatMap(function ($variant) {
                         return $variant->orderItems ?? collect();
                     })->sum('quantity') ?? 0),
-                    'image' => $product->productPic->first()->imagePath ?? 'images/default-product.jpg',
+                    'image' => $product->productPic->first()->imagePath ?? 'products/default.png',
                     'categories' => $product->categories->pluck('name')->toArray(),
                     'tags' => $product->tags->pluck('name')->toArray(),
                 ];
@@ -512,7 +512,7 @@ class SellerController extends Controller
                     'sold' => (int) ($product->productVariants->flatMap(function ($variant) {
                         return $variant->orderItems ?? collect();
                     })->sum('quantity') ?? 0),
-                    'image' => $product->productPic->first() ? $product->productPic->first()->imagePath : 'images/default-product.jpg',
+                    'image' => $product->productPic->first() ? $product->productPic->first()->imagePath : 'products/default.png',
                     'categories' => $product->categories->pluck('name')->toArray(),
                     'tags' => $product->tags->pluck('name')->toArray(),
                 ];

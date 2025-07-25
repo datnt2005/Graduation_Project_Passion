@@ -4,8 +4,8 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DiscountController;
 use App\Http\Controllers\DiscountSellerController;
 
-Route::get('/discounts/all', [\App\Http\Controllers\DiscountController::class, 'indexPublic']);    
-Route::get('/discounts/seller/{sellerId}', [\App\Http\Controllers\DiscountController::class, 'getSellerDiscounts']);    
+Route::get('/discounts/all', [DiscountController::class, 'indexPublic']);    
+Route::get('/discounts/seller/{sellerId}', [DiscountController::class, 'getSellerDiscounts']);    
     Route::get('/sellers/store/{slug}/discounts', [DiscountController::class, 'getStoreDiscounts']);
 
 // Các route dành cho user đã đăng nhập

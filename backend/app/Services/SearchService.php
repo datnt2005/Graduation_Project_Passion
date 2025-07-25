@@ -227,7 +227,7 @@ class SearchService
                     'id' => $product->id,
                     'name' => $product->name,
                     'slug' => $product->slug,
-                    'image' => $product->productPic->first()->imagePath ?? $variant?->thumbnail ?? '/default-image.jpg',
+                    'image' => $product->productPic->first()->imagePath ?? $variant?->thumbnail ?? 'products/default.png',
                     'price' => number_format($finalPrice, 0, '.', ''),
                     'discount' => $discount ? number_format($price, 0, '.', '') : null,
                     'rating' => str_repeat('★', $rating) . str_repeat('☆', 5 - $rating),
@@ -287,7 +287,7 @@ class SearchService
                 return [$product->id => [
                     'id' => $product->id,
                     'name' => $product->name,
-                    'image' => $product->productPic->first()->imagePath ?? '/default-image.jpg',
+                    'image' => $product->productPic->first()->imagePath ?? 'products/default.png',
                 ]];
             })->toArray();
 
@@ -368,7 +368,7 @@ class SearchService
                 return [
                     'id' => $product->id,
                     'name' => $product->name,
-                    'image' => $product->productPic->first()->imagePath ?? '/default-image.jpg',
+                    'image' => $product->productPic->first()->imagePath ?? 'products/default.png',
                     'slug' => $product->slug,
                 ];
             })
