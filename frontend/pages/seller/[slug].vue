@@ -346,6 +346,8 @@
     <div v-else-if="error" class="text-center py-4 text-red-500">Lỗi: {{ error }}</div>
     <div v-else class="text-center py-4 text-gray-500">Đang tải...</div>
   </main>
+  <AuthModal :show="showModal" :initial-mode="modalMode" @close="showModal = false"
+    @login-success="handleLoginSuccess" />
 </template>
 
 <script setup>
@@ -359,6 +361,8 @@ import { useToast } from '~/composables/useToast';
 import { debounce } from 'lodash';
 import { useRuntimeConfig } from '#imports';
 import { useDiscount } from '~/composables/useDiscount';
+import AuthModal from "~/components/shared/AuthModal.vue";
+
 
 const { toast } = useToast();
 const route = useRoute();
@@ -368,6 +372,8 @@ const config = useRuntimeConfig();
 const { saveVoucherByCode } = useDiscount();
 const apiBase = config.public.apiBaseUrl;
 const mediaBase = config.public.mediaBaseUrl;
+const modalMode = ref("login");
+const showModal = ref(false);
 
 const seller = ref(null);
 const products = ref([]);
@@ -448,9 +454,12 @@ const handleApiError = async (err, callback) => {
   return false;
 };
 
-const openLoginModal = () => {
-  window.dispatchEvent(new CustomEvent('openLoginModal'));
-};
+function openLoginModal() {
+  console.log("openLoginModal called");
+  modalMode.value = "login";
+  showModal.value = true;
+}
+
 
 const goToDashboard = () => { router.push('/seller/dashboard'); };
 const editStoreProfile = () => { router.push('/seller/profile/edit'); };
