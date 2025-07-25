@@ -12,7 +12,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
+use App\Models\Notification;
 
+use App\Models\NotificationRecipient;
 class DiscountSellerController extends Controller
 {
     // List all discounts for current seller
@@ -39,8 +41,6 @@ class DiscountSellerController extends Controller
     // Create a new discount for seller
     public function store(Request $request)
     {
-        \Log::info('USER:', ['user' => Auth::user()]);
-        \Log::info('SELLER:', ['seller' => Auth::user()->seller]);
         $seller = Auth::user()->seller;
         if (!$seller) {
             return response()->json([
@@ -90,9 +90,36 @@ class DiscountSellerController extends Controller
         try {
             $data = $request->all();
             $data['seller_id'] = $seller ? $seller->id : null;
-            \Log::info('DATA:', $data);
             $discount = Discount::create($data);
-            \Log::info('DISCOUNT CREATED:', $discount ? $discount->toArray() : []);
+
+           $followers = $seller->followers; // Lấy danh sách người theo dõi seller
+
+         foreach ($followers as $follower) {
+    $notification = Notification::create([
+        'title' => 'Mã giảm giá mới từ người bán bạn đang theo dõi',
+        'content' => "Người bán {$seller->name} vừa tạo mã giảm giá mới: {$discount->code}",
+        'type' => 'promotion',
+        'link' => "/seller/{$seller->slug}",
+        'user_id' => $seller->user_id,
+        'from_role' => 'seller',
+        'channels' => json_encode(['dashboard']),
+        'status' => 'sent',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+
+    NotificationRecipient::create([
+        'notification_id' => $notification->id,
+        'user_id' => $follower->id,
+        'is_read' => false,
+        'is_hidden' => false,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+}
+
+
             return response()->json([
                 'success' => true,
                 'message' => 'Tạo mã giảm giá thành công',
@@ -494,4 +521,4 @@ class DiscountSellerController extends Controller
     }
 
     // Các hàm saveVoucherByCode, myVouchers, deleteUserVoucher, indexPublic giữ nguyên như DiscountController nếu seller cần dùng
-} 
+}
