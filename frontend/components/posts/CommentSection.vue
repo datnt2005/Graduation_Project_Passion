@@ -24,7 +24,6 @@
         <span class="text-xs ml-2 text-gray-500">({{ userRating }} / 5)</span>
       </div>
 
-      <!-- Thêm vào trong <form> trước textarea -->
       <div class="flex gap-2 mb-2">
         <label class="inline-flex items-center gap-2 px-3 py-1.5 border border-gray-300 rounded bg-white cursor-pointer hover:bg-gray-50 text-xs">
           <i class="fas fa-camera"></i>
@@ -37,7 +36,6 @@
           <input type="file" accept="video/*" multiple class="hidden" @change="onVideoChange" />
         </label>
       </div>
-      <!-- Hiển thị preview -->
       <div class="flex gap-2 flex-wrap mb-2">
         <div v-for="(img, i) in previewImages" :key="'img'+i" class="relative w-16 h-16 border rounded overflow-hidden group">
           <img :src="img" class="w-full h-full object-cover" />
@@ -63,7 +61,7 @@
     <!-- Bộ lọc -->
     <div class="flex flex-wrap gap-2 my-4 items-center text-sm font-medium text-gray-700">
       <button @click="filterStar = ''; currentPage = 1"
-        :class=" [
+        :class="[
           filterStar === '' ? 'text-blue-600 border-blue-600' : 'text-gray-600 border-gray-300',
           'px-3 py-1.5 border rounded hover:bg-gray-100 transition'
         ]">
@@ -71,7 +69,7 @@
       </button>
       <button v-for="n in [5,4,3,2,1]" :key="n"
         @click="filterStar = n; currentPage = 1"
-        :class=" [
+        :class="[
           filterStar === n ? 'text-blue-600 border-blue-600' : 'text-gray-600 border-gray-300',
           'px-3 py-1.5 border rounded hover:bg-gray-100 transition'
         ]">
@@ -80,14 +78,14 @@
     </div>
 
     <!-- Danh sách bình luận -->
-    <div v-for="c in paginatedComments" :key="c.id" class=" bg-white rounded-md p-4 border text-sm text-gray-800 relative mb-4">
+    <div v-for="c in paginatedComments" :key="c.id" class="bg-white rounded-md p-4 border text-sm text-gray-800 relative mb-4">
       <!-- Report Dialog -->
       <ReportDialog v-if="showReportDialog === c.id" :target-id="c.id" type="post_comment" @close="showReportDialog = null" />
 
       <div class="flex items-start gap-3 mb-2">
         <!-- Avatar -->
         <div>
-          <img v-if="c.user?.avatar" :src="c.user.avatar" alt="avatar"
+          <img v-if="c.user?.avatar" :src="c.user.avatar?.startsWith('http') ? c.user.avatar : `${mediaBase}${c.user.avatar}`" alt="avatar"
             class="w-10 h-10 rounded-full object-cover border" />
           <div v-else class="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-gray-600 font-bold">
             {{ c.user?.name?.charAt(0).toUpperCase() || 'U' }}
@@ -106,13 +104,13 @@
           </div>
         </div>
         <!-- Menu ba chấm -->
-        <div class="relative ml-auto menu-wrapper">
+        <div v-if="props.currentUserId != null" class="relative ml-auto menu-wrapper">
           <button @click="toggleMenu(c.id)" class="p-1 hover:bg-gray-100 rounded">
             <i class="fas fa-ellipsis-h text-gray-500"></i>
           </button>
           <div v-if="showMenu === c.id"
             class="absolute right-0 mt-2 bg-white border rounded shadow-md text-xs z-10 min-w-[120px] overflow-hidden">
-            <template v-if="c.user_id === currentUserId">
+            <template v-if="c.user_id == props.currentUserId">
               <button @click="edit(c)" class="block w-full text-left px-4 py-2 hover:bg-gray-100">✏️ Sửa</button>
               <button @click="deleteComment(c.id)" class="block w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600">🗑️ Xoá</button>
             </template>
@@ -151,8 +149,8 @@
       <div class="flex items-center gap-4 text-gray-600 text-sm">
         <!-- Like -->
         <button @click="likeComment(c)" class="text-sm text-gray-500 hover:text-blue-600 flex items-center gap-1">
-          <i :class="['fas fa-thumbs-up', c.isLiked ? 'text-blue-600' : 'text-gray-500']"></i>
-          <span>{{ c.likes_count || 0 }}</span>
+          <i :class="['fas fa-thumbs-up', commentLikes.get(c.id)?.isLiked ? 'text-blue-600' : 'text-gray-500']"></i>
+          <span>{{ commentLikes.get(c.id)?.likeCount || 0 }}</span>
         </button>
         <!-- Reply -->
         <button class="flex items-center gap-1 hover:text-blue-600 transition" @click="toggleReplyForm(c.id)">
@@ -184,12 +182,11 @@
         </div>
         <p class="text-gray-700 leading-snug">{{ c.admin_reply }}</p>
       </div>
-
-      <!-- Trong danh sách bình luận, sau phần nội dung -->
+      <!-- Media -->
       <div v-if="c.media && c.media.length" class="flex gap-2 flex-wrap mt-2">
         <template v-for="m in c.media" :key="m.id">
-          <img v-if="m.type === 'image'" :src="m.url" class="w-20 h-20 object-cover rounded border" />
-          <video v-else-if="m.type === 'video'" :src="m.url" controls class="w-28 h-20 rounded border" />
+          <img v-if="m.type === 'image'" :src="m.url?.startsWith('http') ? m.url : `${mediaBase}${m.url}`" class="w-20 h-20 object-cover rounded border" />
+          <video v-else-if="m.type === 'video'" :src="m.url?.startsWith('http') ? m.url : `${mediaBase}${m.url}`" controls class="w-28 h-20 rounded border" />
         </template>
       </div>
     </div>
@@ -214,19 +211,20 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick, computed } from 'vue'
+import { ref, onMounted, nextTick, computed, watch, onBeforeUnmount } from 'vue'
 import { useToast } from '~/composables/useToast'
 import { useRuntimeConfig } from '#app'
 import ReportDialog from '~/components/shared/ReportDialog.vue'
 
-const props = defineProps({
-  postId: Number,
-  currentUserId: Number
-})
-
 const { toast } = useToast()
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBaseUrl
+const mediaBase = config.public.mediaBaseUrl
+
+const props = defineProps({
+  slug: String,
+  currentUserId: Number
+})
 
 // State
 const comments = ref([])
@@ -242,33 +240,109 @@ const replyContent = ref('')
 const filterStar = ref('')
 const currentPage = ref(1)
 const itemsPerPage = 5
+const postId = ref(null)
+const commentLikes = ref(new Map()) // Lưu trạng thái Like cho mỗi bình luận
 
-// Media quản lý file gốc & preview
+// Media
 const previewImages = ref([])
 const rawImages = ref([])
 const previewVideos = ref([])
 const rawVideos = ref([])
 
+// Lấy postId từ slug
+const fetchPostIdBySlug = async () => {
+  if (!props.slug) {
+    console.error('Không có slug được cung cấp')
+    toast('error', 'Không tìm thấy bài viết')
+    return
+  }
+  try {
+    const res = await $fetch(`${apiBase}/posts/slug/${props.slug}`, {
+      headers: { 'Accept': 'application/json' },
+      cache: 'no-store'
+    })
+    postId.value = res.data?.id
+    if (!postId.value) {
+      throw new Error('Không tìm thấy ID bài viết')
+    }
+  } catch (err) {
+    console.error('Lỗi khi lấy postId từ slug:', err)
+    toast('error', 'Không thể tải bài viết')
+    postId.value = null
+  }
+}
+
+// Format date
+const formatDate = (dateStr) => {
+  if (!dateStr || typeof dateStr !== 'string') return '-'
+  const date = new Date(dateStr)
+  if (isNaN(date)) return '-'
+  return new Intl.DateTimeFormat('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date)
+}
+
 // Load danh sách bình luận
 const fetchComments = async () => {
+  if (!postId.value) {
+    console.warn('Không có postId để lấy bình luận')
+    return
+  }
   try {
-    const res = await $fetch(`${apiBase}/posts/${props.postId}/comments`)
+    const res = await $fetch(`${apiBase}/posts/${postId.value}/comments`, {
+      headers: { 'Accept': 'application/json' },
+      cache: 'no-store'
+    })
     comments.value = (res.data || []).map(c => ({
       ...c,
-      isLiked: c.isLiked || false
+      isLiked: c.isLiked ?? false,
+      likes_count: c.likes_count || 0
     }))
+    console.log('Danh sách bình luận:', comments.value)
+
+    // Khởi tạo trạng thái Like
+    commentLikes.value.clear()
+    const token = localStorage.getItem('access_token')
+    if (token) {
+      await Promise.all(comments.value.map(async (c) => {
+        try {
+          const res = await $fetch(`${apiBase}/posts/${postId.value}/comments/${c.id}/liked`, {
+            headers: { Authorization: `Bearer ${token}` },
+            cache: 'no-store'
+          })
+          commentLikes.value.set(c.id, {
+            isLiked: res.liked ?? false,
+            likeCount: c.likes_count
+          })
+        } catch (err) {
+          console.error(`Lỗi khi kiểm tra trạng thái Like cho bình luận ${c.id}:`, err)
+          commentLikes.value.set(c.id, { isLiked: false, likeCount: c.likes_count })
+        }
+      }))
+    } else {
+      comments.value.forEach(c => {
+        commentLikes.value.set(c.id, { isLiked: false, likeCount: c.likes_count })
+      })
+    }
+    console.log('Trạng thái Like:', Array.from(commentLikes.value.entries()))
+
+    // Tính trung bình rating
     if (comments.value.length) {
       const sum = comments.value.reduce((acc, c) => acc + (c.rating || 0), 0)
       averageRating.value = sum / comments.value.length
-    } else averageRating.value = 0
-    checkAllLiked()
-  } catch {
+    } else {
+      averageRating.value = 0
+    }
+  } catch (err) {
+    console.error('Lỗi khi lấy bình luận:', err)
     comments.value = []
     averageRating.value = 0
   }
 }
-
-const formatDate = (dateStr) => new Date(dateStr).toLocaleDateString('vi-VN')
 
 // Reset form
 const cancelEdit = () => {
@@ -284,7 +358,7 @@ const resetMedia = () => {
   rawVideos.value = []
 }
 
-// Khi sửa bình luận
+// Sửa bình luận
 const edit = (c) => {
   editingId.value = c.id
   commentContent.value = c.content
@@ -292,8 +366,12 @@ const edit = (c) => {
   resetMedia()
 }
 
-// Submit bình luận (tạo mới hoặc cập nhật)
+// Submit bình luận
 const submitComment = async () => {
+  if (!postId.value) {
+    toast('error', 'Không tìm thấy bài viết')
+    return
+  }
   const token = localStorage.getItem('access_token')
   if (!token) {
     toast('error', 'Bạn cần đăng nhập để gửi bình luận')
@@ -308,7 +386,7 @@ const submitComment = async () => {
   try {
     let url, method, body, headers
     if (editingId.value) {
-      url = `${apiBase}/posts/${props.postId}/comments/${editingId.value}`
+      url = `${apiBase}/posts/${postId.value}/comments/${editingId.value}`
       method = 'PUT'
       body = new FormData()
       body.append('content', commentContent.value)
@@ -317,7 +395,7 @@ const submitComment = async () => {
       rawVideos.value.forEach((file, i) => body.append(`videos[${i}]`, file))
       headers = { Authorization: `Bearer ${token}` }
     } else {
-      url = `${apiBase}/posts/${props.postId}/comments`
+      url = `${apiBase}/posts/${postId.value}/comments`
       method = 'POST'
       body = new FormData()
       body.append('content', commentContent.value)
@@ -327,7 +405,7 @@ const submitComment = async () => {
       headers = { Authorization: `Bearer ${token}` }
     }
 
-    const res = await $fetch(url, { method, headers, body })
+    await $fetch(url, { method, headers, body })
     cancelEdit()
     await fetchComments()
     toast('success', editingId.value ? 'Đã cập nhật' : 'Đã gửi bình luận')
@@ -338,42 +416,45 @@ const submitComment = async () => {
   }
 }
 
-// Xoá bình luận
+// Xóa bình luận
 const deleteComment = async (id) => {
-  const token = localStorage.getItem('access_token')
-  if (!token) {
-    toast('error', 'Bạn cần đăng nhập để xoá bình luận')
+  if (!postId.value) {
+    toast('error', 'Không tìm thấy bài viết')
     return
   }
-  if (!confirm('Xoá bình luận?')) return
+  const token = localStorage.getItem('access_token')
+  if (!token) {
+    toast('error', 'Bạn cần đăng nhập để xóa bình luận')
+    return
+  }
+  if (!confirm('Xóa bình luận?')) return
   try {
-    await $fetch(`${apiBase}/posts/${props.postId}/comments/${id}`, {
+    await $fetch(`${apiBase}/posts/${postId.value}/comments/${id}`, {
       method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` }
+      headers: { Authorization: `Bearer ${token}` },
+      cache: 'no-store'
     })
     await fetchComments()
-    toast('success', 'Đã xoá')
-  } catch {
-    toast('error', 'Không thể xoá')
+    toast('success', 'Đã xóa')
+  } catch (err) {
+    toast('error', err?.data?.message || err?.message || 'Không thể xóa')
   }
 }
 
-// Hiện/tắt menu 3 chấm
+// Toggle menu ba chấm
 const toggleMenu = (id) => {
   showMenu.value = showMenu.value === id ? null : id
-  document.addEventListener('click', handleClickOutside)
 }
 const handleClickOutside = (event) => {
   if (!event.target.closest('.menu-wrapper')) {
     showMenu.value = null
-    document.removeEventListener('click', handleClickOutside)
   }
 }
 
 // Báo cáo
 const handleReport = (id) => {
   const comment = comments.value.find(c => c.id === id)
-  if (comment && comment.user.id === props.currentUserId) {
+  if (comment && comment.user_id == props.currentUserId) {
     toast('error', 'Bạn không thể báo cáo bình luận của chính mình')
     return
   }
@@ -387,6 +468,10 @@ const toggleReplyForm = (id) => {
   replyContent.value = ''
 }
 const submitReply = async (comment) => {
+  if (!postId.value) {
+    toast('error', 'Không tìm thấy bài viết')
+    return
+  }
   const token = localStorage.getItem('access_token')
   if (!token) {
     toast('info', 'Vui lòng đăng nhập để trả lời.')
@@ -397,19 +482,19 @@ const submitReply = async (comment) => {
     return
   }
   try {
-    const res = await fetch(`${apiBase}/posts/${props.postId}/comments/${comment.id}/reply`, {
+    const res = await $fetch(`${apiBase}/posts/${postId.value}/comments/${comment.id}/reply`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ content: replyContent.value }),
+      cache: 'no-store'
     })
-    const data = await res.json()
-    if (!res.ok) throw new Error(data.message || 'Đã xảy ra lỗi khi trả lời.')
     toast('success', 'Đã gửi trả lời!')
     showReplyForm.value = null
     replyContent.value = ''
     await fetchComments()
   } catch (err) {
-    toast('error', err.message || 'Chỉ tác giả hoặc quản trị viên mới được trả lời.')
+    console.error('Lỗi khi gửi trả lời:', err)
+    toast('error', err?.data?.message || err?.message || 'Chỉ tác giả hoặc quản trị viên mới được trả lời.')
   }
 }
 
@@ -420,34 +505,50 @@ const likeComment = async (comment) => {
     toast('info', 'Vui lòng đăng nhập để thích bình luận.')
     return
   }
-  try {
-    const url = `${apiBase}/posts/${props.postId}/comments/${comment.id}/${comment.isLiked ? 'unlike' : 'like'}`
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
-    })
-    const data = await res.json()
-    if (!res.ok) throw new Error(data.message)
-    comment.isLiked = !comment.isLiked
-    comment.likes_count = data.likes // Cập nhật số lượt like từ API
-  } catch (err) {
-    toast('error', err.message)
+  if (!postId.value) {
+    toast('error', 'Không tìm thấy bài viết')
+    return
   }
-}
 
-// Kiểm tra like cho tất cả
-const checkAllLiked = async () => {
-  const token = localStorage.getItem('access_token')
-  if (!token) return
-  await Promise.all(comments.value.map(async (c) => {
-    try {
-      const res = await fetch(`${apiBase}/posts/${props.postId}/comments/${c.id}/liked`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      const data = await res.json()
-      c.isLiked = data.liked
-    } catch {}
-  }))
+  try {
+    console.log('Before like/unlike:', {
+      commentId: comment.id,
+      isLiked: commentLikes.value.get(comment.id)?.isLiked,
+      likeCount: commentLikes.value.get(comment.id)?.likeCount,
+      token
+    })
+    const isCurrentlyLiked = commentLikes.value.get(comment.id)?.isLiked || false
+    const url = `${apiBase}/posts/${postId.value}/comments/${comment.id}/${isCurrentlyLiked ? 'unlike' : 'like'}`
+    const res = await $fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      cache: 'no-store'
+    })
+    console.log('API response:', res)
+    if (!res || !res.hasOwnProperty('likes')) {
+      throw new Error('Phản hồi API không hợp lệ hoặc thiếu trường likes')
+    }
+    commentLikes.value.set(comment.id, {
+      isLiked: !isCurrentlyLiked,
+      likeCount: res.likes
+    })
+    console.log('After like/unlike:', {
+      commentId: comment.id,
+      isLiked: commentLikes.value.get(comment.id).isLiked,
+      likeCount: commentLikes.value.get(comment.id).likeCount
+    })
+    // Cập nhật likes_count trong comments để đảm bảo hiển thị đúng
+    const index = comments.value.findIndex(c => c.id === comment.id)
+    if (index !== -1) {
+      comments.value[index] = {
+        ...comments.value[index],
+        likes_count: res.likes
+      }
+    }
+  } catch (err) {
+    console.error('Lỗi khi like/unlike:', err)
+    toast('error', err?.data?.message || err?.message || 'Lỗi khi thích bình luận')
+  }
 }
 
 // Bộ lọc, phân trang
@@ -462,7 +563,9 @@ const filteredComments = computed(() => {
 const totalPages = computed(() => Math.ceil(filteredComments.value.length / itemsPerPage))
 const paginatedComments = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage
-  return filteredComments.value.slice(start, start + itemsPerPage)
+  const result = filteredComments.value.slice(start, start + itemsPerPage)
+  console.log('Paginated comments:', result)
+  return result
 })
 
 function goToPage(page) {
@@ -472,8 +575,7 @@ function goToPage(page) {
   }
 }
 
-// --- MEDIA HANDLER ---
-// Ảnh
+// Media handler
 const onImageChange = (e) => {
   const files = Array.from(e.target.files).filter(f => f.type.startsWith('image/'))
   if (files.length + rawImages.value.length > 5) {
@@ -491,7 +593,6 @@ const removeImage = (idx) => {
   previewImages.value.splice(idx, 1)
   rawImages.value.splice(idx, 1)
 }
-// Video
 const onVideoChange = (e) => {
   const files = Array.from(e.target.files).filter(f => f.type.startsWith('video/'))
   if (files.length + rawVideos.value.length > 5) {
@@ -510,9 +611,35 @@ const removeVideo = (idx) => {
   rawVideos.value.splice(idx, 1)
 }
 
-onMounted(() => fetchComments())
-</script>
+onMounted(async () => {
+  console.log('Current User ID:', props.currentUserId)
+  document.addEventListener('click', handleClickOutside)
+  await fetchPostIdBySlug()
+  if (postId.value) {
+    await fetchComments()
+  }
+})
 
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
+
+watch(() => props.slug, async (newSlug, oldSlug) => {
+  if (newSlug !== oldSlug) {
+    await fetchPostIdBySlug()
+    if (postId.value) {
+      await fetchComments()
+    }
+  }
+})
+
+watch(() => props.currentUserId, async (newId, oldId) => {
+  console.log('Current User ID changed:', { newId, oldId })
+  if (newId !== oldId && postId.value) {
+    await fetchComments()
+  }
+})
+</script>
 
 <style scoped>
 .menu-wrapper { position: relative; }

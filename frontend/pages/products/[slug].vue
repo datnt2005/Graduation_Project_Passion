@@ -902,6 +902,7 @@ const chatWithShop = async () => {
 
   const productData = {
     name: product.value.name || "Sản phẩm không xác định",
+    slug: product.value.slug || "san-pham-khong-xac-dinh",
     price:
       selectedVariant.value?.price || product.value.originalPrice || "0.00",
     image: product.value.image || "/default-product.jpg",

@@ -13,15 +13,13 @@ Route::middleware(['auth:sanctum', 'checkRole:user,seller,admin'])->group(functi
     Route::delete('/posts/{post}/comments/{id}', [PostCommentController::class, 'destroy']); // Xoá bình luận cá nhân
     Route::post('/posts/{post}/comments/{id}/like', [PostCommentController::class, 'like']);       // Like
     Route::post('/posts/{post}/comments/{id}/unlike', [PostCommentController::class, 'unlike']);   // Unlike
-    Route::get('/posts/{post}/comments/{id}/liked', [PostCommentController::class, 'checkLiked']); // Đã like chưa
+    Route::get('/posts/{post}/comments/{id}/liked', [PostCommentController::class, 'liked']); // Đã like chưa
     Route::post('/posts/{post}/comments/{id}/reply', [PostCommentController::class, 'reply']);     // Trả lời bình luận
 });
 
-// ======= Admin Routes =======
-Route::prefix('admin/post-comments')->middleware(['auth:sanctum', 'checkRole:admin'])->group(function () {
-    Route::get('/', [PostCommentController::class, 'adminIndex']);          // Tất cả comment
-    Route::get('/{id}', [PostCommentController::class, 'adminShow']);       // Xem chi tiết
-    Route::put('/{id}', [PostCommentController::class, 'adminUpdate']);     // Admin phản hồi
-    Route::delete('/{id}', [PostCommentController::class, 'adminDestroy']); // Admin xóa
+Route::prefix('admin')->middleware(['auth:sanctum', 'checkRole:admin'])->group(function () {
+    Route::get('post-comments', [PostCommentController::class, 'indexAdmin']);
+    Route::put('post-comments/{id}', [PostCommentController::class, 'updateAdmin']);
+    Route::delete('post-comments/{id}', [PostCommentController::class, 'destroyAdmin']);
 });
 

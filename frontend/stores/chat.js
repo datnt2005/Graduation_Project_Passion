@@ -14,7 +14,6 @@ export const useChatStore = defineStore("chat", {
     openChat(session = null) {
       this.isOpen = true;
       this.currentSession = session;
-      console.log("🔓 Opening chat with session:", session);
     },
 
     closeChat() {
@@ -114,7 +113,8 @@ export const useChatStore = defineStore("chat", {
         });
         throw new Error("Dữ liệu không hợp lệ");
       }
-
+      console.log("📨 Sending product message:", product);
+      
       const config = useRuntimeConfig();
       const API = config.public.apiBaseUrl;
       const mediaBaseUrl = config.public.mediaBaseUrl;
@@ -141,8 +141,10 @@ export const useChatStore = defineStore("chat", {
         sender: "user",
         metadata: {
           productId: product.id,
+          name: product.name,
+          price: product.price,
           variantId: product.variantId || null,
-          productLink: product.link || window.location.href,
+          slug: product.slug,
           file_url: imageUrl,
         },
       };

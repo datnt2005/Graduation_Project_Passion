@@ -6,7 +6,7 @@
 
       <main class="flex-1 p-4 sm:p-6 overflow-y-auto">
         <div class="min-h-full">
-          <h2 class="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-4">Thông báo của tôi</h2>
+          <h2 class="text-2xl text-center sm:text-3xl font-extrabold text-gray-900 mb-4">Thông báo của tôi</h2>
 
           <div class="bg-white rounded-lg shadow-sm border border-gray-200">
             <div class="flex border-b border-gray-200 relative">

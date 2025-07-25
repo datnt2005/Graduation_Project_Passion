@@ -57,7 +57,7 @@
                 </div>
                 <div class="mb-4">
                   <label class="block text-gray-700 font-bold mb-2">Link chuyển hướng (nếu có)</label>
-                  <input v-model="link" type="url" class="form-input w-full rounded-lg border border-gray-300 focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50" placeholder="https://example.com" />
+                  <input v-model="link" type="url" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="https://example.com" />
                   <p class="text-xs text-gray-500 mt-1">Nhập đường dẫn khi click vào banner sẽ chuyển hướng (có thể bỏ trống).</p>
                   <span v-if="errors.link" class="text-red-500 text-xs">{{ errors.link }}</span>
                 </div>

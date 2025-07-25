@@ -299,4 +299,22 @@ class PostController extends Controller
             ], 404);
         }
     }
+
+    public function getAllPost(Request $request)
+    {
+        try {
+            $posts = Post::with(['user', 'category'])->get();
+            return response()->json([
+                'success' => true,
+                'message' => 'Lấy danh sách bài viết',
+                'data' => $posts
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không tìm thấy bài viết',
+                'error' => $e->getMessage()
+            ], 404);
+        }
+    }
 }

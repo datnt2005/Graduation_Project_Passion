@@ -46,12 +46,8 @@
                 <!-- Mô tả -->
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-1">Nội dung</label>
-                  <Editor v-model="form.content" api-key="rlas5j7eqa6dogiwnt1ld8iilzj3q074o4rw75lsxcygu1zd" :init="{
-                    height: 300,
-                    menubar: false,
-                    plugins: 'lists link image preview',
-                    toolbar: 'undo redo | formatselect | bold italic underline | alignjustify alignleft aligncenter alignright | bullist numlist | removeformat | preview | link image | code'
-                  }" />
+                  <TiptapEditor v-model="form.content"
+                    class="w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-sm placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500" />
                   <span v-if="errors.content" class="text-red-500 text-xs mt-1">{{ errors.content }}</span>
                 </div>
 
@@ -62,7 +58,6 @@
                   <span v-if="errors.link" class="text-xs text-red-500 mt-1">{{ errors.link }}</span>
                 </div>
               </section>
-
 
               <!-- Cột phải (sidebar) -->
               <aside class="bg-white rounded border border-gray-300 shadow-sm p-3 text-xs text-gray-700 space-y-3">
@@ -141,7 +136,6 @@
                   <span v-if="errors.user_ids" class="text-red-500 text-xs mt-1 block">{{ errors.user_ids }}</span>
                 </div>
 
-
                 <!-- Kênh gửi -->
                 <div class="border border-gray-200 rounded p-3 bg-gray-50">
                   <h3 class="text-sm font-semibold mb-2 text-gray-700">Kênh gửi thông báo</h3>
@@ -191,6 +185,75 @@
         </div>
       </main>
     </div>
+
+    <!-- Notification Popup -->
+    <Teleport to="body">
+      <Transition
+        enter-active-class="transition ease-out duration-200"
+        enter-from-class="transform opacity-0 scale-95"
+        enter-to-class="transform opacity-100 scale-100"
+        leave-active-class="transition ease-in duration-100"
+        leave-from-class="transform opacity-100 scale-100"
+        leave-to-class="transform opacity-0 scale-95"
+      >
+        <div
+          v-if="showNotification"
+          class="fixed bottom-4 right-4 bg-white rounded-lg shadow-xl border border-gray-200 p-4 flex items-center space-x-3 z-[100]"
+        >
+          <div class="flex-shrink-0">
+            <svg
+              class="h-6 w-6"
+              :class="notificationType === 'success' ? 'text-green-400' : 'text-red-500'"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                v-if="notificationType === 'success'"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+              <path
+                v-if="notificationType === 'error'"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              />
+            </svg>
+          </div>
+          <div class="flex-1">
+            <p class="text-sm font-medium text-gray-900">
+              {{ notificationMessage }}
+            </p>
+          </div>
+          <div class="flex-shrink-0">
+            <button
+              @click="showNotification = false"
+              class="inline-flex text-gray-400 hover:text-gray-500 focus:outline-none"
+            >
+              <svg
+                class="h-5 w-5"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -198,12 +261,10 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import axios from 'axios'
 import { useRouter, useRuntimeConfig } from '#app'
-import Editor from '@tinymce/tinymce-vue'
-import { useNotification } from '~/composables/useNotification'
+import TiptapEditor from '@/components/TiptapEditor.vue'
 
 definePageMeta({ layout: 'default-admin' })
 
-const { showNotification } = useNotification()
 const router = useRouter()
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBaseUrl || ''
@@ -229,6 +290,19 @@ const errors = ref({})
 const loading = ref(false)
 const allUsers = ref([])
 const searchUser = ref('')
+const showNotification = ref(false)
+const notificationMessage = ref('')
+const notificationType = ref('success')
+
+// Hàm hiển thị thông báo
+const showNotificationMessage = (message, type = 'success') => {
+  notificationMessage.value = message
+  notificationType.value = type
+  showNotification.value = true
+  setTimeout(() => {
+    showNotification.value = false
+  }, 3000)
+}
 
 // Tải danh sách user (trừ admin)
 const fetchUsers = async () => {
@@ -240,6 +314,7 @@ const fetchUsers = async () => {
     allUsers.value = res.data.filter(user => user.role !== 'admin')
   } catch (error) {
     console.error('Lỗi khi tải danh sách người dùng:', error)
+    showNotificationMessage('Không thể tải danh sách người dùng', 'error')
   }
 }
 onMounted(fetchUsers)
@@ -315,7 +390,7 @@ const submitNotification = async (status) => {
       }
     })
 
-    showNotification(res.data?.message || 'Tạo thông báo thành công!', 'success')
+    showNotificationMessage(res.data?.message || 'Tạo thông báo thành công!', 'success')
 
     form.value = {
       title: '',
@@ -336,21 +411,18 @@ const submitNotification = async (status) => {
       errors.value = validationErrors
       Object.values(validationErrors).forEach((errMsgs) => {
         if (Array.isArray(errMsgs)) {
-          errMsgs.forEach((msg) => showNotification(msg, 'error'))
+          errMsgs.forEach((msg) => showNotificationMessage(msg, 'error'))
         }
       })
     } else {
       const message = err?.response?.data?.message || 'Đã xảy ra lỗi, vui lòng thử lại.'
-      showNotification(message, 'error')
+      showNotificationMessage(message, 'error')
     }
   } finally {
     loading.value = false
   }
 }
-
 </script>
-
-
 
 <style scoped>
 .fade-enter-active,

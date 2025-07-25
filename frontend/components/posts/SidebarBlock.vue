@@ -7,7 +7,7 @@
       <NuxtLink
         v-for="item in posts"
         :key="item.id"
-        :to="`/posts/${item.id}`"
+        :to="`/posts/${item.slug}`"
         class="flex gap-3 items-center hover:bg-blue-50 rounded transition p-2 -m-2"
       >
         <img v-if="item.thumbnail_url" :src="item.thumbnail_url" alt="thumb" class="w-16 h-12 object-cover rounded" />

@@ -4,7 +4,7 @@
       <SidebarProfile class="flex-shrink-0 border-r border-gray-200 md:w-64 mb-4 md:mb-0" />
       <main class="flex-1 p-0 md:p-4">
         <div class=" mx-auto">
-          <h2 class="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-2 text-left">Kho Voucher</h2>
+          <h2 class="text-2xl text-center sm:text-3xl font-extrabold text-gray-900 mb-2 text-left">Kho Voucher</h2>
           <div class="flex flex-col sm:flex-row sm:items-center gap-2 mb-4">
             <div class="flex-1 flex items-center bg-white rounded border border-gray-200 px-3 py-2">
               <span class="text-gray-500 text-sm mr-2 whitespace-nowrap">Mã Voucher</span>
