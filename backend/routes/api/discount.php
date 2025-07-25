@@ -6,11 +6,13 @@ use App\Http\Controllers\DiscountSellerController;
 
 Route::get('/discounts/all', [\App\Http\Controllers\DiscountController::class, 'indexPublic']);    
 Route::get('/discounts/seller/{sellerId}', [\App\Http\Controllers\DiscountController::class, 'getSellerDiscounts']);    
+    Route::get('/sellers/store/{slug}/discounts', [DiscountController::class, 'getStoreDiscounts']);
 
 // Các route dành cho user đã đăng nhập
 Route::middleware(['auth:sanctum', 'checkRole:user,seller,admin'])->group(function () {
     Route::get('/discounts/my-vouchers', [DiscountController::class, 'myVouchers']);
     Route::post('/discounts/save-by-code', [DiscountController::class, 'saveVoucherByCode']);
+    Route::post('/discounts/check', [DiscountController::class, 'checkVoucher']);
     Route::delete('/discounts/my-voucher/{id}', [DiscountController::class, 'deleteUserVoucher']);
 });
 

@@ -1,30 +1,112 @@
 <template>
   <main class="bg-[#F5F5FA] py-2">
     <div class="container bg-white p-4 min-h-screen shadow w-full mx-auto mt-4" v-if="seller">
-      <div v-if="loading" class="text-center py-4 text-gray-500">Đang tải thông tin cửa hàng...</div>
-      <div v-else>
-        <!-- Header: Thông tin shop -->
+      <div v-if="loading" class="animate-pulse">
+        <!-- Skeleton for Shop Header -->
         <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div class="flex items-center gap-4">
-            <div class="w-14 h-14 bg-gray-200 rounded-full flex items-center justify-center text-2xl">
-              <img v-if="seller.avatar"
-                :src="seller.avatar.startsWith('http') ? seller.avatar : `${mediaBase}${seller.avatar}`" alt="Avatar"
-                class="w-full h-full rounded-full object-cover" />
-              <span v-else>📘</span>
-            </div>
-            <div>
-              <h2 class="font-semibold text-lg">{{ seller.store_name }}</h2>
-              <div class="flex items-center text-sm text-gray-500 space-x-2">
-                <span class="text-yellow-500 flex items-center gap-1">
-                  ★ {{ seller.rating || 'Chưa có đánh giá' }}
-                </span>
-                <span class="text-blue-700 flex items-center gap-1">
-                  | {{ followerCount }} người theo dõi
-                </span>
+          <div class="flex flex-col gap-4">
+            <div class="flex items-center gap-4">
+              <div class="w-14 h-14 bg-gray-200 rounded-full"></div>
+              <div class="space-y-2">
+                <div class="h-6 w-40 bg-gray-200 rounded"></div>
+                <div class="flex items-center text-sm text-gray-500 space-x-2">
+                  <div class="h-4 w-20 bg-gray-200 rounded"></div>
+                  <div class="h-4 w-28 bg-gray-200 rounded"></div>
+                </div>
               </div>
             </div>
+            <!-- Skeleton for Quick Vouchers -->
+            <div class="flex flex-wrap gap-2">
+              <div v-for="n in 3" :key="n" class="h-12 w-32 bg-gray-200 rounded-lg"></div>
+            </div>
           </div>
-
+          <div class="flex space-x-2">
+            <div class="h-8 w-20 bg-gray-200 rounded"></div>
+            <div class="h-8 w-28 bg-gray-200 rounded"></div>
+          </div>
+        </div>
+        <!-- Skeleton for Navigation and Search -->
+        <div class="mt-6 border-t pt-6 flex flex-col lg:flex-row justify-between gap-4">
+          <div class="flex flex-wrap gap-3">
+            <div v-for="n in 4" :key="n" class="h-8 w-24 bg-gray-200 rounded-md"></div>
+          </div>
+          <div class="w-full lg:w-1/4">
+            <div class="h-10 bg-gray-200 rounded"></div>
+          </div>
+        </div>
+        <!-- Skeleton for Content Area -->
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mt-6">
+          <aside class="bg-white p-5 border-r min-h-screen col-span-1">
+            <div class="h-6 w-40 bg-gray-200 rounded mb-4"></div>
+            <ul class="space-y-2">
+              <li v-for="n in 5" :key="n" class="h-8 w-full bg-gray-200 rounded"></li>
+            </ul>
+          </aside>
+          <section class="col-span-1 md:col-span-4">
+            <div class="bg-white p-3 shadow rounded mb-4 flex flex-wrap justify-between items-center">
+              <div class="h-6 w-48 bg-gray-200 rounded mb-2 md:mb-0"></div>
+              <div class="flex flex-wrap gap-3">
+                <div v-for="n in 5" :key="n" class="h-8 w-20 bg-gray-200 rounded"></div>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-5">
+              <div v-for="n in 15" :key="n" class="bg-white p-3 shadow rounded">
+                <div class="h-40 bg-gray-200 rounded mb-2"></div>
+                <div class="h-4 bg-gray-200 rounded mb-2"></div>
+                <div class="h-4 w-1/2 bg-gray-200 rounded"></div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+      <div v-else>
+        <!-- Header: Shop Information -->
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div class="flex flex-col gap-4">
+            <div class="flex items-center gap-4">
+              <div class="w-14 h-14 bg-gray-200 rounded-full flex items-center justify-center text-2xl">
+                <img v-if="seller.avatar"
+                  :src="seller.avatar.startsWith('http') ? seller.avatar : `${mediaBase}${seller.avatar}`" alt="Avatar"
+                  class="w-full h-full rounded-full object-cover" />
+                <span v-else>📘</span>
+              </div>
+              <div>
+                <h2 class="font-semibold text-lg">{{ seller.store_name }}</h2>
+                <div class="flex items-center text-sm text-gray-500 space-x-2">
+                  <span class="text-yellow-500 flex items-center gap-1">
+                    ★ {{ seller.rating || 'Chưa có đánh giá' }}
+                  </span>
+                  <span class="text-blue-700 flex items-center gap-1">
+                    | {{ followerCount }} người theo dõi
+                  </span>
+                </div>
+              </div>
+            </div>
+            <!-- Quick Voucher Selection -->
+            <div v-if="quickVouchers.length > 0" class="flex flex-wrap gap-3">
+              <div v-for="voucher in quickVouchers" :key="voucher.id"
+                class="relative flex items-center bg-white border border-gray-200 rounded-lg shadow-md p-3 hover:shadow-lg transition-all duration-200 w-full sm:w-auto"
+                :class="{ 'opacity-50': isVoucherUnavailable(voucher) }">
+                <div class="flex-1">
+                  <span class="text-sm font-bold text-red-600">{{ voucher.discount_value }}</span>
+                  <span class="text-xs text-gray-600 ml-1">Giảm</span>
+                  <div class="text-xs text-gray-500">Đơn từ {{ formatCurrency(voucher.min_order_value) }}</div>
+                </div>
+                <button @click="handleVoucherAction(voucher)" :disabled="isVoucherUnavailable(voucher)"
+                  class="text-xs font-semibold px-2 py-1 rounded-full transition-all duration-200 border" :class="{
+                    'bg-white text-blue-600 border-blue-500 hover:bg-blue-50': voucher.is_saved && !isVoucherUnavailable(voucher),
+                    'bg-blue-600 text-white border-blue-600 hover:bg-blue-700': !voucher.is_saved && !isVoucherUnavailable(voucher),
+                    'bg-gray-400 text-white border-gray-400 cursor-not-allowed': isVoucherUnavailable(voucher)
+                  }">
+                  {{ voucher.is_saved ? 'Dùng' : 'Lưu' }}
+                </button>
+              </div>
+            </div>
+            <div v-else-if="loadingVouchers" class="flex flex-wrap gap-2 animate-pulse">
+              <div v-for="n in 3" :key="n" class="h-12 w-32 bg-gray-200 rounded-lg"></div>
+            </div>
+            <div v-else class="text-sm text-gray-500">Không có voucher nào khả dụng.</div>
+          </div>
           <div class="flex space-x-2">
             <button v-if="isLoggedIn && isNotOwner"
               class="border px-3 py-1 rounded hover:bg-gray-100 transition text-sm">
@@ -78,11 +160,12 @@
             <h3 class="font-semibold text-base mb-4 text-gray-800 border-b pb-2">Tất cả danh mục</h3>
             <ul class="space-y-2 text-gray-700 text-sm">
               <li v-for="category in uniqueCategories" :key="category">
-                <a href="#" @click.prevent="filterByCategory(category)" class="block px-3 py-2 rounded transition" :class="[
-                  selectedCategory === category
-                    ? 'bg-blue-100 text-blue-600 font-semibold'
-                    : 'hover:bg-blue-50 hover:text-blue-600 text-gray-700'
-                ]">
+                <a href="#" @click.prevent="filterByCategory(category)" class="block px-3 py-2 rounded transition"
+                  :class="[
+                    selectedCategory === category
+                      ? 'bg-blue-100 text-blue-600 font-semibold'
+                      : 'hover:bg-blue-50 hover:text-blue-600 text-gray-700'
+                  ]">
                   {{ category }}
                 </a>
               </li>
@@ -108,7 +191,15 @@
                   </button>
                 </div>
               </div>
-              <div v-if="loading" class="text-center py-4 text-gray-500">Đang tải sản phẩm...</div>
+              <div v-if="loading" class="animate-pulse">
+                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-5">
+                  <div v-for="n in 15" :key="n" class="bg-white p-3 shadow rounded">
+                    <div class="h-40 bg-gray-200 rounded mb-2"></div>
+                    <div class="h-4 bg-gray-200 rounded mb-2"></div>
+                    <div class="h-4 w-1/2 bg-gray-200 rounded"></div>
+                  </div>
+                </div>
+              </div>
               <div v-else-if="error" class="text-center py-4 text-red-500">Lỗi: {{ error }}</div>
               <div v-else-if="filteredProducts.length === 0" class="text-center py-8 text-gray-400 text-base">
                 Không có sản phẩm nào phù hợp.
@@ -117,7 +208,8 @@
                 <ProductCard v-for="product in filteredProducts" :key="product.id" :item="product" />
               </div>
               <!-- Pagination -->
-              <div class="mt-8 flex justify-center items-center gap-1 text-sm flex-wrap" v-if="pagination.last_page > 1">
+              <div class="mt-8 flex justify-center items-center gap-1 text-sm flex-wrap"
+                v-if="pagination.last_page > 1">
                 <button
                   class="px-3 py-1 rounded-full border border-gray-300 bg-white shadow-sm hover:bg-blue-50 hover:border-blue-400 transition disabled:opacity-50 disabled:cursor-not-allowed"
                   :disabled="pagination.current_page === 1" @click="changePage(pagination.current_page - 1)">
@@ -145,7 +237,15 @@
             <div v-if="activeTab === 'Giá sốc hôm nay'">
               <div class="bg-white p-3 shadow rounded mb-4">
                 <h3 class="font-semibold text-base mb-4 text-gray-800">Giá sốc hôm nay</h3>
-                <div v-if="loadingDeals" class="text-center py-4 text-gray-500">Đang tải ưu đãi...</div>
+                <div v-if="loadingDeals" class="animate-pulse">
+                  <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-5">
+                    <div v-for="n in 18" :key="n" class="bg-white p-3 shadow rounded">
+                      <div class="h-40 bg-gray-200 rounded mb-2"></div>
+                      <div class="h-4 bg-gray-200 rounded mb-2"></div>
+                      <div class="h-4 w-1/2 bg-gray-200 rounded"></div>
+                    </div>
+                  </div>
+                </div>
                 <div v-else-if="errorDeals" class="text-center py-4 text-red-500">Lỗi: {{ errorDeals }}</div>
                 <div v-else-if="dealProducts.length === 0" class="text-center py-8 text-gray-400 text-base">
                   Không có ưu đãi nào hôm nay.
@@ -162,24 +262,29 @@
                 class="bg-white p-6 shadow-lg rounded-xl border border-gray-100 transform transition-all duration-300 hover:shadow-xl">
                 <h3 class="font-bold text-xl mb-6 text-gray-900 border-b-2 border-blue-100 pb-3">Hồ sơ cửa hàng</h3>
                 <div v-if="isLoggedIn && !isNotOwner" class="mb-4 bg-green-50 p-4 rounded-lg">
-                  <p class="text-sm text-green-700">Quản lý cửa hàng của bạn: chỉnh sửa thông tin, xem đơn hàng, hoặc theo dõi người theo dõi.</p>
+                  <p class="text-sm text-green-700">Quản lý cửa hàng của bạn: chỉnh sửa thông tin, xem đơn hàng, hoặc
+                    theo dõi người theo dõi.</p>
                   <div class="mt-2 flex flex-wrap space-x-2">
-                    <button class="border px-3 py-1 rounded hover:bg-gray-100 transition text-sm flex items-center gap-2"
+                    <button
+                      class="border px-3 py-1 rounded hover:bg-gray-100 transition text-sm flex items-center gap-2"
                       @click="editStoreProfile">
                       <font-awesome-icon :icon="['fas', 'edit']" />
                       Chỉnh sửa hồ sơ
                     </button>
-                    <button class="border px-3 py-1 rounded hover:bg-gray-100 transition text-sm flex items-center gap-2"
+                    <button
+                      class="border px-3 py-1 rounded hover:bg-gray-100 transition text-sm flex items-center gap-2"
                       @click="manageProducts">
                       <font-awesome-icon :icon="['fas', 'box']" />
                       Quản lý sản phẩm
                     </button>
-                    <button class="border px-3 py-1 rounded hover:bg-gray-100 transition text-sm flex items-center gap-2"
+                    <button
+                      class="border px-3 py-1 rounded hover:bg-gray-100 transition text-sm flex items-center gap-2"
                       @click="manageOrders">
                       <font-awesome-icon :icon="['fas', 'shopping-cart']" />
                       Quản lý đơn hàng
                     </button>
-                    <button class="border px-3 py-1 rounded hover:bg-gray-100 transition text-sm flex items-center gap-2"
+                    <button
+                      class="border px-3 py-1 rounded hover:bg-gray-100 transition text-sm flex items-center gap-2"
                       @click="viewFollowers">
                       <font-awesome-icon :icon="['fas', 'users']" />
                       Xem người theo dõi
@@ -216,7 +321,6 @@
                       </div>
                       <span class="text-gray-900 font-medium">{{ seller.total_products || '0' }}+</span>
                     </div>
-                    
                   </div>
                   <div class="space-y-6">
                     <div
@@ -250,7 +354,7 @@
                         <h4 class="text-blue-700 font-semibold text-lg">Người theo dõi</h4>
                       </div>
                       <div class="flex items-center justify-between">
-                        <span class="text-gray-600 text-sm">Tổng số</span>
+                        <span class="text-gray-700 text-sm">Tổng số</span>
                         <span class="text-blue-700 font-bold text-2xl">{{ followerCount || '0' }}+</span>
                       </div>
                     </div>
@@ -274,68 +378,92 @@
             <div v-if="activeTab === 'Voucher của shop'" class="py-6">
               <div class="bg-white p-6 shadow-lg rounded-xl border border-gray-100">
                 <h3 class="font-bold text-xl mb-6 text-gray-900 border-b-2 border-blue-100 pb-3">Voucher của shop</h3>
-                <div v-if="loadingVouchers" class="text-center py-4 text-gray-500">Đang tải voucher...</div>
+                <div v-if="loadingVouchers" class="animate-pulse">
+                  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div v-for="n in 9" :key="n" class="flex items-center bg-gray-200 rounded-lg p-3">
+                      <div class="w-16 h-16 bg-gray-300 rounded-lg mr-3"></div>
+                      <div class="flex-1 space-y-2">
+                        <div class="h-4 w-24 bg-gray-300 rounded"></div>
+                        <div class="h-4 w-32 bg-gray-300 rounded"></div>
+                        <div class="h-3 w-20 bg-gray-300 rounded"></div>
+                      </div>
+                      <div class="h-8 w-20 bg-gray-300 rounded-full"></div>
+                    </div>
+                  </div>
+                </div>
                 <div v-else-if="errorVouchers" class="text-center py-4 text-red-500">Lỗi: {{ errorVouchers }}</div>
                 <div v-else-if="vouchers.length === 0" class="text-center py-8 text-gray-400 text-base">
                   Không có voucher nào hiện tại.
                 </div>
                 <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div v-for="voucher in vouchers" :key="voucher.id"
-                    class="relative bg-white border border-blue-200 shadow-sm rounded-xl flex items-center justify-between w-full max-w-md mb-4 overflow-hidden hover:shadow-md transition">
-                    <!-- Left Content -->
-                    <div class="p-4 flex-1">
-                      <div class="text-blue-700 font-bold text-base mb-1">
-                        Giảm
-                        <span v-if="voucher.discount_type === 'percentage'">
-                          {{ formatDiscountValue(voucher.discount_value) }}%
-                          <span v-if="voucher.max_discount">tối đa {{ formatCurrency(voucher.max_discount) }}</span>
-                        </span>
-                        <span v-else>
-                          {{ formatCurrency(voucher.discount_value) }}
-                        </span>
-                      </div>
-                      <div class="text-sm text-gray-600 mb-1">
-                        Đơn tối thiểu {{ formatCurrency(voucher.min_order_value) }}
-                      </div>
-                      <div class="mt-2 text-xs text-gray-700 space-y-1">
-                        <div v-if="voucher.products && voucher.products.length">
-                          Áp dụng cho sản phẩm:
-                          <span v-for="(product, idx) in voucher.products" :key="idx"
-                            class="inline-block bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs mr-1">
-                            {{ product.name }}
-                          </span>
-                        </div>
-                        <div v-if="voucher.categories && voucher.categories.length">
-                          Áp dụng cho danh mục:
-                          <span v-for="(category, idx) in voucher.categories" :key="idx"
-                            class="inline-block bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs mr-1">
-                            {{ category.name }}
-                          </span>
-                        </div>
-                        <div v-if="voucher.users && voucher.users.length">
-                          Chỉ dành cho người dùng:
-                          <span v-for="(user, idx) in voucher.users" :key="idx"
-                            class="inline-block bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full text-xs mr-1">
-                            {{ user.name }}
-                          </span>
+                    class="relative flex items-center bg-white border border-gray-200 rounded-lg shadow-md p-3 hover:shadow-lg transition-all duration-200"
+                    :class="{ 'opacity-50': isVoucherUnavailable(voucher) }">
+                    <!-- Usage Limit Badge -->
+                    <div v-if="voucher.usage_limit !== null && !isVoucherUsedUp(voucher)"
+                      class="absolute top-2 right-2 bg-red-400 text-white text-xs font-bold px-2 py-1 rounded-full">
+                      x{{ voucher.usage_limit - voucher.used_count }}
+                    </div>
+                    <!-- Left Section: Brand Logo or Initial -->
+                    <div
+                      class="flex-shrink-0 w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center mr-3 overflow-hidden">
+                      <img v-if="voucher.seller"
+                        :src="voucher.seller.avatar.startsWith('http') ? voucher.seller.avatar : `${mediaBase}${voucher.seller.avatar}`"
+                        alt="Brand" class="w-full h-full object-cover" />
+                      <span v-else class="text-2xl text-gray-600">{{ getBrandInitial(voucher) }}</span>
+                    </div>
+                    <!-- Voucher Details -->
+                    <div class="flex-1">
+                      <div class="flex items-center justify-between mb-2">
+                        <div>
+                          <span class="text-xl font-bold text-red-600">{{ voucher.discount_value }}</span>
+                          <span class="text-sm text-gray-600 ml-1">Giảm</span>
                         </div>
                       </div>
-                      <div class="text-xs mt-2" :class="isVoucherExpired(voucher) ? 'text-red-500' : 'text-gray-500'">
-                        {{ isVoucherExpired(voucher) ? 'Đã hết hạn' : 'HSD: ' + formatDate(voucher.end_date) }}
-                      </div>
-                      <div v-if="isVoucherUsedUp(voucher)" class="text-xs text-red-500 mt-1">
-                        Hết lượt sử dụng
+                      <div class="text-sm text-gray-600">Đơn từ {{ formatCurrency(voucher.min_order_value) }}</div>
+                      <div class="text-xs text-gray-500 mt-1">Hết hạn: {{ formatDate(voucher.end_date) }}</div>
+                      <!-- Product Info (if applicable) -->
+                      <div v-if="voucher.products && voucher.products.length" class="text-xs text-blue-500 mt-1">
+                        Sản phẩm nhất định
                       </div>
                     </div>
-                    <div class="border-l border-blue-100 h-full flex items-center justify-center px-4 bg-white">
-                      <button
-                        @click="!isVoucherUnavailable(voucher) && (voucher.is_saved ? goToUseVoucher(voucher) : saveVoucher(voucher.code))"
-                        :disabled="isVoucherUnavailable(voucher)"
-                        class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded disabled:bg-gray-400 disabled:cursor-not-allowed">
-                        {{ isVoucherUnavailable(voucher) ? 'Không khả dụng' : (voucher.is_saved ? 'Dùng sau' : 'Lưu') }}
+                    <!-- Action Button -->
+                    <div class="ml-3">
+                      <button @click="handleVoucherAction(voucher)" :disabled="isVoucherUnavailable(voucher)"
+                        class="text-sm font-semibold px-4 py-2 rounded-full transition-all duration-200 border" :class="{
+                          'bg-white text-blue-600 border-blue-500 hover:bg-blue-50': voucher.is_saved && !isVoucherUnavailable(voucher),
+                          'bg-blue-600 text-white border-blue-600 hover:bg-blue-700': !voucher.is_saved && !isVoucherUnavailable(voucher),
+                          'bg-gray-400 text-white border-gray-400 cursor-not-allowed': isVoucherUnavailable(voucher)
+                        }">
+                        {{ voucher.is_saved ? 'Dùng ngay' : 'Lưu' }}
                       </button>
                     </div>
                   </div>
+                </div>
+                <!-- Pagination for Vouchers -->
+                <div class="mt-8 flex justify-center items-center gap-1 text-sm flex-wrap"
+                  v-if="voucherPagination.last_page > 1">
+                  <button
+                    class="px-3 py-1 rounded-full border border-gray-300 bg-white shadow-sm hover:bg-blue-50 hover:border-blue-400 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    :disabled="voucherPagination.current_page === 1"
+                    @click="fetchVouchers(voucherPagination.current_page - 1)">
+                    <i class="fas fa-chevron-left mr-1"></i>
+                  </button>
+                  <template v-for="(page, i) in visibleVoucherPages" :key="i">
+                    <span v-if="page === '…'" class="px-3 py-1 text-gray-400 font-semibold select-none">…</span>
+                    <button v-else class="px-3 py-1 rounded-full border transition font-semibold shadow-sm" :class="page === voucherPagination.current_page
+                      ? 'bg-[#1BA0E2] text-white border-[#1BA0E2] shadow-md sm:scale-100 md:scale-105'
+                      : 'bg-white border-gray-300 hover:bg-blue-50 hover:border-blue-400 text-gray-700'"
+                      @click="fetchVouchers(page)">
+                      {{ page }}
+                    </button>
+                  </template>
+                  <button
+                    class="px-3 py-1 rounded-full border border-gray-300 bg-white shadow-sm hover:bg-blue-50 hover:border-blue-400 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    :disabled="voucherPagination.current_page === voucherPagination.last_page"
+                    @click="fetchVouchers(voucherPagination.current_page + 1)">
+                    <i class="fas fa-chevron-right ml-1"></i>
+                  </button>
                 </div>
               </div>
             </div>
@@ -344,14 +472,16 @@
       </div>
     </div>
     <div v-else-if="error" class="text-center py-4 text-red-500">Lỗi: {{ error }}</div>
-    <div v-else class="text-center py-4 text-gray-500">Đang tải...</div>
+    <div v-else class="text-center py-4 text-gray-500 animate-pulse">
+      <div class="h-8 w-40 bg-gray-200 rounded mx-auto"></div>
+    </div>
   </main>
   <AuthModal :show="showModal" :initial-mode="modalMode" @close="showModal = false"
     @login-success="handleLoginSuccess" />
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
 import { useAuthStore } from '@/stores/auth';
@@ -361,8 +491,7 @@ import { useToast } from '~/composables/useToast';
 import { debounce } from 'lodash';
 import { useRuntimeConfig } from '#imports';
 import { useDiscount } from '~/composables/useDiscount';
-import AuthModal from "~/components/shared/AuthModal.vue";
-
+import AuthModal from '~/components/shared/AuthModal.vue';
 
 const { toast } = useToast();
 const route = useRoute();
@@ -372,7 +501,7 @@ const config = useRuntimeConfig();
 const { saveVoucherByCode } = useDiscount();
 const apiBase = config.public.apiBaseUrl;
 const mediaBase = config.public.mediaBaseUrl;
-const modalMode = ref("login");
+const modalMode = ref('login');
 const showModal = ref(false);
 
 const seller = ref(null);
@@ -380,6 +509,7 @@ const products = ref([]);
 const filteredProducts = ref([]);
 const dealProducts = ref([]);
 const vouchers = ref([]);
+const quickVouchers = ref([]);
 const searchQuery = ref('');
 const selectedCategory = ref('');
 const isFollowing = ref(false);
@@ -393,6 +523,11 @@ const error = ref(null);
 const errorDeals = ref(null);
 const errorVouchers = ref(null);
 const pagination = ref({
+  current_page: 1,
+  last_page: 1,
+  total: 0,
+});
+const voucherPagination = ref({
   current_page: 1,
   last_page: 1,
   total: 0,
@@ -424,22 +559,43 @@ const visiblePages = computed(() => {
   const total = pagination.value.last_page;
   const current = pagination.value.current_page;
   const range = [];
-
   if (total <= 7) {
     for (let i = 1; i <= total; i++) range.push(i);
   } else {
     if (current <= 4) {
-      range.push(1, 2, 3, 4, 5, '...', total);
+      range.push(1, 2, 3, 4, 5, '…', total);
     } else if (current >= total - 3) {
-      range.push(1, '...', total - 4, total - 3, total - 2, total - 1, total);
+      range.push(1, '…', total - 4, total - 3, total - 2, total - 1, total);
     } else {
-      range.push(1, '...', current - 1, current, current + 1, '...', total);
+      range.push(1, '…', current - 1, current, current + 1, '…', total);
+    }
+  }
+  return range;
+});
+
+const visibleVoucherPages = computed(() => {
+  const total = voucherPagination.value.last_page;
+  const current = voucherPagination.value.current_page;
+  const range = [];
+  if (total <= 7) {
+    for (let i = 1; i <= total; i++) range.push(i);
+  } else {
+    if (current <= 4) {
+      range.push(1, 2, 3, 4, 5, '…', total);
+    } else if (current >= total - 3) {
+      range.push(1, '…', total - 4, total - 3, total - 2, total - 1, total);
+    } else {
+      range.push(1, '…', current - 1, current, current + 1, '…', total);
     }
   }
   return range;
 });
 
 const handleApiError = async (err, callback) => {
+  if (err.response?.status === 409) {
+    toast('warning', 'Bạn đã lưu voucher này rồi!');
+    return { success: false, message: 'Bạn đã lưu voucher này rồi' };
+  }
   if (err.response?.status === 401) {
     try {
       await auth.refreshToken();
@@ -447,19 +603,17 @@ const handleApiError = async (err, callback) => {
     } catch (refreshErr) {
       toast('error', 'Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.');
       openLoginModal();
-      return false;
+      return { success: false, message: 'Phiên đăng nhập hết hạn' };
     }
   }
   toast('error', err.response?.data?.message || 'Có lỗi xảy ra.');
-  return false;
+  return { success: false, message: err.response?.data?.message || 'Có lỗi xảy ra' };
 };
 
 function openLoginModal() {
-  console.log("openLoginModal called");
-  modalMode.value = "login";
+  modalMode.value = 'login';
   showModal.value = true;
 }
-
 
 const goToDashboard = () => { router.push('/seller/dashboard'); };
 const editStoreProfile = () => { router.push('/seller/profile/edit'); };
@@ -506,7 +660,7 @@ const fetchSeller = async (page = 1) => {
   } catch (err) {
     console.error('Error fetching seller:', err);
     const success = await handleApiError(err, () => fetchSeller(page));
-    if (!success) error.value = err.response?.data?.message || 'Không thể tải dữ liệu cửa hàng.';
+    if (!success.success) error.value = err.response?.data?.message || 'Không thể tải dữ liệu cửa hàng.';
   } finally {
     loading.value = false;
   }
@@ -534,38 +688,53 @@ const fetchDeals = async () => {
   } catch (err) {
     console.error('Error fetching deals:', err);
     const success = await handleApiError(err, () => fetchDeals());
-    if (!success) errorDeals.value = err.response?.data?.message || 'Không thể tải ưu đãi hôm nay.';
+    if (!success.success) errorDeals.value = err.response?.data?.message || 'Không thể tải ưu đãi hôm nay.';
   } finally {
     loadingDeals.value = false;
   }
 };
 
-const fetchVouchers = async () => {
+const fetchVouchers = async (page = 1, limit = 9) => {
   if (!seller.value) return;
   try {
     loadingVouchers.value = true;
     errorVouchers.value = null;
     const res = await axios.get(`${apiBase}/sellers/store/${route.params.slug}/discounts`, {
+      params: { page, per_page: limit },
       headers: isLoggedIn.value ? { Authorization: `Bearer ${localStorage.getItem('access_token')}` } : {},
     });
-    vouchers.value = res.data.data.map(voucher => ({
-      ...voucher,
-      discount_type: voucher.discount_type || 'fixed',
-      discount_value: parseFloat(voucher.discount_value) || 0,
-      max_discount: parseFloat(voucher.max_discount) || 0,
-      min_order_value: parseFloat(voucher.min_order_value) || 0,
-      end_date: voucher.end_date || 'N/A',
-      is_saved: voucher.is_saved || false,
-      products: Array.isArray(voucher.products) ? voucher.products : [],
-      categories: Array.isArray(voucher.categories) ? voucher.categories : [],
-      users: Array.isArray(voucher.users) ? voucher.users : [],
-      usage_limit: voucher.usage_limit !== null ? parseInt(voucher.usage_limit) : null,
-      used_count: parseInt(voucher.used_count) || 0,
-    }));
+    const { vouchers: voucherData, pagination } = res.data.data;
+
+    const currentVouchers = new Map(vouchers.value.map(v => [v.code, v.is_saved]));
+    const newVouchers = voucherData.map(voucher => {
+      const isSaved = currentVouchers.has(voucher.code) ? currentVouchers.get(voucher.code) : (voucher.is_saved || false);
+      return {
+        ...voucher,
+        discount_type: voucher.discount_type || 'fixed',
+        min_order_value: voucher.min_order_value,
+        end_date: voucher.end_date || 'N/A',
+        is_saved: isSaved,
+        products: Array.isArray(voucher.products) ? voucher.products : [],
+        usage_limit: voucher.usage_limit !== null ? parseInt(voucher.usage_limit) : null,
+        used_count: parseInt(voucher.used_count) || 0,
+        brandImage: voucher.brand_image || null,
+      };
+    });
+
+    vouchers.value = newVouchers;
+    quickVouchers.value = newVouchers
+      .filter(voucher => !isVoucherUnavailable(voucher))
+      .slice(0, 3);
+
+    voucherPagination.value = {
+      current_page: parseInt(pagination.current_page) || 1,
+      last_page: parseInt(pagination.last_page) || 1,
+      total: parseInt(pagination.total) || 0,
+    };
   } catch (err) {
     console.error('Error fetching vouchers:', err);
-    const success = await handleApiError(err, () => fetchVouchers());
-    if (!success) errorVouchers.value = err.response?.data?.message || 'Không thể tải danh sách voucher.';
+    const success = await handleApiError(err, () => fetchVouchers(page, limit));
+    if (!success.success) errorVouchers.value = err.response?.data?.message || 'Không thể tải danh sách voucher.';
   } finally {
     loadingVouchers.value = false;
   }
@@ -574,30 +743,36 @@ const fetchVouchers = async () => {
 const saveVoucher = async (code) => {
   if (!isLoggedIn.value) {
     openLoginModal();
-    return;
+    return { success: false, message: 'Vui lòng đăng nhập để lưu voucher' };
   }
   try {
     const res = await saveVoucherByCode(code);
     if (res.success) {
-      vouchers.value = vouchers.value.map(voucher =>
-        voucher.code === code ? { ...voucher, is_saved: true } : voucher
-      );
       toast('success', res.message || 'Đã lưu voucher thành công!');
-      await fetchVouchers();
+      vouchers.value = vouchers.value.map(v =>
+        v.code === code ? { ...v, is_saved: true } : v
+      );
+      quickVouchers.value = quickVouchers.value.map(v =>
+        v.code === code ? { ...v, is_saved: true } : v
+      );
+      return res;
     } else {
-      toast('error', res.message || 'Không thể lưu voucher.');
+      toast('warning', res.message || 'Không thể lưu voucher.');
+      return res;
     }
   } catch (err) {
     console.error('Error saving voucher:', err);
-    toast('error', err.response?.data?.message || 'Không thể lưu voucher.');
+    const result = await handleApiError(err, () => saveVoucher(code));
+    if (!result.success) {
+      toast('error', err.response?.data?.message || 'Không thể lưu voucher.');
+    }
+    return result;
   }
 };
 
 const goToUseVoucher = (voucher) => {
-  if (voucher.products && voucher.products.length > 0) {
-    router.push(`/products/${voucher.products[0].id}?voucher=${voucher.code}`);
-  } else {
-    router.push(`/checkout?voucher=${voucher.code}`);
+  if (voucher.seller) {
+    router.push(`/seller/${voucher.seller.store_slug}`);
   }
 };
 
@@ -636,7 +811,7 @@ const toggleFollow = async () => {
   } catch (err) {
     console.error('Error toggling follow:', err);
     const success = await handleApiError(err, () => toggleFollow());
-    if (!success) toast('error', err.response?.data?.message || 'Lỗi khi thao tác theo dõi.');
+    if (!success.success) toast('error', err.response?.data?.message || 'Lỗi khi thao tác theo dõi.');
   } finally {
     isFollowLoading.value = false;
   }
@@ -647,8 +822,6 @@ const formatPrice = (price) => price !== null && price !== undefined
   : 'Liên hệ';
 
 const formatCurrency = (value) => formatPrice(value);
-
-const formatDiscountValue = (value) => Math.round(value);
 
 const formatDate = (dateString) => {
   if (!dateString || dateString === 'N/A') return 'Chưa xác định';
@@ -695,7 +868,7 @@ const changePage = (page) => {
 const setActiveTab = (tab) => {
   activeTab.value = tab;
   if (tab === 'Giá sốc hôm nay') fetchDeals();
-  else if (tab === 'Voucher của shop') fetchVouchers();
+  else if (tab === 'Voucher của shop' && vouchers.value.length === 0) fetchVouchers();
   if (tab !== 'Cửa hàng') {
     searchQuery.value = '';
     selectedCategory.value = '';
@@ -714,6 +887,33 @@ const updateQueryParams = () => {
   router.push({ path: route.path, query });
 };
 
+const getBrandInitial = (voucher) => {
+  return voucher.name ? voucher.name.charAt(0).toUpperCase() : 'V';
+};
+
+const handleVoucherAction = async (voucher) => {
+  if (isVoucherUnavailable(voucher)) return;
+  if (voucher.is_saved) {
+    goToUseVoucher(voucher);
+  } else {
+    const result = await saveVoucher(voucher.code);
+    if (result.success) {
+      vouchers.value = vouchers.value.map(v =>
+        v.code === voucher.code ? { ...v, is_saved: true } : v
+      );
+      quickVouchers.value = quickVouchers.value.map(v =>
+        v.code === voucher.code ? { ...v, is_saved: true } : v
+      );
+      toast('success', 'Đã lưu voucher thành công!');
+    }
+  }
+};
+
+const handleLoginSuccess = () => {
+  showModal.value = false;
+  fetchVouchers(voucherPagination.value.current_page);
+};
+
 onMounted(async () => {
   try {
     await auth.fetchUser();
@@ -725,10 +925,11 @@ onMounted(async () => {
     }
     const page = parseInt(route.query.page) || 1;
     await fetchSeller(page);
+    await fetchVouchers(1, 9);
     if (route.query.tab) {
       activeTab.value = tabs.includes(route.query.tab) ? route.query.tab : 'Cửa hàng';
       if (activeTab.value === 'Giá sốc hôm nay') await fetchDeals();
-      else if (activeTab.value === 'Voucher của shop') await fetchVouchers();
+      else if (activeTab.value === 'Voucher của shop' && vouchers.value.length === 0) await fetchVouchers();
     }
   } catch (err) {
     console.error('Error in onMounted:', err);

@@ -85,7 +85,7 @@ const toast = (icon, title) => {
 
 onMounted(async () => {
   try {
-    const { data } = await axios.get(`${API}/sellers/seller/me`, {
+    const { data } = await axios.get(`${API}/sellers/me`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     const seller = data.seller || {};
