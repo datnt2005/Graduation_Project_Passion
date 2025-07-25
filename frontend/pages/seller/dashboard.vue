@@ -28,7 +28,6 @@
             <ul class="list-disc pl-6 mt-1">
               <li v-for="item in outOfStockProducts" :key="item.id">
                 <span class="font-medium">{{ item.product_name }}</span>
-                <span v-if="item.variant_name">({{ item.variant_name }})</span>
                 <span class="text-red-700 font-bold"> - Hết hàng</span>
               </li>
             </ul>
@@ -39,7 +38,6 @@
             <ul class="list-disc pl-6 mt-1">
               <li v-for="item in lowStockProducts" :key="item.id">
                 <span class="font-medium">{{ item.product_name }}</span>
-                <span v-if="item.variant_name">({{ item.variant_name }})</span>
                 <span> - Số lượng còn: <b>{{ item.quantity }}</b></span>
               </li>
             </ul>
@@ -499,7 +497,7 @@ const combinedChartData = computed(() => {
     })
   }
   if (orderChartMode.value === 'inventory') {
-    const inventoryLabels = inventoryList.value ? inventoryList.value.map(item => item.product_name + (item.variant_name ? ' - ' + item.variant_name : '')) : []
+    const inventoryLabels = inventoryList.value ? inventoryList.value.map(item => item.product_name) : []
     const inventoryData = inventoryList.value ? inventoryList.value.map(item => item.quantity) : []
     datasets.push({
       label: 'Tồn kho',

@@ -897,6 +897,8 @@ class OrderController extends Controller
                     'message' => 'Đơn hàng không tồn tại'
                 ], 404);
             }
+            // Lưu trạng thái cũ trước khi cập nhật
+            $oldStatus = $order->status;
 
             // Xác thực dữ liệu
             $validator = Validator::make($request->all(), [
@@ -1133,6 +1135,35 @@ class OrderController extends Controller
                 ]);
             }
 
+            // Tự động tạo payout cho từng shop khi đơn hàng chuyển sang delivered
+            if ($oldStatus !== 'delivered' && $order->status === 'delivered') {
+                // Lấy tất cả seller_id trong order
+                $sellerIds = $order->orderItems->pluck('product.seller_id')->unique()->filter();
+                foreach ($sellerIds as $sellerId) {
+                    // Kiểm tra đã có payout cho order + seller này chưa
+                    $existing = \App\Models\Payout::where('order_id', $order->id)
+                        ->where('seller_id', $sellerId)
+                        ->first();
+                    if (!$existing) {
+                        // Tính tổng tiền cho seller này trong order
+                        $sellerItems = $order->orderItems->filter(function ($item) use ($sellerId) {
+                            return $item->product && $item->product->seller_id == $sellerId;
+                        });
+                        $totalPrice = $sellerItems->sum(function ($item) {
+                            return $item->price * $item->quantity;
+                        });
+                        $amount = max($totalPrice * 0.95, 0); // 5% admin fee
+                        \App\Models\Payout::create([
+                            'order_id' => $order->id,
+                            'seller_id' => $sellerId,
+                            'amount' => $amount,
+                            'status' => 'pending',
+                            'note' => 'Payout tự động cho đơn hàng ' . ($order->shipping?->tracking_code ?? $order->id),
+                        ]);
+                    }
+                }
+            }
+
             $statusMessages = [
                 'pending' => 'Đơn hàng đang chờ xử lý',
                 'confirmed' => 'Đơn hàng đã được xác nhận',
@@ -1363,8 +1394,9 @@ class OrderController extends Controller
     private function isValidStatusTransition($currentStatus, $newStatus)
     {
         $allowedTransitions = [
-            'pending' => ['processing', 'cancelled'],
-            'processing' => ['shipped', 'cancelled'],
+            'pending' => ['processing', 'shipping', 'cancelled'], // Cho phép sang processing, shipping, cancelled
+            'processing' => ['shipping', 'shipped', 'delivered', 'cancelled'], // Cho phép sang shipping, shipped, delivered, cancelled
+            'shipping' => ['delivered', 'cancelled'],
             'shipped' => ['delivered', 'cancelled'],
             'delivered' => [],
             'cancelled' => []
@@ -1527,6 +1559,19 @@ class OrderController extends Controller
 
             // Format response
             $formattedOrders = $orders->through(function($order) {
+                // Lấy seller_id từ sản phẩm đầu tiên trong order
+                $sellerId = null;
+                if ($order->orderItems && $order->orderItems->count() > 0) {
+                    $firstProduct = $order->orderItems->first()->product;
+                    $sellerId = $firstProduct ? $firstProduct->seller_id : null;
+                }
+                // Lấy payout cho seller này (nếu có)
+                $payout = null;
+                if ($sellerId) {
+                    $payout = \App\Models\Payout::where('order_id', $order->id)
+                        ->where('seller_id', $sellerId)
+                        ->first();
+                }
                 return [
                     'id' => $order->id,
                     'user' => [
@@ -1549,7 +1594,11 @@ class OrderController extends Controller
                     'final_price' => $order->final_price,
                     'note' => $order->note,
                     'created_at' => $order->created_at,
-                    'updated_at' => $order->updated_at
+                    'updated_at' => $order->updated_at,
+                    'shop_id' => $sellerId,
+                    'payout_id' => $payout ? $payout->id : null,
+                    'payout_amount' => $payout ? (float)$payout->amount : 0,
+                    'payout_status' => $payout ? $payout->status : null,
                 ];
             });
 

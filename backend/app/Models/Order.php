@@ -195,7 +195,7 @@ class Order extends Model
     public function isValidStatus($status)
     {
         return in_array($status, [
-            'pending', 'processing', 'shipped', 'delivered',
+            'pending', 'processing', 'shipping', 'shipped', 'delivered',
             'cancelled', 'failed', 'failed_delivery', 'rejected_by_customer'
         ]);
     }
@@ -203,15 +203,13 @@ class Order extends Model
    public function canTransitionTo($newStatus)
     {
         $transitions = [
-            'pending' => ['confirmed', 'cancelled'],
-            'confirmed' => ['processing', 'cancelled'],
-            'processing' => ['shipped', 'cancelled'],
-            'shipped' => ['delivered', 'failed', 'failed_delivery', 'rejected_by_customer'],
-            'failed' => ['rejected_by_customer', 'failed_delivery', 'cancelled'],
-            'failed_delivery' => ['rejected_by_customer', 'cancelled'],
-            'rejected_by_customer' => ['cancelled'],
+            'pending' => ['processing', 'shipping', 'cancelled'],
+            'confirmed' => ['processing', 'shipping', 'cancelled'],
+            'processing' => ['shipping', 'shipped', 'delivered', 'cancelled'],
+            'shipping' => ['delivered', 'cancelled'],
+            'shipped' => ['delivered', 'cancelled'],
             'delivered' => [],
-            'cancelled' => [],
+            'cancelled' => []
         ];
 
         return in_array($newStatus, $transitions[$this->status] ?? []);

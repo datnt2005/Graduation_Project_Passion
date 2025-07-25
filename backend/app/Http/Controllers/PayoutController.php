@@ -323,6 +323,7 @@ class PayoutController extends Controller
         }
         $payout->status = 'completed';
         $payout->transferred_at = now();
+        $payout->seller_confirmed_at = now();
         $payout->save();
         return response()->json(['success' => true, 'message' => 'Nhận tiền payout thành công!', 'data' => $payout]);
     }
@@ -344,5 +345,65 @@ class PayoutController extends Controller
         $payout->transferred_at = now();
         $payout->save();
         return response()->json(['success' => true, 'message' => 'Duyệt payout thành công!', 'data' => $payout]);
+    }
+
+    /**
+     * Admin cập nhật trạng thái payout (pending, completed, failed)
+     */
+    public function update(Request $request, $id)
+    {
+        $user = auth()->user();
+        if ($user->role !== 'admin') {
+            return response()->json(['success' => false, 'message' => 'Bạn không có quyền cập nhật payout!'], 403);
+        }
+        $payout = \App\Models\Payout::findOrFail($id);
+        $status = $request->input('status');
+        if (!in_array($status, ['pending', 'completed', 'failed'])) {
+            return response()->json(['success' => false, 'message' => 'Trạng thái không hợp lệ!'], 422);
+        }
+        $payout->status = $status;
+        if ($status === 'completed') {
+            $payout->transferred_at = now();
+        } elseif ($status === 'pending') {
+            $payout->transferred_at = null;
+        }
+        $payout->save();
+        return response()->json(['success' => true, 'message' => 'Cập nhật payout thành công!', 'data' => $payout]);
+    }
+
+    /**
+     * Admin tạo payout thủ công
+     */
+    public function store(Request $request)
+    {
+        $user = auth()->user();
+        if ($user->role !== 'admin') {
+            return response()->json(['success' => false, 'message' => 'Bạn không có quyền tạo payout!'], 403);
+        }
+        $request->validate([
+            'order_id' => 'required|exists:orders,id',
+            'shop_id' => 'required|exists:sellers,id',
+            'amount' => 'required|numeric|min:0',
+            'status' => 'required|in:pending,completed,failed',
+            'note' => 'nullable|string'
+        ]);
+        // Kiểm tra đã có payout cho order + shop này chưa
+        $existing = \App\Models\Payout::where('order_id', $request->order_id)
+            ->where('seller_id', $request->shop_id)
+            ->first();
+        if ($existing) {
+            return response()->json(['success' => false, 'message' => 'Payout đã tồn tại cho đơn hàng này!'], 409);
+        }
+        $payout = new \App\Models\Payout();
+        $payout->order_id = $request->order_id;
+        $payout->seller_id = $request->shop_id;
+        $payout->amount = $request->amount;
+        $payout->status = $request->status;
+        $payout->note = $request->note;
+        if ($request->status === 'completed') {
+            $payout->transferred_at = now();
+        }
+        $payout->save();
+        return response()->json(['success' => true, 'message' => 'Tạo payout thành công!', 'data' => $payout]);
     }
 }

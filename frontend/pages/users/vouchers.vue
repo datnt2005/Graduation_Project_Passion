@@ -59,9 +59,10 @@
               <!-- Logo -->
               <div class="flex flex-col items-center justify-center min-w-[60px]">
                 <img
-                  src="https://salt.tikicdn.com/ts/upload/30/6d/8a/6c6b6b8e6b6b6b8e6b6b6b8e6b6b6b8e.png"
+                  :src="getVoucherImage(voucher)"
                   alt="Voucher Logo"
                   class="w-10 h-10 object-contain mb-1"
+                  @error="e => e.target.src = defaultVoucherImage"
                 />
                 <div class="text-[10px] font-bold text-blue-700 bg-blue-100 rounded px-1 py-0.5">PASSION VIP</div>
               </div>
@@ -424,6 +425,16 @@ function formatDiscountValue(val) {
   if (!val) return '0'
   if (Number(val) % 1 === 0) return Number(val).toString()
   return Number(val).toFixed(1)
+}
+
+const defaultVoucherImage = 'https://cdn-icons-png.flaticon.com/512/4076/4076549.png'
+function getVoucherImage(voucher) {
+  if (voucher.discount_type === 'shipping') {
+    // Icon shipping nổi bật (màu xanh dương)
+    return 'https://cdn-icons-png.flaticon.com/512/1048/1048311.png';
+  }
+  // Icon voucher shop màu cam nổi bật
+  return 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png';
 }
 </script>
 

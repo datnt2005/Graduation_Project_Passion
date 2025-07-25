@@ -10,5 +10,6 @@ Route::middleware(['auth:sanctum'])->prefix('seller')->group(function () {
     Route::get('/payout/{id}', [PayoutController::class, 'show']);
     Route::post('/payouts', [PayoutController::class, 'store']);
     Route::put('/payouts/{id}', [PayoutController::class, 'update']);
+    Route::post('/payouts/{id}/seller-receive', [PayoutController::class, 'sellerReceive']); // Thêm dòng này
     Route::post('/payouts/{id}/approve', [PayoutController::class, 'approve']); // Thêm route mới
 });

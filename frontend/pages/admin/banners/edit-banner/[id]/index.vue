@@ -213,6 +213,7 @@ const preview = ref(null)
 const loading = ref(false)
 const link = ref('')
 const errors = ref({})
+const type = ref('banner')
 
 const router = useRouter()
 const route = useRoute()
@@ -303,7 +304,11 @@ const submitEdit = async () => {
       },
     })
 
-    showNotificationMessage('Cập nhật banner thành công!', 'success')
+    if (type.value === 'popup') {
+      showNotificationMessage('Cập nhật popup thành công!', 'success')
+    } else {
+      showNotificationMessage('Cập nhật banner thành công!', 'success')
+    }
     setTimeout(() => router.push('/admin/banners/list-banner'), 1200)
   } catch (err) {
     let errorMessage = 'Có lỗi xảy ra khi cập nhật banner.'

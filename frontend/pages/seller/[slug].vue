@@ -279,62 +279,63 @@
                 <div v-else-if="vouchers.length === 0" class="text-center py-8 text-gray-400 text-base">
                   Không có voucher nào hiện tại.
                 </div>
-                <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div v-for="voucher in vouchers" :key="voucher.id"
-                    class="relative bg-white border border-blue-200 shadow-sm rounded-xl flex items-center justify-between w-full max-w-md mb-4 overflow-hidden hover:shadow-md transition">
-                    <!-- Left Content -->
-                    <div class="p-4 flex-1">
-                      <div class="text-blue-700 font-bold text-base mb-1">
-                        Giảm
-                        <span v-if="voucher.discount_type === 'percentage'">
-                          {{ formatDiscountValue(voucher.discount_value) }}%
-                          <span v-if="voucher.max_discount">tối đa {{ formatCurrency(voucher.max_discount) }}</span>
-                        </span>
-                        <span v-else>
-                          {{ formatCurrency(voucher.discount_value) }}
-                        </span>
-                      </div>
-                      <div class="text-sm text-gray-600 mb-1">
-                        Đơn tối thiểu {{ formatCurrency(voucher.min_order_value) }}
-                      </div>
-                      <div class="mt-2 text-xs text-gray-700 space-y-1">
-                        <div v-if="voucher.products && voucher.products.length">
-                          Áp dụng cho sản phẩm:
-                          <span v-for="(product, idx) in voucher.products" :key="idx"
-                            class="inline-block bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs mr-1">
-                            {{ product.name }}
+                <div v-else>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div v-for="voucher in paginatedVouchers" :key="voucher.id"
+                      class="relative bg-white border border-blue-200 shadow-sm rounded-xl flex items-center justify-between w-full max-w-md mb-4 overflow-hidden hover:shadow-md transition">
+                      <!-- Left Content -->
+                      <div class="p-4 flex-1">
+                        <div class="text-blue-700 font-bold text-base mb-1">
+                          Giảm
+                          <span v-if="voucher.discount_type === 'percentage'">
+                            {{ formatDiscountValue(voucher.discount_value) }}%
+                            <span v-if="voucher.max_discount">tối đa {{ formatCurrency(voucher.max_discount) }}</span>
+                          </span>
+                          <span v-else>
+                            {{ formatCurrency(voucher.discount_value) }}
                           </span>
                         </div>
-                        <div v-if="voucher.categories && voucher.categories.length">
-                          Áp dụng cho danh mục:
-                          <span v-for="(category, idx) in voucher.categories" :key="idx"
-                            class="inline-block bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs mr-1">
-                            {{ category.name }}
-                          </span>
+                        <div class="text-sm text-gray-600 mb-1">
+                          Đơn tối thiểu {{ formatCurrency(voucher.min_order_value) }}
                         </div>
-                        <div v-if="voucher.users && voucher.users.length">
-                          Chỉ dành cho người dùng:
-                          <span v-for="(user, idx) in voucher.users" :key="idx"
-                            class="inline-block bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full text-xs mr-1">
-                            {{ user.name }}
-                          </span>
+                        <div class="mt-2 text-xs text-gray-700 space-y-1">
+                          <div v-if="voucher.products && voucher.products.length">
+                            Áp dụng cho sản phẩm:
+                            <span v-for="(product, idx) in voucher.products" :key="idx"
+                              class="inline-block bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs mr-1">
+                              {{ product.name }}
+                            </span>
+                          </div>
+                          <div v-if="voucher.categories && voucher.categories.length">
+                            Áp dụng cho danh mục:
+                            <span v-for="(category, idx) in voucher.categories" :key="idx"
+                              class="inline-block bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs mr-1">
+                              {{ category.name }}
+                            </span>
+                          </div>
+                        </div>
+                        <div class="text-xs mt-2" :class="isVoucherExpired(voucher) ? 'text-red-500' : 'text-gray-500'">
+                          {{ isVoucherExpired(voucher) ? 'Đã hết hạn' : 'HSD: ' + formatDate(voucher.end_date) }}
+                        </div>
+                        <div v-if="isVoucherUsedUp(voucher)" class="text-xs text-red-500 mt-1">
+                          Hết lượt sử dụng
                         </div>
                       </div>
-                      <div class="text-xs mt-2" :class="isVoucherExpired(voucher) ? 'text-red-500' : 'text-gray-500'">
-                        {{ isVoucherExpired(voucher) ? 'Đã hết hạn' : 'HSD: ' + formatDate(voucher.end_date) }}
-                      </div>
-                      <div v-if="isVoucherUsedUp(voucher)" class="text-xs text-red-500 mt-1">
-                        Hết lượt sử dụng
+                      <div class="border-l border-blue-100 h-full flex items-center justify-center px-4 bg-white flex-col">
+                        <button
+                          @click="!isVoucherUnavailable(voucher) && (voucher.is_saved ? goToUseVoucher(voucher) : saveVoucher(voucher.code))"
+                          :disabled="isVoucherUnavailable(voucher)"
+                          class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded disabled:bg-gray-400 disabled:cursor-not-allowed">
+                          {{ isVoucherUnavailable(voucher) ? 'Không khả dụng' : (voucher.is_saved ? 'Dùng sau' : 'Lưu') }}
+                        </button>
+                        <div v-if="voucher.is_saved" class="text-xs text-green-600 mt-2 font-semibold">Đã lưu voucher này</div>
                       </div>
                     </div>
-                    <div class="border-l border-blue-100 h-full flex items-center justify-center px-4 bg-white">
-                      <button
-                        @click="!isVoucherUnavailable(voucher) && (voucher.is_saved ? goToUseVoucher(voucher) : saveVoucher(voucher.code))"
-                        :disabled="isVoucherUnavailable(voucher)"
-                        class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded disabled:bg-gray-400 disabled:cursor-not-allowed">
-                        {{ isVoucherUnavailable(voucher) ? 'Không khả dụng' : (voucher.is_saved ? 'Dùng sau' : 'Lưu') }}
-                      </button>
-                    </div>
+                  </div>
+                  <div v-if="voucherTotalPages > 1" class="flex justify-center mt-6">
+                    <button @click="voucherPage--" :disabled="voucherPage === 1" class="px-3 py-1 mx-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50">&lt;</button>
+                    <button v-for="page in voucherTotalPages" :key="page" @click="voucherPage = page" :class="['px-3 py-1 mx-1 rounded border', voucherPage === page ? 'bg-blue-500 text-white border-blue-500' : 'bg-white text-gray-700 border-gray-300']">{{ page }}</button>
+                    <button @click="voucherPage++" :disabled="voucherPage === voucherTotalPages" class="px-3 py-1 mx-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50">&gt;</button>
                   </div>
                 </div>
               </div>
@@ -349,7 +350,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
 import { useAuthStore } from '@/stores/auth';
@@ -432,6 +433,17 @@ const visiblePages = computed(() => {
   }
   return range;
 });
+
+const voucherPage = ref(1)
+const voucherPageSize = 6
+const voucherTotalPages = computed(() => Math.ceil(vouchers.value.length / voucherPageSize))
+const paginatedVouchers = computed(() => {
+  const start = (voucherPage.value - 1) * voucherPageSize
+  return vouchers.value.slice(start, start + voucherPageSize)
+})
+watch(vouchers, () => {
+  voucherPage.value = 1
+})
 
 const handleApiError = async (err, callback) => {
   if (err.response?.status === 401) {
@@ -704,6 +716,15 @@ const updateQueryParams = () => {
   if (activeTab.value !== 'Cửa hàng') query.tab = activeTab.value;
   router.push({ path: route.path, query });
 };
+
+function uniqueUsers(users) {
+  const seen = new Set();
+  return users.filter(u => {
+    if (seen.has(u.id)) return false;
+    seen.add(u.id);
+    return true;
+  });
+}
 
 onMounted(async () => {
   try {
