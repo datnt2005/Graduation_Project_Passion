@@ -22,7 +22,7 @@
     <!-- Danh sách cuộc trò chuyện -->
     <div
       v-show="showChatList"
-      class="fixed bottom-20 right-2 bg-white rounded-lg shadow-xl w-[95vw] max-w-[400px] h-[60vh] md:w-[400px] md:h-[400px] z-40"
+      class="fixed bottom-20 right-2 bg-white rounded-lg shadow-xl w-[95vw] max-w-[400px] h-[85vh] md:w-[400px] md:h-[600px] z-40"
     >
       <div class="p-3 border-b font-bold text-gray-700">Tin nhắn</div>
       <ul class="max-h-[552px] overflow-y-auto">
@@ -63,7 +63,7 @@
     <!-- Hộp chat -->
     <div
       v-show="showChat"
-      class="fixed bottom-4 right-2 bg-white rounded-lg shadow-lg w-[95vw] max-w-[400px] h-[60vh] md:w-[400px] md:h-[400px] flex flex-col z-50"
+      class="fixed bottom-4 right-2 bg-white rounded-lg shadow-lg w-[95vw] max-w-[400px] h-[70vh] md:w-[400px] md:h-[550px] flex flex-col z-50"
     >
       <!-- Header -->
       <div class="flex justify-between items-center p-3 border-b bg-[#F0F2F5]">
@@ -491,17 +491,13 @@ const formatPrice = (price) => {
 
 // Hiển thị preview tin nhắn cuối
 const getLastMessagePreview = (session) => {
-  const lastMessage = session.messages?.[session.messages.length - 1];
-  if (!lastMessage) return "Chưa có tin nhắn";
-  if (lastMessage.message_type === "text")
-    return lastMessage.message || "Tin nhắn rỗng";
-  if (lastMessage.message_type === "image") return "[Hình ảnh]";
-  if (lastMessage.message_type === "product") {
-    return shortenProductName(
-      parseMessage(lastMessage.message)?.name || "[Sản phẩm]"
-    );
-  }
-  return "Chưa có tin nhắn";
+  if (!session.last_message) return "Chưa có tin nhắn";
+
+  // Nếu muốn hiển thị text mô phỏng giống Zalo:
+  if (session.last_message.startsWith("[Ảnh]")) return "[Hình ảnh]";
+  if (session.last_message.startsWith("[Sản phẩm]")) return "[Sản phẩm]";
+
+  return session.last_message; // hiển thị nội dung cuối
 };
 
 // Hàm rút gọn tên sản phẩm

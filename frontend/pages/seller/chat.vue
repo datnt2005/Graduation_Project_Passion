@@ -20,12 +20,12 @@
             v-for="(session, i) in chatSessions"
             :key="session.id || i"
             @click="selectSession(session)"
-            class="p-4 hover:bg-[#F2F9FF] cursor-pointer border-b border-gray-100"
+            class="relative p-4 hover:bg-[#F2F9FF] cursor-pointer border-b border-gray-100"
           >
             <div class="flex justify-between items-center">
-              <span class="font-medium text-sm">{{
-                session.user?.name || "Người dùng"
-              }}</span>
+              <span class="font-medium text-sm">
+                {{ session.user?.name || "Người dùng" }}
+              </span>
               <span class="text-xs text-gray-400">
                 {{ formatTime(session.last_message_at) }}
               </span>
@@ -33,6 +33,14 @@
             <div class="text-xs text-gray-500 truncate">
               {{ session.last_message || "..." }}
             </div>
+
+            <!-- 🔴 Chấm đỏ -->
+            <span
+              v-if="session.unread_count > 0"
+              class="absolute top-2 right-2 bg-red-500 text-white text-xs rounded-full px-1.5"
+            >
+              {{ session.unread_count }}
+            </span>
           </li>
         </ul>
       </aside>
@@ -374,19 +382,19 @@ const handleFileChange = (e) => {
   e.target.value = "";
 };
 
-const handleSelectSession = async (session_id) => {
-  loadingMessages.value = true;
-  currentMessages.value = [];
+// const handleSelectSession = async (session_id) => {
+//   loadingMessages.value = true;
+//   currentMessages.value = [];
 
-  try {
-    const res = await axios.get(`/api/messages/${session_id}`);
-    currentMessages.value = res.data;
-  } catch (err) {
-    console.error(err);
-  } finally {
-    loadingMessages.value = false;
-  }
-};
+//   try {
+//     const res = await axios.get(`/api/messages/${session_id}`);
+//     currentMessages.value = res.data;
+//   } catch (err) {
+//     console.error(err);
+//   } finally {
+//     loadingMessages.value = false;
+//   }
+// };
 
 const removeImage = (index) => {
   selectedImages.value.splice(index, 1);
@@ -494,30 +502,38 @@ async function selectSession(session) {
   isLoadingMessages.value = true;
 
   try {
-    const res = await fetch(
-      `${API}/chat/messages/${session.id}?page=last&limit=20`,
+    // 📨 Tải tin nhắn của session
+    const response = await fetch(`${API}/chat/messages/${session.id}`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const data = await response.json();
+    currentMessages.value = data.messages;
+
+    // ✅ Sau khi tải xong tin nhắn => mới đánh dấu là đã đọc
+    const markResponse = await fetch(
+      `${API}/chat/messages/${session.id}/read`,
       {
-        method: "GET",
+        method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
+        body: JSON.stringify({
+          sender_type: "seller",
+        }),
       }
     );
 
-    const data = await res.json();
-    // console.log("messagesData:", data);
-    // console.log("response status:", res.status);
-
-    if (!res.ok) throw new Error(data?.message || "Không thể lấy tin nhắn");
-
-    currentMessages.value = Array.isArray(data?.data)
-      ? data.data
-      : data?.messages || [];
-
-    await nextTick();
-    scrollToBottom();
+    const result = await markResponse.json();
+    if (result.success) {
+      session.unread_count = 0; // Cập nhật lại giao diện client
+    }
   } catch (error) {
-    console.error("Lỗi khi chọn session:", error.message);
+    console.error("Lỗi khi tải tin nhắn:", error);
   } finally {
     isLoadingMessages.value = false;
   }
@@ -701,6 +717,11 @@ const loadMessages = async () => {
       currentMessages.value = reversed;
     } else {
       currentMessages.value = [...reversed, ...currentMessages.value];
+    }
+
+    // ✅ Chỉ đánh dấu đã đọc ở lần load đầu tiên
+    if (page.value === 1) {
+      await markMessagesAsRead(selectedSession.value.id);
     }
 
     page.value++;
