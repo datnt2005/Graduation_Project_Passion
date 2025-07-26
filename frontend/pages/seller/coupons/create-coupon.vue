@@ -681,8 +681,16 @@
   // Sửa fetchProducts và fetchCategories để chỉ lấy sản phẩm/danh mục của seller
   const fetchProducts = async () => {
     try {
-      const data = await secureFetch(`${apiBase}/products?per_page=1000`, {}, ['seller']);
-      products.value = data.data?.data || data.data || [];
+      // Sử dụng API lấy sản phẩm của seller
+      const data = await secureFetch(`${apiBase}/seller/discounts/products?per_page=1000`, {}, ['seller']);
+      if (Array.isArray(data.data)) {
+        products.value = data.data;
+      } else if (Array.isArray(data.data?.data)) {
+        products.value = data.data.data;
+      } else {
+        products.value = [];
+      }
+      console.log('Products loaded for create coupon:', products.value);
     } catch (e) {
       console.error('Error fetching products:', e);
       products.value = [];
