@@ -14,7 +14,7 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Notification;
 
-use App\Models\NotificationRecipient;
+use App\Models\NotificationRecipient;SELLER
 class DiscountSellerController extends Controller
 {
     // List all discounts for current seller
