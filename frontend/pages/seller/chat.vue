@@ -89,7 +89,7 @@
               <!-- Avatar người dùng -->
               <img
                 v-if="msg.sender_type === 'user'"
-                src="https://i.pravatar.cc/32"
+                :src="getAvatar(msg.avatar)"
                 class="w-8 h-8 rounded-full"
                 alt="Ảnh đại diện người dùng"
               />
@@ -358,6 +358,10 @@ const imageViewer = ref({
 const config = useRuntimeConfig();
 const API = config.public.apiBaseUrl;
 const DEFAULT_AVATAR = config.public.mediaBaseUrl + "avatars/default.jpg";
+
+const getAvatar = (avatar) => {
+  return avatar && avatar.trim() !== "" ? avatar : DEFAULT_AVATAR;
+};
 
 const handleFileChange = (e) => {
   const files = Array.from(e.target.files);

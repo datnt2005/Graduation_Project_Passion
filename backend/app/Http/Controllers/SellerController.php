@@ -125,7 +125,7 @@ class SellerController extends Controller
         } catch (\Exception $e) {
             Log::error('Error in SellerController@index: ' . $e->getMessage());
             Log::error($e->getTraceAsString());
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Lỗi khi lấy danh sách seller: ' . $e->getMessage()
@@ -945,7 +945,7 @@ try {
         } catch (\Exception $e) {
             Log::error('Error in SellerController@stats: ' . $e->getMessage());
             Log::error($e->getTraceAsString());
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Lỗi khi lấy thống kê seller: ' . $e->getMessage()
