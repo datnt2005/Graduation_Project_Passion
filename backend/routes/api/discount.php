@@ -40,6 +40,10 @@ Route::prefix('discounts')->middleware(['auth:sanctum', 'checkRole:admin'])->gro
 // Route dành riêng cho seller (chỉ seller mới vào được)
 Route::prefix('seller/discounts')->middleware(['auth:sanctum', 'checkRole:seller'])->group(function () {
     Route::get('/', [DiscountSellerController::class, 'index']);
+    
+    // Route lấy danh sách sản phẩm của seller (phải đặt trước /{id})
+    Route::get('/products', [DiscountSellerController::class, 'sellerProducts']);
+    
     Route::get('/{id}', [DiscountSellerController::class, 'show']);
     Route::post('/', [DiscountSellerController::class, 'store']);
     Route::put('/{id}', [DiscountSellerController::class, 'update']);

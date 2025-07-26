@@ -17,6 +17,7 @@ class Payout extends Model
         'note',
         'created_at',
         'transferred_at',
+        'seller_confirmed_at',
     ];
 
     public $timestamps = false;
@@ -25,6 +26,7 @@ class Payout extends Model
         'amount' => 'float',
         'created_at' => 'datetime',
         'transferred_at' => 'datetime',
+        'seller_confirmed_at' => 'datetime',
     ];
 
     public function seller()

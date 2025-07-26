@@ -426,37 +426,40 @@ class InventoryController extends Controller
                 ], 403);
             }
 
-            $inventories = Inventory::with([
-                'productVariant.product.categories',
-                'productVariant.attributes'
-            ])
-            ->whereHas('productVariant.product', function ($query) use ($seller) {
-                $query->where('seller_id', $seller->id)
-                    ->where('status', '!=', 'trash');
-            })
-            ->get()
-            ->map(function ($inventory) {
-                $variant = $inventory->productVariant;
-                $product = $variant->product;
-                $categoryName = $product->categories->first()?->name;
+            // Lấy tất cả sản phẩm của seller (không lấy sản phẩm đã xóa)
+            $products = \App\Models\Product::with(['productVariants.inventories', 'categories'])
+                ->where('seller_id', $seller->id)
+                ->where('status', '!=', 'trash')
+                ->get();
 
+            $inventories = $products->map(function ($product) {
+                $variants = $product->productVariants;
+                $totalQuantity = 0;
+                $totalCost = 0;
+                $totalSell = 0;
+                $variantCount = 0;
+                foreach ($variants as $variant) {
+                    $quantity = $variant->inventories->sum('quantity');
+                    $totalQuantity += $quantity;
+                    $totalCost += ($variant->cost_price ?? 0);
+                    $totalSell += ($variant->price ?? 0);
+                    $variantCount++;
+                }
+                $avgCost = $variantCount > 0 ? round($totalCost / $variantCount) : 0;
+                $avgSell = $variantCount > 0 ? round($totalSell / $variantCount) : 0;
+                $categoryName = $product->categories->first()?->name;
                 $status = 'Hết hàng';
-                if ($inventory->quantity > 0 && $inventory->quantity <= 5) {
+                if ($totalQuantity > 0 && $totalQuantity <= 5) {
                     $status = 'Gần hết';
-                } elseif ($inventory->quantity > 5) {
+                } elseif ($totalQuantity > 5) {
                     $status = 'Còn hàng';
                 }
-
                 return [
-                    'id' => $inventory->id,
-                    'product_variant_id' => $variant->id,
-                    'sku' => $variant->sku,
+                    'id' => $product->id,
                     'product_name' => $product->name,
-                    'quantity' => $inventory->quantity,
-                    'cost_price' => round($variant->cost_price),
-                    'sell_price' => round($variant->price),
-                    'location' => $inventory->location,
-                    'last_updated' => $inventory->last_updated,
+                    'quantity' => $totalQuantity,
+                    'cost_price' => $avgCost,
+                    'sell_price' => $avgSell,
                     'category_name' => $categoryName,
                     'status' => $status
                 ];

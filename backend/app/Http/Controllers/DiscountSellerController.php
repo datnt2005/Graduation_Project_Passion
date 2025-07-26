@@ -110,16 +110,34 @@ class DiscountSellerController extends Controller
     public function show($id)
     {
         try {
-            $seller = Auth::user()->seller;
+            \Log::info('show method called with id:', ['id' => $id]);
+            $user = Auth::user();
+            \Log::info('User in show:', ['user' => $user]);
+            
+            $seller = $user->seller;
+            \Log::info('Seller in show:', ['seller' => $seller]);
+            
+            if (!$seller) {
+                \Log::error('No seller found in show method');
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không tìm thấy seller'
+                ], 403);
+            }
+            
             $discount = Discount::with(['products', 'categories', 'users', 'flashSales'])
                 ->where('seller_id', $seller->id)
                 ->findOrFail($id);
+            
+            \Log::info('Discount found:', ['discount' => $discount]);
+            
             return response()->json([
                 'success' => true,
                 'message' => 'Lấy thông tin mã giảm giá thành công',
                 'data' => $discount
             ], 200);
         } catch (\Exception $e) {
+            \Log::error('Error in show method:', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             return response()->json([
                 'success' => false,
                 'message' => 'Không tìm thấy mã giảm giá'
@@ -148,7 +166,7 @@ class DiscountSellerController extends Controller
             'discount_value' => 'numeric|min:0',
             'usage_limit' => 'nullable|integer|min:1',
             'min_order_value' => 'nullable|numeric|min:0',
-            'start_date' => 'sometimes|required|date|after_or_equal:today',
+            'start_date' => 'sometimes|required|date',
             'end_date' => 'sometimes|required|date|after:start_date',
             'status' => 'in:active,inactive,expired',
         ], [
@@ -159,7 +177,6 @@ class DiscountSellerController extends Controller
             'min_order_value.min' => 'Giá trị đơn hàng tối thiểu phải lớn hơn 0',
             'start_date.required' => 'Ngày bắt đầu không được để trống',
             'start_date.date' => 'Ngày bắt đầu không đúng định dạng',
-            'start_date.after_or_equal' => 'Ngày bắt đầu phải từ ngày hôm nay trở đi',
             'end_date.required' => 'Ngày kết thúc không được để trống',
             'end_date.date' => 'Ngày kết thúc không đúng định dạng',
             'end_date.after' => 'Ngày kết thúc phải sau ngày bắt đầu',
@@ -492,6 +509,71 @@ class DiscountSellerController extends Controller
             ], 500);
         }
     }
-
+     // Lấy danh sách sản phẩm của seller
+    public function sellerProducts(Request $request)
+    {
+        try {
+            \Log::info('sellerProducts method called');
+            $user = Auth::user();
+            \Log::info('User:', ['user' => $user]);
+            
+            $seller = $user->seller;
+            \Log::info('Seller:', ['seller' => $seller]);
+            
+            if (!$seller) {
+                \Log::error('No seller found for user');
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không tìm thấy seller'
+                ], 403);
+            }
+            
+            $perPage = $request->get('per_page', 1000);
+            $discountId = $request->get('discount_id'); // Thêm parameter để lấy discount_id
+            \Log::info('Per page:', ['per_page' => $perPage, 'discount_id' => $discountId]);
+            
+            // Base query cho tất cả sản phẩm của seller
+            $query = \App\Models\Product::where('seller_id', $seller->id);
+            
+            // Nếu có discount_id, bao gồm cả sản phẩm đã được gán cho discount đó
+            if ($discountId) {
+                $discount = Discount::find($discountId);
+                if ($discount && $discount->seller_id == $seller->id) {
+                    // Lấy tất cả sản phẩm của seller (active và approved) HOẶC sản phẩm đã được gán cho discount
+                    $query->where(function($q) use ($discount) {
+                        $q->where(function($subQ) {
+                            $subQ->where('status', 'active')
+                                 ->where('admin_status', 'approved');
+                        })->orWhereHas('discounts', function($discountQ) use ($discount) {
+                            $discountQ->where('discount_id', $discount->id);
+                        });
+                    });
+                }
+            } else {
+                // Nếu không có discount_id, chỉ lấy sản phẩm active và approved
+                $query->where('status', 'active')
+                      ->where('admin_status', 'approved');
+            }
+            
+            \Log::info('Query built for seller_id:', ['seller_id' => $seller->id, 'discount_id' => $discountId]);
+            
+            // Luôn trả về array để frontend dễ xử lý
+            $products = $query->paginate($perPage);
+            \Log::info('Products found:', ['count' => $products->count()]);
+            \Log::info('Products details:', ['products' => $products->items()]);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Lấy danh sách sản phẩm thành công',
+                'data' => $products->items()
+            ], 200);
+        } catch (\Exception $e) {
+            \Log::error('Error in sellerProducts:', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi khi lấy sản phẩm: ' . $e->getMessage()
+            ], 500);
+        }
+    }
     // Các hàm saveVoucherByCode, myVouchers, deleteUserVoucher, indexPublic giữ nguyên như DiscountController nếu seller cần dùng
 } 
