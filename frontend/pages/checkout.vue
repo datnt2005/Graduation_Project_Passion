@@ -39,13 +39,13 @@
                 <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
               </div>
               <!-- Shipping Selector -->
-              <ShippingSelector 
-          v-model:selectedMethod="selectedShippingMethod" 
-          :address="selectedAddress"
-          :cart-items="cartItems" 
-          @update:shippingFee="updateShippingFee"
-          @update:totalShippingFee="handleTotalShippingFeeUpdate"
-          @update:shopDiscount="handleShopDiscountUpdate" />
+              <ShippingSelector
+    :address="selectedAddress"
+    :cart-items="cartItems"
+    @update:shippingFee="updateShippingFee"
+    @update:shopDiscount="updateShopDiscount"
+    @update:totalShippingFee="updateTotalShippingFee"
+  />
 
               <!-- Payment Methods -->
               <section class="bg-white rounded-[4px] p-5">
@@ -403,9 +403,9 @@
                     <span class="text-[14px] text-gray-800">{{ formattedTotal }}</span>
                   </div>
                   <div class="flex justify-between">
-  <span class="text-[14px]">Tổng phí vận chuyển</span>
-  <span class="text-[14px] text-gray-800">{{ formatPrice(totalShippingFee) }} đ</span>
-</div>
+                    <span class="text-[14px]">Tổng phí vận chuyển</span>
+                    <span class="text-[14px] text-gray-800">{{ formatPrice(totalShippingFee) }} đ</span>
+                  </div>
                   <div class="flex justify-between">
                     <span class="text-[14px]">Giảm giá phí ship</span>
                     <span class="text-green-600">- {{ formatPrice(totalShippingDiscount) }} đ</span>
@@ -467,7 +467,8 @@ const manualCode = ref('');
 const showDiscountModal = ref(false);
 const requestInvoice = ref(false);
 const storeNotes = ref({});
-const isOrderDetailsOpen = ref(true); // Mặc định mở chi tiết đơn hàng
+const isOrderDetailsOpen = ref(true);
+const shippingFees = ref({}); // Thêm biến để lưu phí vận chuyển
 
 const promotions = ref([
   {
@@ -520,7 +521,6 @@ const {
   total,
   formattedTotal,
   finalTotal,
-  formattedFinalTotal,
   formattedFinalShippingFee,
   loading,
   error,
@@ -552,6 +552,7 @@ const {
   loadShippingFees,
   fetchDefaultAddress,
   calculateShippingFee,
+  shopServiceIds, // Thêm shopServiceIds từ useCheckout
 } = useCheckout(shippingRef, selectedShippingMethod, selectedAddress, storeNotes);
 
 const { fetchMyVouchers, fetchDiscounts: fetchPublicDiscounts, fetchSellerDiscounts, discounts: publicDiscounts } = useDiscount();
@@ -561,13 +562,20 @@ const handleShopDiscountUpdate = (data) => {
     updateShopDiscount(data.sellerId, data.discount, data.discountId);
   }
 };
+
 // Cập nhật phí vận chuyển cho từng shop
 const updateShippingFee = ({ sellerId, fee }) => {
   console.log(`Cập nhật phí vận chuyển cho shop ${sellerId}: ${fee}`);
-  const shopIndex = cartItems.value.findIndex(shop => shop.seller_id === sellerId);
-  if (shopIndex !== -1) {
-    cartItems.value[shopIndex].shippingFee = fee;
+  const shop = cartItems.value.find(s => s.seller_id === sellerId);
+  if (shop) {
+    shop.shipping_fee = fee; // Cập nhật phí vận chuyển vào cartItems
+    console.log(`Đã cập nhật shipping_fee cho shop ${sellerId}: ${fee}`);
   }
+};
+
+const updateTotalShippingFee = (fee) => {
+  totalShippingFee.value = fee;
+  console.log(`Cập nhật totalShippingFee: ${fee}`);
 };
 
 const shopsWithDiscount = computed(() => {
@@ -813,16 +821,21 @@ watch(discountError, (val) => {
 
 watch(selectedAddress, async (newAddress) => {
   if (newAddress && newAddress.district_id && newAddress.ward_code) {
+    console.log('Địa chỉ đã thay đổi, gọi loadShippingFees');
     await loadShippingFees();
   }
 }, { deep: true });
 
-watch(cartItems, () => {
-  console.log('cartItems đã thay đổi, cập nhật totalShippingFee:', cartItems.value);
+watch(cartItems, (newVal) => {
+  console.log('cartItems updated:', newVal.map(s => ({
+    seller_id: s.seller_id,
+    shipping_fee: s.shipping_fee,
+    service_id: s.service_id
+  })));
 }, { deep: true });
 
 watch(selectedShippingMethod, (newVal) => {
-  console.log('Selected shipping method in checkout.vue:', newVal); // Debug
+  console.log('Selected shipping method in checkout.vue:', newVal);
 });
 
 onMounted(async () => {
