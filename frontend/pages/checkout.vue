@@ -826,8 +826,12 @@ watch(selectedAddress, async (newAddress) => {
   }
 }, { deep: true });
 
-watch(cartItems, () => {
-  console.log('cartItems đã thay đổi, cập nhật totalShippingFee:', cartItems.value);
+watch(cartItems, (newVal) => {
+  console.log('cartItems updated:', newVal.map(s => ({
+    seller_id: s.seller_id,
+    shipping_fee: s.shipping_fee,
+    service_id: s.service_id
+  })));
 }, { deep: true });
 
 watch(selectedShippingMethod, (newVal) => {

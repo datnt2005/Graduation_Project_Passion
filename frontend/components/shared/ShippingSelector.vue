@@ -43,7 +43,7 @@
                   :name="'shipping_method_' + shop.seller_id"
                   :value="method.service_id"
                   v-model="shopServiceIds[shop.seller_id]"
-                  @change="handleMethodChange(shop.seller_id, method.service_id)" />
+                  @change="handleMethodChange(shop.seller_id, method)" />
                 <span :class="method.service_id === shopServiceIds[shop.seller_id] ? 'text-[14px] font-semibold' : 'text-[14px]'">
                   {{ method.short_name || 'Dịch vụ GHN' }}
                 </span>
@@ -199,7 +199,6 @@ const props = defineProps({
 
 const emit = defineEmits(['update:shippingFee', 'update:shopDiscount', 'update:totalShippingFee']);
 
-// Khởi tạo useCheckout
 const {
   sellerAddresses,
   fetchSellerAddress,
@@ -207,17 +206,17 @@ const {
   fetchDefaultAddress,
   cartItems,
   defaultShippingMethod,
-  shopServiceIds // Thêm shopServiceIds từ useCheckout
+  shopServiceIds
 } = useCheckout(
-  null, // shippingRef
-  null, // Không sử dụng selectedShippingMethod chung
+  null,
+  null,
   props.address,
   ref({})
 );
 
 defineExpose({
   fees,
-  shopServiceIds // Expose shopServiceIds
+  shopServiceIds
 });
 
 const parsePrice = (price) => {
@@ -299,7 +298,7 @@ const calculateShippingFee = async (shop, method, retryCount = 0) => {
       to_district_id: props.address?.district_id || 0,
       to_ward_code: props.address?.ward_code || '',
       service_id: method.service_id,
-      weight: Math.max(totalWeight, 40),
+      weight: Math.max(totalWeight, 50),
       height: shop.items.reduce((max, item) => Math.max(max, item.productVariant?.height || 25), 25),
       length: shop.items.reduce((max, item) => Math.max(max, item.productVariant?.length || 25), 25),
       width: shop.items.reduce((max, item) => Math.max(max, item.productVariant?.width || 25), 25),
@@ -309,6 +308,8 @@ const calculateShippingFee = async (shop, method, retryCount = 0) => {
     const cachedFee = getCachedFee(cacheKey);
     if (cachedFee !== null) {
       fees.value[`${sellerId}_${method.service_id}`] = formatPrice(cachedFee);
+      shop.shipping_fee = cachedFee; // Đồng bộ vào shop
+      shop.service_id = method.service_id; // Đồng bộ service_id
       emit('update:shippingFee', { sellerId, fee: cachedFee });
       return cachedFee;
     }
@@ -347,6 +348,8 @@ const calculateShippingFee = async (shop, method, retryCount = 0) => {
 
       setCachedFee(cacheKey, rawFee);
       fees.value[`${sellerId}_${method.service_id}`] = formatPrice(rawFee);
+      shop.shipping_fee = rawFee; // Đồng bộ vào shop
+      shop.service_id = method.service_id; // Đồng bộ service_id
       emit('update:shippingFee', { sellerId, fee: rawFee });
 
       return rawFee;
@@ -465,13 +468,17 @@ const calculateAllShippingFees = async () => {
 
       shippingMethods.value[shop.seller_id] = services;
 
-      let effectiveMethod = services.find(m => [53321, 53322].includes(m.service_id));
-      if (!effectiveMethod || (effectiveMethod.service_id === 100039 && totalWeight < 2000)) {
-        effectiveMethod = services[0];
-        console.warn(`Không tìm thấy dịch vụ Hàng nhẹ hợp lệ, sử dụng dịch vụ ${effectiveMethod.service_id} cho shop ${shop.seller_id}`);
+      let effectiveMethod = services.find(m => m.service_id === shopServiceIds.value[shop.seller_id]);
+      if (!effectiveMethod) {
+        effectiveMethod = services.find(m => [53321, 53322].includes(m.service_id)) || services[0];
+        shopServiceIds.value[shop.seller_id] = effectiveMethod.service_id;
       }
 
-      shopServiceIds.value[shop.seller_id] = effectiveMethod.service_id;
+      if (effectiveMethod.service_id === 100039 && totalWeight < 2000) {
+        console.warn(`Dịch vụ Hàng nặng không hợp lệ cho trọng lượng ${totalWeight}g`);
+        effectiveMethod = services.find(m => m.service_id !== 100039) || services[0];
+        shopServiceIds.value[shop.seller_id] = effectiveMethod.service_id;
+      }
 
       const fee = await calculateShippingFee({
         ...shop,
@@ -497,7 +504,7 @@ const calculateAllShippingFees = async () => {
 
   await Promise.all(shippingPromises);
 
- const totalShippingFee = Object.values(fees.value)
+  const totalShippingFee = Object.values(fees.value)
     .filter(f => f !== 'Lỗi' && !isNaN(parsePrice(f)))
     .reduce((sum, f) => sum + parsePrice(f), 0);
   console.log(`Tổng phí vận chuyển: ${totalShippingFee}`);
@@ -605,29 +612,31 @@ const selectShopDiscount = (sellerId) => {
   showDiscountPopup.value = true;
 };
 
-const handleMethodChange = async (sellerId, methodId) => {
+const handleMethodChange = async (sellerId, method) => {
   const shop = localCartItems.value.find(s => s.seller_id === sellerId);
   if (!shop) {
     toast('error', `Không tìm thấy cửa hàng ${sellerId}.`);
     return;
   }
 
-  const method = shippingMethods.value[sellerId]?.find(m => m.service_id === methodId);
   if (!method) {
-    toast('error', `Phương thức vận chuyển ${methodId} không khả dụng cho cửa hàng ${sellerId}.`);
+    toast('error', `Phương thức vận chuyển không hợp lệ cho cửa hàng ${sellerId}.`);
     return;
   }
 
-  shopServiceIds.value[sellerId] = methodId;
+  shopServiceIds.value[sellerId] = method.service_id;
+  shop.service_id = method.service_id; // Đồng bộ service_id vào shop
   loadingFees.value[sellerId] = true;
 
   const fee = await calculateShippingFee(shop, method);
-  if (fee !== null) {
+  if (fee !== null && !isNaN(fee)) {
     fees.value[`${sellerId}_${method.service_id}`] = formatPrice(fee);
+    shop.shipping_fee = fee; // Đồng bộ phí vận chuyển vào shop
     emit('update:shippingFee', { sellerId, fee });
   } else {
     fees.value[`${sellerId}_${method.service_id}`] = 'Lỗi';
     errorMessage.value = `Không thể tính phí cho cửa hàng ${sellerId}.`;
+    shop.shipping_fee = 0;
   }
 
   loadingFees.value[sellerId] = false;
@@ -635,6 +644,7 @@ const handleMethodChange = async (sellerId, methodId) => {
   const totalShippingFee = Object.values(fees.value)
     .filter(f => f !== 'Lỗi')
     .reduce((sum, f) => sum + parsePrice(f), 0);
+  console.log(`Cập nhật tổng phí vận chuyển: ${totalShippingFee}`);
   emit('update:totalShippingFee', totalShippingFee);
 };
 
@@ -677,7 +687,9 @@ watch(() => props.cartItems, (val) => {
     items: shop.items || [],
     district_id: shop.district_id || null,
     ward_code: shop.ward_code || null,
-    note: shop.note || ''
+    note: shop.note || '',
+    shipping_fee: shop.shipping_fee || 0,
+    service_id: shop.service_id || null
   }));
 }, { immediate: true, deep: true });
 
