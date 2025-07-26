@@ -85,8 +85,9 @@ class PaymentController extends Controller
             if ($orders->isEmpty()) {
                 return response()->json(['message' => 'Không tìm thấy đơn hàng'], 404);
             }
+            // Sửa: chỉ lấy final_price, không cộng thêm shipping_fee nữa
             $totalAmount = $orders->sum(function($order) {
-                return $order->final_price + ($order->shipping->shipping_fee ?? 0);
+                return $order->final_price;
             });
             $orderInfo = 'Thanh toán nhiều đơn: ' . implode(',', $orderIds);
             $txnRef = implode('-', $orderIds) . '_' . time();
@@ -117,7 +118,8 @@ class PaymentController extends Controller
                 'order_id.exists' => 'ID đơn hàng không tồn tại'
             ]);
             $order = Order::findOrFail($request->order_id);
-            $totalAmount = $order->final_price + ($order->shipping->shipping_fee ?? 0);
+            // Sửa: chỉ lấy final_price, không cộng thêm shipping_fee nữa
+            $totalAmount = $order->final_price;
             $orderInfo = 'Thanh toan don hang ' . $order->id;
             $txnRef = $order->id . '_' . time();
 

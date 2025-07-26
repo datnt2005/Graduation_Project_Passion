@@ -30,9 +30,14 @@
                 <span class="font-medium text-gray-500">Địa chỉ giao hàng:</span>
                 <div class="mt-1 font-semibold text-gray-800">
                   {{
-                    order.address
-                      ? [order.address.detail, order.address.ward_name, order.address.district_name, order.address.province_name].filter(Boolean).join(', ')
-                      : 'Không có'
+                    order.address && order.address.detail
+                      ? [
+                          order.address.detail,
+                          order.address.ward_name || 'Phường/Xã không xác định',
+                          order.address.district_name || 'Quận/Huyện không xác định',
+                          order.address.province_name || 'Tỉnh/TP không xác định'
+                        ].join(', ')
+                      : 'Không có thông tin địa chỉ'
                   }}
                 </div>
               </div>
@@ -52,7 +57,7 @@
               </div>
               <div class="flex justify-between">
                 <span>Phí vận chuyển:</span>
-                <span>{{ formatPrice(order.shipping?.shipping_fee) }} đ</span>
+                <span>{{ formatPrice(order.shipping?.shipping_fee || (parseInt(order.final_price) - parseInt(order.total_price)) || 0) }} đ</span>
               </div>
               <div class="flex justify-between" v-if="order.shipping && order.shipping.shipping_discount > 0">
                 <span>Giảm giá phí ship:</span>
@@ -61,7 +66,7 @@
               <div class="flex justify-between font-bold border-t pt-2 mt-2">
                 <span>Tổng thanh toán:</span>
                 <span class="text-blue-700">
-                  {{ formatPrice((parseInt(order.final_price) || 0) + (parseInt(order.shipping?.shipping_fee) || 0)) }} đ
+                  {{ formatPrice((parseInt(order.final_price) || 0) - (parseInt(order.shipping?.shipping_discount) || 0)) }} đ
                 </span>
               </div>
             </div>
@@ -89,53 +94,6 @@
             </div>
           </div>
         </div>
-        <!-- Nếu chỉ có 1 đơn, vẫn hỗ trợ hiển thị cũ cho backward compatibility -->
-        <div v-else-if="orderDetails && orderDetails.user" class="bg-gray-50 rounded-xl p-6 w-full border border-gray-200 shadow-sm space-y-5">
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-6 text-gray-700 text-sm">
-            <div><span class="font-medium text-gray-500">Mã vận đơn:</span> <span class="font-semibold">{{ tracking_code || 'Đang cập nhật' }}</span></div>
-            <div><span class="font-medium text-gray-500">Người nhận:</span> <span class="font-semibold">{{ orderDetails?.user?.name || 'N/A' }}</span></div>
-            <div><span class="font-medium text-gray-500">Email:</span> <span class="font-semibold">{{ orderDetails?.user?.email || 'N/A' }}</span></div>
-            <div><span class="font-medium text-gray-500">SĐT:</span> <span class="font-semibold">{{ orderDetails?.address?.phone || 'N/A' }}</span></div>
-            <div class="sm:col-span-2">
-              <span class="font-medium text-gray-500">Địa chỉ giao hàng:</span>
-              <div class="mt-1 font-semibold text-gray-800">
-                {{
-                  orderDetails.address
-                    ? [orderDetails.address.detail, orderDetails.address.ward_name, orderDetails.address.district_name, orderDetails.address.province_name].filter(Boolean).join(', ')
-                    : 'Không có'
-                }}
-              </div>
-            </div>
-            <div class="sm:col-span-2 text-center mt-2">
-              <span class="font-medium text-gray-500">Phương thức:</span>
-              <span class="font-semibold">{{ orderDetails.payments?.[0]?.method === 'COD' ? 'Thanh toán khi nhận hàng (COD)' : orderDetails.payments?.[0]?.method === 'VNPAY' ? 'VNPay' : orderDetails.payments?.[0]?.method === 'MOMO' ? 'MoMo' : 'N/A' }}</span>
-            </div>
-          </div>
-          <div class="text-right text-lg font-bold text-blue-700 border-t pt-4 mt-4">
-            Tổng thanh toán: {{ formatPrice((parseInt(orderDetails?.final_price) || 0) + (parseInt(orderDetails?.shipping?.shipping_fee) || 0)) }} đ
-          </div>
-          <!-- Danh sách sản phẩm đã đặt (nếu có) -->
-          <div v-if="orderDetails?.order_items?.length" class="mt-4">
-            <div class="font-medium text-gray-700 mb-2">Sản phẩm đã đặt:</div>
-            <div class="max-h-64 overflow-y-auto pr-2">
-              <div v-for="item in orderDetails.order_items" :key="item.product?.id + '-' + (item.variant?.id || '')" class="flex items-center gap-4 border-b py-2 last:border-0">
-                <img
-                  :src="item.variant?.thumbnail ? mediaBaseUrl + item.variant.thumbnail : '/images/default-product.jpg'"
-                  :alt="item.product?.name || 'Ảnh sản phẩm'"
-                  class="w-12 h-12 object-cover rounded-md border"
-                  @error="e => e.target.src = '/images/default-product.jpg'"
-                />
-                <div class="flex-1">
-                  <div class="font-semibold text-gray-900">{{ item.product?.name || '-' }}</div>
-                  <div v-if="item.variant && item.variant.name" class="text-xs text-gray-500">Phân loại: {{ item.variant.name }}</div>
-                  <div class="text-xs text-gray-500">Số lượng: {{ item.quantity }} × {{ formatPrice(item.price) }}</div>
-                </div>
-                <div class="font-bold text-blue-700">{{ formatPrice(item.total) }}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
         <!-- Về trang chủ -->
         <div class="mt-6 flex gap-4 justify-center">
           <NuxtLink to="/" class="inline-block bg-gradient-to-r from-blue-600 to-blue-700 text-white px-8 py-3 rounded-full font-semibold text-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-300 shadow-md hover:shadow-lg">
@@ -176,22 +134,18 @@ const { clearAllCart } = useCart()
 const loading = ref(true)
 const success = ref(false)
 const message = ref('')
-const amount = ref(0)
-const bankCode = ref('')
-const transactionId = ref('')
-const tracking_code = ref('')
 const orderDetails = ref([])
-const paymentMethod = ref('')
+const mediaBaseUrl = config.public.mediaBaseUrl
 
-// Thêm cho địa chỉ
 const provinces = ref([])
 const districts = ref([])
 const wards = ref([])
 
+const orderIds = route.query.ids ? route.query.ids.split(',') : route.query.id ? [route.query.id] : []
+
 const formatPrice = (price) => {
-  if (!price) return '0';
-  // Chuyển sang số nguyên, không hiển thị phần thập phân
-  return parseInt(price, 10).toLocaleString('vi-VN');
+  if (!price) return '0'
+  return parseInt(price, 10).toLocaleString('vi-VN')
 }
 
 const parsePrice = (priceStr) => {
@@ -200,153 +154,138 @@ const parsePrice = (priceStr) => {
 }
 
 const loadProvinces = async () => {
-  const res = await fetch(`${config.public.apiBaseUrl}/ghn/provinces`)
-  const data = await res.json()
-  provinces.value = data.data || []
+  try {
+    const res = await fetch(`${config.public.apiBaseUrl}/ghn/provinces`)
+    const data = await res.json()
+    provinces.value = data.data || []
+    console.log('Loaded provinces:', provinces.value)
+  } catch (error) {
+    console.error('Error loading provinces:', error)
+  }
 }
 
 const loadDistricts = async (province_id) => {
-  const res = await fetch(`${config.public.apiBaseUrl}/ghn/districts`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ province_id }),
-  })
-  const data = await res.json()
-  districts.value = data.data || []
+  try {
+    const res = await fetch(`${config.public.apiBaseUrl}/ghn/districts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ province_id }),
+    })
+    const data = await res.json()
+    districts.value = data.data || []
+    console.log('Loaded districts for province_id ' + province_id + ':', districts.value)
+  } catch (error) {
+    console.error('Error loading districts for province_id ' + province_id + ':', error)
+  }
 }
 
 const loadWards = async (district_id) => {
-  const res = await fetch(`${config.public.apiBaseUrl}/ghn/wards`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ district_id }),
-  })
-  const data = await res.json()
-  wards.value = data.data || []
+  try {
+    const res = await fetch(`${config.public.apiBaseUrl}/ghn/wards`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ district_id }),
+    })
+    const data = await res.json()
+    wards.value = data.data || []
+    console.log('Loaded wards for district_id ' + district_id + ':', wards.value)
+  } catch (error) {
+    console.error('Error loading wards for district_id ' + district_id + ':', error)
+  }
 }
 
-const orderIds = route.query.ids ? route.query.ids.split(',') : (route.query.id ? [route.query.id] : []);
+function enrichAddress(address) {
+  if (!address) return
+  if (address.province_id && !address.province_name) {
+    const province = provinces.value.find(p => p.ProvinceID == address.province_id)
+    address.province_name = province?.ProvinceName || 'Tỉnh/TP không xác định'
+  }
+  if (address.district_id && !address.district_name) {
+    const district = districts.value.find(d => d.DistrictID == address.district_id)
+    address.district_name = district?.DistrictName || 'Quận/Huyện không xác định'
+  }
+  if (address.ward_code && !address.ward_name) {
+    const ward = wards.value.find(w => w.WardCode == address.ward_code)
+    address.ward_name = ward?.WardName || 'Phường/Xã không xác định'
+  }
+  console.log('Enriched address:', address)
+}
 
 onMounted(async () => {
+  console.log('Order IDs:', orderIds)
   if (!orderIds.length) {
-    success.value = false;
-    loading.value = false;
-    message.value = 'Không tìm thấy thông tin đơn hàng.';
-    return;
+    success.value = false
+    loading.value = false
+    message.value = 'Không tìm thấy thông tin đơn hàng'
+    return
   }
 
   try {
-    const token = localStorage.getItem('access_token');
+    const token = localStorage.getItem('access_token')
     if (!token) {
-      message.value = 'Vui lòng đăng nhập để xem thông tin đơn hàng.';
-      success.value = false;
-      loading.value = false;
-      window.dispatchEvent(new CustomEvent('openLoginModal'));
-      return;
+      message.value = 'Vui lòng đăng nhập để xem thông tin đơn hàng'
+      success.value = false
+      loading.value = false
+      window.dispatchEvent(new CustomEvent('openLoginModal'))
+      return
     }
 
-    // Load danh sách địa chỉ trước
-    await loadProvinces();
-    // Tạm thời lấy province_id, district_id, ward_code từ đơn đầu tiên (nếu có)
-    let firstAddress = null;
-    if (orderIds.length === 1) {
-      const orderId = orderIds[0]
-      const orderRes = await fetch(`${config.public.apiBaseUrl}/user/orders/${orderId}`, {
+    orderDetails.value = []
+    await loadProvinces() // Tải provinces trước
+
+    for (const id of orderIds) {
+      const orderRes = await fetch(`${config.public.apiBaseUrl}/user/orders/${id}`, {
         headers: {
           Accept: 'application/json',
           Authorization: `Bearer ${token}`,
         },
       })
 
-      if (orderRes.status === 403) {
-        throw new Error('Bạn không có quyền xem đơn này')
-      }
-      if (orderRes.status === 404) {
-        throw new Error('Không tìm thấy đơn hàng')
-      }
+      if (orderRes.status === 403) throw new Error('Bạn không có quyền xem đơn này')
+      if (orderRes.status === 404) throw new Error('Không tìm thấy đơn hàng')
 
       const orderData = await orderRes.json()
-      if (!orderRes.ok || !orderData) {
-        throw new Error(orderData.message || 'Không thể lấy thông tin đơn hàng')
-      }
+      console.log('Order Data for ID ' + id + ':', orderData)
 
-      // Map lại dữ liệu cho đúng với UI cũ
-      orderDetails.value = {
+      if (!orderRes.ok || !orderData) throw new Error(orderData.message || 'Không thể lấy thông tin đơn hàng')
+
+      const shippingFee = orderData.shipping?.shipping_fee || (parseInt(orderData.final_price) - parseInt(orderData.total_price)) || 0
+      const enrichedOrder = {
         ...orderData,
         order_items: orderData.items || [],
         address: orderData.address || {},
         user: orderData.user || {},
         payments: orderData.payments || [],
         final_price: orderData.final_price,
+        shipping: {
+          ...orderData.shipping,
+          shipping_fee: shippingFee,
+        },
       }
-      // Lấy tracking_code và paymentMethod từ API
-      tracking_code.value = orderData.shipping?.tracking_code || 'Đang cập nhật'
-      paymentMethod.value = orderData.payments?.[0]?.method || 'N/A'
 
-      // Load địa chỉ (nếu cần)
-      firstAddress = orderDetails.value?.address;
-    } else {
-      // Nếu nhiều đơn, fetch từng đơn và push vào orderDetails
-      orderDetails.value = [];
-      for (const id of orderIds) {
-        const orderRes = await fetch(`${config.public.apiBaseUrl}/user/orders/${id}`, {
-          headers: {
-            Accept: 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        if (orderRes.ok) {
-          const orderData = await orderRes.json();
-          orderDetails.value.push({
-            ...orderData,
-            order_items: orderData.items || [],
-            address: orderData.address || {},
-            user: orderData.user || {},
-            payments: orderData.payments || [],
-            final_price: orderData.final_price,
-          });
+      // Làm giàu địa chỉ cho từng đơn hàng
+      if (enrichedOrder.address) {
+        enrichAddress(enrichedOrder.address)
+        if (enrichedOrder.address.province_id) {
+          await loadDistricts(enrichedOrder.address.province_id)
+          if (enrichedOrder.address.district_id) {
+            await loadWards(enrichedOrder.address.district_id)
+            enrichAddress(enrichedOrder.address) // Cập nhật lại sau khi tải wards
+          } else {
+            console.warn('No district_id found for order ID:', id)
+          }
+        } else {
+          console.warn('No province_id found for order ID:', id)
         }
+      } else {
+        console.warn('No address found for order ID:', id)
       }
-      firstAddress = orderDetails.value.length > 0 ? orderDetails.value[0]?.address : null;
-    }
-    if (firstAddress) {
-      if (firstAddress.province_id) await loadDistricts(firstAddress.province_id);
-      if (firstAddress.district_id) await loadWards(firstAddress.district_id);
-    }
 
-    // Hàm enrich address
-    function enrichAddress(address) {
-      if (!address) return;
-      if (address.province_id && !address.province_name) {
-        const province = provinces.value.find(p => p.ProvinceID == address.province_id);
-        address.province_name = province?.ProvinceName || '';
-      }
-      if (address.district_id && !address.district_name) {
-        const district = districts.value.find(d => d.DistrictID == address.district_id);
-        address.district_name = district?.DistrictName || '';
-      }
-      if (address.ward_code && !address.ward_name) {
-        const ward = wards.value.find(w => w.WardCode == address.ward_code);
-        address.ward_name = ward?.WardName || '';
-      }
+      orderDetails.value.push(enrichedOrder)
     }
 
-    // enrich cho từng đơn
-    if (orderIds.length === 1) {
-      if (orderDetails.value?.address) enrichAddress(orderDetails.value.address);
-    } else {
-      orderDetails.value.forEach(order => {
-        if (order.address) enrichAddress(order.address);
-      });
-    }
-
-    // Xác minh thanh toán
-    const isCOD = orderDetails.value.payments?.[0]?.method === 'COD' || (!orderDetails.value.payments?.[0]?.method && !Object.keys(route.query).some(key => key.startsWith('vnp_')))
-
+    const isCOD = orderDetails.value.every(order => order.payments?.[0]?.method === 'COD')
     if (isCOD) {
-      amount.value = parsePrice(orderDetails.value.final_price) || 0
-      bankCode.value = 'Thanh toán khi nhận'
-      transactionId.value = 'Không áp dụng'
       success.value = true
     } else {
       throw new Error('Chỉ hỗ trợ xác nhận đơn hàng thanh toán COD trên trang này. Đối với thanh toán VNPAY, vui lòng kiểm tra trạng thái tại trang VNPAY Return.')
@@ -354,15 +293,13 @@ onMounted(async () => {
 
     await clearAllCart()
     loading.value = false
-    return
   } catch (err) {
-    console.error('Error fetching orders:', err);
-
-    success.value = false;
-    loading.value = false;
-    message.value = err.message || 'Có lỗi xảy ra khi xác minh thanh toán';
+    console.error('Error fetching orders:', err)
+    success.value = false
+    loading.value = false
+    message.value = err.message || 'Có lỗi xảy ra khi xác minh thanh toán'
   }
-});
+})
 
 onUnmounted(() => {
   // Nếu bạn có dùng countdown thì clear tại đây

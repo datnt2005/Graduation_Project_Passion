@@ -62,35 +62,13 @@
               </div>
               <div class="flex justify-between font-bold border-t pt-2 mt-2">
                 <span>Tổng thanh toán:</span>
-                <span class="text-blue-700">{{ formatPrice((parseInt(order.final_price) || 0) + (parseInt(order.shipping?.shipping_fee) || 0)) }}</span>
+                <span class="text-blue-700">{{ formatPrice(order.final_price || 0) }}</span>
               </div>
             </div>
-            <!-- Danh sách sản phẩm đã đặt (nếu có) -->
-            <div v-if="order.order_items?.length" class="mt-4">
-              <div class="font-medium text-gray-700 mb-2">Sản phẩm đã đặt:</div>
-              <div class="max-h-64 overflow-y-auto pr-2">
-                <div v-for="item in order.order_items" :key="item.product?.id + '-' + (item.variant?.id || '')" class="flex items-center gap-4 border-b py-2 last:border-0">
-                  <!-- Gallery ảnh sản phẩm -->
-                  <div class="flex gap-2 items-center">
-                    <img
-                      :src="getProductImage(item.variant?.thumbnail || item.product?.thumbnail)"
-                      :alt="item.product?.name || 'Ảnh sản phẩm'"
-                      class="w-12 h-12 object-cover rounded-md border"
-                      @error="e => { if (!e.target._errorHandled) { e.target.src = '/images/no-image.png'; e.target._errorHandled = true; } }"
-                    />
-                  </div>
-                  <div class="flex-1">
-                    <div class="font-semibold text-gray-900">{{ item.product?.name || '-' }}</div>
-                    <div v-if="item.variant && item.variant.name" class="text-xs text-gray-500">Phân loại: {{ item.variant.name }}</div>
-                    <div class="text-xs text-gray-500">Số lượng: {{ item.quantity }} × {{ formatPrice(item.price) }}</div>
-                  </div>
-                  <div class="font-bold text-blue-700">{{ formatPrice(item.total) }}</div>
-                </div>
-              </div>
-            </div>
+
           </div>
         </div>
-        <!-- Nếu chỉ có 1 đơn, vẫn hỗ trợ hiển thị cũ cho backward compatibility -->
+        <!-- Hỗ trợ hiển thị cũ cho backward compatibility -->
         <div v-else-if="orderDetail && orderDetail.user" class="bg-gray-50 rounded-xl p-6 w-full border border-gray-200 shadow-sm space-y-5">
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-6 text-gray-700 text-sm">
             <div><span class="font-medium text-gray-500">Mã vận đơn:</span> <span class="font-semibold">{{ tracking_code || 'Đang cập nhật' }}</span></div>
@@ -115,28 +93,9 @@
             </div>
           </div>
                       <div class="text-right text-lg font-bold text-blue-700 border-t pt-4 mt-4">
-              Tổng thanh toán: {{ formatPrice((parseInt(orderDetail?.final_price) || 0) + (parseInt(orderDetail?.shipping?.shipping_fee) || 0)) }} đ
-            </div>
-          <!-- Danh sách sản phẩm đã đặt (nếu có) -->
-          <div v-if="orderDetail?.order_items?.length" class="mt-4">
-            <div class="font-medium text-gray-700 mb-2">Sản phẩm đã đặt:</div>
-            <div class="max-h-64 overflow-y-auto pr-2">
-              <div v-for="item in orderDetail.order_items" :key="item.product?.id + '-' + (item.variant?.id || '')" class="flex items-center gap-4 border-b py-2 last:border-0">
-                <img
-                  :src="item.variant?.thumbnail ? mediaBaseUrl + item.variant.thumbnail : '/images/default-product.jpg'"
-                  :alt="item.product?.name || 'Ảnh sản phẩm'"
-                  class="w-12 h-12 object-cover rounded-md border"
-                  @error="e => e.target.src = '/images/default-product.jpg'"
-                />
-                <div class="flex-1">
-                  <div class="font-semibold text-gray-900">{{ item.product?.name || '-' }}</div>
-                  <div v-if="item.variant && item.variant.name" class="text-xs text-gray-500">Phân loại: {{ item.variant.name }}</div>
-                  <div class="text-xs text-gray-500">Số lượng: {{ item.quantity }} × {{ formatPrice(item.price) }}</div>
-                </div>
-                <div class="font-bold text-blue-700">{{ formatPrice(item.total) }}</div>
-              </div>
-            </div>
+            Tổng thanh toán: {{ formatPrice(orderDetail?.final_price || 0) }} đ
           </div>
+
         </div>
 
         <!-- Về trang chủ -->
@@ -256,16 +215,36 @@ function enrichAddress(address) {
   }
 }
 
-function getProductImage(thumbnail) {
-  if (!thumbnail) return '/images/no-image.png';
-  if (thumbnail.startsWith('http://') || thumbnail.startsWith('https://')) return thumbnail;
-  // Nếu thumbnail bắt đầu bằng '/', bỏ dấu '/' đầu để tránh lỗi khi nối
-  let cleanThumb = thumbnail.startsWith('/') ? thumbnail.slice(1) : thumbnail;
-  return mediaBaseUrl + cleanThumb;
+const getProductImage = (thumbnail) => {
+  if (!thumbnail) {
+    console.warn('Thumbnail is missing, using default image');
+    return '/images/default-product.jpg'; // Đảm bảo tệp này tồn tại trong public/images/
+  }
+  if (thumbnail.startsWith('http://') || thumbnail.startsWith('https://')) {
+    const url = `${thumbnail}?w=100&q=80`;
+    console.log('Generated image URL (absolute):', url);
+    return url;
+  }
+  const url = `${mediaBaseUrl}${thumbnail}?w=100&q=80`;
+  console.log('Generated image URL (relative):', url);
+  return url;
+};
+
+const fetchProductDetails = async (productId) => {
+  try {
+    const response = await fetch(`${config.public.apiBaseUrl}/products/${productId}`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` }
+    });
+    const data = await response.json();
+    return data.data?.thumbnail || '/images/default-product.jpg';
+  } catch (error) {
+    console.error('Error fetching product details:', error);
+    return '/images/default-product.jpg';
 }
+};
 
 onMounted(async () => {
-  // Collect all query parameters, not just vnp_ ones, to ensure nothing is missed
+  console.log('mediaBaseUrl:', config.public.mediaBaseUrl); // Debug mediaBaseUrl
   const queryParams = { ...route.query }
   console.log('VNPAY Redirect Query Parameters:', queryParams)
 
@@ -299,25 +278,33 @@ onMounted(async () => {
       
       // Xử lý order_detail từ backend
       if (data.order_detail) {
-        // Nếu order_detail là array (nhiều đơn hàng)
         if (Array.isArray(data.order_detail)) {
+          for (const order of data.order_detail) {
+            for (const item of order.order_items) {
+              if (!item.variant?.thumbnail && !item.product?.thumbnail) {
+                item.product.thumbnail = await fetchProductDetails(item.product.id);
+              }
+            }
+          }
           orderDetail.value = data.order_detail
         } else {
-          // Nếu order_detail là object (1 đơn hàng)
+          for (const item of data.order_detail.order_items) {
+            if (!item.variant?.thumbnail && !item.product?.thumbnail) {
+              item.product.thumbnail = await fetchProductDetails(item.product.id);
+            }
+          }
           orderDetail.value = [data.order_detail]
         }
       } else {
         orderDetail.value = []
       }
 
+      console.log('Order Detail:', JSON.stringify(orderDetail.value, null, 2)); // Debug orderDetail
+
       if (orderDetail.value && orderDetail.value.length) {
-        // Assuming orderDetail.value is an array of orders, we'll process the first one
         const order = orderDetail.value[0]
         if (order) {
-          // Clear cart after successful payment
           await clearAllCart()
-          // Không redirect tự động nữa, để user xem thông tin thanh toán
-          // router.push(`/orders/${order.id}`)
         } else {
           loading.value = false
           success.value = false
@@ -351,7 +338,6 @@ onMounted(async () => {
         if (firstAddress.province_id) await loadDistricts(firstAddress.province_id);
         if (firstAddress.district_id) await loadWards(firstAddress.district_id);
       }
-      // enrich address cho từng order
       if (Array.isArray(orderDetail.value)) {
         orderDetail.value.forEach(order => { if (order.address) enrichAddress(order.address); });
       } else if (orderDetail.value && orderDetail.value.address) {

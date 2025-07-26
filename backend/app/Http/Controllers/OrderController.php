@@ -488,7 +488,7 @@ class OrderController extends Controller
 
     if ($request->user()->status === 'banned') {
         return response()->json([
-            'message' => 'Tài khoản của bạn đã bị khóa do có quá nhiều đơn deleter Đơn hàng bị từ chối nhận.',
+            'message' => 'Tài khoản của bạn đã bị khóa do có quá nhiều đơn hàng bị từ chối nhận.',
             'is_account_banned' => true
         ], 403);
     }
@@ -498,7 +498,7 @@ class OrderController extends Controller
         'user_id' => $request->user()->id,
         'items_count' => count($request->items ?? []),
         'payment_method' => $request->payment_method,
-        'service_id' => $request->service_id,
+        'store_service_ids' => $request->store_service_ids,
     ]);
 
     if ($request->payment_method === 'COD') {
@@ -524,9 +524,10 @@ class OrderController extends Controller
         'items.*.quantity' => 'required|integer|min:1',
         'items.*.price' => 'required|numeric|min:0',
         'items.*.seller_id' => 'required|exists:sellers,id',
+        'items.*.service_id' => 'required|exists:shipping_methods,id', // Thêm validation cho service_id trong items
+        'items.*.shipping_fee' => 'required|numeric|min:0', // Thêm validation cho shipping_fee trong items
         'payment_method' => 'required|string|in:COD,VNPAY,MOMO',
         'address_id' => 'required|exists:addresses,id',
-        'service_id' => 'required|exists:shipping_methods,id',
         'store_shipping_fees' => 'required|array',
         'store_shipping_fees.*' => 'required|numeric|min:0',
         'store_service_ids' => 'required|array',
@@ -535,6 +536,7 @@ class OrderController extends Controller
         'store_shipping_fees.*.numeric' => 'Phí vận chuyển phải là số',
         'store_shipping_fees.*.min' => 'Phí vận chuyển phải lớn hơn hoặc bằng 0',
         'store_service_ids.*.exists' => 'Phương thức giao hàng cho cửa hàng không tồn tại',
+        'items.*.service_id.exists' => 'Phương thức giao hàng không tồn tại trong items',
     ]);
 
     try {
@@ -545,13 +547,6 @@ class OrderController extends Controller
         $address = Address::find($request->address_id);
         $ghn = new GHNService();
 
-        // Kiểm tra service_id chung
-        $shippingMethod = ShippingMethod::find($request->service_id);
-        if (!$shippingMethod) {
-            throw new \Exception('Phương thức giao hàng không tồn tại: service_id ' . $request->service_id);
-        }
-
-        // Kiểm tra tồn kho và giá sản phẩm
         foreach ($items as $item) {
             $product = $products[$item['product_id']] ?? null;
             if (!$product) {
@@ -578,7 +573,7 @@ class OrderController extends Controller
                 ]);
 
                 if ($stock > 0 && $item['quantity'] > $stock) {
-                    throw new \Exception('Số lượng vượt quá tồn kho: ' . $item['product_id'] . ' (Có: ' . $stock . ', Yêu cầu: ' . $item['quantity'] . ')');
+                    throw new \Exception('Số lượng vượt quá tồn kho: ' . $item['product_id'] . ' (Có: ' + $stock + ', Yêu cầu: ' + $item['quantity']);
                 }
             }
         }
@@ -590,7 +585,7 @@ class OrderController extends Controller
         } else {
             foreach ($items as $item) {
                 $product = $products[$item['product_id']];
-                $sellerId = $product->seller_id;
+                $sellerId = $item['seller_id'];
                 $itemsBySeller[$sellerId][] = $item;
             }
         }
@@ -609,7 +604,6 @@ class OrderController extends Controller
                 'is_buy_now' => $isBuyNow,
             ]);
 
-            // Tạo order items và thu thập order_item_id
             $orderItemIds = [];
             $totalPrice = 0;
             foreach ($sellerItems as $item) {
@@ -624,7 +618,6 @@ class OrderController extends Controller
                 $totalPrice += $item['price'] * $item['quantity'];
             }
 
-            // Kiểm tra hoàn tiền dựa trên order_item_id
             if (Schema::hasTable('refunds') && Schema::hasColumn('refunds', 'order_item_id')) {
                 $refund = Refund::whereIn('order_item_id', $orderItemIds)->first();
                 if ($refund) {
@@ -665,45 +658,67 @@ class OrderController extends Controller
                 $order->discount_id = $usedDiscount->id;
             }
 
-            $finalPrice = $totalPrice - $discountPrice;
+            // --- SỬA ĐOẠN NÀY: Trừ thêm discount từ store_discounts nếu có ---
+            $extraShopDiscount = 0;
+            if ($request->has('store_discounts') && isset($request->store_discounts[$sellerId])) {
+                $extraShopDiscount = floatval($request->store_discounts[$sellerId]);
+            }
+            $finalPrice = $totalPrice - $discountPrice - $extraShopDiscount;
+            $finalPrice = max($finalPrice, 0);
+            // --- END SỬA ---
 
-            // Sử dụng phí cố định từ store_shipping_fees
-            $shopServiceId = $request->store_service_ids[$sellerId] ?? $request->service_id;
+            $shopServiceId = $request->store_service_ids[$sellerId] ?? null;
             $shippingMethod = ShippingMethod::find($shopServiceId);
             if (!$shippingMethod) {
                 throw new \Exception('Phương thức giao hàng không tồn tại: service_id ' . $shopServiceId);
             }
 
-            $shippingFee = $request->store_shipping_fees[$sellerId] ?? $shippingMethod->cost;
+            $shippingFee = $request->store_shipping_fees[$sellerId] ?? 0;
+            // Bỏ kiểm tra khớp với shippingMethod->cost
+            Log::info("Sử dụng phí vận chuyển từ request cho seller_id: {$sellerId}", [
+                'shipping_fee' => $shippingFee,
+                'service_id' => $shopServiceId,
+            ]);
+
             $trackingCode = null;
             $estimatedDelivery = now()->addDays($shippingMethod->estimated_days ?? 3);
+            $maxRetries = 2;
+            $retryCount = 0;
 
-            // Gọi API GHN để lấy tracking_code và estimated_delivery
-            try {
-                $ghnOrder = $ghn->createShippingOrder($order, $address, $shopServiceId, $request->payment_method);
-                $trackingCode = $ghnOrder['order_code'] ?? null;
-                $estimatedDelivery = $ghnOrder['expected_delivery_time'] ?? $estimatedDelivery;
-                if (!$trackingCode) {
-                    Log::warning('GHN did not return tracking code', [
+            while ($retryCount <= $maxRetries) {
+                try {
+                    $ghnOrder = $ghn->createShippingOrder($order, $address, $shopServiceId, $request->payment_method);
+                    $trackingCode = $ghnOrder['order_code'] ?? null;
+                    $estimatedDelivery = $ghnOrder['expected_delivery_time'] ?? $estimatedDelivery;
+                    if (!$trackingCode) {
+                        Log::warning('GHN did not return tracking code', [
+                            'order_id' => $order->id,
+                            'ghn_response' => $ghnOrder,
+                        ]);
+                        throw new \Exception('GHN không trả về mã vận đơn');
+                    }
+                    Log::info('GHN createShippingOrder Success', [
                         'order_id' => $order->id,
-                        'ghn_response' => $ghnOrder,
+                        'tracking_code' => $trackingCode,
+                        'estimated_delivery' => $estimatedDelivery,
                     ]);
-                    throw new \Exception('GHN không trả về mã vận đơn');
+                    break;
+                } catch (\Exception $e) {
+                    $retryCount++;
+                    if ($retryCount > $maxRetries) {
+                        Log::error('GHN API error in OrderController::store after retries', [
+                            'order_id' => $order->id,
+                            'error' => $e->getMessage(),
+                            'trace' => $e->getTraceAsString(),
+                        ]);
+                        throw new \Exception("Không thể tạo đơn vận chuyển GHN sau {$maxRetries} lần thử: {$e->getMessage()}");
+                    }
+                    Log::info("Thử lại GHN createShippingOrder lần {$retryCount}", [
+                        'order_id' => $order->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                    sleep(1);
                 }
-                Log::info('GHN createShippingOrder Success', [
-                    'order_id' => $order->id,
-                    'tracking_code' => $trackingCode,
-                    'estimated_delivery' => $estimatedDelivery,
-                ]);
-            } catch (\Exception $e) {
-                Log::error('GHN API error in OrderController::store', [
-                    'order_id' => $order->id,
-                    'error' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString(),
-                ]);
-                // Không throw lỗi, tiếp tục lưu đơn hàng với tracking_code = null
-                $trackingCode = null;
-                $estimatedDelivery = now()->addDays($shippingMethod->estimated_days ?? 3);
             }
 
             if ($shippingDiscount) {
@@ -726,7 +741,7 @@ class OrderController extends Controller
 
             $order->update([
                 'total_price' => $totalPrice,
-                'discount_price' => $discountPrice,
+                'discount_price' => $discountPrice + $extraShopDiscount,
                 'final_price' => $finalPrice + $shippingFee,
                 'discount_id' => $order->discount_id,
             ]);
@@ -764,6 +779,7 @@ class OrderController extends Controller
         DB::commit();
 
         return response()->json([
+            'success' => true,
             'message' => 'Đơn hàng đã được tạo thành công',
             'orders' => $orders
         ], 201);
@@ -778,6 +794,95 @@ class OrderController extends Controller
         ], 500);
     }
 }
+
+public function upsertShippingMethod(Request $request)
+{
+    try {
+        $request->validate([
+            'id' => 'required|integer',
+            'name' => 'required|string|max:255',
+            'carrier' => 'required|string|max:255',
+            'estimated_days' => 'required|integer|min:1',
+            'cost' => 'required|numeric|min:0',
+            'status' => 'required|in:active,inactive',
+        ]);
+
+        // Xác thực service_id với GHN
+        $ghn = new GHNService();
+        $seller = Seller::where('user_id', Auth::id())->first();
+        if ($seller) {
+            $services = $ghn->getServices($seller->id, $seller->district_id);
+            $validServiceIds = array_column($services['data'] ?? [], 'service_id');
+            if (!in_array($request->id, $validServiceIds)) {
+                Log::warning("Invalid service_id: {$request->id} for seller {$seller->id}", [
+                    'available_services' => $validServiceIds,
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => "Dịch vụ vận chuyển service_id {$request->id} không được hỗ trợ",
+                ], 400);
+            }
+        }
+
+        // So sánh cost với GHN (nếu có thông tin để tính phí)
+        if ($seller) {
+            try {
+                $feeData = [
+                    'seller_id' => $seller->id,
+                    'from_district_id' => $seller->district_id,
+                    'from_ward_code' => $seller->ward_id,
+                    'to_district_id' => $seller->district_id, // Dùng cùng quận để kiểm tra
+                    'to_ward_code' => $seller->ward_id,
+                    'service_id' => $request->id,
+                    'weight' => 1000,
+                    'length' => 25,
+                    'width' => 25,
+                    'height' => 25,
+                ];
+                $ghnFee = $ghn->calculateFee($feeData)['data']['total'] / 100;
+                if (abs($ghnFee - $request->cost) > 0.01) {
+                    Log::warning("Phí vận chuyển không khớp với GHN", [
+                        'service_id' => $request->id,
+                        'request_cost' => $request->cost,
+                        'ghn_cost' => $ghnFee,
+                    ]);
+                }
+            } catch (\Exception $e) {
+                Log::warning("Không thể kiểm tra phí GHN: {$e->getMessage()}", [
+                    'service_id' => $request->id,
+                ]);
+            }
+        }
+
+        $shippingMethod = ShippingMethod::updateOrCreate(
+            ['id' => $request->id],
+            [
+                'name' => $request->name,
+                'carrier' => $request->carrier,
+                'estimated_days' => $request->estimated_days,
+                'cost' => $request->cost,
+                'status' => $request->status,
+            ]
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Cập nhật hoặc tạo phương thức giao hàng thành công',
+            'data' => $shippingMethod,
+        ], 200);
+    } catch (\Exception $e) {
+        Log::error('Lỗi khi cập nhật/tạo shipping method: ' . $e->getMessage(), [
+            'request' => $request->all(),
+            'trace' => $e->getTraceAsString(),
+        ]);
+        return response()->json([
+            'success' => false,
+            'message' => 'Có lỗi xảy ra khi cập nhật/tạo phương thức giao hàng',
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
 
     public function show($id)
     {
