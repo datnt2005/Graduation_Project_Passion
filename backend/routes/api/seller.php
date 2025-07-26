@@ -11,7 +11,7 @@ Route::prefix('sellers')->group(function () {
 
     // 2. Seller và Admin có quyền xem/ cập nhật thông tin của chính mình
     Route::middleware(['auth:sanctum', 'checkRole:seller,admin'])->group(function () {
-        Route::get('/seller/me', [SellerController::class, 'getMySellerInfo']);
+        Route::get('/me', [SellerController::class, 'getMySellerInfo']);
         Route::post('/update', [SellerController::class, 'update']);
     });
 
@@ -21,7 +21,7 @@ Route::prefix('sellers')->group(function () {
     // 4. Route công khai – không cần đăng nhập
     Route::get('/store/{slug}', [SellerController::class, 'showStore']);
     Route::get('/store/{slug}/deals', [SellerController::class, 'getDeals']);
-    Route::get('/store/{slug}/discounts', [SellerController::class, 'getDiscounts']);
+    // Route::get('/store/{slug}/discounts', [SellerController::class, 'getDiscounts']);
     Route::get('/verified', [SellerController::class, 'getVerifiedSellers']);
 
     Route::get('/{seller_id}', [SellerController::class, 'show']);

@@ -65,7 +65,7 @@
             <div class="h-12 bg-gray-200 rounded w-1/2"></div>
           </div>
         </div>
-      </div>  
+      </div>
       <!-- Error Message -->
       <div v-if="error" class="text-red-500 text-center">{{ error }}</div>
       <!-- Main Product Section -->
@@ -146,6 +146,8 @@
     </div>
   </main>
   <ChatComponent ref="chatRef" />
+  <AuthModal :show="showModal" :initial-mode="modalMode" @close="showModal = false"
+    @login-success="handleLoginSuccess" />
 </template>
 
 <script setup>
@@ -164,6 +166,8 @@ import { useRuntimeConfig } from "#app";
 import { useCart } from "~/composables/useCart";
 import { useAuthStore } from "@/stores/auth";
 import ChatComponent from "~/components/chat/ChatWidget.vue";
+import AuthModal from "~/components/shared/AuthModal.vue";
+
 
 const { fetchCart } = useCart();
 const auth = useAuthStore();
@@ -173,6 +177,8 @@ const config = useRuntimeConfig();
 const router = useRouter();
 const route = useRoute();
 const chatStore = useChatStore();
+const modalMode = ref("login");
+const showModal = ref(false);
 
 // nút chat
 const chatRef = ref(null);
@@ -446,9 +452,11 @@ function decreaseQuantity() {
   }
 }
 
-const openLoginModal = () => {
-  window.dispatchEvent(new CustomEvent("openLoginModal"));
-};
+function openLoginModal() {
+  console.log("openLoginModal called");
+  modalMode.value = "login";
+  showModal.value = true;
+}
 
 function validateSelection() {
   const requiredAttrs = variantAttributes.value.map((attr) => attr.name);
@@ -509,11 +517,17 @@ function toggleFavorite() {
 
 const isAddingToCart = ref(false);
 async function addToCart() {
+  const token = localStorage.getItem("access_token");
+  if (!isLoggedIn.value || !token) {
+    console.log("User not logged in, opening login modal");
+    openLoginModal();
+    return;
+  }
+
   if (!validateSelection()) {
     return;
   }
 
-  const token = localStorage.getItem("access_token");
   const payload = {
     product_variant_id: selectedVariant.value?.id || null,
     quantity: quantity.value,
@@ -552,13 +566,12 @@ async function addToCart() {
 }
 
 async function buyNow() {
-  if (!validateSelection()) {
+  const token = localStorage.getItem("access_token");
+  if (!isLoggedIn.value || !token) {
+    openLoginModal();
     return;
   }
-
-  const token = localStorage.getItem("access_token");
-  if (!token) {
-    validationMessage.value = "Vui lòng đăng nhập để tiếp tục.";
+  if (!validateSelection()) {
     return;
   }
 

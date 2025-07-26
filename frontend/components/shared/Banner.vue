@@ -1,90 +1,96 @@
-  <template>
-    <div class="bg-white w-full select-none">
-      <div class="flex flex-wrap justify-center md:justify-between gap-4 mb-6 px-2">
-        <!-- Slide bên trái -->
+<template>
+  <div class="bg-white w-full select-none">
+    <div class="flex flex-wrap justify-center md:justify-between gap-4 mb-6 px-2">
+      <!-- Slide bên trái -->
+      <div
+        class="flex-1 min-w-[280px] max-w-full relative overflow-hidden shadow-md"
+        @mousedown="startDrag"
+        @mousemove="onDrag"
+        @mouseup="endDrag"
+        @mouseleave="cancelDrag"
+        @touchstart="startDrag"
+        @touchmove="onDrag"
+        @touchend="endDrag"
+      >
         <div
-          class="flex-1 min-w-[280px] max-w-full relative overflow-hidden shadow-md"
-          @mousedown="startDrag"
-          @mousemove="onDrag"
-          @mouseup="endDrag"
-          @mouseleave="cancelDrag"
-          @touchstart="startDrag"
-          @touchmove="onDrag"
-          @touchend="endDrag"
+          id="bannerSlides"
+          class="flex transition-transform duration-500 ease-in-out"
+          :style="{ transform: `translateX(-${realIndex * 100}%)` }"
+          ref="sliderRef"
+          :class="{ 'transition-none': disableTransition }"
         >
+          <!-- Clone ảnh cuối -->
           <div
-            id="bannerSlides"
-            class="flex transition-transform duration-500 ease-in-out"
-            :style="{ transform: `translateX(-${realIndex * 100}%)` }"
-            ref="sliderRef"
-            :class="{ 'transition-none': disableTransition }"
+            v-if="banners.length"
+            class="w-full h-[200px] flex-shrink-0 bg-white flex items-center justify-center"
           >
-            <!-- Clone ảnh cuối -->
-            <div
-              v-if="banners.length"
-              class="w-full h-[200px] flex-shrink-0 bg-white flex items-center justify-center"
-            >
+            <a :href="banners[banners.length - 1].link" target="_blank" class="w-full h-full">
               <img
                 :src="banners[banners.length - 1].image_url"
                 alt="Clone cuối"
                 class="w-full h-full object-cover"
               />
-            </div>
+            </a>
+          </div>
 
-            <!-- Ảnh chính -->
-            <div
-              v-for="(img, i) in banners"
-              :key="i"
-              class="w-full h-[300px] flex-shrink-0 bg-white flex items-center justify-center"
-            >
+          <!-- Ảnh chính -->
+          <div
+            v-for="(img, i) in banners"
+            :key="i"
+            class="w-full h-[300px] flex-shrink-0 bg-white flex items-center justify-center"
+          >
+            <a :href="img.link" target="_blank" class="w-full h-full">
               <img
                 :src="img.image_url"
                 :alt="img.title || `Slide ${i + 1}`"
                 class="w-full h-full object-cover"
               />
-            </div>
+            </a>
+          </div>
 
-            <!-- Clone ảnh đầu -->
-            <div
-              v-if="banners.length"
-              class="w-full h-[300px] flex-shrink-0 bg-white flex items-center justify-center"
-            >
+          <!-- Clone ảnh đầu -->
+          <div
+            v-if="banners.length"
+            class="w-full h-[300px] flex-shrink-0 bg-white flex items-center justify-center"
+          >
+            <a :href="banners[0].link" target="_blank" class="w-full h-full">
               <img
                 :src="banners[0].image_url"
                 alt="Clone đầu"
                 class="w-full h-full object-cover"
               />
-            </div>
-          </div>
-
-          <!-- Dots -->
-          <div class="absolute bottom-3 left-1/2 transform -translate-x-1/2 flex gap-2 z-10">
-            <button
-              v-for="(img, i) in banners"
-              :key="i"
-              class="dot w-3 h-3 rounded-full bg-white opacity-70 hover:bg-[#1BA0E2]"
-              :class="{ 'bg-[#1BA0E2]': i === index }"
-              @click="goToSlide(i)"
-            ></button>
+            </a>
           </div>
         </div>
 
-        <!-- Banner nhỏ bên phải -->
-        <div class="hidden sm:flex flex-col gap-4 min-w-[250px] max-w-[360px]">
-          <img
-            src="https://sf-static.upanhlaylink.com/img/image_20250718176342fcca97b9ab168d67eb5c15616e.jpg"
-            alt="Banner nhỏ 1"
-            class="w-full h-[146px] object-cover shadow-md"
-          />
-          <img
-            src="https://sf-static.upanhlaylink.com/img/image_202507181fb34ba202f43ade448a5eeb1078e9d5.jpg"
-            alt="Banner nhỏ 2"
-            class="w-full h-[146px] object-cover shadow-md"
-          />
+        <!-- Dots -->
+        <div class="absolute bottom-3 left-1/2 transform -translate-x-1/2 flex gap-2 z-10">
+          <button
+            v-for="(img, i) in banners"
+            :key="i"
+            class="dot w-3 h-3 rounded-full bg-white opacity-70 hover:bg-[#1BA0E2]"
+            :class="{ 'bg-[#1BA0E2]': i === index }"
+            @click="goToSlide(i)"
+          ></button>
         </div>
       </div>
+
+      <!-- Banner nhỏ bên phải -->
+      <div class="hidden sm:flex flex-col gap-4 min-w-[250px] max-w-[360px]">
+        <img
+          src="https://sf-static.upanhlaylink.com/img/image_20250718176342fcca97b9ab168d67eb5c15616e.jpg"
+          alt="Banner nhỏ 1"
+          class="w-full h-[146px] object-cover shadow-md"
+        />
+        <img
+          src="https://sf-static.upanhlaylink.com/img/image_202507181fb34ba202f43ade448a5eeb1078e9d5.jpg"
+          alt="Banner nhỏ 2"
+          class="w-full h-[146px] object-cover shadow-md"
+        />
+      </div>
     </div>
-  </template>
+  </div>
+</template>
 
   <script setup>
   import { ref, onMounted, onBeforeUnmount, watch } from "vue";

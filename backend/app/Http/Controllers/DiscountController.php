@@ -8,10 +8,13 @@ use App\Models\DiscountCategory;
 use App\Models\DiscountUser;
 use App\Models\FlashSale;
 use App\Models\User;
+use App\Models\Seller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class DiscountController extends Controller
 {
@@ -36,36 +39,34 @@ class DiscountController extends Controller
     // Create a new discount
     public function store(Request $request)
     {
-            $validator = Validator::make($request->all(), [
-                'name' => 'required|string|max:255',
-                'code' => 'required|string|max:50|unique:discounts',
-                'description' => 'nullable|string',
-                'discount_type' => 'in:percentage,fixed,shipping_fee',
-                'discount_value' => 'numeric|min:0',
-                'usage_limit' => 'nullable|integer|min:1',
-                'min_order_value' => 'nullable|numeric|min:0',
-                'start_date' => 'required|date|after_or_equal:today',
-                'end_date' => 'required|date|after:start_date',
-                'status' => 'required|in:active,inactive,expired',
-            ], [
-                'name.required' => 'Tên mã giảm giá không được để trống',
-                'code.required' => 'Mã giảm giá không được để trống',
-                'code.unique' => 'Mã giảm giá đã tồn tại',
-                'discount_type.required' => 'Loại giảm giá không được để trống',
-                'discount_type.in' => 'Loại giảm giá không hợp lệ',
-                'discount_value.required' => 'Giá trị giảm giá không được để trống',
-                'discount_value.min' => 'Giá trị giảm giá phải lớn hơn 0',
-                'usage_limit.min' => 'Giới hạn sử dụng phải lớn hơn 0',
-                'min_order_value.min' => 'Giá trị đơn hàng tối thiểu phải lớn hơn 0',
-                'start_date.required' => 'Ngày bắt đầu không được để trống',
-                'start_date.date' => 'Ngày bắt đầu không đúng định dạng',
-                'start_date.after_or_equal' => 'Ngày bắt đầu phải từ ngày hôm nay trở đi',
-                'end_date.required' => 'Ngày kết thúc không được để trống',
-                'end_date.date' => 'Ngày kết thúc không đúng định dạng',
-                'end_date.after' => 'Ngày kết thúc phải sau ngày bắt đầu',
-                'status.required' => 'Trạng thái không được để trống',
-                'status.in' => 'Trạng thái không hợp lệ',
-            ]);
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:255',
+            'code' => 'required|string|max:50|unique:discounts',
+            'description' => 'nullable|string',
+            'discount_type' => 'in:percentage,fixed,shipping_fee',
+            'discount_value' => 'numeric|min:0',
+            'usage_limit' => 'nullable|integer|min:1',
+            'min_order_value' => 'nullable|numeric|min:0',
+            'start_date' => 'required|date|after_or_equal:today',
+            'end_date' => 'required|date|after:start_date',
+            'status' => 'required|in:active,inactive,expired',
+        ], [
+            'name.required' => 'Tên mã giảm giá không được để trống',
+            'code.required' => 'Mã giảm giá không được để trống',
+            'code.unique' => 'Mã giảm giá đã tồn tại',
+            'discount_type.in' => 'Loại giảm giá không hợp lệ',
+            'discount_value.min' => 'Giá trị giảm giá phải lớn hơn 0',
+            'usage_limit.min' => 'Giới hạn sử dụng phải lớn hơn 0',
+            'min_order_value.min' => 'Giá trị đơn hàng tối thiểu phải lớn hơn 0',
+            'start_date.required' => 'Ngày bắt đầu không được để trống',
+            'start_date.date' => 'Ngày bắt đầu không đúng định dạng',
+            'start_date.after_or_equal' => 'Ngày bắt đầu phải từ ngày hôm nay trở đi',
+            'end_date.required' => 'Ngày kết thúc không được để trống',
+            'end_date.date' => 'Ngày kết thúc không đúng định dạng',
+            'end_date.after' => 'Ngày kết thúc phải sau ngày bắt đầu',
+            'status.required' => 'Trạng thái không được để trống',
+            'status.in' => 'Trạng thái không hợp lệ',
+        ]);
 
         if ($validator->fails()) {
             return response()->json([
@@ -442,15 +443,19 @@ class DiscountController extends Controller
             ], 500);
         }
     }
+
+    // Save voucher by code
     public function saveVoucherByCode(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'code' => 'required|string|exists:discounts,code',
         ]);
+
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Mã voucher không hợp lệ',
+                'error_code' => 'INVALID_CODE',
                 'errors' => $validator->errors()
             ], 422);
         }
@@ -459,7 +464,8 @@ class DiscountController extends Controller
         if (!$user) {
             return response()->json([
                 'success' => false,
-                'message' => 'Bạn cần đăng nhập để lưu voucher'
+                'message' => 'Bạn cần đăng nhập để lưu voucher',
+                'error_code' => 'UNAUTHENTICATED'
             ], 401);
         }
 
@@ -471,11 +477,19 @@ class DiscountController extends Controller
         if (!$discount) {
             return response()->json([
                 'success' => false,
-                'message' => 'Mã voucher không còn hiệu lực hoặc đã hết hạn'
+                'message' => 'Mã voucher không còn hiệu lực hoặc đã hết hạn',
+                'error_code' => 'INVALID_OR_EXPIRED'
             ], 404);
         }
 
-        // Kiểm tra đã lưu chưa
+        if ($discount->usage_limit !== null && $discount->used_count >= $discount->usage_limit) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Mã voucher đã hết lượt sử dụng',
+                'error_code' => 'USAGE_LIMIT_EXCEEDED'
+            ], 410);
+        }
+
         $exists = DiscountUser::where('user_id', $user->id)
             ->where('discount_id', $discount->id)
             ->exists();
@@ -483,15 +497,30 @@ class DiscountController extends Controller
         if ($exists) {
             return response()->json([
                 'success' => false,
-                'message' => 'Bạn đã lưu mã voucher này rồi'
+                'message' => 'Bạn đã lưu mã voucher này rồi',
+                'error_code' => 'ALREADY_SAVED'
             ], 409);
         }
 
-        // Lưu vào bảng trung gian
-        DiscountUser::create([
-            'user_id' => $user->id,
-            'discount_id' => $discount->id,
-        ]);
+        DB::beginTransaction();
+        try {
+            DiscountUser::create([
+                'user_id' => $user->id,
+                'discount_id' => $discount->id,
+            ]);
+            DB::commit();
+            Log::info("Saved voucher for user ID {$user->id}, discount ID {$discount->id}");
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error("Error saving voucher: " . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi khi lưu voucher: ' . $e->getMessage(),
+                'error_code' => 'SAVE_FAILED'
+            ], 500);
+        }
+
+        $discount->is_saved = true;
 
         return response()->json([
             'success' => true,
@@ -500,6 +529,117 @@ class DiscountController extends Controller
         ], 201);
     }
 
+public function getStoreDiscounts($slug)
+    {
+        try {
+            // Validate slug
+            if (empty($slug) || !is_string($slug)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Slug không hợp lệ.',
+                ], 400);
+            }
+
+            // Fetch seller
+            $seller = Seller::where('store_slug', $slug)->firstOrFail();
+
+            // Fetch active discounts with relationships
+            $discounts = Discount::where('seller_id', $seller->id)
+                ->where('status', 'active')
+                ->where('start_date', '<=', now())
+                ->where('end_date', '>=', now())
+                ->with([
+                    'products' => function ($query) {
+                        $query->select('products.id', 'products.name', 'products.slug');
+                    },
+                    'categories' => function ($query) {
+                        $query->select('categories.id', 'categories.name', 'categories.slug');
+                    },
+                    'seller' => function ($query) {
+                        $query->select('sellers.id', 'sellers.store_name', 'sellers.store_slug', 'sellers.user_id');
+                    }
+
+                ])
+                ->paginate(6);
+
+            // Transform discounts
+            $user = Auth::user();
+            $discounts->getCollection()->transform(function ($discount) use ($user) {
+                // Check if voucher is saved by the user
+                $isSaved = $user ? DiscountUser::where('user_id', $user->id)
+                    ->where('discount_id', $discount->id)
+                    ->exists() : false;
+
+                // Prepare discount data
+                $discountData = [
+                    'id' => $discount->id,
+                    'name' => $discount->name,
+                    'code' => $discount->code,
+                    'description' => $discount->description,
+                    'discount_type' => $discount->discount_type,
+                    'usage_limit' => $discount->usage_limit,
+                    'used_count' => $discount->used_count ?? 0,
+                    'min_order_value' => $discount->min_order_value,
+                    'start_date' => $discount->start_date->toIso8601String(),
+                    'end_date' => $discount->end_date->toIso8601String(),
+                    'is_saved' => $isSaved,
+                    'products' => $discount->products->map(function ($product) {
+                        return [
+                            'id' => $product->id,
+                            'name' => $product->name,
+                            'slug' => $product->slug,
+                        ];
+                    })->toArray(),
+                    'seller' => [
+                        'id' => $discount->seller->id,
+                        'store_name' => $discount->seller->store_name,
+                        'store_slug' => $discount->seller->store_slug,
+                        'avatar' => $discount->seller->user->avatar
+                    ],
+                    'categories' => $discount->categories->map(function ($category) {
+                        return [
+                            'id' => $category->id,
+                            'name' => $category->name,
+                            'slug' => $category->slug,
+                        ];
+                    })->toArray(),
+                ];
+
+                // Format discount value based on type
+                if ($discount->discount_type === 'percentage') {
+                    $discountData['discount_value'] = (float) $discount->discount_value . '%';
+                } elseif ($discount->discount_type === 'shipping_fee' || $discount->discount_type === 'fixed') {
+                    $discountData['discount_value'] = number_format((float) $discount->discount_value, 0, ',', '.') . 'đ';
+                } else {
+                    $discountData['discount_value'] = (string) $discount->discount_value;
+                }
+
+                return $discountData;
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Lấy danh sách mã giảm giá thành công.',
+                'data' => [
+                    'vouchers' => $discounts->items(),
+                    'pagination' => [
+                        'current_page' => $discounts->currentPage(),
+                        'last_page' => $discounts->lastPage(),
+                        'per_page' => $discounts->perPage(),
+                        'total' => $discounts->total(),
+                    ],
+                ],
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Đã xảy ra lỗi khi lấy danh sách mã giảm giá. Vui lòng thử lại sau.',
+                'error' => app()->environment('local') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    // List user's saved vouchers
     public function myVouchers(Request $request)
     {
         $user = Auth::user();
@@ -509,15 +649,26 @@ class DiscountController extends Controller
                 'message' => 'Bạn cần đăng nhập'
             ], 401);
         }
-        $vouchers = $user->discounts()->get();
-        \Log::info('User ID: ' . $user->id);
-        \Log::info('Vouchers: ' . $vouchers->toJson());
+        $vouchers = $user->discounts()
+            ->with([
+                'products' => function ($query) {
+                    $query->select('products.id', 'products.name', 'products.slug');
+                },
+                'categories' => function ($query) {
+                    $query->select('categories.id', 'categories.name', 'categories.slug');
+                },
+                'seller' => function ($query) {
+                    $query->select('sellers.id', 'sellers.store_name', 'sellers.store_slug', 'sellers.user_id');
+                }
+            ])
+            ->get();
         return response()->json([
             'success' => true,
             'data' => $vouchers
         ]);
     }
 
+    // Delete user's saved voucher
     public function deleteUserVoucher($id)
     {
         $user = Auth::user();
@@ -527,7 +678,7 @@ class DiscountController extends Controller
                 'message' => 'Bạn cần đăng nhập'
             ], 401);
         }
-        $deleted = \App\Models\DiscountUser::where('user_id', $user->id)
+        $deleted = DiscountUser::where('user_id', $user->id)
             ->where('discount_id', $id)
             ->delete();
         if ($deleted) {
@@ -543,12 +694,12 @@ class DiscountController extends Controller
         }
     }
 
-    // Public: Lấy tất cả voucher đang hoạt động cho user (chỉ của admin)
+    // Public: Get all active admin vouchers
     public function indexPublic()
     {
-        $discounts = \App\Models\Discount::where('status', 'active')
+        $discounts = Discount::where('status', 'active')
             ->where('end_date', '>', now())
-            ->whereNull('seller_id') // Chỉ lấy discount của admin
+            ->whereNull('seller_id')
             ->get();
         return response()->json([
             'success' => true,
@@ -556,10 +707,10 @@ class DiscountController extends Controller
         ]);
     }
 
-    // Public: Lấy discount của seller theo seller_id
+    // Public: Get seller discounts by seller_id
     public function getSellerDiscounts($sellerId)
     {
-        $discounts = \App\Models\Discount::where('status', 'active')
+        $discounts = Discount::where('status', 'active')
             ->where('end_date', '>', now())
             ->where('seller_id', $sellerId)
             ->get();
@@ -567,5 +718,65 @@ class DiscountController extends Controller
             'success' => true,
             'data' => $discounts
         ]);
+    }
+
+    // Check voucher applicability
+    public function checkVoucher(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'code' => 'required|string|exists:discounts,code',
+            'order_value' => 'required|numeric|min:0',
+        ]);
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi dữ liệu nhập vào',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bạn cần đăng nhập để kiểm tra voucher',
+                'error_code' => 'UNAUTHENTICATED'
+            ], 401);
+        }
+
+        $discount = Discount::where('code', $request->code)
+            ->where('status', 'active')
+            ->where('end_date', '>', now())
+            ->first();
+
+        if (!$discount) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Mã voucher không còn hiệu lực hoặc đã hết hạn',
+                'error_code' => 'INVALID_OR_EXPIRED'
+            ], 404);
+        }
+
+        if ($discount->usage_limit !== null && $discount->used_count >= $discount->usage_limit) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Mã voucher đã hết lượt sử dụng',
+                'error_code' => 'USAGE_LIMIT_EXCEEDED'
+            ], 410);
+        }
+
+        if ($discount->min_order_value && $request->order_value < $discount->min_order_value) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Giá trị đơn hàng không đạt yêu cầu tối thiểu',
+                'error_code' => 'MIN_ORDER_VALUE_NOT_MET'
+            ], 400);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Mã voucher có thể sử dụng',
+            'data' => $discount
+        ], 200);
     }
 }

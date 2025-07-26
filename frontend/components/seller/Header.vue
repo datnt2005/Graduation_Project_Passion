@@ -9,7 +9,9 @@ const hasNewNotifications = ref(false)
 const notifications = ref([])
 const isNotificationOpen = ref(false)
 const config = useRuntimeConfig()
+const me = ref([])
 const apiBase = config.public.apiBaseUrl
+const mediaBase = config.public.mediaBaseUrl
 let interval 
 
 // Thêm các ref states cho modal:
@@ -76,6 +78,15 @@ const mergeNotificationsWithLocalStorage = (serverNotifications) => {
   }))
 }
 
+const fetchMe = async () => {
+  try {
+    const data = await secureFetch(`${apiBase}/sellers/me` , {}, ['seller'])
+    me.value = data.seller  
+  } catch (error) {
+    console.error('Failed to fetch me:', error)
+    return null
+  }
+}
 
 const fetchNotifications = async () => {
   try {
@@ -234,7 +245,7 @@ onMounted(() => {
   
   // Fetch notifications
   fetchNotifications()
-  
+  fetchMe()
   // Set interval để fetch định kỳ
   interval = setInterval(fetchNotifications, 30000) // Assign interval variable
   
@@ -437,7 +448,7 @@ onUnmounted(() => {
             <div class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-400 border-2 border-white rounded-full"></div>
           </div>
           <div class="hidden sm:block">
-            <p class="text-sm font-medium text-gray-900">Seller</p>
+            <p class="text-sm font-medium text-gray-900">{{ me.store_name }}</p>
             <p class="text-xs text-gray-500">Người bán hàng</p>
           </div>
         </div>

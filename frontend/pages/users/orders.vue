@@ -10,7 +10,7 @@
       <main class="flex-1 w-full">
         <!-- Title -->
         <header class="text-center mb-6" v-once>
-          <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Đơn hàng của tôi</h1>
+          <h2 class="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-2">Đơn hàng của tôi</h2>
           <p class="text-sm text-gray-500">Theo dõi và quản lý đơn hàng bạn đã đặt</p>
         </header>
 

@@ -223,6 +223,8 @@
       </div>
     </div>
   </div>
+  <AuthModal :show="showModal" :initial-mode="modalMode" @close="showModal = false"
+    @login-success="handleLoginSuccess" />
 </template>
 
 <script setup>
@@ -231,12 +233,15 @@ import { useToast } from "@/composables/useToast";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "~/stores/auth";
 import { useRuntimeConfig } from '#app'
+import AuthModal from "~/components/shared/AuthModal.vue";
 
 const auth = useAuthStore();
 const { toast } = useToast();
 const router = useRouter();
 const config = useRuntimeConfig();
 const apiBase = config.public.apiBaseUrl;
+const modalMode = ref("login");
+const showModal = ref(false);
 
 const props = defineProps({
   product: { type: Object, required: true },
@@ -287,6 +292,11 @@ const reportReasons = [
   { value: "other", label: "Lý do khác" },
 ];
 
+function openLoginModal() {
+  console.log("openLoginModal called");
+  modalMode.value = "login";
+  showModal.value = true;
+}
 
 const isSubmitDisabled = computed(() => {
   if (selectedReportReason.value === "other") {
@@ -299,8 +309,7 @@ async function toggleFavorite() {
   const token = localStorage.getItem('access_token');
 
   if (!token || !auth.isLoggedIn || !auth.currentUser) {
-    toast('error', 'Vui lòng đăng nhập để sử dụng chức năng này!');
-    router.push('/login');
+    openLoginModal();
     return;
   }
 
@@ -319,8 +328,7 @@ async function toggleFavorite() {
 
 function openReportModal() {
   if (!auth.isLoggedIn) {
-    toast('error', 'Vui lòng đăng nhập để tố cáo sản phẩm!');
-    router.push('/login');
+    openLoginModal();
     return;
   }
   isReportModalOpen.value = true;

@@ -1,4 +1,3 @@
-```vue
 <template>
   <section ref="reviewSection" class="w-full mb-12 py-6 bg-gray-50">
     <h1 class="text-sm font-semibold mb-4">Khách hàng đánh giá</h1>
@@ -137,6 +136,8 @@
       </button>
     </nav>
   </section>
+  <AuthModal :show="showModal" :initial-mode="modalMode" @close="showModal = false"
+    @login-success="handleLoginSuccess" />
 </template>
 
 <script setup>
@@ -145,11 +146,14 @@ import { useHead } from '#app'
 import { useRuntimeConfig } from '#app'
 import { useToast } from '~/composables/useToast'
 import ReviewItem from './ReviewItem.vue'
+import AuthModal from "~/components/shared/AuthModal.vue";
 
 const { toast, showError, showConfirm } = useToast()
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBaseUrl
 const mediaBase = config.public.mediaBaseUrl
+const modalMode = ref("login");
+const showModal = ref(false);
 
 const props = defineProps({
   productId: { type: Number, required: true },
@@ -210,6 +214,12 @@ useHead({
     }
   ]
 })
+
+function openLoginModal() {
+  console.log("openLoginModal called");
+  modalMode.value = "login";
+  showModal.value = true;
+}
 
 // Computed properties
 const currentUserId = computed(() => userId.value || null)
@@ -333,7 +343,10 @@ const fetchReviews = async () => {
   }
 }
 const submitReview = async () => {
-  if (!token.value) return toast('warning', 'Bạn cần đăng nhập để gửi đánh giá')
+  if (!token.value){
+    openLoginModal()
+    return;
+  }
   if (!isReviewFormValid.value) return toast('warning', 'Vui lòng chọn số sao và nhập nội dung đánh giá')
   if (!editingReviewId.value && hasUserReviewed.value) return toast('info', 'Bạn đã đánh giá sản phẩm này rồi!')
   const formData = new FormData()
@@ -442,4 +455,3 @@ onMounted(async () => {
   opacity: 0;
 }
 </style>
-```

@@ -6,6 +6,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class User extends Authenticatable
 {
@@ -48,7 +49,8 @@ class User extends Authenticatable
 
     public function discounts()
     {
-        return $this->belongsToMany(Discount::class, 'discount_users', 'user_id', 'discount_id');
+        return $this->belongsToMany(Discount::class, 'discount_users', 'user_id', 'discount_id')
+            ->withTimestamps();
     }
 
     public function getAvatarUrlAttribute()
@@ -72,14 +74,28 @@ class User extends Authenticatable
         return $this->hasMany(SearchHistory::class);
     }
 
-    public function getAllUsers()
-    {
-        $users = User::select('id', 'name', 'email', 'role')->get();
-        return response()->json($users);
-    }
-
     public function approvals()
     {
         return $this->hasMany(ProductApproval::class, 'admin_id');
+    }
+
+    public function savedVouchers(): BelongsToMany
+    {
+        return $this->belongsToMany(Discount::class, 'discount_users', 'user_id', 'discount_id')
+            ->withPivot(['created_at'])
+            ->withTimestamps();
+    }
+
+    public function saveVoucher($discount)
+    {
+        if ($this->savedVouchers()->where('discount_id', $discount->id)->exists()) {
+            return false; // Voucher đã được lưu
+        }
+        return $this->savedVouchers()->attach($discount->id, ['created_at' => now()]);
+    }
+
+    public function removeVoucher($discount)
+    {
+        return $this->savedVouchers()->detach($discount->id);
     }
 }

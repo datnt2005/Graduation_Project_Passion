@@ -1,367 +1,207 @@
 <template>
-  <main class="bg-gray-100">
-    <div class="w-[1300px] mx-auto">
-      <div class="text-sm text-gray-500 px-4 py-2 rounded">
-        <NuxtLink to="/" class="text-gray-400">Trang chủ</NuxtLink>
-        <span class="mx-1">›</span>
-        <span class="text-black font-medium">Bài viết</span>
-      </div>
-    </div>
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 mt-4 lg:px-8 min-h-screen bg-white ">
-      <div class="flex flex-col lg:flex-row gap-6 py-6">
-        <!-- Main Content -->
-        <main class="flex-1">
-          <!-- Search and Filter -->
-          <div class="mb-6 flex flex-col sm:flex-row justify-between items-stretch gap-4 rounded-2xl">
-            <!-- Search Box -->
-            <div class="w-full sm:w-1/2 relative">
-              <input v-model="searchQuery" @input="debouncedSearch" type="text" placeholder="Tìm kiếm bài viết..."
-                class="w-full py-3 pl-4 pr-12 rounded-xl border border-gray-200 shadow-inner bg-white text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300" />
-              <!-- Clear Button -->
-              <button v-if="searchQuery" @click="searchQuery = ''; debouncedSearch()"
-                class="absolute right-10 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 transition-all">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
+  <div class="min-h-screen bg-[#f5f7fa] text-[#1a1a1a] font-sans">
+    <div class="max-w-[1535px] mx-auto p-4 md:p-6 flex flex-col md:flex-row gap-6">
+      <SidebarProfile class="w-full md:w-[260px] bg-white rounded-xl shadow-sm border border-[#e0e6ed] p-4" />
+
+      <main class="flex-1 p-0 md:p-4">
+        <div>
+          <h2 class="text-2xl sm:text-3xl text-center font-extrabold text-gray-900 mb-4">Sản phẩm yêu thích</h2>
+
+          <section class="rounded-2xl shadow-sm border border-[#ececec] p-6 md:p-8 bg-white">
+            <!-- Search -->
+            <div class="flex justify-end mb-6">
+              <div class="relative w-full md:w-1/3">
+                <input v-model="filter" type="text" placeholder="Tìm kiếm sản phẩm yêu thích..."
+                  class="w-full px-4 py-2 pl-10 rounded-lg border border-[#e0e6ed] bg-[#f9fbfd] focus:outline-none focus:ring-2 focus:ring-[#0b74e5] transition" />
+                <font-awesome-icon :icon="['fas', 'magnifying-glass']"
+                  class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#637381]" />
+              </div>
+            </div>
+
+            <!-- Empty -->
+            <div v-if="!loading && paginatedFavorites.length === 0"
+              class="flex flex-col items-center justify-center py-16 text-[#637381]">
+              <font-awesome-icon :icon="['fas', 'heart-circle-xmark']" class="w-16 h-16 mb-4 text-[#e0e6ed]" />
+              <p>Không tìm thấy sản phẩm yêu thích nào.</p>
+            </div>
+
+            <!-- List -->
+            <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div v-for="item in paginatedFavorites" :key="item.id"
+                class="border border-[#e0e6ed] rounded-2xl p-4 flex gap-4 items-center bg-[#f9fbfd] hover:shadow-xl transition-shadow duration-200 group relative">
+                <img :src="getImageSrc(item.product?.image)" alt="Ảnh sản phẩm"
+                  class="w-24 h-24 object-cover rounded-xl border bg-white shadow-sm group-hover:scale-105 transition-transform duration-200"
+                  @error="e => { e.target.src = DEFAULT_IMAGE }" />
+                <div class="flex-1">
+                  <h2 class="font-semibold text-lg text-[#212b36] mb-1 truncate max-w-[220px]">
+                    {{ item.product?.name || 'Không có tiêu đề' }}
+                  </h2>
+                  <p class="text-[#637381] text-sm mb-2 line-clamp-2"
+                    v-html="item.product?.fullDescription || 'Không có mô tả'"></p>
+                  <div v-if="item.product?.price" class="text-green-600 font-bold mb-1">
+                    {{ item.product.price.toLocaleString() }}₫
+                  </div>
+                  <div v-if="item.product?.shopName" class="text-xs text-[#7a869a] mb-1 flex items-center">
+                    <font-awesome-icon :icon="['fas', 'store']" class="w-4 h-4 mr-1" />
+                    {{ item.product.shopName }}
+                  </div>
+                  <NuxtLink v-if="item.product" :to="`/products/${item.product.slug}`"
+                    class="text-[#0b74e5] hover:underline text-sm font-medium">
+                    Xem chi tiết
+                  </NuxtLink>
+                </div>
+                <button class="absolute top-2 right-2 text-red-500 hover:text-red-600 transition" :disabled="submitting"
+                  @click="removeFavorite(item.product.id)">
+                  <font-awesome-icon :icon="['fas', 'heart']" class="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            <!-- Pagination -->
+            <div v-if="totalPages > 1" class="flex justify-center mt-6 space-x-2 items-center text-sm font-medium">
+              <!-- Nút Trước -->
+              <button @click="currentPage = Math.max(1, currentPage - 1)" :disabled="currentPage === 1"
+                class="px-3 py-1.5 rounded-md border border-gray-300 bg-white text-gray-600 hover:bg-gray-100 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                Trước
               </button>
-              <!-- Search Icon -->
-              <svg class="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none"
-                fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
 
-            <!-- Filters -->
-            <div class="flex flex-col sm:flex-row gap-3 w-full sm:w-auto sm:items-center">
-              <select v-model="selectedCategory" @change="fetchPosts(1); fetchRelated()"
-                class="py-2.5 px-4 rounded-xl border border-gray-200 bg-white shadow-inner text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300">
-                <option value="">Tất cả danh mục</option>
-                <option v-for="category in categories" :key="category.id" :value="category.id">
-                  {{ category.name }}
-                </option>
-              </select>
-
-              <select v-model="sortOption" @change="fetchPosts(1)"
-                class="py-2.5 px-4 rounded-xl border border-gray-200 bg-white shadow-inner text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300">
-                <option value="created_at:desc">Mới nhất</option>
-                <option value="views:desc">Lượt xem cao</option>
-                <option value="title:asc">Tiêu đề A-Z</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- Loading State -->
-          <div v-if="loading" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div v-for="n in 6" :key="n" class="bg-white rounded-xl shadow-sm p-4 animate-pulse">
-              <div class="w-full h-48 bg-gray-200 rounded-lg mb-4"></div>
-              <div class="space-y-3">
-                <div class="h-5 bg-gray-200 rounded w-3/4"></div>
-                <div class="h-4 bg-gray-200 rounded w-full"></div>
-                <div class="h-4 bg-gray-200 rounded w-1/2"></div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Post List -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div v-for="post in posts" :key="post.id"
-              class="bg-white rounded-xl shadow-sm p-4 border border-gray-100 transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
-              <NuxtLink :to="`/posts/${post.slug}`">
-                <img :src="post.thumbnail_url || '/placeholder.jpg'" :alt="post.title"
-                  class="w-full h-48 object-cover rounded-lg mb-4 transition-transform duration-300 hover:scale-[1.02]"
-                  @error="onImageError" />
-              </NuxtLink>
-              <NuxtLink :to="`/posts/${post.slug}`">
-                <h3 class="text-lg font-semibold text-gray-800 mb-2 hover:text-blue-500 transition-colors duration-200">
-                  {{ post.title }}
-                </h3>
-              </NuxtLink>
-              <p class="text-gray-600 text-sm mb-3 line-clamp-2">
-                {{ post.excerpt || post.description || 'Không có tóm tắt' }}
-              </p>
-              <div class="flex justify-between items-center text-sm text-gray-500 mb-3">
-                <span>Người đăng: {{ post.user?.name || '---' }}</span>
-                <span>{{ post.category ? post.category.name : '---' }}</span>
-              </div>
-              <div class="flex justify-between items-center text-sm text-gray-500 mb-3">
-                <span>{{ formatDate(post.created_at) }}</span>
-                <span>{{ post.views || 0 }} lượt xem</span>
-              </div>
-            </div>
-
-            <div v-if="!loading && !posts.length" class="text-center text-gray-500 py-10 col-span-full">
-              Chưa có bài viết nào.
-            </div>
-          </div>
-
-          <!-- Pagination -->
-          <div v-if="totalPages > 1" class="flex justify-center mt-6 space-x-1">
-            <button v-for="page in totalPages" :key="page" @click="fetchPosts(page)"
-              class="px-3 py-1.5 text-sm border rounded-md transition-all duration-200" :class="currentPage === page
-                ? 'bg-blue-400 text-white border-blue-400 hover:bg-blue-600'
-                : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'">
-              {{ page }}
-            </button>
-          </div>
-        </main>
-
-        <aside class="w-full lg:w-80 flex-shrink-0">
-          <div class="mb-6 bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-            <h3 class="font-bold text-lg text-gray-800 mb-3">Danh mục</h3>
-            <ul class="space-y-1">
-              <li>
-                <button @click="selectCategory('')" :class="[
-                  'w-full text-left block py-2 px-4 rounded-lg text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-all duration-300',
-                  !selectedCategory ? 'bg-blue-50 text-blue-600 font-semibold' : ''
-                ]">
-                  Tất cả danh mục
+              <!-- Các nút số trang -->
+              <template v-for="page in totalPages" :key="page">
+                <button @click="currentPage = page" class="px-3 py-1.5 rounded-md transition duration-200 border"
+                  :class="currentPage === page
+                    ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'">
+                  {{ page }}
                 </button>
-              </li>
-              <li v-for="category in displayedCategories" :key="category.id">
-                <button @click="selectCategory(category.id)" :class="[
-                  'w-full text-left flex justify-between items-center py-2 px-4 rounded-lg text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-all duration-300',
-                  selectedCategory === category.id ? 'bg-blue-50 text-blue-600 font-semibold' : ''
-                ]">
-                  <span>{{ category.name }}</span>
-                  <span v-if="category.post_count" class="text-sm text-gray-500">{{ category.post_count }}</span>
-                </button>
-              </li>
-              <li v-if="categories.length > displayedCategories.length">
-                <NuxtLink to="/categories"
-                  class="block py-2 px-4 rounded-lg text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-all duration-300">
-                  Xem thêm
-                </NuxtLink>
-              </li>
-            </ul>
-          </div>
-          <SidebarBlock title="Bài viết mới nhất" :posts="latestPosts" :loading="false" />
-        </aside>
-      </div>
+              </template>
+
+              <!-- Nút Sau -->
+              <button @click="currentPage = Math.min(totalPages, currentPage + 1)"
+                :disabled="currentPage === totalPages"
+                class="px-3 py-1.5 rounded-md border border-gray-300 bg-white text-gray-600 hover:bg-gray-100 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                Sau
+              </button>
+            </div>
+          </section>
+        </div>
+      </main>
     </div>
-  </main>
+  </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { debounce } from 'lodash'
-import { useRuntimeConfig } from '#app'
-import SidebarBlock from '~/components/posts/SidebarBlock.vue'
+import { useHead, useRuntimeConfig } from '#app'
+import { useToast } from '~/composables/useToast'
+import SidebarProfile from '~/components/shared/layouts/Sidebar-profile.vue'
 
-const config = useRuntimeConfig()
-const apiBase = config.public.apiBaseUrl
-const posts = ref([])
-const loading = ref(true)
-const currentPage = ref(1)
-const totalPages = ref(1)
-const searchQuery = ref('')
-const selectedCategory = ref('')
-const sortOption = ref('created_at:desc')
-const categories = ref([])
-const latestPosts = ref([])
-const relatedPosts = ref([])
-const relatedLoading = ref(true)
-
-// Computed property to limit displayed categories to 5
-const displayedCategories = computed(() => {
-  return categories.value.slice(0, 5)
+useHead({
+  title: 'Sản phẩm yêu thích | Quản lý danh sách yêu thích',
+  meta: [
+    { name: 'description', content: 'Xem và quản lý danh sách sản phẩm yêu thích của bạn.' },
+    { name: 'robots', content: 'noindex, nofollow' }
+  ]
 })
 
-const formatDate = (dateStr) => {
-  if (!dateStr) return ''
-  return new Date(dateStr).toLocaleDateString('vi-VN', { year: 'numeric', month: 'long', day: 'numeric' })
-}
+const { showSuccess, showError } = useToast()
+const config = useRuntimeConfig()
+const apiBase = config.public.apiBaseUrl
+const mediaBase = config.public.mediaBaseUrl
+const DEFAULT_IMAGE = `${mediaBase}no-image.png`
 
-const onImageError = (event) => {
-  event.target.src = '/placeholder.jpg'
-}
+const favorites = ref([])
+const loading = ref(true)
+const submitting = ref(false)
+const error = ref('')
+const success = ref('')
+const filter = ref('')
+const currentPage = ref(1)
+const itemsPerPage = 9
 
-const scrollToTop = () => {
-  window.scrollTo({ top: 0, behavior: 'smooth' })
-}
-
-const fetchCategories = async () => {
-  try {
-    const res = await $fetch(`${apiBase}/post-categories`, {
-      method: 'GET',
-      headers: { 'Accept': 'application/json' }
-    })
-    categories.value = res.data.data.map(category => ({
-      ...category,
-      post_count: category.post_count || 0 // Adjust based on your API response
-    })) || []
-  } catch (e) {
-    console.error('Error fetching categories:', e)
-  }
-}
-
-const fetchPosts = async (page = 1) => {
+const fetchFavorites = async () => {
   loading.value = true
+  error.value = ''
   try {
-    const queryParams = new URLSearchParams({
-      status: 'published',
-      page,
-      ...(searchQuery.value && { search: searchQuery.value }),
-      ...(selectedCategory.value && { category_id: selectedCategory.value }),
-      ...(sortOption.value && { sort: sortOption.value })
+    const token = localStorage.getItem('access_token')
+    if (!token) {
+      error.value = 'Bạn cần đăng nhập để xem danh sách yêu thích.'
+      return
+    }
+    const res = await $fetch(`${apiBase}/favorites`, {
+      headers: { Authorization: `Bearer ${token}` }
     })
-    const res = await $fetch(`${apiBase}/posts?${queryParams.toString()}`, {
-      headers: { 'Accept': 'application/json' }
-    })
-    posts.value = res.data.data || []
-    currentPage.value = res.data.current_page || 1
-    totalPages.value = res.data.last_page || 1
+    favorites.value = res.data || []
   } catch (e) {
-    posts.value = []
-    console.error('Error fetching posts:', e)
+    error.value = 'Không thể tải danh sách yêu thích.'
+    showError(error.value)
   } finally {
     loading.value = false
   }
 }
 
-const fetchLatest = async () => {
-  try {
-    const res = await $fetch(`${apiBase}/posts?limit=5&status=published&sort=created_at:desc`, {
-      headers: { 'Accept': 'application/json' }
-    })
-    latestPosts.value = res.data.data || []
-  } catch (e) {
-    console.error('Error fetching latest posts:', e)
-    latestPosts.value = []
-  }
+const getImageSrc = (image) => {
+  if (!image) return DEFAULT_IMAGE
+  if (image.startsWith('http')) return image
+  return `${mediaBase.replace(/\/$/, '')}/${image.replace(/^\//, '')}`
 }
 
-const fetchRelated = async () => {
-  relatedLoading.value = true
+const removeFavorite = async (productId) => {
+  error.value = ''
+  success.value = ''
+  submitting.value = true
   try {
-    let url = `${apiBase}/posts?status=published&limit=5`
-    if (selectedCategory.value) url += `&category_id=${selectedCategory.value}`
-    const res = await $fetch(url, {
-      headers: { 'Accept': 'application/json' }
+    const token = localStorage.getItem('access_token')
+    if (!token) {
+      error.value = 'Bạn cần đăng nhập để thao tác.'
+      return
+    }
+    await $fetch(`${apiBase}/favorites/toggle`, {
+      method: 'POST',
+      body: { product_id: productId },
+      headers: { Authorization: `Bearer ${token}` }
     })
-    relatedPosts.value = res.data.data || []
+    favorites.value = favorites.value.filter(item => item.product?.id !== productId)
+    success.value = 'Đã xóa khỏi yêu thích.'
+    showSuccess(success.value)
+    setTimeout(() => (success.value = ''), 1500)
   } catch (e) {
-    console.error('Error fetching related posts:', e)
-    relatedPosts.value = []
+    error.value = 'Không thể xóa sản phẩm khỏi yêu thích.'
+    showError(error.value)
   } finally {
-    relatedLoading.value = false
+    submitting.value = false
   }
 }
 
-const debouncedSearch = debounce(() => fetchPosts(1), 300)
+const filteredFavorites = computed(() =>
+  favorites.value.filter(item =>
+    item.product?.name?.toLowerCase().includes(filter.value.trim().toLowerCase())
+  )
+)
 
-// Function to handle category selection
-const selectCategory = (categoryId) => {
-  selectedCategory.value = categoryId
-  fetchPosts(1)
-  fetchRelated()
-  scrollToTop()
-}
-
-onMounted(() => {
-  fetchCategories()
-  fetchPosts()
-  fetchLatest()
-  fetchRelated()
+const totalPages = computed(() => Math.ceil(filteredFavorites.value.length / itemsPerPage))
+const paginatedFavorites = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage
+  return filteredFavorites.value.slice(start, start + itemsPerPage)
 })
+
+onMounted(fetchFavorites)
 </script>
 
 <style scoped>
-/* Line clamp for text truncation */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.25s;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
 .line-clamp-2 {
   display: -webkit-box;
+  -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
   overflow: hidden;
-}
-
-.line-clamp-3 {
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-/* Smooth transitions and hover effects */
-button,
-a {
-  transition: all 0.3s ease-in-out;
-}
-
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #888;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #555;
-}
-
-/* Sidebar category styles */
-aside .bg-white {
-  transition: all 0.3s ease-in-out;
-}
-
-aside ul li button,
-aside ul li a {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 0.95rem;
-}
-
-aside ul li button:hover,
-aside ul li a:hover {
-  transform: translateX(4px);
-}
-
-aside .font-semibold {
-  background-color: #eff6ff;
-  /* Tailwind's blue-50 */
-}
-
-/* Responsive adjustments */
-@media (max-width: 1024px) {
-  aside {
-    margin-top: 2rem;
-  }
-}
-
-@media (max-width: 640px) {
-  aside .bg-white {
-    padding: 1rem;
-  }
-
-  aside h3 {
-    font-size: 1.125rem;
-  }
-
-  aside ul li button,
-  aside ul li a {
-    font-size: 0.9rem;
-    padding: 0.5rem 1rem;
-  }
-
-  .text-2xl {
-    font-size: 1.25rem;
-  }
-
-  .h-80 {
-    height: 12rem;
-  }
-
-  .h-48 {
-    height: 10rem;
-  }
 }
 </style>

@@ -99,18 +99,15 @@ class Product extends Model
 
     // chuong change
     public function mainVariant()
-{
-    return $this->hasOne(ProductVariant::class, 'product_id')->orderByRaw('CASE WHEN sale_price IS NOT NULL THEN 0 ELSE 1 END');
-}
+    {
+        return $this->hasOne(ProductVariant::class, 'product_id')->orderByRaw('CASE WHEN sale_price IS NOT NULL THEN 0 ELSE 1 END');
+    }
     public function variants()
-{
-    return $this->hasMany(ProductVariant::class, 'product_id');
-}
-
+    {
+        return $this->hasMany(ProductVariant::class, 'product_id');
+    }
     public function discounts()
     {
         return $this->belongsToMany(Discount::class, 'discount_products', 'product_id', 'discount_id');
     }
-
-
 }

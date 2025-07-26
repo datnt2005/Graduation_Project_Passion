@@ -1,6 +1,6 @@
 <template>
   <div class="bg-[#f5f7fa] font-sans text-[#1a1a1a] min-h-screen">
-    <div class="min-h-screen flex flex-col md:flex-row max-w-screen-2xl mx-auto p-4 sm:p-6">
+    <div class=" flex flex-col md:flex-row max-w-screen-2xl mx-auto p-4 sm:p-6">
       <SidebarProfile class="flex-shrink-0 border-r border-gray-200 md:w-64 mb-4 md:mb-0" />
       <main class="flex-1 p-0 md:p-4">
         <div class=" mx-auto">
@@ -59,12 +59,11 @@
               <!-- Logo -->
               <div class="flex flex-col items-center justify-center min-w-[60px]">
                 <img
-                  :src="getVoucherImage(voucher)"
-                  alt="Voucher Logo"
-                  class="w-10 h-10 object-contain mb-1"
-                  @error="e => e.target.src = defaultVoucherImage"
+                  :src="imageVoucher" alt="Voucher Logo"
+                  class="w-12 h-12 object-contain mb-1"
                 />
-                <div class="text-[10px] font-bold text-blue-700 bg-blue-100 rounded px-1 py-0.5">PASSION VIP</div>
+                <div v-if="voucher.seller" class="text-[10px] font-bold text-blue-700 bg-blue-100 rounded px-1 py-0.5">{{ voucher.seller.store_name }} </div>
+                <div v-else class="text-[10px] font-bold text-blue-700 bg-blue-100 rounded px-1 py-0.5">PASSION VIP</div>
               </div>
               <!-- Nội dung -->
               <div class="flex-1 flex flex-col justify-between min-w-0">
@@ -79,6 +78,7 @@
                   <span v-else>Giảm {{ formatCurrency(voucher.discount_value) }}</span>
                   <span>Đơn từ {{ formatCurrency(voucher.min_order_value) }}</span>
                 </div>
+                <div v-if="voucher.products.length > 0" class="text-xs text-blue-500 mt-1 w-full">Sản phẩm nhất định</div>
                 <div class="text-xs text-gray-500 w-full mb-1 mt-3">HSD: {{ formatDate(voucher.end_date) }}</div>
                 <!-- Nút Dùng ngay ở dưới cùng -->
                 <div class="flex justify-end mt-2">
@@ -199,6 +199,7 @@ import { useDiscount } from '~/composables/useDiscount'
 import { useRouter } from 'vue-router'
 import { useNotification } from '~/composables/useNotification'
 import { useToast } from '~/composables/useToast'
+import imageVoucher from '~/images/voucher.png'
 
 // Chỉ giữ lại tab 'Tất cả'
 const tabs = [
@@ -425,16 +426,6 @@ function formatDiscountValue(val) {
   if (!val) return '0'
   if (Number(val) % 1 === 0) return Number(val).toString()
   return Number(val).toFixed(1)
-}
-
-const defaultVoucherImage = 'https://cdn-icons-png.flaticon.com/512/4076/4076549.png'
-function getVoucherImage(voucher) {
-  if (voucher.discount_type === 'shipping') {
-    // Icon shipping nổi bật (màu xanh dương)
-    return 'https://cdn-icons-png.flaticon.com/512/1048/1048311.png';
-  }
-  // Icon voucher shop màu cam nổi bật
-  return 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png';
 }
 </script>
 

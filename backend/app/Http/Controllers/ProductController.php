@@ -1201,7 +1201,7 @@ class ProductController extends Controller
 
             // Product images
             $productImages = $product->productPic->map(fn($pic) => [
-                'src' => $pic->imagePath,
+                'src' => $pic->imagePath ?? "products/default.png",
                 'alt' => $pic->alt_text ?? 'Hình ảnh sản phẩm',
             ])->values()->toArray();
 
@@ -1541,7 +1541,7 @@ class ProductController extends Controller
                     'id' => $product->id,
                     'name' => $product->name,
                     'slug' => $product->slug,
-                    'image' => $product->productPic?->first()?->imagePath ?? $variant?->thumbnail ?? '/default.jpg',
+                    'image' => $product->productPic?->first()?->imagePath ?? $variant?->thumbnail ?? 'products/default.png',
                     'price' => number_format($finalPrice, 0, ',', '.'),
                     'discount' => $discount ? number_format($price, 0, ',', '.') : null,
                     'rating' => $stars,
