@@ -189,8 +189,6 @@ const loadingShipping = ref(false);
 const shippingMethods = ref({});
 const loadingFees = ref({});
 const errorMessage = ref('');
-const shippingFeeCache = ref(new Map());
-const CACHE_TTL = 3600 * 1000; // 1 giờ
 
 const props = defineProps({
   address: Object,
@@ -206,13 +204,10 @@ const {
   fetchDefaultAddress,
   cartItems,
   defaultShippingMethod,
-  shopServiceIds
-} = useCheckout(
-  null,
-  null,
-  props.address,
-  ref({})
-);
+  shopServiceIds,
+  calculateShippingFee, // Sử dụng từ useCheckout.js
+  shippingFeeCache // Sử dụng cache từ useCheckout.js
+} = useCheckout(null, null, props.address, ref({}));
 
 defineExpose({
   fees,
@@ -240,132 +235,11 @@ const formatPrice = (price) => {
 
 const calculateTotalWeight = (shop) => {
   const totalWeight = shop.items.reduce((sum, item) => {
-    const itemWeight = item.productVariant?.weight || 2000;
+    const itemWeight = item.productVariant?.weight || 1000; // Đồng bộ với useCheckout.js
     return sum + itemWeight * item.quantity;
   }, 0);
   console.log(`Total weight for shop ${shop.seller_id}: ${totalWeight}g`);
   return totalWeight;
-};
-
-const getCacheKey = (payload) => {
-  return `${payload.seller_id}_${payload.service_id}_${payload.to_district_id}_${payload.to_ward_code}_${payload.weight}_${payload.height}_${payload.length}_${payload.width}`;
-};
-
-const getCachedFee = (cacheKey) => {
-  const cached = shippingFeeCache.value.get(cacheKey);
-  if (cached && cached.timestamp + CACHE_TTL > Date.now()) {
-    console.log(`Lấy phí vận chuyển từ cache cho key: ${cacheKey}`);
-    return cached.fee;
-  }
-  shippingFeeCache.value.delete(cacheKey);
-  return null;
-};
-
-const setCachedFee = (cacheKey, fee) => {
-  shippingFeeCache.value.set(cacheKey, {
-    fee,
-    timestamp: Date.now()
-  });
-  console.log(`Lưu phí vận chuyển vào cache cho key: ${cacheKey}`);
-};
-
-const calculateShippingFee = async (shop, method, retryCount = 0) => {
-  const maxRetries = 2;
-  try {
-    const sellerId = shop.seller_id;
-    const totalWeight = calculateTotalWeight(shop);
-    console.log(`Tính phí vận chuyển cho shop ${sellerId}, dịch vụ ${method.service_id}, trọng lượng ${totalWeight}g`);
-
-    if (totalWeight < 50) {
-      throw new Error('Cân nặng đơn hàng quá thấp. Tối thiểu 50g.');
-    }
-
-    if (method.service_id === 100039 && totalWeight < 2000) {
-      throw new Error(`Trọng lượng ${totalWeight}g không đủ cho dịch vụ Hàng nặng.`);
-    }
-
-    const districtId = shop.district_id;
-    const wardCode = shop.ward_code;
-
-    if (!districtId || !wardCode) {
-      throw new Error(`Thiếu district_id hoặc ward_code cho shop ${sellerId}`);
-    }
-
-    const payload = {
-      seller_id: sellerId,
-      from_district_id: districtId,
-      from_ward_code: wardCode,
-      to_district_id: props.address?.district_id || 0,
-      to_ward_code: props.address?.ward_code || '',
-      service_id: method.service_id,
-      weight: Math.max(totalWeight, 50),
-      height: shop.items.reduce((max, item) => Math.max(max, item.productVariant?.height || 25), 25),
-      length: shop.items.reduce((max, item) => Math.max(max, item.productVariant?.length || 25), 25),
-      width: shop.items.reduce((max, item) => Math.max(max, item.productVariant?.width || 25), 25),
-    };
-
-    const cacheKey = getCacheKey(payload);
-    const cachedFee = getCachedFee(cacheKey);
-    if (cachedFee !== null) {
-      fees.value[`${sellerId}_${method.service_id}`] = formatPrice(cachedFee);
-      shop.shipping_fee = cachedFee; // Đồng bộ vào shop
-      shop.service_id = method.service_id; // Đồng bộ service_id
-      emit('update:shippingFee', { sellerId, fee: cachedFee });
-      return cachedFee;
-    }
-
-    const token = localStorage.getItem('access_token');
-    if (!token) {
-      throw new Error('Thiếu access token');
-    }
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 20000);
-    try {
-      const res = await fetch(`${apiBase}/ghn/shipping-fee`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ message: `Lỗi máy chủ: ${res.status}` }));
-        throw new Error(errorData.message || 'Không thể tính phí vận chuyển');
-      }
-
-      const data = await res.json();
-      console.log(`Phản hồi từ /ghn/shipping-fee:`, JSON.stringify(data, null, 2));
-      const rawFee = data?.data?.total ?? 0;
-
-      if (rawFee < 1000) {
-        throw new Error(`Phí vận chuyển ${rawFee} VNĐ quá thấp, có thể do lỗi dữ liệu từ API.`);
-      }
-
-      setCachedFee(cacheKey, rawFee);
-      fees.value[`${sellerId}_${method.service_id}`] = formatPrice(rawFee);
-      shop.shipping_fee = rawFee; // Đồng bộ vào shop
-      shop.service_id = method.service_id; // Đồng bộ service_id
-      emit('update:shippingFee', { sellerId, fee: rawFee });
-
-      return rawFee;
-    } catch (err) {
-      if (err.name === 'AbortError' && retryCount < maxRetries) {
-        console.log(`Thử lại lần ${retryCount + 2} cho shop ${sellerId}, dịch vụ ${method.service_id}`);
-        return calculateShippingFee(shop, method, retryCount + 1);
-      }
-      throw err;
-    }
-  } catch (err) {
-    console.error(`Lỗi tính phí vận chuyển cho shop ${shop.seller_id}, dịch vụ ${method.service_id}:`, err.message);
-    fees.value[`${shop.seller_id}_${method.service_id}`] = 'Lỗi';
-    errorMessage.value = err.message || 'Không thể tính phí vận chuyển cho một số cửa hàng. Vui lòng thử lại.';
-    return null;
-  }
 };
 
 const getShippingFee = (sellerId) => {
@@ -480,11 +354,11 @@ const calculateAllShippingFees = async () => {
         shopServiceIds.value[shop.seller_id] = effectiveMethod.service_id;
       }
 
-      const fee = await calculateShippingFee({
-        ...shop,
+      // Sử dụng calculateShippingFee từ useCheckout.js
+      const { fee } = await calculateShippingFee(shop.seller_id, {
         district_id: districtId,
-        ward_code: wardCode,
-      }, effectiveMethod);
+        ward_code: wardCode
+      }, props.address);
 
       if (fee !== null && !isNaN(fee)) {
         fees.value[`${shop.seller_id}_${effectiveMethod.service_id}`] = formatPrice(fee);
