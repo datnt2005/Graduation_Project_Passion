@@ -71,7 +71,10 @@ class FavoriteController extends Controller
         try {
             $userId = Auth::id();
             // Eager load productPic
-            $favorites = Wishlist::with(['product.productPic'])->where('user_id', $userId)->get();
+            $favorites = Wishlist::with(['product.productPic'])
+                        ->where('user_id', $userId)
+                        ->orderBy('created_at', 'desc')
+                        ->get();
 
             // Format lại dữ liệu để frontend dễ dùng
             $favorites = $favorites->map(function ($item) {

@@ -65,7 +65,7 @@
             <div class="h-12 bg-gray-200 rounded w-1/2"></div>
           </div>
         </div>
-      </div>  
+      </div>
       <!-- Error Message -->
       <div v-if="error" class="text-red-500 text-center">{{ error }}</div>
       <!-- Main Product Section -->
@@ -146,6 +146,8 @@
     </div>
   </main>
   <ChatComponent ref="chatRef" />
+  <AuthModal :show="showModal" :initial-mode="modalMode" @close="showModal = false"
+    @login-success="handleLoginSuccess" />
 </template>
 
 <script setup>
@@ -164,6 +166,8 @@ import { useRuntimeConfig } from "#app";
 import { useCart } from "~/composables/useCart";
 import { useAuthStore } from "@/stores/auth";
 import ChatComponent from "~/components/chat/ChatWidget.vue";
+import AuthModal from "~/components/shared/AuthModal.vue";
+
 
 const { fetchCart } = useCart();
 const auth = useAuthStore();
@@ -173,6 +177,8 @@ const config = useRuntimeConfig();
 const router = useRouter();
 const route = useRoute();
 const chatStore = useChatStore();
+const modalMode = ref("login");
+const showModal = ref(false);
 
 // nút chat
 const chatRef = ref(null);
@@ -446,9 +452,11 @@ function decreaseQuantity() {
   }
 }
 
-const openLoginModal = () => {
-  window.dispatchEvent(new CustomEvent("openLoginModal"));
-};
+function openLoginModal() {
+  console.log("openLoginModal called");
+  modalMode.value = "login";
+  showModal.value = true;
+}
 
 function validateSelection() {
   const requiredAttrs = variantAttributes.value.map((attr) => attr.name);
@@ -509,11 +517,17 @@ function toggleFavorite() {
 
 const isAddingToCart = ref(false);
 async function addToCart() {
+  const token = localStorage.getItem("access_token");
+  if (!isLoggedIn.value || !token) {
+    console.log("User not logged in, opening login modal");
+    openLoginModal();
+    return;
+  }
+
   if (!validateSelection()) {
     return;
   }
 
-  const token = localStorage.getItem("access_token");
   const payload = {
     product_variant_id: selectedVariant.value?.id || null,
     quantity: quantity.value,
@@ -552,13 +566,12 @@ async function addToCart() {
 }
 
 async function buyNow() {
-  if (!validateSelection()) {
+  const token = localStorage.getItem("access_token");
+  if (!isLoggedIn.value || !token) {
+    openLoginModal();
     return;
   }
-
-  const token = localStorage.getItem("access_token");
-  if (!token) {
-    validationMessage.value = "Vui lòng đăng nhập để tiếp tục.";
+  if (!validateSelection()) {
     return;
   }
 
@@ -786,35 +799,63 @@ async function fetchShopProducts() {
       shopProducts.value = [];
       return;
     }
+
     const res = await fetch(`${apiBase}/products/sellers/${sellerId}`);
     if (!res.ok) {
       throw new Error(
         `Lỗi khi tải sản phẩm của shop: ${res.status} ${res.statusText}`
       );
     }
+
     const data = await res.json();
     if (!data.success) {
       throw new Error(data.message || "Lỗi API");
     }
-    shopProducts.value = (data.data.data || [])
-      .map((item) => {
+
+    // Get the category IDs of the current product
+    const currentProductCategoryIds = product.value?.categories?.map(cat => cat.id) || [];
+
+    // Initialize products array
+    let products = [];
+
+    // Prioritize products from the same categories as the current product
+    if (currentProductCategoryIds.length > 0) {
+      const sameCategoryProducts = data.data.filter(product =>
+        product.categories.some(cat => currentProductCategoryIds.includes(cat.id))
+      );
+      products = products.concat(sameCategoryProducts);
+    }
+
+    // If fewer than 10 products, add products from other categories
+    if (products.length < 10) {
+      const otherCategoryProducts = data.data.filter(product =>
+        !product.categories.some(cat => currentProductCategoryIds.includes(cat.id))
+      );
+      products = products.concat(otherCategoryProducts);
+    }
+
+    // Map and filter products
+    shopProducts.value = products
+      .slice(0, 10) // Limit to 10 products
+      .map(item => {
         // Lấy variant đầu tiên có số lượng > 0
         const variant =
-          item.product_variants?.find((v) => v.price && v.quantity > 0) ||
+          item.product_variants?.find(v => v.price && v.quantity > 0) ||
           item.product_variants?.[0] ||
           {};
+
         // Tính discountPercent
-        const price = parseFloat(
-          variant?.sale_price || variant?.price || "0.00"
-        );
+        const price = parseFloat(variant?.sale_price || variant?.price || "0.00");
         const originalPrice = parseFloat(variant?.price || "0.00");
         const discountPercent =
           variant?.sale_price && price < originalPrice
             ? Math.round(((originalPrice - price) / originalPrice) * 100)
             : 0;
+
         // Lấy ảnh đầu tiên
         const image =
           item.product_pic?.[0]?.imagePath || "/default-product.jpg";
+
         return {
           id: Number(item.id || 0),
           name: item.name || "Unknown Product",
@@ -825,9 +866,11 @@ async function fetchShopProducts() {
           sold: String(item.sold || "0"),
         };
       })
-      .filter((item) => item !== null && item.id !== product.value.id); // Lọc sản phẩm không hợp lệ và sản phẩm đang xem
+      .filter(item => item !== null && item.id !== product.value.id); // Lọc sản phẩm không hợp lệ và sản phẩm đang xem
+
   } catch (err) {
     shopProducts.value = [];
+    console.error(err);
   }
 }
 
@@ -872,6 +915,7 @@ const chatWithShop = async () => {
 
   const productData = {
     name: product.value.name || "Sản phẩm không xác định",
+    slug: product.value.slug || "san-pham-khong-xac-dinh",
     price:
       selectedVariant.value?.price || product.value.originalPrice || "0.00",
     image: product.value.image || "/default-product.jpg",

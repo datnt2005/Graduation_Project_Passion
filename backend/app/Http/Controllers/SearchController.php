@@ -107,7 +107,7 @@ class SearchController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Lấy sản phẩm thịnh hành thành công',
-            'data' => $this->searchService->getTrendingProducts(10), // lấy 10 sản phẩm top
+            'data' => $this->searchService->getTrendingProducts(20), // lấy 10 sản phẩm top
         ]);
     }
 
@@ -133,7 +133,7 @@ class SearchController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Lấy danh mục thịnh hành thành công.',
-            'data' => $this->searchService->getTrendingCategories(10),
+            'data' => $this->searchService->getTrendingCategories(20),
         ]);
     }
 }

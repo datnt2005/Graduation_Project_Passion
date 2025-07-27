@@ -4,7 +4,8 @@
       <main class="flex-1 p-8 overflow-y-hidden" :class="{ 'opacity-50 pointer-events-none': isAccountBanned }">
         <!-- Thông báo khi tài khoản bị khóa -->
         <div v-if="isAccountBanned" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          Tài khoản của bạn đã bị khóa do có quá nhiều đơn hàng bị từ chối nhận. Vui lòng liên hệ hỗ trợ để biết thêm chi tiết.
+          Tài khoản của bạn đã bị khóa do có quá nhiều đơn hàng bị từ chối nhận. Vui lòng liên hệ hỗ trợ để biết thêm
+          chi tiết.
         </div>
 
         <!-- Breadcrumb -->
@@ -38,10 +39,13 @@
                 <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
               </div>
               <!-- Shipping Selector -->
-              <ShippingSelector ref="shippingRef" :address="selectedAddress"
-  v-model:selectedMethod="selectedShippingMethod" :cart-items="cartItems"
-  @update:shop-discount="handleShopDiscountUpdate"
-  @update:totalShippingFee="totalShippingFee = $event" />
+              <ShippingSelector
+    :address="selectedAddress"
+    :cart-items="cartItems"
+    @update:shippingFee="updateShippingFee"
+    @update:shopDiscount="updateShopDiscount"
+    @update:totalShippingFee="updateTotalShippingFee"
+  />
 
               <!-- Payment Methods -->
               <section class="bg-white rounded-[4px] p-5">
@@ -270,7 +274,8 @@
                     <div class="space-y-6 max-h-[450px] overflow-y-auto">
                       <div>
                         <h3 class="text-sm font-medium text-gray-700 mb-2">Mã giảm phí vận chuyển</h3>
-                        <div v-if="discountLoading" class="text-gray-500 text-sm italic mt-2">Đang tải mã giảm giá...</div>
+                        <div v-if="discountLoading" class="text-gray-500 text-sm italic mt-2">Đang tải mã giảm giá...
+                        </div>
                         <div v-else-if="uniqueShippingDiscounts.length" class="space-y-3">
                           <div v-for="discount in uniqueShippingDiscounts" :key="discount.id"
                             class="border border-gray-300 rounded-md p-4 hover:border-blue-500 transition duration-200"
@@ -304,9 +309,14 @@
                       </div>
                       <div>
                         <h3 class="text-sm font-medium text-gray-700 mb-2">Mã giảm giá sản phẩm</h3>
-                        <div v-if="discountLoading" class="text-gray-500 text-sm italic mt-2">Đang tải mã giảm giá...</div>
-                        <div v-else-if="publicDiscounts.filter(d => d.discount_type !== 'shipping_fee' && d.seller_id === null).length" class="space-y-3">
-                          <div v-for="discount in publicDiscounts.filter(d => d.discount_type !== 'shipping_fee' && d.seller_id === null)" :key="discount.id"
+                        <div v-if="discountLoading" class="text-gray-500 text-sm italic mt-2">Đang tải mã giảm giá...
+                        </div>
+                        <div
+                          v-else-if="publicDiscounts.filter(d => d.discount_type !== 'shipping_fee' && d.seller_id === null).length"
+                          class="space-y-3">
+                          <div
+                            v-for="discount in publicDiscounts.filter(d => d.discount_type !== 'shipping_fee' && d.seller_id === null)"
+                            :key="discount.id"
                             class="border border-gray-300 rounded-md p-4 hover:border-blue-500 transition duration-200"
                             :class="{ 'opacity-50': total < discount.min_order_value }">
                             <div class="flex justify-between items-center">
@@ -375,10 +385,11 @@
                   <hr />
                   <div v-for="store in cartItems" :key="store.seller_id" class="bg-white rounded shadow p-4 mb-4">
                     <div class="font-semibold text-gray-800 mb-2">{{ store.store_name }}</div>
-                    <div v-for="item in store.items" :key="item.id" class="flex items-center py-2 border-b last:border-b-0">
+                    <div v-for="item in store.items" :key="item.id"
+                      class="flex items-center py-2 border-b last:border-b-0">
                       <span class="text-xs text-gray-500 w-12 text-center">{{ item.quantity }} x</span>
                       <span v-if="item.productVariant?.attributes" class="text-xs text-gray-500 w-16 text-center">
-                        {{ item.productVariant.attributes.map(attr => attr.value).join(', ') }}
+                        {{item.productVariant.attributes.map(attr => attr.value).join(', ')}}
                       </span>
                       <span class="flex-1 font-semibold text-sm truncate">{{ item.product?.name }}</span>
                       <span class="font-semibold w-24 text-right">{{ formatPrice(item.sale_price) }} đ</span>
@@ -392,9 +403,9 @@
                     <span class="text-[14px] text-gray-800">{{ formattedTotal }}</span>
                   </div>
                   <div class="flex justify-between">
-  <span class="text-[14px]">Tổng phí vận chuyển</span>
-  <span class="text-[14px] text-gray-800">{{ formatPrice(totalShippingFee) }} đ</span>
-</div>
+                    <span class="text-[14px]">Tổng phí vận chuyển</span>
+                    <span class="text-[14px] text-gray-800">{{ formatPrice(totalShippingFee) }} đ</span>
+                  </div>
                   <div class="flex justify-between">
                     <span class="text-[14px]">Giảm giá phí ship</span>
                     <span class="text-green-600">- {{ formatPrice(totalShippingDiscount) }} đ</span>
@@ -416,11 +427,9 @@
                   </p>
                 </div>
                 <div class="pt-2">
-                  <button
-                    @click="placeOrder"
+                  <button @click="placeOrder"
                     class="w-full bg-red-500 text-white py-3 rounded-md font-bold text-base hover:bg-red-600 transition"
-                    :disabled="!cartItems.length || loading || isAccountBanned"
-                  >
+                    :disabled="!cartItems.length || loading || isAccountBanned">
                     Đặt hàng
                   </button>
                 </div>
@@ -458,7 +467,8 @@ const manualCode = ref('');
 const showDiscountModal = ref(false);
 const requestInvoice = ref(false);
 const storeNotes = ref({});
-const isOrderDetailsOpen = ref(true); // Mặc định mở chi tiết đơn hàng
+const isOrderDetailsOpen = ref(true);
+const shippingFees = ref({}); // Thêm biến để lưu phí vận chuyển
 
 const promotions = ref([
   {
@@ -511,7 +521,6 @@ const {
   total,
   formattedTotal,
   finalTotal,
-  formattedFinalTotal,
   formattedFinalShippingFee,
   loading,
   error,
@@ -543,6 +552,7 @@ const {
   loadShippingFees,
   fetchDefaultAddress,
   calculateShippingFee,
+  shopServiceIds, // Thêm shopServiceIds từ useCheckout
 } = useCheckout(shippingRef, selectedShippingMethod, selectedAddress, storeNotes);
 
 const { fetchMyVouchers, fetchDiscounts: fetchPublicDiscounts, fetchSellerDiscounts, discounts: publicDiscounts } = useDiscount();
@@ -551,6 +561,21 @@ const handleShopDiscountUpdate = (data) => {
   if (data && data.sellerId && updateShopDiscount) {
     updateShopDiscount(data.sellerId, data.discount, data.discountId);
   }
+};
+
+// Cập nhật phí vận chuyển cho từng shop
+const updateShippingFee = ({ sellerId, fee }) => {
+  console.log(`Cập nhật phí vận chuyển cho shop ${sellerId}: ${fee}`);
+  const shop = cartItems.value.find(s => s.seller_id === sellerId);
+  if (shop) {
+    shop.shipping_fee = fee; // Cập nhật phí vận chuyển vào cartItems
+    console.log(`Đã cập nhật shipping_fee cho shop ${sellerId}: ${fee}`);
+  }
+};
+
+const updateTotalShippingFee = (fee) => {
+  totalShippingFee.value = fee;
+  console.log(`Cập nhật totalShippingFee: ${fee}`);
 };
 
 const shopsWithDiscount = computed(() => {
@@ -573,6 +598,12 @@ const shopCount = computed(() => cartItems.value.length);
 const totalShippingDiscount = computed(() => {
   return typeof getShippingDiscount === 'function' ? getShippingDiscount(total.value) : 0;
 });
+
+// Hàm xử lý sự kiện update:totalShippingFee
+const handleTotalShippingFeeUpdate = (newTotal) => {
+  console.log(`Cập nhật totalShippingFee: ${newTotal}`);
+  totalShippingFee.value = newTotal || 0;
+};
 
 const realShippingFee = computed(() => {
   return Math.max(0, totalShippingFee.value - totalShippingDiscount.value);
@@ -789,14 +820,23 @@ watch(discountError, (val) => {
 });
 
 watch(selectedAddress, async (newAddress) => {
-    if (newAddress && newAddress.district_id && newAddress.ward_code) {
-      await loadShippingFees();
-    }
-  }, { deep: true });
+  if (newAddress && newAddress.district_id && newAddress.ward_code) {
+    console.log('Địa chỉ đã thay đổi, gọi loadShippingFees');
+    await loadShippingFees();
+  }
+}, { deep: true });
 
-watch(cartItems, () => {
-    console.log('cartItems đã thay đổi, cập nhật totalShippingFee:', cartItems.value);
-  }, { deep: true });
+watch(cartItems, (newVal) => {
+  console.log('cartItems updated:', newVal.map(s => ({
+    seller_id: s.seller_id,
+    shipping_fee: s.shipping_fee,
+    service_id: s.service_id
+  })));
+}, { deep: true });
+
+watch(selectedShippingMethod, (newVal) => {
+  console.log('Selected shipping method in checkout.vue:', newVal);
+});
 
 onMounted(async () => {
   try {

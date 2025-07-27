@@ -143,7 +143,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="coupon in filteredCoupons" :key="coupon.id" :class="{'bg-gray-50': coupon.id % 2 === 0}" class="border-b border-gray-300">
+            <tr v-for="coupon in couponPaginatedData" :key="coupon.id" :class="{'bg-gray-50': coupon.id % 2 === 0}" class="border-b border-gray-300">
               <td class="border border-gray-300 px-3 py-2 text-left w-10">
                 <input 
                   type="checkbox" 
@@ -175,7 +175,7 @@
               <td class="border border-gray-300 px-3 py-2 text-left">
                 <div class="relative inline-block text-left">
                   <button 
-                    @click="toggleDropdown(coupon.id)"
+                    @click="toggleDropdown(coupon.id, $event)"
                     class="inline-flex items-center justify-center w-8 h-8 text-gray-600 hover:text-gray-800 focus:outline-none"
                   >
                     <svg 
@@ -198,6 +198,11 @@
             </tr>
           </tbody>
         </table>
+      </div>
+      <div v-if="couponTotalPages > 1" class="flex justify-center mt-4">
+        <button @click="couponPage--" :disabled="couponPage === 1" class="px-3 py-1 mx-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50">&lt;</button>
+        <button v-for="page in couponTotalPages" :key="page" @click="couponPage = page" :class="['px-3 py-1 mx-1 rounded border', couponPage === page ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-gray-700 border-gray-300']">{{ page }}</button>
+        <button @click="couponPage++" :disabled="couponPage === couponTotalPages" class="px-3 py-1 mx-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50">&gt;</button>
       </div>
     </div>
   
@@ -410,7 +415,7 @@
   </template>
   
   <script setup>
-  import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue';
+  import { ref, onMounted, onUnmounted, computed, nextTick, watch } from 'vue';
   import { useRouter } from 'vue-router';
   import { secureFetch } from '@/utils/secureFetch' 
   import { useRuntimeConfig } from '#imports'
@@ -440,16 +445,52 @@
   const confirmDialogTitle = ref('');
   const confirmDialogMessage = ref('');
   const confirmAction = ref(null);
+  const couponPage = ref(1)
+  const couponPageSize = ref(10)
+  
+  // Đặt khai báo filteredCoupons TRƯỚC các computed khác sử dụng nó
+  const filteredCoupons = computed(() => {
+    let result = Array.isArray(coupons.value) ? [...coupons.value] : [];
+    // Lọc theo loại giảm giá
+    if (filterType.value) {
+      result = result.filter(coupon => coupon.discount_type === filterType.value);
+    }
+    // Lọc theo trạng thái
+    if (filterStatus.value) {
+      result = result.filter(coupon => coupon.status === filterStatus.value);
+    }
+    // Tìm kiếm theo mã hoặc tên
+    if (searchQuery.value) {
+      const query = searchQuery.value.toLowerCase();
+      result = result.filter(coupon => 
+        (coupon.code || '').toLowerCase().includes(query) ||
+        (coupon.name || '').toLowerCase().includes(query) ||
+        (coupon.description && coupon.description.toLowerCase().includes(query))
+      );
+    }
+    return result;
+  });
+  const couponTotalPages = computed(() => Math.ceil(filteredCoupons.value.length / couponPageSize.value))
+  const couponPaginatedData = computed(() => {
+    const arr = Array.isArray(filteredCoupons.value) ? filteredCoupons.value : [];
+    const start = (couponPage.value - 1) * couponPageSize.value;
+    return arr.slice(start, start + couponPageSize.value);
+  });
+  watch(filteredCoupons, () => {
+    couponPage.value = 1
+  })
   
   // Fetch coupons from API
   const fetchCoupons = async () => {
     try {
-      const response = await secureFetch(`${apiBase}/seller/discounts`, {}, ['seller']);
-      const data = await response.json();
-      coupons.value = data.data;
-      totalCoupons.value = data.data.length;
-      activeCoupons.value = data.data.filter(c => c.status === 'active').length;
+      const data = await secureFetch(`${apiBase}/seller/discounts`, {}, ['seller']);
+      coupons.value = Array.isArray(data.data) ? data.data : [];
+      totalCoupons.value = coupons.value.length;
+      activeCoupons.value = coupons.value.filter(c => c.status === 'active').length;
     } catch (error) {
+      coupons.value = [];
+      totalCoupons.value = 0;
+      activeCoupons.value = 0;
       console.error('Error fetching coupons:', error);
     }
   };
@@ -547,17 +588,16 @@
       `Bạn có chắc chắn muốn xóa mã giảm giá "${coupon.code}" không?`,
       async () => {
         try {
-          const response = await secureFetch(`${apiBase}/seller/discounts/${coupon.id}`, {
+          const result = await secureFetch(`${apiBase}/seller/discounts/${coupon.id}`, {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' }
           }, ['seller']);
 
-          if (response.ok) {
+          if (result && result.success) {
             showSuccessNotification('Xóa mã giảm giá thành công!');
             await fetchCoupons();
           } else {
-            const data = await response.json();
-            showSuccessNotification(data.message || 'Có lỗi xảy ra khi xóa mã giảm giá');
+            showSuccessNotification(result?.message || 'Có lỗi xảy ra khi xóa mã giảm giá');
           }
         } catch (error) {
           console.error('Error:', error);
@@ -588,20 +628,21 @@
     return value.replace(/([.,]00)(?=\D|$)/g, '');
   }
   
-  const toggleDropdown = (id) => {
+  const toggleDropdown = (id, event) => {
     if (activeDropdown.value === id) {
       activeDropdown.value = null;
     } else {
       activeDropdown.value = id;
-      // Tính toán vị trí cho dropdown
       nextTick(() => {
-        const button = event.target.closest('button');
-        const rect = button.getBoundingClientRect();
-        dropdownPosition.value = {
-          top: `${rect.bottom + window.scrollY + 8}px`,
-          left: `${rect.right + window.scrollX - 192}px`, // 192px là width của dropdown
-          width: '192px'
-        };
+        const button = event?.target?.closest('button');
+        if (button) {
+          const rect = button.getBoundingClientRect();
+          dropdownPosition.value = {
+            top: `${rect.bottom + window.scrollY + 8}px`,
+            left: `${rect.right + window.scrollX - 192}px`,
+            width: '192px'
+          };
+        }
       });
     }
   };
@@ -612,33 +653,6 @@
       activeDropdown.value = null;
     }
   };
-  
-  // Thêm các ref mới cho tìm kiếm và lọc
-  const filteredCoupons = computed(() => {
-    let result = [...coupons.value];
-  
-    // Lọc theo loại giảm giá
-    if (filterType.value) {
-      result = result.filter(coupon => coupon.discount_type === filterType.value);
-    }
-  
-    // Lọc theo trạng thái
-    if (filterStatus.value) {
-      result = result.filter(coupon => coupon.status === filterStatus.value);
-    }
-  
-    // Tìm kiếm theo mã hoặc tên
-    if (searchQuery.value) {
-      const query = searchQuery.value.toLowerCase();
-      result = result.filter(coupon => 
-        coupon.code.toLowerCase().includes(query) ||
-        coupon.name.toLowerCase().includes(query) ||
-        (coupon.description && coupon.description.toLowerCase().includes(query))
-      );
-    }
-  
-    return result;
-  });
   
   // Hàm hiển thị notification
   const showSuccessNotification = (message) => {

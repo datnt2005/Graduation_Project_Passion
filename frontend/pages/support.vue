@@ -23,27 +23,27 @@
       <h2 class="text-xl font-bold mb-4">CÂU HỎI THƯỜNG GẶP</h2>
       <ul class="space-y-2 text-sm">
         <li>
-          <a href="#" class="block hover:underline hover:text-gray-200 transition">
+          <a href="/faq" class="block hover:underline hover:text-gray-200 transition">
             › Tôi cần làm gì để thay đổi thông tin cá nhân (SĐT, Email, ...)?
           </a>
         </li>
         <li>
-          <a href="#" class="block hover:underline hover:text-gray-200 transition">
+          <a href="/faq" class="block hover:underline hover:text-gray-200 transition">
             › Tôi có thể theo dõi đơn hàng ở đâu?
           </a>
         </li>
         <li>
-          <a href="#" class="block hover:underline hover:text-gray-200 transition">
+          <a href="/faq" class="block hover:underline hover:text-gray-200 transition">
             › Làm sao để đổi mật khẩu tài khoản?
           </a>
         </li>
         <li>
-          <a href="#" class="block hover:underline hover:text-gray-200 transition">
+          <a href="/faq" class="block hover:underline hover:text-gray-200 transition">
             › Pasion có chính sách đổi trả không?
           </a>
         </li>
         <li>
-          <a href="#" class="block hover:underline hover:text-gray-200 transition">
+          <a href="/faq" class="block hover:underline hover:text-gray-200 transition">
             › Cách liên hệ với bộ phận hỗ trợ?
           </a>
         </li>

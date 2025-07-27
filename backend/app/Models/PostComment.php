@@ -18,6 +18,7 @@ class PostComment extends Model
         'image',
         'admin_reply',
         'parent_id',
+        'status',
     ];
 
     protected $appends = ['image_url'];

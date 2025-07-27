@@ -1,4 +1,3 @@
-```vue
 <template>
   <div class="min-h-screen bg-[#f5f7fa] text-[#1a1a1a] font-sans">
     <div class="max-w-[1535px] mx-auto p-4 md:p-6 flex flex-col md:flex-row gap-6">
@@ -431,4 +430,3 @@ onMounted(fetchUser)
 .fade-enter-active, .fade-leave-active { transition: opacity 0.25s }
 .fade-enter-from, .fade-leave-to { opacity: 0 }
 </style>
-```

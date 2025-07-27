@@ -34,11 +34,17 @@ class Seller extends Model
         'verified_at',
         'id_card_front_url',
         'id_card_back_url',
+        'status'
     ];
 
     protected $casts = [
         'shipping_options' => 'array',
         'verified_at' => 'datetime',
+        'status' => 'string'
+    ];
+
+    protected $attributes = [
+        'status' => 'active' // Default value
     ];
 
     /*
@@ -49,12 +55,7 @@ class Seller extends Model
 
     public function user()
     {
-        return $this->belongsTo(User::class );
-    }
-
-    public function business()
-    {
-        return $this->hasOne(BusinessSeller::class);
+        return $this->belongsTo(User::class);
     }
 
     public function products()
@@ -87,8 +88,8 @@ class Seller extends Model
         return $this->hasMany(Discount::class, 'seller_id');
     }
 
-public function orders()
-{
-    return $this->hasMany(Order::class, 'user_id', 'user_id');
-}
+    public function orders()
+    {
+        return $this->hasMany(Order::class, 'user_id', 'user_id');
+    }
 }

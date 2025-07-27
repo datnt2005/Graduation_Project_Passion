@@ -15,16 +15,122 @@ use Illuminate\Support\Facades\Storage;
 use Google\Cloud\Vision\V1\ImageAnnotatorClient;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Models\Order;
+use App\Models\Product;
+use Carbon\Carbon;
 use App\Models\Notification;
 
 class SellerController extends Controller
 {
 
-    public function index()
+    public function index(Request $request)
     {
-        $sellers = User::whereHas('seller')
-            ->get();
-        return response()->json($sellers);
+        try {
+            $query = Seller::with(['user', 'orders', 'orders.orderItems.productVariant'])
+                ->withCount(['orders', 'products']);
+
+            // Tìm kiếm theo tên shop hoặc email
+            if ($request->has('search')) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('store_name', 'like', "%{$search}%")
+                        ->orWhereHas('user', function ($q) use ($search) {
+                            $q->where('email', 'like', "%{$search}%")
+                                ->orWhere('name', 'like', "%{$search}%");
+                        });
+                });
+            }
+
+            // Lọc theo trạng thái
+            if ($request->has('status')) {
+                $query->where('status', $request->status);
+            }
+
+            // Tính toán các thống kê cho mỗi seller
+            $sellers = $query->get()
+                ->map(function ($seller) {
+                    // Lấy các order_id đã payout thành công cho seller này
+                    $payoutOrderIds = \App\Models\Payout::where('seller_id', $seller->id)
+                        ->where('status', 'completed')
+                        ->pluck('order_id')
+                        ->unique()
+                        ->filter();
+
+                    // Đếm tổng đơn hàng đã payout
+                    $totalOrders = \App\Models\Order::whereIn('id', $payoutOrderIds)->count();
+                    // Đếm đơn đã bán (delivered)
+                    $completedOrders = \App\Models\Order::whereIn('id', $payoutOrderIds)->where('status', 'delivered')->count();
+                    // Tổng doanh thu từ đơn đã bán
+                    $totalRevenue = \App\Models\Order::whereIn('id', $payoutOrderIds)->where('status', 'delivered')->sum('final_price');
+                    // Lấy id các đơn delivered
+                    $deliveredOrderIds = \App\Models\Order::whereIn('id', $payoutOrderIds)->where('status', 'delivered')->pluck('id');
+                    // Tính tổng vốn từ đơn đã bán
+                    $orderItems = \App\Models\OrderItem::whereIn('order_id', $deliveredOrderIds)->get();
+                    $variantIds = $orderItems->pluck('product_variant_id')->unique();
+                    $variants = \App\Models\ProductVariant::whereIn('id', $variantIds)->get()->keyBy('id');
+                    $totalCost = 0;
+                    foreach ($orderItems as $item) {
+                        $variant = $variants[$item->product_variant_id] ?? null;
+                        if ($variant) {
+                            $totalCost += $variant->cost_price * $item->quantity;
+                        }
+                    }
+                    $totalProfit = $totalRevenue - $totalCost;
+                    $totalLoss = $totalProfit < 0 ? abs($totalProfit) : 0;
+                    if ($totalProfit < 0) $totalProfit = 0;
+
+                    return [
+                        'id' => $seller->id,
+                        'store_name' => $seller->store_name,
+                        'user' => [
+                            'id' => $seller->user->id,
+                            'name' => $seller->user->name,
+                            'email' => $seller->user->email,
+                        ],
+                        'status' => $seller->status,
+                        'created_at' => $seller->created_at,
+                        'total_orders' => $totalOrders,
+                        'completed_orders' => $completedOrders,
+                        'total_products' => $seller->products_count,
+                        'total_revenue' => $totalRevenue,
+                        'total_cost' => $totalCost,
+                        'total_profit' => $totalProfit,
+                        'total_loss' => $totalLoss,
+                    ];
+                });
+
+            // Sắp xếp theo doanh thu
+            if ($request->has('sort')) {
+                switch ($request->sort) {
+                    case 'revenue_asc':
+                        $sellers = $sellers->sortBy('total_revenue');
+                        break;
+                    case 'revenue_desc':
+                        $sellers = $sellers->sortByDesc('total_revenue');
+                        break;
+                    case 'orders_asc':
+                        $sellers = $sellers->sortBy('total_orders');
+                        break;
+                    case 'orders_desc':
+                        $sellers = $sellers->sortByDesc('total_orders');
+                        break;
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $sellers->values(),
+                'message' => 'Lấy danh sách seller thành công'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error in SellerController@index: ' . $e->getMessage());
+            Log::error($e->getTraceAsString());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi khi lấy danh sách seller: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function show($sellerId)
@@ -46,57 +152,60 @@ class SellerController extends Controller
         }
     }
 
+    public function getMySellerInfo()
+    {
+        $user = auth()->user();
 
-public function getMySellerInfo()
-{
-    $user = auth()->user();
+        $seller = Seller::with(['user:id,name,email,avatar'])->where('user_id', $user->id)->first();
 
-    $seller = Seller::with(['user:id,name,email,avatar'])->where('user_id', $user->id)->first();
+        if (!$seller) {
+            return response()->json([
+                'message' => 'Bạn không phải là người bán (seller).'
+            ], 403);
+        }
 
-    if (!$seller) {
+        $avatarUrl = $seller->user->avatar
+            ? env('R2_AVATAR_URL') . $seller->user->avatar
+            : env('R2_AVATAR_URL') . 'default.jpg';
+
+        // Avatar xử lý URL nếu cần
+        $seller->user->avatar_url = $seller->user->avatar
+            ? env('R2_AVATAR_URL') . $seller->user->avatar
+            : env('R2_AVATAR_URL') . 'default.jpg';
+
+        // Xoá trường cũ (tránh nhầm)
+        unset($seller->user->avatar);
+
         return response()->json([
-            'message' => 'Bạn không phải là người bán (seller).'
-        ], 403);
+            'seller' => $seller
+        ]);
     }
 
-    // Avatar xử lý URL nếu cần
-    $seller->user->avatar_url = $seller->user->avatar
-        ? env('R2_AVATAR_URL') . $seller->user->avatar
-        : env('R2_AVATAR_URL') . 'default.jpg';
+    public function update(Request $request)
+    {
+        $user = auth()->user();
+        $seller = Seller::where('user_id', $user->id)->firstOrFail();
 
-    // Xoá trường cũ (tránh nhầm)
-    unset($seller->user->avatar);
+        $validator = Validator::make($request->all(), [
+            'store_name' => 'nullable|string|max:255',
+            'bio' => 'nullable|string',
+            'phone_number' => 'nullable|string|max:20',
+            'pickup_address' => 'nullable|string',
+            'document' => 'nullable|file|mimes:jpg,png,pdf|max:4048',
+        ], [
+            'store_name.max' => 'Tên cửa hàng không được vượt quá 255 ký tự.',
+            'phone_number.max' => 'Số điện thoại không được vượt quá 20 ký tự.',
+            'document.file' => 'Tài liệu phải là tệp hợp lệ.',
+            'document.mimes' => 'Tài liệu phải có định dạng: jpg, png, hoặc pdf.',
+            'document.max' => 'Tài liệu không được vượt quá 4MB.',
+        ]);
 
-    return response()->json([
-        'seller' => $seller
-    ]);
-}
-
-public function update(Request $request)
-{
-    $user = auth()->user();
-    $seller = Seller::where('user_id', $user->id)->firstOrFail();
-
-    $validator = Validator::make($request->all(), [
-        'store_name' => 'nullable|string|max:255',
-        'bio' => 'nullable|string',
-        'phone_number' => 'nullable|string|max:20',
-        'pickup_address' => 'nullable|string',
-        'document' => 'nullable|file|mimes:jpg,png,pdf|max:4048',
-    ], [
-        'store_name.max' => 'Tên cửa hàng không được vượt quá 255 ký tự.',
-        'phone_number.max' => 'Số điện thoại không được vượt quá 20 ký tự.',
-        'document.file' => 'Tài liệu phải là tệp hợp lệ.',
-        'document.mimes' => 'Tài liệu phải có định dạng: jpg, png, hoặc pdf.',
-        'document.max' => 'Tài liệu không được vượt quá 4MB.',
-    ]);
-
-    if ($validator->fails()) {
-        return response()->json([
-            'message' => 'Dữ liệu không hợp lệ',
-            'errors' => $validator->errors()
-        ], 422);
-    }
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Dữ liệu không hợp lệ',
+                'errors' => $validator->errors()
+            ], 422);
+        }
 
         if ($validator->fails()) {
             return response()->json([
@@ -200,7 +309,7 @@ public function update(Request $request)
             );
 
             // Total active products
-            $productsCount = $seller->products()->where('status', 'active')->count();
+            $productsCount = $seller->products()->where('status', 'active')->where('admin_status', 'approved')->count();
 
             // Total sold items
             $totalSold = $seller->products->flatMap(function ($product) {
@@ -308,7 +417,7 @@ public function update(Request $request)
                     'sold' => (int) ($product->productVariants->flatMap(function ($variant) {
                         return $variant->orderItems ?? collect();
                     })->sum('quantity') ?? 0),
-                    'image' => $product->productPic->first()->imagePath ?? 'images/default-product.jpg',
+                    'image' => $product->productPic->first()->imagePath ?? 'products/default.png',
                     'categories' => $product->categories->pluck('name')->toArray(),
                     'tags' => $product->tags->pluck('name')->toArray(),
                 ];
@@ -403,7 +512,7 @@ public function update(Request $request)
                     'sold' => (int) ($product->productVariants->flatMap(function ($variant) {
                         return $variant->orderItems ?? collect();
                     })->sum('quantity') ?? 0),
-                    'image' => $product->productPic->first() ? $product->productPic->first()->imagePath : 'images/default-product.jpg',
+                    'image' => $product->productPic->first() ? $product->productPic->first()->imagePath : 'products/default.png',
                     'categories' => $product->categories->pluck('name')->toArray(),
                     'tags' => $product->tags->pluck('name')->toArray(),
                 ];
@@ -430,21 +539,83 @@ public function update(Request $request)
             ], 500);
         }
     }
+    public function getSellerDiscounts($slug)
+    {
+        try {
+            // Validate slug
+            if (empty($slug) || !is_string($slug)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Slug không hợp lệ.',
+                ], 400);
+            }
 
+            // Fetch seller
+            $seller = Seller::where('store_slug', $slug)->firstOrFail();
 
-public function getVerifiedSellers()
-{
-    $sellers = Seller::where('verification_status', 'verified')
-        ->select('id', 'store_name', 'store_slug')
-        ->get();
+            // Fetch active discounts for the seller
+            $discounts = $seller->discounts()
+                ->where('status', 'active')
+                ->where('end_date', '>=', now())
+                ->where('start_date', '<=', now())
+                ->with(['products' => function ($q) {
+                    $q->select('products.id', 'name', 'slug');
+                }])
+                ->get()
+                ->map(function ($discount) {
+                    $discountData = [
+                        'id' => $discount->id,
+                        'name' => $discount->name,
+                        'code' => $discount->code,
+                        'description' => $discount->description,
+                        'discount_type' => $discount->discount_type,
+                        'usage_limit' => $discount->usage_limit,
+                        'used_count' => $discount->used_count,
+                        'min_order_value' => $discount->min_order_value,
+                        'start_date' => $discount->start_date,
+                        'end_date' => $discount->end_date,
+                        'products' => $discount->products->pluck('name')->toArray(),
+                    ];
 
-    return response()->json([
-        'success' => true,
-        'message' => 'Lấy danh sách người bán thành công.',
-        'data' => $sellers
-    ]);
-}
+                    // Handle discount value based on type
+                    if ($discount->discount_type === 'percentage') {
+                        $discountData['discount_value'] = (float) $discount->discount_value . '%';
+                    } elseif ($discount->discount_type === 'shipping_fee') {
+                        $discountData['discount_value'] = number_format($discount->discount_value, 0, ',', '.') . ' VNĐ';
+                    } else {
+                        $discountData['discount_value'] = number_format($discount->discount_value, 0, ',', '.') . ' VNĐ';
+                    }
 
+                    return $discountData;
+                })
+                ->values()
+                ->toArray();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Lấy danh sách mã giảm giá thành công.',
+                'data' => $discounts,
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Đã xảy ra lỗi khi lấy danh sách mã giảm giá. Vui lòng thử lại sau.',
+                'error' => app()->environment('local') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+    public function getVerifiedSellers()
+    {
+        $sellers = Seller::where('verification_status', 'verified')
+            ->select('id', 'store_name', 'store_slug')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Lấy danh sách người bán thành công.',
+            'data' => $sellers
+        ]);
+    }
 
     public function registerFull(Request $request)
     {
@@ -613,152 +784,283 @@ public function getVerifiedSellers()
             ]);
             return response()->json(['errors' => ['api' => ['Lỗi khi kiểm tra địa chỉ với GHN: ' . $e->getMessage()]]], 500);
         }
-try {
+        try {
 
-         $seller = DB::transaction(function () use ($request, $user, $data) {
-        $notification = Notification::create([
-            'title' => 'Yêu cầu đăng ký người bán mới',
-            'content' => "Người dùng {$user->name} ({$user->email}) đã gửi yêu cầu đăng ký với tên cửa hàng: {$request->store_name}.",
-            'user_id' => $user->id,
-            'from_role' => 'system',
-            'to_roles' => json_encode(['admin']),
-            'channels' => json_encode(['email', 'dashboard']),
-            'status' => 'sent',
-            'link' => 'admin/sellers/list-seller',
-            'type' => 'message',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+            $seller = DB::transaction(function () use ($request, $user, $data) {
+                $notification = Notification::create([
+                    'title' => 'Yêu cầu đăng ký người bán mới',
+                    'content' => "Người dùng {$user->name} ({$user->email}) đã gửi yêu cầu đăng ký với tên cửa hàng: {$request->store_name}.",
+                    'user_id' => $user->id,
+                    'from_role' => 'system',
+                    'to_roles' => json_encode(['admin']),
+                    'channels' => json_encode(['email', 'dashboard']),
+                    'status' => 'sent',
+                    'link' => 'admin/sellers/list-seller',
+                    'type' => 'message',
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
 
-        // Tạo slug
-        $slug = Str::slug($request->store_name) . '-' . Str::random(4) . '-' . uniqid();
+                // Tạo slug
+                $slug = Str::slug($request->store_name) . '-' . Str::random(4) . '-' . uniqid();
 
-        // Lưu ảnh và file
-        $idCardFrontPath = null;
-        $idCardBackPath = null;
-        $identityCardFilePath = null;
+                // Lưu ảnh và file
+                $idCardFrontPath = null;
+                $idCardBackPath = null;
+                $identityCardFilePath = null;
 
-        if ($request->hasFile('id_card_front_url')) {
-            try {
-                $idCardFrontPath = $request->file('id_card_front_url')->store('seller-documents/cccd-front', 'r2');
-                Log::info('Uploaded id_card_front_url: ', ['path' => $idCardFrontPath]);
-            } catch (\Exception $e) {
-                Log::error('Error uploading id_card_front_url: ', ['error' => $e->getMessage()]);
-                throw new \Exception('Lỗi khi tải lên ảnh mặt trước CCCD: ' . $e->getMessage());
-            }
+                if ($request->hasFile('id_card_front_url')) {
+                    try {
+                        $idCardFrontPath = $request->file('id_card_front_url')->store('seller-documents/cccd-front', 'r2');
+                        Log::info('Uploaded id_card_front_url: ', ['path' => $idCardFrontPath]);
+                    } catch (\Exception $e) {
+                        Log::error('Error uploading id_card_front_url: ', ['error' => $e->getMessage()]);
+                        throw new \Exception('Lỗi khi tải lên ảnh mặt trước CCCD: ' . $e->getMessage());
+                    }
+                }
+
+                if ($request->hasFile('id_card_back_url')) {
+                    try {
+                        $idCardBackPath = $request->file('id_card_back_url')->store('seller-documents/cccd-back', 'r2');
+                        Log::info('Uploaded id_card_back_url: ', ['path' => $idCardBackPath]);
+                    } catch (\Exception $e) {
+                        Log::error('Error uploading id_card_back_url: ', ['error' => $e->getMessage()]);
+                        throw new \Exception('Lỗi khi tải lên ảnh mặt sau CCCD: ' . $e->getMessage());
+                    }
+                }
+
+                if ($request->hasFile('identity_card_file')) {
+                    try {
+                        $identityCardFilePath = $request->file('identity_card_file')->store('seller-documents/business-proof', 'r2');
+                        Log::info('Uploaded identity_card_file: ', ['path' => $identityCardFilePath]);
+                    } catch (\Exception $e) {
+                        Log::error('Error uploading identity_card_file: ', ['error' => $e->getMessage()]);
+                        throw new \Exception('Lỗi khi tải lên giấy tờ xác minh: ' . $e->getMessage());
+                    }
+                }
+
+                // Log dữ liệu trước khi lưu vào database
+                $sellerData = [
+                    'user_id' => $user->id,
+                    'store_name' => $request->store_name,
+                    'store_slug' => $slug,
+                    'phone_number' => $request->phone_number,
+                    'province_id' => $data['province_id'],
+                    'district_id' => $data['district_id'],
+                    'ward_id' => $request->ward_id,
+                    'address' => $request->address,
+                    'shipping_options' => $request->shipping_options,
+                    'seller_type' => $request->seller_type,
+                    'tax_code' => $request->tax_code,
+                    'business_name' => $request->business_name,
+                    'business_email' => $request->business_email,
+                    'identity_card_number' => $request->identity_card_number,
+                    'date_of_birth' => $request->date_of_birth,
+                    'personal_address' => $request->personal_address,
+                    'id_card_front_url' => $idCardFrontPath,
+                    'id_card_back_url' => $idCardBackPath,
+                    'identity_card_file' => $identityCardFilePath,
+                    'verification_status' => 'pending',
+                ];
+                Log::info('Data to save in sellers table:', ['sellerData' => $sellerData]);
+
+                // Tạo hoặc cập nhật seller
+                $seller = Seller::updateOrCreate(['user_id' => $user->id], $sellerData);
+
+                Log::info('Seller registered successfully: ', ['seller_id' => $seller->id, 'user_id' => $user->id]);
+
+                // Trả về seller từ transaction
+                return $seller;
+            });
+            return response()->json([
+                'message' => 'Đã hoàn tất đăng ký người bán.',
+                'data' => ['seller_id' => $seller->id],
+            ], 201);
+        } catch (\Exception $e) {
+            Log::error('Error in registerFull: ', [
+                'error' => $e->getMessage(),
+                'request_data' => $data,
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return response()->json(['message' => 'Lỗi khi đăng ký người bán: ' . $e->getMessage()], 500);
         }
-
-        if ($request->hasFile('id_card_back_url')) {
-            try {
-                $idCardBackPath = $request->file('id_card_back_url')->store('seller-documents/cccd-back', 'r2');
-                Log::info('Uploaded id_card_back_url: ', ['path' => $idCardBackPath]);
-            } catch (\Exception $e) {
-                Log::error('Error uploading id_card_back_url: ', ['error' => $e->getMessage()]);
-                throw new \Exception('Lỗi khi tải lên ảnh mặt sau CCCD: ' . $e->getMessage());
-            }
-        }
-
-        if ($request->hasFile('identity_card_file')) {
-            try {
-                $identityCardFilePath = $request->file('identity_card_file')->store('seller-documents/business-proof', 'r2');
-                Log::info('Uploaded identity_card_file: ', ['path' => $identityCardFilePath]);
-            } catch (\Exception $e) {
-                Log::error('Error uploading identity_card_file: ', ['error' => $e->getMessage()]);
-                throw new \Exception('Lỗi khi tải lên giấy tờ xác minh: ' . $e->getMessage());
-            }
-        }
-
-        // Log dữ liệu trước khi lưu vào database
-        $sellerData = [
-            'user_id' => $user->id,
-            'store_name' => $request->store_name,
-            'store_slug' => $slug,
-            'phone_number' => $request->phone_number,
-            'province_id' => $data['province_id'],
-            'district_id' => $data['district_id'],
-            'ward_id' => $request->ward_id,
-            'address' => $request->address,
-            'shipping_options' => $request->shipping_options,
-            'seller_type' => $request->seller_type,
-            'tax_code' => $request->tax_code,
-            'business_name' => $request->business_name,
-            'business_email' => $request->business_email,
-            'identity_card_number' => $request->identity_card_number,
-            'date_of_birth' => $request->date_of_birth,
-            'personal_address' => $request->personal_address,
-            'id_card_front_url' => $idCardFrontPath,
-            'id_card_back_url' => $idCardBackPath,
-            'identity_card_file' => $identityCardFilePath,
-            'verification_status' => 'pending',
-        ];
-        Log::info('Data to save in sellers table:', ['sellerData' => $sellerData]);
-
-        // Tạo hoặc cập nhật seller
-        $seller = Seller::updateOrCreate(['user_id' => $user->id], $sellerData);
-
-        Log::info('Seller registered successfully: ', ['seller_id' => $seller->id, 'user_id' => $user->id]);
-
-        // Trả về seller từ transaction
-        return $seller;
-    });
-    return response()->json([
-        'message' => 'Đã hoàn tất đăng ký người bán.',
-        'data' => ['seller_id' => $seller->id],
-    ], 201);
-} catch (\Exception $e) {
-    Log::error('Error in registerFull: ', [
-        'error' => $e->getMessage(),
-        'request_data' => $data,
-        'trace' => $e->getTraceAsString(),
-    ]);
-    return response()->json(['message' => 'Lỗi khi đăng ký người bán: ' . $e->getMessage()], 500);
-}
     }
 
     public function getDiscounts(Request $request, $slug)
     {
-        $seller = Seller::where('store_slug', $slug)->first();
+        try {
+            // Lấy seller dựa trên slug
+            $seller = Seller::where('store_slug', $slug)->first();
 
-        if (!$seller) {
+            if (!$seller) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không tìm thấy cửa hàng.'
+                ], 404);
+            }
+
+            // Lấy các tham số phân trang
+            $perPage = $request->query('per_page', 10);
+            $page = $request->query('page', 1);
+
+            // Lấy các voucher/discounts của shop với điều kiện thời gian và trạng thái
+            $discountsQuery = Discount::with([
+                'products:id,name',
+                'categories:id,name',
+                'users:id,name'
+            ])
+                ->where('seller_id', $seller->id)
+                ->where('status', 'active') // Giả định có trường status
+                ->where('start_date', '<=', now())
+                ->where('end_date', '>=', now())
+                ->orderByDesc('created_at');
+
+            // Phân trang
+            $discounts = $discountsQuery->paginate($perPage, ['*'], 'page', $page);
+
+            // Nếu có user đăng nhập, lấy danh sách voucher đã lưu
+            $savedCodes = [];
+            if (Auth::check()) {
+                $savedCodes = Auth::user()->savedVouchers->pluck('code')->toArray();
+            }
+
+            // Định dạng dữ liệu trực tiếp trên items của paginator
+            $formattedVouchers = $discounts->getCollection()->map(function ($voucher) use ($savedCodes) {
+                $discountValue = $voucher->discount_value;
+                if ($voucher->discount_type === 'percentage') {
+                    $discountValue = number_format($voucher->discount_value, 0, ',', '.') . '%';
+                } elseif ($voucher->discount_type === 'shipping_fee') {
+                    $discountValue = number_format($voucher->discount_value, 0, ',', '.') . ' VNĐ';
+                } elseif ($voucher->discount_type === 'fixed') {
+                    $discountValue = number_format($voucher->discount_value, 0, ',', '.') . ' VNĐ';
+                }
+
+                return [
+                    'id' => $voucher->id,
+                    'name' => $voucher->name,
+                    'code' => $voucher->code,
+                    'description' => $voucher->description,
+                    'discount_type' => $voucher->discount_type,
+                    'discount_value' => $discountValue,
+                    'max_discount' => $voucher->max_discount,
+                    'min_order_value' => number_format($voucher->min_order_value, 0, ',', '.') . ' VNĐ',
+                    'start_date' => $voucher->start_date,
+                    'end_date' => $voucher->end_date,
+                    'is_saved' => in_array($voucher->code, $savedCodes),
+                    'products' => $voucher->products->map(fn($p) => ['id' => $p->id, 'name' => $p->name]),
+                    'categories' => $voucher->categories->map(fn($c) => ['id' => $c->id, 'name' => $c->name]),
+                    'users' => $voucher->users->map(fn($u) => ['id' => $u->id, 'name' => $u->name]),
+                    'usage_limit' => $voucher->usage_limit,
+                    'used_count' => $voucher->used_count,
+                ];
+            });
+
+            // Gán lại collection đã định dạng vào paginator
+            $discounts->setCollection($formattedVouchers);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Lấy danh sách mã giảm giá thành công.',
+                'data' => [
+                    'vouchers' => $discounts->items(), // Sử dụng items() từ paginator
+                    'pagination' => [
+                        'current_page' => $discounts->currentPage(),
+                        'last_page' => $discounts->lastPage(),
+                        'per_page' => $discounts->perPage(),
+                        'total' => $discounts->total(),
+                    ],
+                ],
+            ], 200);
+        } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Không tìm thấy cửa hàng.'
-            ], 404);
+                'message' => 'Đã xảy ra lỗi khi lấy danh sách mã giảm giá. Vui lòng thử lại sau.',
+                'error' => app()->environment('local') ? $e->getMessage() : null,
+            ], 500);
         }
+    }
 
-        // Lấy các voucher/discounts của shop
-        $discounts = Discount::with(['products:id,name', 'categories:id,name', 'users:id,name'])
-            ->where('seller_id', $seller->id)
-            ->orderByDesc('created_at')
-            ->get();
-
-        // Nếu có user đăng nhập, lấy danh sách voucher đã lưu
-        $savedCodes = [];
-        if ($request->user()) {
-            $savedCodes = $request->user()->savedVouchers()->pluck('code')->toArray();
-        }
-
-        $data = $discounts->map(function ($voucher) use ($savedCodes) {
-            return [
-                'id' => $voucher->id,
-                'code' => $voucher->code,
-                'discount_type' => $voucher->discount_type,
-                'discount_value' => $voucher->discount_value,
-                'max_discount' => $voucher->max_discount,
-                'min_order_value' => $voucher->min_order_value,
-                'end_date' => $voucher->end_date,
-                'is_saved' => in_array($voucher->code, $savedCodes),
-                'products' => $voucher->products->map(fn($p) => ['id' => $p->id, 'name' => $p->name]),
-                'categories' => $voucher->categories->map(fn($c) => ['id' => $c->id, 'name' => $c->name]),
-                'users' => $voucher->users->map(fn($u) => ['id' => $u->id, 'name' => $u->name]),
-                'usage_limit' => $voucher->usage_limit,
-                'used_count' => $voucher->used_count,
-            ];
-        });
+    public function getBrands()
+    {
+        $brands = Seller::where('verification_status', 'verified') // lọc trước
+            ->get()
+            ->map(function ($seller) {
+                return [
+                    'id' => $seller->id,
+                    'name' => $seller->store_name,
+                    'slug' => $seller->store_slug,
+                ];
+            })
+            ->toArray();
 
         return response()->json([
             'success' => true,
-            'data' => $data
+            'message' => 'Lấy danh sách cửa hàng thành công.',
+            'data' => $brands
         ]);
+    }
+    /**
+     * Lấy thống kê seller cho admin
+     */
+    public function stats()
+    {
+        try {
+            // Tổng số seller
+            $totalSellers = Seller::count();
+
+            // Seller mới trong tháng này
+            $newSellers = Seller::where('created_at', '>=', Carbon::now()->startOfMonth())->count();
+
+            // Seller active (có đơn hàng trong tháng)
+            $activeSellers = Seller::whereHas('orders', function ($q) {
+                $q->where('created_at', '>=', Carbon::now()->startOfMonth());
+            })->count();
+
+            // Top 5 seller theo doanh thu tháng này
+            $topSellers = Seller::with(['user'])
+                ->withSum(['orders' => function ($q) {
+                    $q->where('created_at', '>=', Carbon::now()->startOfMonth());
+                }], 'final_price')
+                ->orderByDesc('orders_sum_final_price')
+                ->limit(5)
+                ->get()
+                ->map(function ($seller) {
+                    return [
+                        'id' => $seller->id,
+                        'store_name' => $seller->store_name,
+                        'user' => [
+                            'name' => $seller->user->name,
+                            'email' => $seller->user->email
+                        ],
+                        'revenue' => $seller->orders_sum_final_price ?? 0
+                    ];
+                });
+
+            // Thống kê theo trạng thái
+            $statusStats = Seller::select('status', DB::raw('count(*) as count'))
+                ->groupBy('status')
+                ->get()
+                ->pluck('count', 'status');
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'total_sellers' => $totalSellers,
+                    'new_sellers' => $newSellers,
+                    'active_sellers' => $activeSellers,
+                    'top_sellers' => $topSellers,
+                    'status_stats' => $statusStats
+                ],
+                'message' => 'Lấy thống kê seller thành công'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error in SellerController@stats: ' . $e->getMessage());
+            Log::error($e->getTraceAsString());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi khi lấy thống kê seller: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

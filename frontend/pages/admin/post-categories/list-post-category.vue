@@ -15,19 +15,59 @@
         </NuxtLink>
       </div>
 
-      <!-- Notification -->
-      <div v-if="showNotification"
-        class="fixed bottom-4 right-4 bg-white rounded-lg shadow-xl border border-gray-200 p-4 flex items-center space-x-3 z-50">
-        <div class="flex-1">
-          <p class="text-sm font-medium" :class="notificationType === 'success' ? 'text-green-700' : 'text-red-700'">
-            {{ notificationMessage }}
-          </p>
+      <!-- Filter Bar -->
+      <div class="bg-gray-200 px-4 py-3 flex flex-wrap items-center gap-3 text-sm text-gray-700">
+        <div class="flex items-center gap-2">
+          <span class="font-bold">Tất cả</span>
+          <span>({{ totalCategories }})</span>
         </div>
-        <button @click="showNotification = false" class="text-gray-400 hover:text-gray-500">
-          <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-          </svg>
+        <div class="ml-auto flex flex-wrap gap-2 items-center">
+          <div class="relative">
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="Tìm kiếm danh mục..."
+              class="pl-8 pr-3 py-1.5 rounded-md border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 w-64"
+            />
+            <svg
+              class="absolute left-2.5 top-2 h-4 w-4 text-gray-400"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
+                clip-rule="evenodd"
+              />
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Bar -->
+      <div class="bg-gray-200 px-4 py-3 flex flex-wrap items-center gap-3 text-sm text-gray-700 border-t border-gray-300">
+        <select
+          v-model="selectedAction"
+          class="rounded-md border border-gray-300 py-1.5 pl-3 pr-8 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+        >
+          <option value="">Hành động hàng loạt</option>
+          <option value="delete">Xóa</option>
+        </select>
+        <button
+          @click="applyBulkAction"
+          :disabled="!selectedAction || selectedCategories.length === 0 || loading"
+          :class="[
+            'px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-150',
+            !selectedAction || selectedCategories.length === 0 || loading
+              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              : 'bg-blue-600 text-white hover:bg-blue-700',
+          ]"
+        >
+          {{ loading ? 'Đang xử lý...' : 'Áp dụng' }}
         </button>
+        <div class="ml-auto text-sm text-gray-600">
+          {{ selectedCategories.length }} được chọn / {{ filteredCategories.length }}
+        </div>
       </div>
 
       <!-- Table -->
@@ -35,7 +75,11 @@
         <thead class="bg-white border-b border-gray-300">
           <tr>
             <th class="border border-gray-300 px-3 py-2 text-left w-10">
-              #
+              <input
+                type="checkbox"
+                v-model="selectAll"
+                @change="toggleSelectAll"
+              />
             </th>
             <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">
               Hình ảnh
@@ -52,11 +96,26 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="cat in categories" :key="cat.id" :class="{ 'bg-gray-50': cat.id % 2 === 0 }"
-            class="border-b border-gray-300">
-            <td class="border border-gray-300 px-3 py-2 text-left w-10">{{ cat.id }}</td>
+          <tr
+            v-for="cat in filteredCategories"
+            :key="cat.id"
+            :class="{ 'bg-gray-50': cat.id % 2 === 0 }"
+            class="border-b border-gray-300"
+          >
+            <td class="border border-gray-300 px-3 py-2 text-left w-10">
+              <input
+                type="checkbox"
+                v-model="selectedCategories"
+                :value="cat.id"
+              />
+            </td>
             <td class="border border-gray-300 px-3 py-2 text-left">
-              <img v-if="cat.image_url" :src="cat.image_url" alt="Ảnh" class="w-12 h-12 object-cover rounded" />
+              <img
+                v-if="cat.image_url"
+                :src="cat.image_url"
+                alt="Ảnh"
+                class="w-12 h-12 object-cover rounded"
+              />
               <span v-else class="text-gray-500">Không có hình</span>
             </td>
             <td class="border border-gray-300 px-3 py-2 text-left text-gray-500">
@@ -67,34 +126,69 @@
             </td>
             <td class="border border-gray-300 px-3 py-2 text-left">
               <div class="relative inline-block text-left">
-                <button @click="toggleDropdown(cat.id)"
-                  class="inline-flex items-center justify-center w-8 h-8 text-gray-600 hover:text-gray-800 focus:outline-none">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M12 5v.01M12 12v.01M12 19v.01" />
+                <button
+                  @click="toggleDropdown(cat.id)"
+                  class="inline-flex items-center justify-center w-8 h-8 text-gray-600 hover:text-gray-800 focus:outline-none"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="w-5 h-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M12 5v.01M12 12v.01M12 19v.01"
+                    />
                   </svg>
                 </button>
-                <div v-if="activeDropdown === cat.id"
-                  class="absolute right-0 mt-2 w-36 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50">
+                <div
+                  v-if="activeDropdown === cat.id"
+                  class="absolute right-0 mt-2 w-36 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50"
+                >
                   <div class="py-1" role="menu">
-                    <NuxtLink :to="`/admin/post-categories/edit-post-category/${cat.id}`"
+                    <NuxtLink
+                      :to="`/admin/post-categories/edit-post-category/${cat.id}`"
                       class="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-150"
-                      role="menuitem">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24"
-                        stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      role="menuitem"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        class="w-4 h-4 mr-2"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                        />
                       </svg>
                       Sửa
                     </NuxtLink>
-                    <button @click="confirmDelete(cat)"
+                    <button
+                      @click="confirmDelete(cat)"
                       class="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors duration-150"
-                      role="menuitem">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24"
-                        stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M4 7h16" />
+                      role="menuitem"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        class="w-4 h-4 mr-2"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M4 7h16"
+                        />
                       </svg>
                       Xóa
                     </button>
@@ -103,45 +197,172 @@
               </div>
             </td>
           </tr>
-          <tr v-if="categories.length === 0">
-            <td colspan="5" class="text-center text-gray-500 py-6">Chưa có danh mục nào.</td>
+          <tr v-if="filteredCategories.length === 0">
+            <td
+              colspan="5"
+              class="text-center text-gray-500 py-6"
+            >
+              Chưa có danh mục nào.
+            </td>
           </tr>
         </tbody>
       </table>
+
       <!-- Pagination Component -->
-      <Pagination :currentPage="currentPage" :lastPage="lastPage" @change="fetchCategories" class="mt-4" />
+      <Pagination
+        :currentPage="currentPage"
+        :lastPage="lastPage"
+        @change="fetchCategories"
+        class="mt-4"
+      />
     </div>
   </div>
 
+  <!-- Notification Popup -->
+  <Teleport to="body">
+    <Transition
+      enter-active-class="transition ease-out duration-200"
+      enter-from-class="transform opacity-0 scale-95"
+      enter-to-class="transform opacity-100 scale-100"
+      leave-active-class="transition ease-in duration-100"
+      leave-from-class="transform opacity-100 scale-100"
+      leave-to-class="transform opacity-0 scale-95"
+    >
+      <div
+        v-if="showNotification"
+        class="fixed bottom-4 right-4 bg-white rounded-lg shadow-xl border border-gray-200 p-4 flex items-center space-x-3 z-50"
+      >
+        <div class="flex-shrink-0">
+          <svg
+            class="h-6 w-6"
+            :class="notificationType === 'success' ? 'text-green-400' : 'text-red-500'"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              v-if="notificationType === 'success'"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+            <path
+              v-if="notificationType === 'error'"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+            />
+          </svg>
+        </div>
+        <div class="flex-1">
+          <p class="text-sm font-medium text-gray-900">
+            {{ notificationMessage }}
+          </p>
+        </div>
+        <div class="flex-shrink-0">
+          <button
+            @click="showNotification = false"
+            class="inline-flex text-gray-400 hover:text-gray-500 focus:outline-none"
+          >
+            <svg
+              class="h-5 w-5"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
+
   <!-- Confirmation Dialog -->
   <Teleport to="body">
-    <Transition enter-active-class="transition ease-out duration-200" enter-from-class="opacity-0"
-      enter-to-class="opacity-100" leave-active-class="transition ease-in duration-100" leave-from-class="opacity-100"
-      leave-to-class="opacity-0">
-      <div v-if="showConfirmDialog" class="fixed inset-0 z-50 flex items-center justify-center">
-        <div class="fixed inset-0 bg-gray-500 bg-opacity-75" @click="closeConfirmDialog"></div>
-        <div class="relative bg-white rounded-lg shadow-xl max-w-md w-full p-6 z-10">
-          <div class="flex items-start space-x-3">
-            <div class="flex items-center justify-center w-10 h-10 bg-red-100 rounded-full">
-              <svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M12 9v2m0 4h.01M5.06 20h13.88c1.54 0 2.5-1.667 1.73-3L13.73 4c-.77-1.333-2.69-1.333-3.46 0L3.34 17c-.77 1.333.19 3 1.72 3z" />
-              </svg>
+    <Transition
+      enter-active-class="transition ease-out duration-200"
+      enter-from-class="opacity-0"
+      enter-to-class="opacity-100"
+      leave-active-class="transition ease-in duration-100"
+      leave-from-class="opacity-100"
+      leave-to-class="opacity-0"
+    >
+      <div
+        v-if="showConfirmDialog"
+        class="fixed inset-0 z-50 overflow-y-auto"
+      >
+        <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+          <div
+            class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+            @click="closeConfirmDialog"
+          ></div>
+          <span
+            class="hidden sm:inline-block sm:align-middle sm:h-screen"
+            aria-hidden="true"
+          ></span>
+          <div
+            class="relative inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full"
+          >
+            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+              <div class="sm:flex sm:items-start">
+                <div
+                  class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10"
+                >
+                  <svg
+                    class="h-6 w-6 text-red-600"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                    />
+                  </svg>
+                </div>
+                <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                  <h3
+                    class="text-lg leading-6 font-medium text-gray-900"
+                  >
+                    {{ confirmDialogTitle }}
+                  </h3>
+                  <div class="mt-2">
+                    <p class="text-sm text-gray-500">
+                      {{ confirmDialogMessage }}
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div>
-              <h3 class="text-lg font-semibold text-gray-900">{{ confirmDialogTitle }}</h3>
-              <p class="text-sm text-gray-500 mt-1">{{ confirmDialogMessage }}</p>
+            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+              <button
+                type="button"
+                class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm"
+                @click="handleConfirmAction"
+              >
+                Xác nhận
+              </button>
+              <button
+                type="button"
+                class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                @click="closeConfirmDialog"
+              >
+                Hủy
+              </button>
             </div>
-          </div>
-          <div class="mt-6 flex justify-end space-x-3">
-            <button class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm font-medium"
-              @click="handleConfirmAction">
-              Xác nhận
-            </button>
-            <button class="px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 text-sm font-medium"
-              @click="closeConfirmDialog">
-              Hủy
-            </button>
           </div>
         </div>
       </div>
@@ -150,8 +371,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue'
 import { useRuntimeConfig } from '#app'
+import Pagination from '~/components/Pagination.vue'
 
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBaseUrl
@@ -161,12 +383,17 @@ definePageMeta({
 })
 
 const categories = ref([])
+const selectedCategories = ref([])
+const selectAll = ref(false)
+const searchQuery = ref('')
+const selectedAction = ref('')
+const totalCategories = ref(0)
 const activeDropdown = ref(null)
-
+const dropdownPosition = ref({ top: '0px', left: '0px', width: '192px' })
+const loading = ref(false)
 const showNotification = ref(false)
 const notificationMessage = ref('')
 const notificationType = ref('success')
-
 const showConfirmDialog = ref(false)
 const confirmDialogTitle = ref('')
 const confirmDialogMessage = ref('')
@@ -175,29 +402,152 @@ const currentPage = ref(1)
 const lastPage = ref(1)
 const perPage = 10
 
+// Fetch categories from API
 const fetchCategories = async (page = 1) => {
   try {
+    loading.value = true
+    currentPage.value = page
     const token = localStorage.getItem('access_token')
     const response = await $fetch(`${apiBase}/post-categories?page=${page}&per_page=${perPage}`, {
       headers: { Authorization: `Bearer ${token}` }
     })
-    categories.value = response.data.data || []
-    currentPage.value = response.current_page || 1
-    lastPage.value = response.last_page || 1
+
+    // Validate response structure
+    if (!response || !response.data || !Array.isArray(response.data.data)) {
+      throw new Error('Invalid API response')
+    }
+
+    categories.value = response.data.data
+    currentPage.value = response.data.current_page || 1
+    lastPage.value = response.data.last_page || 1
+    totalCategories.value = response.data.total || response.data.data.length
   } catch (e) {
     showNotificationMessage('Không thể tải danh mục.', 'error')
+  } finally {
+    loading.value = false
   }
 }
 
+// Toggle select all
+const toggleSelectAll = () => {
+  if (selectAll.value) {
+    selectedCategories.value = filteredCategories.value.map(c => c.id)
+  } else {
+    selectedCategories.value = []
+  }
+}
 
+// Apply bulk action
+const applyBulkAction = async () => {
+  if (!selectedAction.value || selectedCategories.value.length === 0) {
+    showNotificationMessage('Vui lòng chọn hành động và ít nhất một danh mục', 'error')
+    return
+  }
+
+  if (selectedAction.value === 'delete') {
+    showConfirmationDialog(
+      'Xác nhận xóa hàng loạt',
+      `Bạn có chắc chắn muốn xóa ${selectedCategories.value.length} danh mục đã chọn?`,
+      async () => {
+        try {
+          loading.value = true
+          const token = localStorage.getItem('access_token')
+          const deletePromises = selectedCategories.value.map(id =>
+            $fetch(`${apiBase}/post-categories/${id}`, {
+              method: 'DELETE',
+              headers: { Authorization: `Bearer ${token}` }
+            })
+          )
+
+          await Promise.all(deletePromises)
+          showNotificationMessage('Xóa các danh mục thành công!', 'success')
+          selectedCategories.value = []
+          selectAll.value = false
+          selectedAction.value = ''
+          await fetchCategories()
+        } catch (error) {
+          showNotificationMessage('Có lỗi xảy ra khi xóa danh mục', 'error')
+        } finally {
+          loading.value = false
+        }
+      }
+    )
+  }
+}
+
+// Toggle dropdown
 const toggleDropdown = (id) => {
-  activeDropdown.value = activeDropdown.value === id ? null : id
+  if (activeDropdown.value === id) {
+    activeDropdown.value = null
+  } else {
+    activeDropdown.value = id
+    nextTick(() => {
+      const button = event.target.closest('button')
+      const rect = button.getBoundingClientRect()
+      dropdownPosition.value = {
+        top: `${rect.bottom + window.scrollY + 8}px`,
+        left: `${rect.right + window.scrollX - 192}px`,
+        width: '192px'
+      }
+    })
+  }
 }
 
-const editPostCategory = (id) => {
-  window.location.href = `/admin/post-categories/edit-post-category/${id}`
+// Close dropdown
+const closeDropdown = (event) => {
+  if (!event.target.closest('.relative') && !event.target.closest('.absolute')) {
+    activeDropdown.value = null
+  }
 }
 
+// Filtered categories
+const filteredCategories = computed(() => {
+  let result = [...categories.value]
+
+  if (searchQuery.value) {
+    const query = searchQuery.value.toLowerCase()
+    result = result.filter(category =>
+      category.name.toLowerCase().includes(query) ||
+      category.slug.toLowerCase().includes(query)
+    )
+  }
+
+  return result
+})
+
+// Show notification
+const showNotificationMessage = (message, type = 'success') => {
+  notificationMessage.value = message
+  notificationType.value = type
+  showNotification.value = true
+  setTimeout(() => {
+    showNotification.value = false
+  }, 3000)
+}
+
+// Close confirm dialog
+const closeConfirmDialog = () => {
+  showConfirmDialog.value = false
+  confirmAction.value = null
+}
+
+// Handle confirm action
+const handleConfirmAction = async () => {
+  if (confirmAction.value) {
+    await confirmAction.value()
+  }
+  closeConfirmDialog()
+}
+
+// Show confirmation dialog
+const showConfirmationDialog = (title, message, action) => {
+  confirmDialogTitle.value = title
+  confirmDialogMessage.value = message
+  confirmAction.value = action
+  showConfirmDialog.value = true
+}
+
+// Delete category
 const confirmDelete = (cat) => {
   showConfirmationDialog(
     'Xác nhận xóa danh mục',
@@ -210,7 +560,7 @@ const confirmDelete = (cat) => {
           headers: { Authorization: `Bearer ${token}` }
         })
         showNotificationMessage('Đã xóa danh mục.', 'success')
-        categories.value = categories.value.filter(c => c.id !== cat.id)
+        await fetchCategories()
       } catch (e) {
         showNotificationMessage('Không thể xóa danh mục.', 'error')
       }
@@ -218,34 +568,15 @@ const confirmDelete = (cat) => {
   )
 }
 
+// Lifecycle hooks
+onMounted(() => {
+  fetchCategories()
+  document.addEventListener('click', closeDropdown)
+})
 
-const showNotificationMessage = (message, type = 'success') => {
-  notificationMessage.value = message
-  notificationType.value = type
-  showNotification.value = true
-  setTimeout(() => (showNotification.value = false), 3000)
-}
-
-const showConfirmationDialog = (title, message, action) => {
-  confirmDialogTitle.value = title
-  confirmDialogMessage.value = message
-  confirmAction.value = action
-  showConfirmDialog.value = true
-}
-
-const closeConfirmDialog = () => {
-  showConfirmDialog.value = false
-  confirmAction.value = null
-}
-
-const handleConfirmAction = async () => {
-  if (typeof confirmAction.value === 'function') {
-    await confirmAction.value()
-  }
-  closeConfirmDialog()
-}
-
-onMounted(fetchCategories)
+onUnmounted(() => {
+  document.removeEventListener('click', closeDropdown)
+})
 </script>
 
 <style scoped>
@@ -256,5 +587,32 @@ onMounted(fetchCategories)
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+button {
+  position: relative;
+  overflow: hidden;
+}
+
+button::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  background-image: radial-gradient(circle, #000 10%, transparent 10.01%);
+  background-repeat: no-repeat;
+  background-position: 50%;
+  transform: scale(10, 10);
+  opacity: 0;
+  transition: transform 0.5s, opacity 1s;
+}
+
+button:active::after {
+  transform: scale(0, 0);
+  opacity: 0.2;
+  transition: 0s;
 }
 </style>

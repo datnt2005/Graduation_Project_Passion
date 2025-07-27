@@ -3,7 +3,7 @@
     <div class="max-w-full overflow-x-auto">
       <!-- Header with Create Button -->
       <div class="bg-white px-4 py-4 flex items-center justify-between border-b border-gray-200">
-        <h1 class="text-xl font-semibold text-gray-800">Quản lý Banner</h1>
+        <h1 class="text-xl font-semibold text-gray-800">Quản lý ảnh quảng cáo</h1>
         <NuxtLink
           to="/admin/banners/create-banner"
           class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-150"
@@ -11,7 +11,7 @@
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
           </svg>
-          Thêm Banner
+          Thêm hình ảnh
         </NuxtLink>
       </div>
 
@@ -42,6 +42,7 @@
             <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Trạng thái</th>
             <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Loại</th>
             <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Ngày tạo</th>
+            <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">LINK</th>
             <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Hành động</th>
           </tr>
         </thead>
@@ -86,6 +87,14 @@
               <span v-else>Banner</span>
             </td>
             <td class="border border-gray-300 px-3 py-2 text-left">{{ formatDate(banner.created_at) }}</td>
+            <td class="px-4 py-3 whitespace-nowrap text-sm">
+              <template v-if="banner.link">
+                <a :href="banner.link" target="_blank" rel="noopener" class="text-blue-600 underline hover:text-blue-800">Truy cập</a>
+              </template>
+              <template v-else>
+                <span class="text-gray-400">---</span>
+              </template>
+            </td>
             <td class="border border-gray-300 px-3 py-2 text-left">
               <div class="relative inline-block text-left">
                 <button

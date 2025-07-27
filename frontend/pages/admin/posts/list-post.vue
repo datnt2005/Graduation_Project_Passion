@@ -4,10 +4,8 @@
       <!-- Header with Create Button -->
       <div class="bg-white px-4 py-4 flex items-center justify-between border-b border-gray-200">
         <h1 class="text-xl font-semibold text-gray-800">Quản lý bài viết</h1>
-        <button
-          @click="router.push('/admin/posts/create-post')"
-          class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-150"
-        >
+        <button @click="router.push('/admin/posts/create-post')"
+          class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-150">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24"
             stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -16,16 +14,67 @@
         </button>
       </div>
 
-      <!-- Filter/Search Bar -->
+      <!-- Filter Bar -->
       <div class="bg-gray-200 px-4 py-3 flex flex-wrap items-center gap-3 text-sm text-gray-700">
-        <div class="relative">
-          <input v-model="searchQuery" type="text" placeholder="Tìm kiếm bài viết..."
-            class="pl-8 pr-3 py-1.5 rounded-md border border-gray-300 focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500 w-64" />
-          <svg class="absolute left-2.5 top-2 h-4 w-4 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd"
-              d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
-              clip-rule="evenodd" />
-          </svg>
+        <div class="flex items-center gap-2">
+          <span class="font-bold">Tất cả</span>
+          <span>({{ totalPosts }})</span>
+        </div>
+        <select v-model="selectedCategory"
+            class="rounded-md border border-gray-300 py-1.5 pl-3 pr-8 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+            <option value="">Tất cả danh mục</option>
+            <option v-for="category in categories" :key="category.id" :value="category.id">
+              {{ category.name }}
+            </option>
+          </select>
+          <select v-model="selectedStatus"
+            class="rounded-md border border-gray-300 py-1.5 pl-3 pr-8 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+            <option value="">Tất cả trạng thái</option>
+            <option value="published">Xuất bản</option>
+            <option value="draft">Bản nháp</option>
+          </select>
+        <div class="ml-auto flex flex-wrap gap-2 items-center">
+          <div class="relative">
+            <input v-model="searchQuery" type="text" placeholder="Tìm kiếm bài viết..."
+              class="pl-8 pr-3 py-1.5 rounded-md border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 w-64" />
+            <svg class="absolute left-2.5 top-2 h-4 w-4 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd"
+                d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
+                clip-rule="evenodd" />
+            </svg>
+          </div>
+          
+        </div>
+      </div>
+
+      <!-- Action Bar -->
+      <div
+        class="bg-gray-200 px-4 py-3 flex flex-wrap items-center gap-3 text-sm text-gray-700 border-t border-gray-300">
+        <select v-model="selectedAction"
+          class="rounded-md border border-gray-300 py-1.5 pl-3 pr-8 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+          <option value="">Hành động hàng loạt</option>
+          <option value="published">Xuất bản</option>
+          <option value="draft">Chuyển thành bản nháp</option>
+          <option value="delete">Xóa</option>
+          <option value="reassign">Gán danh mục</option>
+        </select>
+        <select v-if="selectedAction === 'reassign'" v-model="reassignCategory"
+          class="rounded-md border border-gray-300 py-1.5 pl-3 pr-8 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+          <option value="">Chọn danh mục</option>
+          <option v-for="category in categories" :key="category.id" :value="category.id">
+            {{ category.name }}
+          </option>
+        </select>
+        <button @click="applyBulkAction" :disabled="isBulkActionDisabled" :class="[
+          'px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-150',
+          isBulkActionDisabled
+            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            : 'bg-blue-600 text-white hover:bg-blue-700',
+        ]">
+          {{ loading ? 'Đang xử lý...' : 'Áp dụng' }}
+        </button>
+        <div class="ml-auto text-sm text-gray-600">
+          {{ selectedPosts.length }} được chọn / {{ filteredPosts.length }}
         </div>
       </div>
 
@@ -33,51 +82,80 @@
       <table class="min-w-full border-collapse border border-gray-300 text-sm">
         <thead class="bg-white border-b border-gray-300">
           <tr>
-            <th class="border border-gray-300 px-3 py-2 text-left w-10">ID</th>
-            <th class="border border-gray-300 px-3 py-2 text-left w-20">Ảnh</th>
-            <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Tiêu đề</th>
-            <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Danh mục</th>
-            <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Người viết</th>
-            <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Ngày tạo</th>
-            <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Thao tác</th>
+            <th class="border border-gray-300 px-3 py-2 text-left w-10">
+              <input type="checkbox" v-model="selectAll" @change="toggleSelectAll" />
+            </th>
+            <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">
+              Tiêu đề
+            </th>
+            <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">
+              Danh mục
+            </th>
+            <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">
+              Người viết
+            </th>
+            <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">
+              Ngày tạo
+            </th>
+            <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">
+              Trạng thái
+            </th>
+            <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">
+              Thao tác
+            </th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="post in filteredPosts" :key="post.id" :class="{ 'bg-gray-50': post.id % 2 === 0 }"
             class="border-b border-gray-300">
-            <td class="border border-gray-300 px-3 py-2 text-left w-10">{{ post.id }}</td>
-            <td class="border border-gray-300 px-3 py-2 text-left w-20">
-              <img
-                v-if="post.thumbnail_url"
-                :src="post.thumbnail_url"
-                alt="Ảnh bài viết"
-                class="w-12 h-12 object-cover rounded border border-gray-200 bg-white"
-              />
-              <div v-else class="w-12 h-12 flex items-center justify-center bg-gray-100 text-gray-400 rounded border border-gray-200">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-              </div>
+            <td class="border border-gray-300 px-3 py-2 text-left w-10">
+              <input type="checkbox" v-model="selectedPosts" :value="post.id" />
             </td>
-            <td class="border border-gray-300 px-3 py-2 text-left font-semibold text-blue-700 hover:underline cursor-pointer"
+            <td
+              class="border border-gray-300 px-3 py-2 text-left font-semibold text-blue-700 hover:underline cursor-pointer"
               @click="editPost(post.id)">
               {{ truncateText(post.title, 40) }}
             </td>
-            <td class="border border-gray-300 px-3 py-2 text-left">{{ post.category?.name }}</td>
-            <td class="border border-gray-300 px-3 py-2 text-left">{{ post.user?.name }}</td>
-            <td class="border border-gray-300 px-3 py-2 text-left">{{ formatDate(post.created_at) }}</td>
+            <td class="border border-gray-300 px-3 py-2 text-left">
+              {{ post.category?.name || 'Không có' }}
+            </td>
+            <td class="border border-gray-300 px-3 py-2 text-left">
+              {{ post.user?.name || 'Không xác định' }}
+            </td>
+            <td class="border border-gray-300 px-3 py-2 text-left">
+              {{ formatDate(post.created_at) }}
+            </td>
+            <td class="border border-gray-300 px-3 py-2 text-left">
+              <span :class="[
+                post.status === 'published'
+                  ? 'text-green-600'
+                  : post.status === 'draft'
+                    ? 'text-yellow-600'
+                    : 'text-gray-600',
+              ]">
+                {{ post.status === 'published' ? 'Xuất bản' : post.status === 'draft' ? 'Bản nháp' : 'Không xác định' }}
+              </span>
+            </td>
             <td class="border border-gray-300 px-3 py-2 text-left">
               <div class="relative inline-block text-left">
-                <button @click="toggleDropdown(post.id)"
-                  class="inline-flex items-center justify-center w-8 h-8 text-gray-600 hover:text-gray-800 focus:outline-none">
-                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <button @click="toggleDropdown(post.id, $event)"
+                  class="inline-flex items-center justify-center w-8 h-8 text-gray-600 hover:text-gray-800 focus:outline-none z-10"
+                  :disabled="postLoading[post.id]">
+                  <svg v-if="!postLoading[post.id]" class="w-5 h-5" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                       d="M12 5v.01M12 12v.01M12 19v.01" />
                   </svg>
+                  <svg v-else class="w-5 h-5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none"
+                    viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8h8a8 8 0 01-8 8 8 8 0 01-8-8z">
+                    </path>
+                  </svg>
                 </button>
                 <div v-if="activeDropdown === post.id"
-                  class="absolute right-0 mt-2 w-36 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50">
+                  class="fixed mt-2 w-36 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-[100]"
+                  :style="dropdownPosition">
                   <div class="py-1" role="menu">
                     <button @click="editPost(post.id)"
                       class="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-150"
@@ -103,16 +181,17 @@
             </td>
           </tr>
           <tr v-if="filteredPosts.length === 0">
-            <td colspan="7" class="text-center text-gray-500 py-6">Chưa có bài viết nào.</td>
+            <td colspan="8" class="text-center text-gray-500 py-6">
+              Chưa có bài viết nào.
+            </td>
           </tr>
         </tbody>
       </table>
-            <!-- Pagination Component -->
-      <Pagination :currentPage="currentPage" :lastPage="lastPage" @change="fetchSupports" />
+
+      <!-- Pagination Component -->
+      <Pagination :currentPage="currentPage" :lastPage="lastPage" @change="fetchPosts" class="mt-4" />
     </div>
   </div>
-  
-  
 
   <!-- Notification Popup -->
   <Teleport to="body">
@@ -120,7 +199,7 @@
       enter-to-class="transform opacity-100 scale-100" leave-active-class="transition ease-in duration-100"
       leave-from-class="transform opacity-100 scale-100" leave-to-class="transform opacity-0 scale-95">
       <div v-if="showNotification"
-        class="fixed bottom-4 right-4 bg-white rounded-lg shadow-xl border border-gray-200 p-4 flex items-center space-x-3 z-50">
+        class="fixed bottom-4 right-4 bg-white rounded-lg shadow-xl border border-gray-200 p-4 flex items-center space-x-3 z-[100]">
         <div class="flex-shrink-0">
           <svg class="h-6 w-6" :class="notificationType === 'success' ? 'text-green-400' : 'text-red-500'"
             xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -153,34 +232,46 @@
     <Transition enter-active-class="transition ease-out duration-200" enter-from-class="opacity-0"
       enter-to-class="opacity-100" leave-active-class="transition ease-in duration-100" leave-from-class="opacity-100"
       leave-to-class="opacity-0">
-      <div v-if="showConfirmDialog" class="fixed inset-0 z-50 flex items-center justify-center">
-        <div class="fixed inset-0 bg-gray-500 bg-opacity-75" @click="closeConfirmDialog"></div>
-        <div class="relative bg-white rounded-lg shadow-xl max-w-md w-full p-6 z-10">
-          <div class="flex items-start space-x-3">
-            <div class="flex items-center justify-center w-10 h-10 bg-red-100 rounded-full">
-              <svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M12 9v2m0 4h.01M5.06 20h13.88c1.54 0 2.5-1.667 1.73-3L13.73 4c-.77-1.333-2.69-1.333-3.46 0L3.34 17c-.77 1.333.19 3 1.72 3z" />
-              </svg>
+      <div v-if="showConfirmDialog" class="fixed inset-0 z-[100] overflow-y-auto">
+        <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+          <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="closeConfirmDialog"></div>
+          <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true"></span>
+          <div
+            class="relative inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+              <div class="sm:flex sm:items-start">
+                <div
+                  class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                  <svg class="h-6 w-6 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                  <h3 class="text-lg leading-6 font-medium text-gray-900">
+                    {{ confirmDialogTitle }}
+                  </h3>
+                  <div class="mt-2">
+                    <p class="text-sm text-gray-500">
+                      {{ confirmDialogMessage }}
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div>
-              <h3 class="text-lg font-semibold text-gray-900">{{ confirmDialogTitle }}</h3>
-              <p class="text-sm text-gray-500 mt-1">{{ confirmDialogMessage }}</p>
+            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+              <button type="button"
+                class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm"
+                @click="handleConfirmAction">
+                Xác nhận
+              </button>
+              <button type="button"
+                class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                @click="closeConfirmDialog">
+                Hủy
+              </button>
             </div>
-          </div>
-          <div class="mt-6 flex justify-end space-x-3">
-            <button
-              class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm font-medium"
-              @click="handleConfirmAction"
-            >
-              Xác nhận
-            </button>
-            <button
-              class="px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 text-sm font-medium"
-              @click="closeConfirmDialog"
-            >
-              Hủy
-            </button>
           </div>
         </div>
       </div>
@@ -189,25 +280,37 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useRuntimeConfig } from '#app'
+import Pagination from '~/components/Pagination.vue'
+import { secureFetch } from '@/utils/secureFetch'
 
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBaseUrl
+const router = useRouter()
 
 definePageMeta({
   layout: 'default-admin'
 })
 
 const posts = ref([])
+const categories = ref([])
+const selectedPosts = ref([])
+const selectAll = ref(false)
 const searchQuery = ref('')
+const selectedCategory = ref('')
+const selectedStatus = ref('')
+const selectedAction = ref('')
+const reassignCategory = ref('')
+const totalPosts = ref(0)
 const activeDropdown = ref(null)
-
+const dropdownPosition = ref({ top: '0px', left: '0px', width: '192px' })
+const loading = ref(false)
+const postLoading = ref({})
 const showNotification = ref(false)
 const notificationMessage = ref('')
 const notificationType = ref('success')
-
 const showConfirmDialog = ref(false)
 const confirmDialogTitle = ref('')
 const confirmDialogMessage = ref('')
@@ -216,80 +319,369 @@ const currentPage = ref(1)
 const lastPage = ref(1)
 const perPage = 10
 
-const router = useRouter()
+// Computed property to disable bulk action button
+const isBulkActionDisabled = computed(() => {
+  return (
+    !selectedAction.value ||
+    selectedPosts.value.length === 0 ||
+    loading.value ||
+    (selectedAction.value === 'reassign' && !reassignCategory.value)
+  )
+})
 
+// Computed property for filtered posts
+const filteredPosts = computed(() => {
+  let result = [...posts.value]
+
+  if (searchQuery.value) {
+    const query = searchQuery.value.trim().toLowerCase()
+    result = result.filter(post =>
+      post?.title?.toLowerCase()?.includes(query) ||
+      post?.category?.name?.toLowerCase()?.includes(query) ||
+      post?.user?.name?.toLowerCase()?.includes(query)
+    )
+  }
+
+  if (selectedCategory.value) {
+    result = result.filter(post => post?.category?.id === selectedCategory.value)
+  }
+
+  if (selectedStatus.value) {
+    result = result.filter(post => post?.status === selectedStatus.value)
+  }
+
+  return result
+})
+
+// Fetch posts from API
 const fetchPosts = async (page = 1) => {
   try {
-    const token = localStorage.getItem('access_token')
-    const response = await $fetch(`${apiBase}/posts?page=${page}&per_page=${perPage}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-    posts.value = response.data.data || []
+    loading.value = true
+    currentPage.value = page
+
+    const response = await secureFetch(
+      `${apiBase}/posts/all?page=${page}&per_page=${perPage}`,
+      {
+        headers: {
+          Accept: 'application/json'
+        }
+      },
+      ['admin'] 
+    )
+    // Gán dữ liệu bài viết sau khi xử lý
+    posts.value = response.data.map(post => ({
+      ...post,
+      id: post.id ?? null,
+      title: post.title || 'Không có tiêu đề',
+      status: post.status || 'unknown',
+      created_at: post.created_at || null,
+      category: post.category || null,
+      user: post.user || null,
+      thumbnail_url: post.thumbnail_url || null
+    }))
+
+    // Gán thông tin phân trang
     currentPage.value = response.data.current_page || 1
     lastPage.value = response.data.last_page || 1
+    totalPosts.value = response.data.total
+
   } catch (err) {
-    showNotificationMessage('Không thể tải danh sách bài viết', 'error')
-    console.error(err)
+    // Hiển thị thông báo lỗi
+    const errorMessage = err?.response?.data?.message || err.message || 'Đã xảy ra lỗi không xác định.'
+    showNotificationMessage(`Không thể tải danh sách bài viết: ${errorMessage}`, 'error')
+    console.error('Lỗi fetchPosts:', err)
+  } finally {
+    loading.value = false
   }
 }
 
+// Fetch categories for filter dropdown
+const fetchCategories = async () => {
+  try {
+    const token = localStorage.getItem('access_token')
+    if (!token) throw new Error('Không tìm thấy token truy cập')
 
+    const response = await $fetch(`${apiBase}/post-categories`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+
+    if (!response?.data?.data || !Array.isArray(response.data.data)) {
+      throw new Error('Phản hồi API danh mục không hợp lệ')
+    }
+
+    categories.value = response.data.data.map(category => ({
+      ...category,
+      id: category.id || null,
+      name: category.name || 'Không có tên'
+    }))
+  } catch (err) {
+    showNotificationMessage(`Không thể tải danh mục: ${err.message}`, 'error')
+    console.error('Fetch categories error:', err)
+  }
+}
+
+// Toggle select all
+const toggleSelectAll = () => {
+  if (selectAll.value) {
+    selectedPosts.value = filteredPosts.value
+      .map(p => p.id)
+      .filter(id => id !== null && id !== undefined)
+  } else {
+    selectedPosts.value = []
+  }
+}
+
+// Apply bulk action
+const applyBulkAction = async () => {
+  if (!selectedAction.value || selectedPosts.value.length === 0) {
+    showNotificationMessage('Vui lòng chọn hành động và ít nhất một bài viết', 'error')
+    return
+  }
+
+  if (selectedAction.value === 'delete') {
+    showConfirmationDialog(
+      'Xác nhận xóa hàng loạt',
+      `Bạn có chắc chắn muốn xóa ${selectedPosts.value.length} bài viết đã chọn?`,
+      async () => {
+        try {
+          loading.value = true
+          const token = localStorage.getItem('access_token')
+          if (!token) throw new Error('Không tìm thấy token truy cập')
+
+          const deletePromises = selectedPosts.value.map(id =>
+            $fetch(`${apiBase}/posts/${id}`, {
+              method: 'DELETE',
+              headers: { Authorization: `Bearer ${token}` }
+            })
+          )
+          await Promise.all(deletePromises)
+          showNotificationMessage('Xóa các bài viết thành công!', 'success')
+          selectedPosts.value = []
+          selectAll.value = false
+          selectedAction.value = ''
+          reassignCategory.value = ''
+          await fetchPosts()
+        } catch (error) {
+          showNotificationMessage(`Có lỗi xảy ra khi xóa bài viết: ${error.message}`, 'error')
+          console.error('Bulk delete error:', error)
+        } finally {
+          loading.value = false
+        }
+      }
+    )
+  } else if (selectedAction.value === 'published' || selectedAction.value === 'draft') {
+    showConfirmationDialog(
+      `Xác nhận cập nhật trạng thái`,
+      `Bạn có chắc chắn muốn chuyển ${selectedPosts.value.length} bài viết sang trạng thái "${selectedAction.value === 'published' ? 'Xuất bản' : 'Bản nháp'}"?`,
+      async () => {
+        try {
+          loading.value = true
+          const token = localStorage.getItem('access_token')
+          if (!token) throw new Error('Không tìm thấy token truy cập')
+
+          const updatePromises = selectedPosts.value.map(id =>
+            $fetch(`${apiBase}/posts/${id}`, {
+              method: 'PUT',
+              headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              },
+              body: { status: selectedAction.value }
+            })
+          )
+          await Promise.all(updatePromises)
+          showNotificationMessage('Cập nhật trạng thái bài viết thành công!', 'success')
+          selectedPosts.value = []
+          selectAll.value = false
+          selectedAction.value = ''
+          reassignCategory.value = ''
+          await fetchPosts()
+        } catch (error) {
+          showNotificationMessage(`Có lỗi xảy ra khi cập nhật trạng thái: ${error.message}`, 'error')
+          console.error('Bulk update status error:', error)
+        } finally {
+          loading.value = false
+        }
+      }
+    )
+  } else if (selectedAction.value === 'reassign') {
+    if (!reassignCategory.value) {
+      showNotificationMessage('Vui lòng chọn danh mục để gán', 'error')
+      return
+    }
+    showConfirmationDialog(
+      'Xác nhận gán danh mục',
+      `Bạn có chắc chắn muốn gán ${selectedPosts.value.length} bài viết sang danh mục "${categories.value.find(c => c.id === reassignCategory.value)?.name || 'Không xác định'}"?`,
+      async () => {
+        try {
+          loading.value = true
+          const token = localStorage.getItem('access_token')
+          if (!token) throw new Error('Không tìm thấy token truy cập')
+
+          const updatePromises = selectedPosts.value.map(id =>
+            $fetch(`${apiBase}/posts/${id}`, {
+              method: 'PUT',
+              headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              },
+              body: { category_id: reassignCategory.value }
+            })
+          )
+          await Promise.all(updatePromises)
+          showNotificationMessage('Gán danh mục bài viết thành công!', 'success')
+          selectedPosts.value = []
+          selectAll.value = false
+          selectedAction.value = ''
+          reassignCategory.value = ''
+          await fetchPosts()
+        } catch (error) {
+          showNotificationMessage(`Có lỗi xảy ra khi gán danh mục: ${error.message}`, 'error')
+          console.error('Bulk reassign category error:', error)
+        } finally {
+          loading.value = false
+        }
+      }
+    )
+  }
+}
+
+// Edit post
 const editPost = (id) => {
+  if (!id) {
+    showNotificationMessage('ID bài viết không hợp lệ', 'error')
+    return
+  }
   router.push(`/admin/posts/edit/${id}`)
 }
 
+// Delete post
 const confirmDelete = (post) => {
+  if (!post || !post.id) {
+    showNotificationMessage('Bài viết không hợp lệ', 'error')
+    return
+  }
   showConfirmationDialog(
     'Xác nhận xóa bài viết',
-    `Bạn có chắc chắn muốn xóa bài viết "${post.title}" không?`,
+    `Bạn có chắc chắn muốn xóa bài viết "${post.title || 'Không có tiêu đề'}" không?`,
     async () => {
       try {
+        postLoading.value = { ...postLoading.value, [post.id]: true }
         const token = localStorage.getItem('access_token')
+        if (!token) throw new Error('Không tìm thấy token truy cập')
+
         await $fetch(`${apiBase}/posts/${post.id}`, {
           method: 'DELETE',
           headers: { Authorization: `Bearer ${token}` }
         })
-        showNotificationMessage('Đã xóa bài viết', 'success')
-        posts.value = posts.value.filter(p => p.id !== post.id)
+        showNotificationMessage('Đã xóa bài viết thành công', 'success')
+        await fetchPosts()
       } catch (err) {
-        showNotificationMessage('Xóa thất bại', 'error')
+        showNotificationMessage(`Xóa thất bại: ${err.message}`, 'error')
+        console.error('Delete post error:', err)
+      } finally {
+        postLoading.value = { ...postLoading.value, [post.id]: false }
       }
     }
   )
 }
 
-const formatDate = (dateStr) => {
-  if (!dateStr) return ''
-  return new Date(dateStr).toLocaleString('vi-VN')
+// Toggle dropdown
+const toggleDropdown = (id, event) => {
+  if (!id) {
+    console.error('Invalid post ID:', id)
+    showNotificationMessage('ID bài viết không hợp lệ', 'error')
+    return
+  }
+
+  if (activeDropdown.value === id) {
+    activeDropdown.value = null
+  } else {
+    activeDropdown.value = id
+    nextTick(() => {
+      const button = event.target.closest('button')
+      if (!button) {
+        console.error('Button not found for dropdown positioning')
+        showNotificationMessage('Không thể định vị menu', 'error')
+        activeDropdown.value = null
+        return
+      }
+
+      const rect = button.getBoundingClientRect()
+      const scrollY = window.scrollY || window.pageYOffset
+      const scrollX = window.scrollX || window.pageXOffset
+      const windowHeight = window.innerHeight
+      const dropdownHeight = 100 // Approximate dropdown height in pixels
+
+      // Adjust position to ensure dropdown stays within viewport
+      const top = rect.bottom + scrollY + 8
+      const adjustedTop = top + dropdownHeight > scrollY + windowHeight
+        ? rect.top + scrollY - dropdownHeight - 8
+        : top
+
+      dropdownPosition.value = {
+        top: `${adjustedTop}px`,
+        left: `${rect.right + scrollX - 192}px`,
+        width: '192px'
+      }
+    })
+  }
 }
 
+// Close dropdown on outside click
+const closeDropdown = (event) => {
+  if (!event.target.closest('.relative') && !event.target.closest('.fixed')) {
+    activeDropdown.value = null
+  }
+}
+
+// Format date
+const formatDate = (dateStr) => {
+  if (!dateStr) return 'Không xác định'
+  try {
+    return new Date(dateStr).toLocaleString('vi-VN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  } catch {
+    return 'Ngày không hợp lệ'
+  }
+}
+
+// Truncate text
 const truncateText = (text, maxLength) => {
-  if (!text) return ''
+  if (!text) return 'Không có'
   return text.length > maxLength ? text.slice(0, maxLength) + '…' : text
 }
 
-const filteredPosts = computed(() => {
-  const query = searchQuery.value.trim().toLowerCase()
-  return query
-    ? posts.value.filter(post =>
-        post.title?.toLowerCase().includes(query) ||
-        post.category?.name?.toLowerCase().includes(query) ||
-        post.user?.name?.toLowerCase().includes(query)
-      )
-    : posts.value
-})
-
-const toggleDropdown = (id) => {
-  activeDropdown.value = activeDropdown.value === id ? null : id
-}
-
+// Show notification
 const showNotificationMessage = (message, type = 'success') => {
   notificationMessage.value = message
   notificationType.value = type
   showNotification.value = true
-  setTimeout(() => (showNotification.value = false), 3000)
+  setTimeout(() => {
+    showNotification.value = false
+  }, 3000)
 }
 
+// Close confirm dialog
+const closeConfirmDialog = () => {
+  showConfirmDialog.value = false
+  confirmAction.value = null
+}
+
+// Handle confirm action
+const handleConfirmAction = async () => {
+  if (confirmAction.value) {
+    await confirmAction.value()
+  }
+  closeConfirmDialog()
+}
+
+// Show confirmation dialog
 const showConfirmationDialog = (title, message, action) => {
   confirmDialogTitle.value = title
   confirmDialogMessage.value = message
@@ -297,21 +689,53 @@ const showConfirmationDialog = (title, message, action) => {
   showConfirmDialog.value = true
 }
 
-const closeConfirmDialog = () => {
-  showConfirmDialog.value = false
-  confirmAction.value = null
-}
+// Lifecycle hooks
+onMounted(() => {
+  fetchPosts()
+  fetchCategories()
+  document.addEventListener('click', closeDropdown)
+})
 
-const handleConfirmAction = async () => {
-  if (typeof confirmAction.value === 'function') {
-    await confirmAction.value()
-  }
-  closeConfirmDialog()
-}
-
-onMounted(fetchPosts)
+onUnmounted(() => {
+  document.removeEventListener('click', closeDropdown)
+})
 </script>
 
 <style scoped>
-/* Add any component-specific styles here */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+button {
+  position: relative;
+  overflow: hidden;
+  z-index: 10;
+}
+
+button::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  background-image: radial-gradient(circle, #000 10%, transparent 10.01%);
+  background-repeat: no-repeat;
+  background-position: 50%;
+  transform: scale(10, 10);
+  opacity: 0;
+  transition: transform 0.5s, opacity 1s;
+}
+
+button:active::after {
+  transform: scale(0, 0);
+  opacity: 0.2;
+  transition: 0s;
+}
 </style>

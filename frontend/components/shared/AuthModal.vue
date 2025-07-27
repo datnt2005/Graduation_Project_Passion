@@ -14,7 +14,7 @@
 
         <div class="w-full md:w-1/2 p-6 sm:p-8 relative">
           <button @click="closeModal"
-            class="absolute top-4 right-4 text-gray-400 hover:text-red-500 text-2xl transition-transform duration-300 hover:scale-125">
+            class="absolute top-2 right-4 text-gray-400 hover:text-red-500 text-2xl transition-transform duration-300 hover:scale-125">
             <i class="fas fa-times"></i>
           </button>
 

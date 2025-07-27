@@ -35,7 +35,7 @@
             </router-link>
           </li>
           
-          <li>
+          <!-- <li>
             <router-link
               to="/admin/settings/list-shipping"
               class="block px-3 py-2 rounded-md font-medium"
@@ -60,7 +60,7 @@
             >
               <i class="fa fa-cogs mr-2"></i> Cài đặt khác
             </router-link>
-          </li>
+          </li> -->
         </ul>
       </nav>
     </aside>

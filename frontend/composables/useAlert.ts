@@ -4,7 +4,7 @@ export const useAlert = () => {
   const showMessage = (message: string, type: 'success' | 'error' = 'success') => {
     Swal.fire({
       toast: true,
-      position: 'top',
+      position: 'bottom-end',
       icon: type,
       title: message,
       width: '350px',

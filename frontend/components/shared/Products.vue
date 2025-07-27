@@ -1,5 +1,5 @@
 <template>
-  <div class="mt-6 bg-white p-3 mb-6">
+  <div class="mt-6 bg-white p-3 mb-6 ">
     <div class="text-[#1BA0E2] font-bold text-sm uppercase mb-3">
       GỢI Ý HÔM NAY
     </div>

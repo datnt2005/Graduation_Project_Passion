@@ -5,7 +5,7 @@
 
       <main class="flex-1 p-4 sm:p-6">
         <div class="min-h-full">
-          <h1 class="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-4">
+          <h1 class="text-2xl sm:text-3xl text-center font-extrabold text-gray-900 mb-4">
             Sổ địa chỉ giao hàng
           </h1>
 

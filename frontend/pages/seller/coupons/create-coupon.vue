@@ -398,11 +398,12 @@
   import { useRuntimeConfig } from '#imports'
   import { secureFetch } from '@/utils/secureFetch' 
   import { useAuthHeaders } from '@/composables/useAuthHeaders'
-  
-  
+  import { useAlert } from '@/composables/useAlert';
+
   const router = useRouter();
   const config = useRuntimeConfig()
   const apiBase = config.public.apiBaseUrl
+  const { showMessage } = useAlert();
   
   const activeTab = ref('overview');
   const loading = ref(false);
@@ -418,12 +419,11 @@
   
   // Hàm hiển thị notification
   const showSuccessNotification = (message) => {
-    notificationMessage.value = message;
-    showNotification.value = true;
-    // Tự động ẩn sau 3 giây
-    setTimeout(() => {
-      showNotification.value = false;
-    }, 3000);
+    showMessage(message, 'success');
+  };
+
+  const showErrorNotification = (message) => {
+    showMessage(message, 'error');
   };
   
   const formData = reactive({
@@ -625,66 +625,64 @@
   };
   
   const createCoupon = async () => {
-    console.log('Bắt đầu gửi request tạo coupon', formData);
-    if (!validateForm()) {
-      console.log('Validate lỗi', errors);
-      return;
-    }
-
-    const requestData = { ...formData };
+    if (!validateForm()) return;
 
     try {
       loading.value = true;
-      const response = await secureFetch(`${apiBase}/seller/discounts`, {
+      const data = await secureFetch(`${apiBase}/seller/discounts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestData)
+        body: JSON.stringify(formData)
       }, ['seller']);
-      const data = await response.json();
 
-      if (data.success) {
-        const couponId = data.data.id;
-        // Gán sản phẩm
-        if (selectedProducts.value.length > 0) {
-          await secureFetch(`${apiBase}/seller/discounts/${couponId}/products`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ product_ids: selectedProducts.value.map(p => p.id) }),
-          }, ['seller'])
-        }
-        // Gán danh mục
-        if (selectedCategories.value.length > 0) {
-          await secureFetch(`${apiBase}/seller/discounts/${couponId}/categories`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ category_ids: selectedCategories.value.map(c => c.id) }),
-          }, ['seller'])
-        }
+      if (data && data.success) {
         showSuccessNotification('Tạo mã giảm giá thành công!');
+        
+        // Gán sản phẩm nếu có
+        try {
+          if (selectedProducts.value?.length > 0) {
+            await secureFetch(`${apiBase}/seller/discounts/${data.data.id}/products`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ product_ids: selectedProducts.value.map(p => p.id) })
+            }, ['seller']);
+          }
+        } catch (error) {
+          console.error('Error assigning products:', error);
+        }
+
+        // Gán danh mục nếu có
+        try {
+          if (selectedCategories.value?.length > 0) {
+            await secureFetch(`${apiBase}/seller/discounts/${data.data.id}/categories`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ category_ids: selectedCategories.value.map(c => c.id) })
+            }, ['seller']);
+          }
+        } catch (error) {
+          console.error('Error assigning categories:', error);
+        }
+
         setTimeout(() => {
           router.push('/seller/coupons/list-coupon');
-        }, 1000);
+        }, 1200);
       } else {
-        // Hiển thị lỗi rõ ràng
-        showNotification.value = true;
-        notificationMessage.value = data.message || 'Tạo mã giảm giá thất bại';
-        console.error('Lỗi tạo coupon:', data);
+        showErrorNotification(data?.message || 'Có lỗi xảy ra khi tạo mã giảm giá');
       }
     } catch (error) {
-      showNotification.value = true;
-      notificationMessage.value = 'Lỗi kết nối hoặc lỗi hệ thống';
-      console.error('Lỗi tạo coupon:', error);
+      console.error('Error creating coupon:', error);
+      showErrorNotification('Lỗi kết nối hoặc lỗi hệ thống');
     } finally {
       loading.value = false;
     }
-    console.log('Đã gửi request xong');
   };
   
   // Sửa fetchProducts và fetchCategories để chỉ lấy sản phẩm/danh mục của seller
   const fetchProducts = async () => {
     try {
-      const res = await secureFetch(`${apiBase}/products/sellers`, {}, ['seller']);
-      const data = await res.json();
+      // Sử dụng API lấy sản phẩm của seller
+      const data = await secureFetch(`${apiBase}/seller/discounts/products?per_page=1000`, {}, ['seller']);
       if (Array.isArray(data.data)) {
         products.value = data.data;
       } else if (Array.isArray(data.data?.data)) {
@@ -692,24 +690,18 @@
       } else {
         products.value = [];
       }
+      console.log('Products loaded for create coupon:', products.value);
     } catch (e) {
+      console.error('Error fetching products:', e);
       products.value = [];
     }
   };
   const fetchCategories = async () => {
     try {
-      const res = await fetch(`${apiBase}/categories`);
-      const data = await res.json();
-      if (Array.isArray(data.categories)) {
-        categories.value = data.categories;
-      } else if (Array.isArray(data.data)) {
-        categories.value = data.data;
-      } else if (Array.isArray(data.data?.data)) {
-        categories.value = data.data.data;
-      } else {
-        categories.value = [];
-      }
+      const data = await secureFetch(`${apiBase}/categories`, {}, ['seller']);
+      categories.value = data.categories || data.data || [];
     } catch (e) {
+      console.error('Error fetching categories:', e);
       categories.value = [];
     }
   };

@@ -247,7 +247,7 @@ onMounted(async () => {
       return;
     }
 
-  const { data } = await secureAxios(`${API}/sellers/seller/me`, {}, ['seller'])
+  const { data } = await secureAxios(`${API}/sellers/me`, {}, ['seller'])
 
 
     seller.value = data.seller;

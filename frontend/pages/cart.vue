@@ -18,50 +18,48 @@
           {{ error }}
         </div>
 
-       <!-- Skeleton loading for cart -->
-<div
-  v-if="!isCartReady"
-  class="max-w-[1200px] mx-auto px-4 py-4 flex flex-col md:flex-row md:space-x-4 animate-pulse"
->
-  <!-- Left side (cart items) -->
-  <div class="flex-1 space-y-4">
-    <!-- Fake store block (lặp lại 2 lần nếu muốn nhiều) -->
-    <div class="border border-[#f8b77b] rounded-md bg-white">
-      <div class="flex items-center px-4 py-2 border-b border-[#f8b77b] bg-[#ffe0b3]">
-        <div class="w-4 h-4 bg-gray-200 rounded-sm mr-2"></div>
-        <div class="w-32 h-4 bg-gray-200 rounded mr-2"></div>
-        <div class="w-4 h-4 bg-gray-200 rounded ml-auto"></div>
-      </div>
-      <!-- Fake product row -->
-      <div class="grid grid-cols-[40px_280px_1fr_120px_120px_120px_40px] items-center px-4 py-4 gap-2">
-        <div class="w-4 h-4 bg-gray-200 rounded-sm"></div>
-        <div class="flex items-center gap-2">
-          <div class="w-[60px] h-[60px] bg-gray-200 rounded-sm"></div>
-          <div class="space-y-2">
-            <div class="w-48 h-4 bg-gray-200 rounded"></div>
-            <div class="w-32 h-3 bg-gray-200 rounded"></div>
+        <!-- Skeleton loading for cart -->
+        <div v-if="!isCartReady"
+          class="max-w-[1200px] mx-auto px-4 py-4 flex flex-col md:flex-row md:space-x-4 animate-pulse">
+          <!-- Left side (cart items) -->
+          <div class="flex-1 space-y-4">
+            <!-- Fake store block (lặp lại 2 lần nếu muốn nhiều) -->
+            <div class="border border-[#f8b77b] rounded-md bg-white">
+              <div class="flex items-center px-4 py-2 border-b border-[#f8b77b] bg-[#ffe0b3]">
+                <div class="w-4 h-4 bg-gray-200 rounded-sm mr-2"></div>
+                <div class="w-32 h-4 bg-gray-200 rounded mr-2"></div>
+                <div class="w-4 h-4 bg-gray-200 rounded ml-auto"></div>
+              </div>
+              <!-- Fake product row -->
+              <div class="grid grid-cols-[40px_280px_1fr_120px_120px_120px_40px] items-center px-4 py-4 gap-2">
+                <div class="w-4 h-4 bg-gray-200 rounded-sm"></div>
+                <div class="flex items-center gap-2">
+                  <div class="w-[60px] h-[60px] bg-gray-200 rounded-sm"></div>
+                  <div class="space-y-2">
+                    <div class="w-48 h-4 bg-gray-200 rounded"></div>
+                    <div class="w-32 h-3 bg-gray-200 rounded"></div>
+                  </div>
+                </div>
+                <div></div>
+                <div class="w-20 h-4 bg-gray-200 rounded mx-auto"></div>
+                <div class="flex justify-center gap-1">
+                  <div class="w-6 h-6 bg-gray-200 rounded-sm"></div>
+                  <div class="w-10 h-6 bg-gray-200 rounded-sm"></div>
+                  <div class="w-6 h-6 bg-gray-200 rounded-sm"></div>
+                </div>
+                <div class="w-20 h-4 bg-gray-200 rounded mx-auto"></div>
+                <div class="w-4 h-4 bg-gray-200 rounded mx-auto"></div>
+              </div>
+            </div>
           </div>
         </div>
-        <div></div>
-        <div class="w-20 h-4 bg-gray-200 rounded mx-auto"></div>
-        <div class="flex justify-center gap-1">
-          <div class="w-6 h-6 bg-gray-200 rounded-sm"></div>
-          <div class="w-10 h-6 bg-gray-200 rounded-sm"></div>
-          <div class="w-6 h-6 bg-gray-200 rounded-sm"></div>
-        </div>
-        <div class="w-20 h-4 bg-gray-200 rounded mx-auto"></div>
-        <div class="w-4 h-4 bg-gray-200 rounded mx-auto"></div>
-      </div>
-    </div>
-  </div>
-</div>
 
 
         <!-- Empty cart state -->
-        <div v-else-if="!cart.stores.length" class="flex flex-col items-center justify-center py-8 space-y-4">
+        <div v-else-if="!cart.stores.length" class="flex flex-col items-center justify-center py-6 space-y-2">
           <img src="/images/cart.png" alt="Giỏ hàng trống" class="w-[300px]" loading="lazy">
           <NuxtLink to="/"
-            class="inline-flex items-center gap-2 px-5 py-2 bg-blue-500 text-white rounded-full shadow-md hover:bg-blue-600 transition duration-200">
+            class="inline-flex items-center gap-2 px-6 py-2.5 rounded-full shadow-lg bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-medium hover:from-blue-600 hover:to-indigo-600 transition-all duration-300 hover:scale-105">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
               xmlns="http://www.w3.org/2000/svg">
               <path stroke-linecap="round" stroke-linejoin="round"
@@ -69,6 +67,7 @@
             </svg>
             Tiếp tục mua sắm
           </NuxtLink>
+
         </div>
 
         <!-- Cart content -->
@@ -108,8 +107,7 @@
                 </NuxtLink>
                 <i class="fas fa-chevron-right text-[#666666] text-xs"></i>
               </label>
-              <button class="text-[#007aff] text-[13px] font-normal hover:underline"
-                @click="selectStoreItems(store)">
+              <button class="text-[#007aff] text-[13px] font-normal hover:underline" @click="selectStoreItems(store)">
                 Chọn tất cả sản phẩm
               </button>
             </div>
@@ -131,7 +129,7 @@
                     {{ item.product.name.length > 60 ? item.product.name.slice(0, 57) + '...' : item.product.name }}
                   </NuxtLink>
                   <span class="text-[#999999] text-[12px]">
-                    {{ item.productVariant.attributes.map(attr => attr.value).join(' - ') }}
+                    {{item.productVariant.attributes.map(attr => attr.value).join(' - ')}}
                   </span>
                 </div>
               </div>

@@ -6,7 +6,7 @@
 
       <main class="flex-1 p-4 sm:p-6 overflow-y-auto">
         <div class="min-h-full">
-          <h2 class="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-4">Thông báo của tôi</h2>
+          <h2 class="text-2xl text-center sm:text-3xl font-extrabold text-gray-900 mb-4">Thông báo của tôi</h2>
 
           <div class="bg-white rounded-lg shadow-sm border border-gray-200">
             <div class="flex border-b border-gray-200 relative">
@@ -294,39 +294,46 @@ const handleClickOutside = (e) => {
 }
 
 const fetchNotifications = async () => {
-  const cacheKey = 'user_notifications'
-  const cache = localStorage.getItem(cacheKey)
-  if (cache) {
-    const cachedData = JSON.parse(cache)
-    notifications.value = cachedData.notifications
-    unreadCount.value = cachedData.unreadCount
-    loading.value = false
-    return
-  }
+    const cacheKey = 'user_notifications';
+    const cache = localStorage.getItem(cacheKey);
+    const headerUnreadCount = parseInt(localStorage.getItem('header_unread_count') || 0); // Giả sử header lưu count vào localStorage
 
-  loading.value = true
-  try {
-    const token = localStorage.getItem('access_token')
-    if (!token) throw new Error('Bạn chưa đăng nhập!')
-
-    const res = await axios.get(`${api}/my-notifications`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-
-    if (res.data?.data) {
-      notifications.value = res.data.data
-      unreadCount.value = notifications.value.filter(n => !n.is_read).length
-      localStorage.setItem(cacheKey, JSON.stringify({
-        notifications: notifications.value,
-        unreadCount: unreadCount.value
-      }))
+    if (cache) {
+        const cachedData = JSON.parse(cache);
+        const cachedTime = cachedData.timestamp || 0;
+        const cachedUnreadCount = cachedData.unreadCount || 0;
+        if (Date.now() - cachedTime < 30 * 1000 && cachedUnreadCount === headerUnreadCount) { // 30 giây
+            notifications.value = cachedData.notifications;
+            unreadCount.value = cachedData.unreadCount;
+            loading.value = false;
+            return;
+        }
     }
-  } catch (e) {
-    showError(e.message || 'Không thể lấy thông báo')
-  } finally {
-    loading.value = false
-  }
-}
+
+    loading.value = true;
+    try {
+        const token = localStorage.getItem('access_token');
+        if (!token) throw new Error('Bạn chưa đăng nhập!');
+
+        const res = await axios.get(`${api}/my-notifications`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (res.data?.data) {
+            notifications.value = res.data.data;
+            unreadCount.value = notifications.value.filter(n => !n.is_read).length;
+            localStorage.setItem(cacheKey, JSON.stringify({
+                notifications: notifications.value,
+                unreadCount: unreadCount.value,
+                timestamp: Date.now()
+            }));
+        }
+    } catch (e) {
+        showError(e.message || 'Không thể lấy thông báo');
+    } finally {
+        loading.value = false;
+    }
+};
 
 const handleNotificationClick = async (item, action = 'item') => {
   try {
@@ -499,14 +506,19 @@ const stripHTML = (html) => {
   return div.textContent || div.innerText || ''
 }
 
+let refreshInterval;
+
 onMounted(() => {
-  fetchNotifications()
-  document.addEventListener('click', handleClickOutside)
-})
+    fetchNotifications();
+    document.addEventListener('click', handleClickOutside);
+    // Làm mới tự động mỗi 30 giây
+    refreshInterval = setInterval(fetchNotifications, 30000);
+});
 
 onUnmounted(() => {
-  document.removeEventListener('click', handleClickOutside)
-})
+    document.removeEventListener('click', handleClickOutside);
+    clearInterval(refreshInterval); // Dọn dẹp interval
+});
 </script>
 
 <style scoped>

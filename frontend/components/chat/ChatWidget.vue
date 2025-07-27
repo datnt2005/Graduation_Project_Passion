@@ -104,7 +104,7 @@
             </div>
 
             <!-- Sản phẩm -->
-            <a v-if="message.message_type === 'product'" :href="message.attachments?.[0]?.meta_data?.productLink || '#'"
+            <a v-if="message.message_type === 'product'" :href="/products/ + message.attachments?.[0]?.meta_data?.slug"
               target="_blank" rel="noopener noreferrer" class="block bg-[#F7F7F7] rounded-lg p-3 text-sm no-underline">
               <div class="mb-2 text-[#555] font-medium">
                 Bạn đang trao đổi với Người bán về sản phẩm này
@@ -119,24 +119,27 @@
                     )
                     " @error="handleImageError" />
                 <div class="flex-1 p-2 overflow-hidden">
-                  <div class="font-semibold text-[#212121] line-clamp-2">
-                    {{ parseMessage(message.attachments?.[0]?.meta_data?.name ) || "[Sản phẩm]" }}
+                  <div class="text-sm font-semibold mb-1 text-gray-800 line-clamp-2 leading-snug break-words">
+                    {{ shortenProductName(parseMessage(message.attachments?.[0]?.meta_data?.name) || "[Sản phẩm]") }}
                   </div>
                   <div class="mt-1 flex flex-wrap items-center gap-1">
-                    <span v-if="parseMessage(message.attachments?.[0]?.meta_data?.original_price )?.original_price"
-                      class="text-gray-400 line-through text-xs">
+                    <span v-if="
+                      parseMessage(
+                        message.attachments?.[0]?.meta_data?.price
+                      )
+                    " class="text-[#FF0000] font-semibold">
                       {{
                         formatPrice(
-                          parseMessage(message.attachments?.[0]?.meta_data?.original_price)?.original_price
+                          parseMessage(
+                            message.attachments?.[0]?.meta_data?.price
+                          )
                         )
                       }}
                     </span>
-                    <span v-if="parseMessage(message.attachments?.[0]?.meta_data?.price )?.price" class="text-[#FF0000] font-semibold">
-                      {{ formatPrice(parseMessage(message.attachments?.[0]?.meta_data?.price)?.price) }}
-                    </span>
                     <span v-if="
-                      !parseMessage(message.attachments?.[0]?.meta_data?.price )?.price &&
-                      !parseMessage(message.attachments?.[0]?.meta_data?.original_price )?.original_price
+                      !parseMessage(
+                        message.attachments?.[0]?.meta_data?.price
+                      )
                     " class="text-gray-400 text-xs">
                       Liên hệ để biết giá
                     </span>
@@ -279,9 +282,17 @@ const getLastMessagePreview = (session) => {
     return lastMessage.message || "Tin nhắn rỗng";
   if (lastMessage.message_type === "image") return "[Hình ảnh]";
   if (lastMessage.message_type === "product") {
-    return parseMessage(lastMessage.message)?.name || "[Sản phẩm]";
+    return shortenProductName(parseMessage(lastMessage.message)?.name || "[Sản phẩm]");
   }
   return "Chưa có tin nhắn";
+};
+
+// Hàm rút gọn tên sản phẩm
+const shortenProductName = (name) => {
+  if (name.length > 30) {
+    return name.substring(0, 30) + "...";
+  }
+  return name;
 };
 
 // Lấy user và danh sách session
@@ -703,64 +714,6 @@ onUnmounted(() => {
   window.removeEventListener("keydown", handleEscKey);
   stopPollingMessages();
 });
-
-// const loadMessages = async () => {
-//   const token = localStorage.getItem("access_token");
-//   if (!token || !currentSession.value?.id) return;
-
-//   const container = chatMessages.value;
-//   const oldScrollHeight = container.scrollHeight;
-
-//   try {
-//     isLoadingMore.value = true;
-
-//     // Ghi lại độ cao cũ trước khi tải thêm
-//     const el = chatMessages.value;
-//     const oldHeight = el?.scrollHeight || 0;
-
-//     const res = await fetch(
-//       `${API}/chat/messages/${currentSession.value.id}?page=${page.value}&limit=${limit}`,
-//       {
-//         headers: { Authorization: `Bearer ${token}` },
-//       }
-//     );
-//     const data = await res.json();
-//     const newMessages = data?.data || [];
-
-//     if (newMessages.length < limit) {
-//       hasMore.value = false;
-//     }
-
-//     const reversed = newMessages.reverse();
-
-//     if (!currentSession.value.messages) {
-//       currentSession.value.messages = reversed;
-//     } else {
-//       currentSession.value.messages = [
-//         ...reversed,
-//         ...currentSession.value.messages,
-//       ];
-//     }
-
-//     page.value++;
-
-//     // Sau khi thêm tin nhắn → giữ vị trí scroll cũ
-//     // await nextTick(() => {
-//     //   const newHeight = el?.scrollHeight || 0;
-//     //   if (el) {
-//     //     el.scrollTop = newHeight - oldHeight;
-//     //   }
-//     // });
-//     await nextTick(() => {
-//       const newScrollHeight = container.scrollHeight;
-//       container.scrollTop = newScrollHeight - oldScrollHeight;
-//     });
-//   } catch (err) {
-//     console.error("Lỗi tải thêm tin nhắn:", err);
-//   } finally {
-//     isLoadingMore.value = false;
-//   }
-// };
 
 // Xử lý cuộn để tải thêm tin nhắn
 const loadMessages = async () => {
