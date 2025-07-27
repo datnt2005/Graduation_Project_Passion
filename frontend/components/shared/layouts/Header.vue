@@ -695,6 +695,12 @@ const fetchNotifications = async () => {
     if (Array.isArray(data?.data)) {
       notifications.value = data.data;
       unreadCount.value = data.data.filter((n) => !n.is_read).length;
+      console.log(
+        "Thông báo đã được cập nhật:",
+        notifications.value,
+        "Số lượng chưa đọc:",
+        unreadCount.value
+      )
     } else {
       console.warn("Dữ liệu không hợp lệ:", data.data);
       notifications.value = [];
