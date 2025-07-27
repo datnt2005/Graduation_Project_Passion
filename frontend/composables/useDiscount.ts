@@ -189,7 +189,7 @@ export const useDiscount = () => {
         }
     };
 
-    const calculateDiscount = (total: number) => {
+    const calculateDiscount = (total: number, shopId?: number) => {
         let totalDiscount = 0;
 
         selectedDiscounts.value
@@ -199,9 +199,20 @@ export const useDiscount = () => {
                     const value = Number(discount.discount_value);
 
                     if (discount.discount_type === 'percentage') {
-                        totalDiscount += total * value / 100;
+                        // Nếu là mã giảm giá shop, chỉ áp dụng cho shop đó
+                        if (discount.seller_id && shopId && discount.seller_id === shopId) {
+                            totalDiscount += total * value / 100;
+                        } else if (!discount.seller_id && !shopId) {
+                            // Mã toàn sàn, không truyền shopId => áp dụng cho toàn bộ đơn hàng
+                            totalDiscount += total * value / 100;
+                        }
                     } else {
-                        totalDiscount += value;
+                        // fixed
+                        if (discount.seller_id && shopId && discount.seller_id === shopId) {
+                            totalDiscount += value;
+                        } else if (!discount.seller_id && !shopId) {
+                            totalDiscount += value;
+                        }
                     }
                 }
             });
@@ -210,8 +221,9 @@ export const useDiscount = () => {
     };
 
     const getShippingDiscount = (total: number) => {
+        // Chỉ lấy mã giảm giá phí ship toàn sàn (không phải của shop)
         const shippingDiscount = selectedDiscounts.value.find(
-            d => d.discount_type === 'shipping_fee'
+            d => d.discount_type === 'shipping_fee' && !d.seller_id
         );
 
         if (!shippingDiscount) return 0;
