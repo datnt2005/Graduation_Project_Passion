@@ -6,6 +6,8 @@ use App\Http\Controllers\OrderController;
 Route::middleware('auth:sanctum')->get('/orders/check-cod-eligibility', [OrderController::class, 'checkCodEligibility']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/shipping-methods', [OrderController::class, 'GetShipping']);
+    Route::post('/shipping-methods', [OrderController::class, 'upsertShippingMethod']);
+    Route::put('/shipping-methods/{id}', [OrderController::class, 'upsertShippingMethod']);
 });
 Route::prefix('orders')->middleware(['auth:sanctum'])->group(function () {
 

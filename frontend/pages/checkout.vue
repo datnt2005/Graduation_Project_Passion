@@ -43,7 +43,7 @@
     :address="selectedAddress"
     :cart-items="cartItems"
     @update:shippingFee="updateShippingFee"
-    @update:shopDiscount="updateShopDiscount"
+    @update:shopDiscount="handleShopDiscountUpdate"
     @update:totalShippingFee="updateTotalShippingFee"
   />
 
@@ -410,13 +410,13 @@
                     <span class="text-[14px]">Giảm giá phí ship</span>
                     <span class="text-green-600">- {{ formatPrice(totalShippingDiscount) }} đ</span>
                   </div>
+                  <div v-for="store in cartItems" :key="store.seller_id" class="flex justify-between">
+                    <span class="text-[14px]">Giảm giá {{ store.store_name || store.seller_id }}</span>
+                    <span class="text-green-600">- {{ formatPrice(store.discount || 0) }} đ</span>
+                  </div>
                   <div v-if="calculateDiscount(total) > 0" class="flex justify-between">
                     <span class="text-[14px]">Giảm giá khuyến mãi</span>
                     <span class="text-green-600">- {{ formatPrice(calculateDiscount(total)) }} đ</span>
-                  </div>
-                  <div v-for="storeItem in shopsWithDiscount" :key="storeItem.seller_id" class="flex justify-between">
-                    <span class="text-[14px]">Giảm giá {{ storeItem.store_name }}</span>
-                    <span class="text-green-600">- {{ formatPrice(storeItem.discount) }} đ</span>
                   </div>
                   <div class="flex justify-between pt-3 border-t border-gray-200 text-base font-semibold">
                     <span class="text-[14px]">Tổng thanh toán</span>
@@ -558,8 +558,12 @@ const {
 const { fetchMyVouchers, fetchDiscounts: fetchPublicDiscounts, fetchSellerDiscounts, discounts: publicDiscounts } = useDiscount();
 
 const handleShopDiscountUpdate = (data) => {
-  if (data && data.sellerId && updateShopDiscount) {
-    updateShopDiscount(data.sellerId, data.discount, data.discountId);
+  if (data && data.sellerId) {
+    // Chỉ cần gọi updateShopDiscount để cập nhật vào shopDiscounts (useCheckout)
+    if (updateShopDiscount) {
+      updateShopDiscount(data.sellerId, data.discount, data.discountId);
+      console.log('Cập nhật discount cho shop', data.sellerId, '->', data.discount);
+    }
   }
 };
 
@@ -612,6 +616,7 @@ const realShippingFee = computed(() => {
 const realFinalTotal = computed(() => {
   const baseTotal = total.value;
   const productDiscount = calculateDiscount(baseTotal);
+  // Lấy tổng discount từ cartItems.value (mỗi shop.discount)
   const shopDiscountsTotal = cartItems.value.reduce((sum, shop) => sum + (shop.discount || 0), 0);
   return Math.max(0, baseTotal - productDiscount - shopDiscountsTotal + realShippingFee.value);
 });
