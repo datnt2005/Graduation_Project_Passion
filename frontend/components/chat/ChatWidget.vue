@@ -1,21 +1,42 @@
 <template>
   <div>
     <!-- Nút mở danh sách chat -->
-    <div v-if="user?.role?.toLowerCase() !== 'seller'" class="fixed bottom-4 right-4 z-40">
-      <button @click="toggleChatList"
-        class="bg-blue-600 text-white rounded-full w-12 h-12 flex items-center justify-center shadow-lg">
+    <div
+      v-if="user?.role?.toLowerCase() !== 'seller'"
+      class="fixed bottom-4 right-4 z-40"
+    >
+      <button
+        @click="toggleChatList"
+        class="bg-blue-600 text-white rounded-full w-12 h-12 flex items-center justify-center shadow-lg"
+      >
         💬
+        <span
+          v-if="totalUnread > 0"
+          class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1"
+        >
+          {{ totalUnread }}
+        </span>
       </button>
     </div>
 
     <!-- Danh sách cuộc trò chuyện -->
-    <div v-show="showChatList" class="fixed bottom-20 right-4 bg-white rounded-lg shadow-xl w-[400px] h-[600px] z-40">
+    <div
+      v-show="showChatList"
+      class="fixed bottom-20 right-2 bg-white rounded-lg shadow-xl w-[95vw] max-w-[400px] h-[85vh] md:w-[400px] md:h-[600px] z-40"
+    >
       <div class="p-3 border-b font-bold text-gray-700">Tin nhắn</div>
       <ul class="max-h-[552px] overflow-y-auto">
-        <li v-for="session in chatSessions" :key="session.id" @click="openChat(session)"
-          class="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b flex items-center gap-2">
-          <img :src="session.seller?.user?.avatar || DEFAULT_AVATAR" @error="handleImageError"
-            class="w-10 h-10 rounded-full object-cover" />
+        <li
+          v-for="session in chatSessions"
+          :key="session.id"
+          @click="openChat(session)"
+          class="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b flex items-center gap-2"
+        >
+          <img
+            :src="session.seller?.user?.avatar || DEFAULT_AVATAR"
+            @error="handleImageError"
+            class="w-10 h-10 rounded-full object-cover"
+          />
           <div class="flex flex-col flex-1">
             <div class="font-medium text-gray-800">
               {{ session.seller?.store_name || "Cửa hàng" }}
@@ -24,59 +45,96 @@
               {{ getLastMessagePreview(session) }}
             </div>
           </div>
-          <span class="text-xs text-gray-400 mt-1 whitespace-nowrap">
-            {{ formatTime(session.last_message_at) }}
-          </span>
+          <div class="flex flex-col items-end">
+            <span class="text-xs text-gray-400 mt-1 whitespace-nowrap">
+              {{ formatTime(session.last_message_at) }}
+            </span>
+            <span
+              v-if="session.unread_count > 0"
+              class="mt-1 bg-red-500 text-white text-xs rounded-full px-2 py-0.5"
+            >
+              {{ session.unread_count }}
+            </span>
+          </div>
         </li>
       </ul>
     </div>
 
     <!-- Hộp chat -->
-    <div v-show="showChat"
-      class="fixed bottom-4 right-24 bg-white rounded-lg shadow-lg w-[400px] h-[600px] flex flex-col z-50">
+    <div
+      v-show="showChat"
+      class="fixed bottom-4 right-2 bg-white rounded-lg shadow-lg w-[95vw] max-w-[400px] h-[70vh] md:w-[400px] md:h-[550px] flex flex-col z-50"
+    >
       <!-- Header -->
       <div class="flex justify-between items-center p-3 border-b bg-[#F0F2F5]">
         <div class="flex items-center gap-2">
-          <img :src="currentSession?.seller?.user?.avatar || DEFAULT_AVATAR" @error="handleImageError"
-            class="w-8 h-8 rounded-full object-cover" />
+          <img
+            :src="currentSession?.seller?.user?.avatar || DEFAULT_AVATAR"
+            @error="handleImageError"
+            class="w-8 h-8 rounded-full object-cover"
+          />
           <span class="font-semibold text-sm">{{ chatTitle }}</span>
         </div>
-        <button @click="closeChat" class="text-gray-500 hover:text-red-500 text-xl">
+        <button
+          @click="closeChat"
+          class="text-gray-500 hover:text-red-500 text-xl"
+        >
           ×
         </button>
       </div>
 
       <!-- Tin nhắn -->
-      <div ref="chatMessages" class="grow min-h-0 p-3 space-y-4 overflow-y-auto text-sm" @scroll="handleScroll">
+      <div
+        ref="chatMessages"
+        class="grow min-h-0 p-3 space-y-4 overflow-y-auto text-sm"
+        @scroll="handleScroll"
+      >
         <!--  Đang tải thêm -->
-        <div v-if="isLoadingMore" class="text-center text-gray-400 text-xs my-2">
+        <div
+          v-if="isLoadingMore"
+          class="text-center text-gray-400 text-xs my-2"
+        >
           Đang tải thêm tin nhắn...
         </div>
 
         <!-- Hết tin nhắn -->
-        <div v-else-if="!hasMore && currentSession?.messages?.length" class="text-center text-gray-400 text-xs my-2">
+        <div
+          v-else-if="!hasMore && currentSession?.messages?.length"
+          class="text-center text-gray-400 text-xs my-2"
+        >
           Bạn đã xem toàn bộ tin nhắn
         </div>
 
-        <div v-for="(message, index) in currentSession?.messages" :key="message.id || index" :class="[
-          'flex gap-3',
-          message.sender_type === 'user'
-            ? 'justify-end text-right'
-            : 'justify-start text-left',
-        ]">
+        <div
+          v-for="(message, index) in currentSession?.messages"
+          :key="message.id || index"
+          :class="[
+            'flex gap-3',
+            message.sender_type === 'user'
+              ? 'justify-end text-right'
+              : 'justify-start text-left',
+          ]"
+        >
           <!-- Avatar -->
-          <img :src="message.sender_user?.avatar || DEFAULT_AVATAR" class="w-8 h-8 rounded-full object-cover"
-            alt="Avatar" v-if="message.sender_type !== 'user'" />
+          <img
+            :src="message.sender_user?.avatar || DEFAULT_AVATAR"
+            class="w-8 h-8 rounded-full object-cover"
+            alt="Avatar"
+            v-if="message.sender_type !== 'user'"
+          />
 
           <!-- Nội dung tin nhắn -->
           <div>
             <!-- Text -->
-            <div v-if="message.message && message.message_type === 'text'" :class="[
-              'inline-block px-4 py-2 rounded-2xl max-w-xs break-words mb-1',
-              message.sender_type === 'user'
-                ? 'bg-[#189EFF] text-white rounded-br-none'
-                : 'bg-gray-100 rounded-bl-none',
-            ]">
+            <div
+              v-if="message.message && message.message_type === 'text'"
+              :class="[
+                'inline-block px-4 py-2 rounded-2xl max-w-xs break-words mb-1',
+                message.sender_type === 'user'
+                  ? 'bg-[#189EFF] text-white rounded-br-none'
+                  : 'bg-gray-100 rounded-bl-none',
+              ]"
+            >
               {{ message.message }}
             </div>
 
@@ -86,48 +144,79 @@
                 {{ message.message }}
               </div>
               <div class="flex flex-wrap gap-2">
-                <div v-for="(attachment, i) in message.attachments" :key="i"
-                  class="w-24 h-24 rounded overflow-hidden cursor-pointer">
-                  <img :src="attachment.file_url ||
-                    attachment.url ||
-                    '/images/image.png'
-                    " @error="handleImageError" class="w-full h-full object-cover rounded border border-gray-200"
+                <div
+                  v-for="(attachment, i) in message.attachments"
+                  :key="i"
+                  class="w-24 h-24 rounded overflow-hidden cursor-pointer"
+                >
+                  <img
+                    :src="
+                      attachment.file_url ||
+                      attachment.url ||
+                      '/images/image.png'
+                    "
+                    @error="handleImageError"
+                    class="w-full h-full object-cover rounded border border-gray-200"
                     @click="
                       openImageViewer(
                         attachment.file_url ||
-                        attachment.url ||
-                        '/images/image.png'
+                          attachment.url ||
+                          '/images/image.png'
                       )
-                      " />
+                    "
+                  />
                 </div>
               </div>
             </div>
 
             <!-- Sản phẩm -->
-            <a v-if="message.message_type === 'product'" :href="/products/ + message.attachments?.[0]?.meta_data?.slug"
-              target="_blank" rel="noopener noreferrer" class="block bg-[#F7F7F7] rounded-lg p-3 text-sm no-underline">
+            <a
+              v-if="message.message_type === 'product'"
+              :href="/products/ + message.attachments?.[0]?.meta_data?.slug"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="block bg-[#F7F7F7] rounded-lg p-3 text-sm no-underline"
+            >
               <div class="mb-2 text-[#555] font-medium">
                 Bạn đang trao đổi với Người bán về sản phẩm này
               </div>
-              <div class="flex border rounded overflow-hidden bg-white hover:shadow-md transition">
-                <img :src="message.attachments?.[0]?.meta_data?.file_url ||
-                  '/images/image.png'
-                  " alt="Ảnh sản phẩm" class="w-24 h-24 object-cover border-r cursor-pointer" @click.stop="
+              <div
+                class="flex border rounded overflow-hidden bg-white hover:shadow-md transition"
+              >
+                <img
+                  :src="
+                    message.attachments?.[0]?.meta_data?.file_url ||
+                    '/images/image.png'
+                  "
+                  alt="Ảnh sản phẩm"
+                  class="w-24 h-24 object-cover border-r cursor-pointer"
+                  @click.stop="
                     openImageViewer(
                       message.attachments?.[0]?.meta_data?.file_url ||
-                      '/images/image.png'
+                        '/images/image.png'
                     )
-                    " @error="handleImageError" />
+                  "
+                  @error="handleImageError"
+                />
                 <div class="flex-1 p-2 overflow-hidden">
-                  <div class="text-sm font-semibold mb-1 text-gray-800 line-clamp-2 leading-snug break-words">
-                    {{ shortenProductName(parseMessage(message.attachments?.[0]?.meta_data?.name) || "[Sản phẩm]") }}
+                  <div
+                    class="text-sm font-semibold mb-1 text-gray-800 line-clamp-2 leading-snug break-words"
+                  >
+                    {{
+                      shortenProductName(
+                        parseMessage(
+                          message.attachments?.[0]?.meta_data?.name
+                        ) || "[Sản phẩm]"
+                      )
+                    }}
                   </div>
                   <div class="mt-1 flex flex-wrap items-center gap-1">
-                    <span v-if="
-                      parseMessage(
-                        message.attachments?.[0]?.meta_data?.price
-                      )
-                    " class="text-[#FF0000] font-semibold">
+                    <span
+                      v-if="
+                        parseMessage(message.attachments?.[0]?.meta_data?.price)
+                      "
+                      class="text-[#FF0000] font-semibold"
+                    >
                       {{
                         formatPrice(
                           parseMessage(
@@ -136,11 +225,14 @@
                         )
                       }}
                     </span>
-                    <span v-if="
-                      !parseMessage(
-                        message.attachments?.[0]?.meta_data?.price
-                      )
-                    " class="text-gray-400 text-xs">
+                    <span
+                      v-if="
+                        !parseMessage(
+                          message.attachments?.[0]?.meta_data?.price
+                        )
+                      "
+                      class="text-gray-400 text-xs"
+                    >
                       Liên hệ để biết giá
                     </span>
                   </div>
@@ -162,13 +254,26 @@
       </div>
 
       <!-- Gửi tin -->
-      <form @submit.prevent="sendMessage" class="p-3 border-t flex flex-col gap-2">
+      <form
+        @submit.prevent="sendMessage"
+        class="p-3 border-t flex flex-col gap-2"
+      >
         <!-- Ảnh preview -->
         <div class="flex gap-2 flex-wrap">
-          <div v-for="(file, index) in previewImages" :key="index" class="relative group">
-            <img :src="file.url" class="w-20 h-20 object-cover rounded-lg border border-gray-300" />
-            <button type="button" @click="removeImage(index)"
-              class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full text-xs w-5 h-5 flex items-center justify-center hover:bg-red-600">
+          <div
+            v-for="(file, index) in previewImages"
+            :key="index"
+            class="relative group"
+          >
+            <img
+              :src="file.url"
+              class="w-20 h-20 object-cover rounded-lg border border-gray-300"
+            />
+            <button
+              type="button"
+              @click="removeImage(index)"
+              class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full text-xs w-5 h-5 flex items-center justify-center hover:bg-red-600"
+            >
               ×
             </button>
           </div>
@@ -178,7 +283,14 @@
         <div class="flex items-center gap-2 relative">
           <label class="cursor-pointer">
             📎
-            <input type="file" multiple class="hidden" accept="image/*" @change="handleImageSelect" ref="fileInput" />
+            <input
+              type="file"
+              multiple
+              class="hidden"
+              accept="image/*"
+              @change="handleImageSelect"
+              ref="fileInput"
+            />
           </label>
 
           <!-- Emoji -->
@@ -186,11 +298,19 @@
             😊
           </button>
           <ClientOnly>
-            <emoji-picker v-if="showEmoji" class="absolute bottom-16 right-4 z-50" @emoji-click="addEmoji" />
+            <emoji-picker
+              v-if="showEmoji"
+              class="absolute bottom-16 right-4 z-50"
+              @emoji-click="addEmoji"
+            />
           </ClientOnly>
 
-          <input v-model="chatInput" type="text" placeholder="Aa..."
-            class="flex-1 bg-gray-100 px-3 py-2 rounded-full text-sm" />
+          <input
+            v-model="chatInput"
+            type="text"
+            placeholder="Aa..."
+            class="flex-1 bg-gray-100 px-3 py-2 rounded-full text-sm"
+          />
           <button type="submit" class="text-blue-600 font-bold">Gửi</button>
         </div>
       </form>
@@ -198,13 +318,21 @@
 
     <!-- Modal xem ảnh -->
     <Transition name="fade">
-      <div v-if="imageViewer.visible" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50"
-        @click.self="closeImageViewer">
+      <div
+        v-if="imageViewer.visible"
+        class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50"
+        @click.self="closeImageViewer"
+      >
         <div class="relative max-w-[90vw] max-h-[90vh]">
-          <img :src="imageViewer.url" alt="Xem ảnh" class="max-w-full max-h-[90vh] object-contain rounded shadow-xl" />
+          <img
+            :src="imageViewer.url"
+            alt="Xem ảnh"
+            class="max-w-full max-h-[90vh] object-contain rounded shadow-xl"
+          />
           <button
             class="absolute top-2 right-2 bg-gray-800 bg-opacity-50 text-white text-xl font-bold w-8 h-8 rounded-full flex items-center justify-center hover:bg-opacity-75 transition"
-            @click="closeImageViewer">
+            @click="closeImageViewer"
+          >
             ✕
           </button>
         </div>
@@ -215,10 +343,12 @@
 
 <script setup>
 import { ref, nextTick, onMounted, onUnmounted } from "vue";
+import axios from "axios";
 import "emoji-picker-element";
 
 const user = ref(null);
 const chatSessions = ref([]);
+const totalUnread = ref(0);
 const currentSession = ref(null);
 const showChatList = ref(false);
 const showChat = ref(false);
@@ -254,6 +384,91 @@ const parseMessage = (message) => {
   }
 };
 
+const fetchSessions = async () => {
+  try {
+    const token = localStorage.getItem("access_token");
+    if (!token) {
+      console.error("Không có token để gọi API fetchSessions");
+      return;
+    }
+
+    // lấy người dùng hien tai
+    const resUser = await axios.get(`${API}/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    user.value = resUser.data.data;
+    if (!user.value?.id) {
+      console.error("Không tìm thấy người dùng hien tai");
+      return;
+    }
+    await nextTick(() => {
+      console.log("fetchSessions - nextTick");
+    });
+
+    if (!user.value?.id) {
+      console.error("Không có user_id để gọi API fetchSessions");
+      return;
+    }
+    const res = await axios.get(`${API}/chat/sessions`, {
+      params: { user_id: user.value.id, type: "user" },
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    chatSessions.value = res.data.data || [];
+    totalUnread.value = chatSessions.value.reduce(
+      (sum, s) => sum + (s.unread_count || 0),
+      0
+    );
+    console.log("fetchSessions:", chatSessions.value, totalUnread.value);
+  } catch (err) {
+    console.error("Lỗi khi fetch sessions:", err);
+    if (err.response?.status === 401) {
+      alert("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.");
+    }
+  }
+};
+
+const markAsRead = async (session) => {
+  try {
+    const token = localStorage.getItem("access_token");
+    if (!token) {
+      console.error("Không có token để gọi API markAsRead");
+      return;
+    }
+    const response = await axios.post(
+      `${API}/chat/messages/${session.id}/read`,
+      { sender_type: "user" },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (response.data.success) {
+      const sessionIndex = chatSessions.value.findIndex(
+        (s) => s.id === session.id
+      );
+      if (sessionIndex !== -1) {
+        chatSessions.value[sessionIndex].unread_count = 0;
+        totalUnread.value = chatSessions.value.reduce(
+          (sum, s) => sum + (s.unread_count || 0),
+          0
+        );
+        console.log(
+          "Updated unread_count:",
+          chatSessions.value[sessionIndex].unread_count
+        );
+        console.log("Updated totalUnread:", totalUnread.value);
+      }
+    } else {
+      console.warn("API markAsRead không thành công:", response.data.message);
+      alert("Không thể đánh dấu tin nhắn đã đọc: " + response.data.message);
+    }
+  } catch (err) {
+    console.error(
+      "Lỗi markAsRead:",
+      err.response?.data?.message || err.message
+    );
+    if (err.response?.status === 401) {
+      alert("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.");
+    }
+  }
+};
 // Format thời gian
 const formatTime = (date) => {
   if (!date) return "";
@@ -276,15 +491,13 @@ const formatPrice = (price) => {
 
 // Hiển thị preview tin nhắn cuối
 const getLastMessagePreview = (session) => {
-  const lastMessage = session.messages?.[session.messages.length - 1];
-  if (!lastMessage) return "Chưa có tin nhắn";
-  if (lastMessage.message_type === "text")
-    return lastMessage.message || "Tin nhắn rỗng";
-  if (lastMessage.message_type === "image") return "[Hình ảnh]";
-  if (lastMessage.message_type === "product") {
-    return shortenProductName(parseMessage(lastMessage.message)?.name || "[Sản phẩm]");
-  }
-  return "Chưa có tin nhắn";
+  if (!session.last_message) return "Chưa có tin nhắn";
+
+  // Nếu muốn hiển thị text mô phỏng giống Zalo:
+  if (session.last_message.startsWith("[Ảnh]")) return "[Hình ảnh]";
+  if (session.last_message.startsWith("[Sản phẩm]")) return "[Sản phẩm]";
+
+  return session.last_message; // hiển thị nội dung cuối
 };
 
 // Hàm rút gọn tên sản phẩm
@@ -344,6 +557,8 @@ async function openChat(session) {
     session.seller?.store_name || session.user?.name || "Cửa hàng";
   showChat.value = true;
   showChatList.value = false;
+
+  await markAsRead(session);
 
   const token = localStorage.getItem("access_token");
   if (!token) {
@@ -440,10 +655,12 @@ function openChatWithUser(sellerId) {
 }
 
 // Polling – tự động fetch tin nhắn mới mỗi 3 giây
-function startPollingMessages() {
+async function startPollingMessages() {
   if (!currentSession.value?.id) return;
+  stopPollingMessages();
 
   pollingInterval.value = setInterval(async () => {
+    if (!currentSession.value?.id) return;
     const token = localStorage.getItem("access_token");
     if (!token) return;
 
@@ -458,6 +675,8 @@ function startPollingMessages() {
 
       const data = await res.json();
       const fetchedMessages = data?.data || [];
+
+      if (!currentSession.value) return;
 
       if (!Array.isArray(currentSession.value.messages)) {
         currentSession.value.messages = fetchedMessages
@@ -484,12 +703,9 @@ function startPollingMessages() {
         newMessages.sort(
           (a, b) => new Date(a.created_at) - new Date(b.created_at)
         );
-        // Chỉ thêm tin nhắn mới vào cuối
-        const originalLength = currentSession.value.messages.length;
-        newMessages.forEach((msg) => {
-          currentSession.value.messages.push(msg);
-        });
-
+        currentSession.value.messages.push(...newMessages);
+        await markAsRead(currentSession.value); // Đánh dấu tin nhắn mới
+        await fetchSessions(); // Cập nhật unread_count
         await nextTick(() => {
           const el = chatMessages.value;
           if (el) {
@@ -497,8 +713,6 @@ function startPollingMessages() {
               el.scrollHeight - el.scrollTop - el.clientHeight < 100;
             if (isAtBottom) {
               scrollToBottom();
-            } else {
-              console.log("Có tin nhắn mới nhưng không cuộn vì không ở cuối");
             }
           }
         });
@@ -537,7 +751,6 @@ const sendMessage = async () => {
 
   const tempId = "tem-" + Date.now();
 
-  // Hiển thị tin nhắn tạm
   const tempMessage = {
     id: tempId,
     sender_type: "user",
@@ -546,9 +759,9 @@ const sendMessage = async () => {
     created_at: new Date().toISOString(),
     attachments: hasImages
       ? previewImages.value.filter(Boolean).map((img) => ({
-        url: URL.createObjectURL(img.file),
-        temp: true,
-      }))
+          url: URL.createObjectURL(img.file),
+          temp: true,
+        }))
       : [],
     status: "uploading",
   };
@@ -594,7 +807,6 @@ const sendMessage = async () => {
       status: "sent",
     };
 
-    // Cập nhật lại tin nhắn tạm
     const index = currentSession.value.messages.findIndex(
       (msg) => msg.id === tempId
     );
@@ -602,18 +814,18 @@ const sendMessage = async () => {
       currentSession.value.messages[index] = newMessage;
     }
 
-    // Cleanup
     previewImages.value.forEach((img) => URL.revokeObjectURL(img.file));
     previewImages.value = [];
     chatInput.value = "";
 
-    // Reset input file
     if (fileInput.value) {
       fileInput.value.value = null;
     }
-    nextTick(scrollToBottom);
+    await fetchSessions(); // Cập nhật danh sách session
+    await nextTick(scrollToBottom);
   } catch (err) {
     console.error("❌ Lỗi gửi:", err);
+    alert("Lỗi gửi tin nhắn: " + err.message);
   }
 };
 
@@ -785,6 +997,11 @@ onUnmounted(() => {
   if (chatMessages.value) {
     chatMessages.value.removeEventListener("scroll", handleScroll);
   }
+});
+
+onMounted(() => {
+  fetchSessions();
+  setInterval(fetchSessions, 5000); // 5s refresh
 });
 
 defineExpose({

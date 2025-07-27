@@ -34,7 +34,7 @@ class Seller extends Model
         'verified_at',
         'id_card_front_url',
         'id_card_back_url',
-        'status'
+        // 'status'
     ];
 
     protected $casts = [
@@ -43,9 +43,9 @@ class Seller extends Model
         'status' => 'string'
     ];
 
-    protected $attributes = [
-        'status' => 'active' // Default value
-    ];
+    // protected $attributes = [
+    //     'status' => 'active' // Default value
+    // ];
 
     /*
     |--------------------------------------------------------------------------

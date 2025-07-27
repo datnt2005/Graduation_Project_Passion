@@ -11,8 +11,10 @@
         </div>
       </div>
       <!-- Loading State -->
-      <div v-if="loading"
-        class="grid grid-cols-1 md:grid-cols-2 gap-6 animate-pulse bg-white border border-gray-200 rounded-md p-4 md:p-6 mx-auto w-full max-w-[1102px] min-h-[610px]">
+      <div
+        v-if="loading"
+        class="grid grid-cols-1 md:grid-cols-2 gap-6 animate-pulse bg-white border border-gray-200 rounded-md p-4 md:p-6 mx-auto w-full max-w-[1102px] min-h-[610px]"
+      >
         <!-- Left: Ảnh sản phẩm lớn + thumbnail -->
         <div class="flex flex-col gap-4">
           <!-- Ảnh chính -->
@@ -69,22 +71,49 @@
       <!-- Error Message -->
       <div v-if="error" class="text-red-500 text-center">{{ error }}</div>
       <!-- Main Product Section -->
-      <section v-if="!loading && !error" class="bg-white border border-gray-200 rounded-md p-4 md:p-6 mb-8">
+      <section
+        v-if="!loading && !error"
+        class="bg-white border border-gray-200 rounded-md p-4 md:p-6 mb-8"
+      >
         <div v-if="selectedVariant" class="flex flex-col md:flex-row gap-6">
           <!-- Product Image Gallery -->
-          <ProductImageGallery :images="images" :media-base="mediaBase" :current-index="currentIndex"
-            @update:current-index="currentIndex = $event" @next-image="nextImage" @prev-image="prevImage"
-            @start-auto-slide="startAutoSlide" @pause-auto-slide="pauseAutoSlide"
-            :is-gallery-hovered="isGalleryHovered" />
+          <ProductImageGallery
+            :images="images"
+            :media-base="mediaBase"
+            :current-index="currentIndex"
+            @update:current-index="currentIndex = $event"
+            @next-image="nextImage"
+            @prev-image="prevImage"
+            @start-auto-slide="startAutoSlide"
+            @pause-auto-slide="pauseAutoSlide"
+            :is-gallery-hovered="isGalleryHovered"
+          />
           <!-- Product Info -->
-          <ProductInfo :product="product" :seller="seller" :media-base="mediaBase" :selected-variant="selectedVariant"
-            :variant-attributes="variantAttributes" :selected-options="selectedOptions" :quantity="quantity"
-            :is-favorite="isFavorite" :is-variant-fully-selected="isVariantFullySelected" :variants="variants"
-            @toggle-favorite="toggleFavorite" @view-shop="viewShop" @select-option="selectOption"
-            @increase-quantity="increaseQuantity" @decrease-quantity="decreaseQuantity"
-            @validate-selection="onValidateSelection" @add-to-cart="addToCart" @buy-now="buyNow"
-            @update:quantity="quantity = $event" :validation-message="validationMessage"
-            @clear-validation="validationMessage = ''" :loading="loading" @chat-with-shop="chatWithShop" />
+          <ProductInfo
+            :product="product"
+            :seller="seller"
+            :media-base="mediaBase"
+            :selected-variant="selectedVariant"
+            :variant-attributes="variantAttributes"
+            :selected-options="selectedOptions"
+            :quantity="quantity"
+            :is-favorite="isFavorite"
+            :is-variant-fully-selected="isVariantFullySelected"
+            :variants="variants"
+            @toggle-favorite="toggleFavorite"
+            @view-shop="viewShop"
+            @select-option="selectOption"
+            @increase-quantity="increaseQuantity"
+            @decrease-quantity="decreaseQuantity"
+            @validate-selection="onValidateSelection"
+            @add-to-cart="addToCart"
+            @buy-now="buyNow"
+            @update:quantity="quantity = $event"
+            :validation-message="validationMessage"
+            @clear-validation="validationMessage = ''"
+            :loading="loading"
+            @chat-with-shop="chatWithShop"
+          />
         </div>
         <div v-else class="text-center text-gray-500">
           Không có biến thể sản phẩm hợp lệ.
@@ -94,24 +123,38 @@
       <section v-if="!loading && !error" class="w-full mb-12">
         <div class="flex flex-col md:flex-row gap-6">
           <!-- Description Tabs -->
-          <div class="md:w-3/4 bg-white border border-gray-200 rounded-md p-4 md:p-6">
+          <div
+            class="md:w-3/4 bg-white border border-gray-200 rounded-md p-4 md:p-6"
+          >
             <div class="flex border-b border-gray-200">
-              <ProductDescription v-if="!loading && !error" :full-description="product.fullDescription"
-                :description="product.description" />
+              <ProductDescription
+                v-if="!loading && !error"
+                :full-description="product.fullDescription"
+                :description="product.description"
+              />
             </div>
           </div>
           <!-- Shop Products -->
-          <div v-if="shopProducts.length" class="md:w-1/4 bg-gray-50 rounded-md p-4 bg-white border border-gray-200">
+          <div
+            v-if="shopProducts.length"
+            class="md:w-1/4 bg-gray-50 rounded-md p-4 bg-white border border-gray-200"
+          >
             <h3 class="text-lg font-semibold text-gray-800 mb-4">
               Sản Phẩm Của Cửa Hàng
             </h3>
             <div class="grid grid-cols-1 gap-3">
-              <ShopProductItem v-for="item in displayShopProducts" :key="item.id" :product="item" />
+              <ShopProductItem
+                v-for="item in displayShopProducts"
+                :key="item.id"
+                :product="item"
+              />
             </div>
 
             <div class="mt-4 flex justify-end">
-              <nuxt-link :to="`/seller/${seller.store_slug || 'unknown-seller'}`"
-                class="text-sm text-blue-600 cursor-pointer hover:underline hover:text-blue-800 transition-colors duration-200">
+              <nuxt-link
+                :to="`/seller/${seller.store_slug || 'unknown-seller'}`"
+                class="text-sm text-blue-600 cursor-pointer hover:underline hover:text-blue-800 transition-colors duration-200"
+              >
                 Xem Tất Cả
               </nuxt-link>
             </div>
@@ -123,20 +166,33 @@
       </section>
       <!-- Related Products -->
       <section v-if="!loading && !error" class="w-full mb-12 py-6 bg-gray-50">
-        <h3 class="text-center text-2xl font-bold text-gray-800 mb-6 tracking-wide">
+        <h3
+          class="text-center text-2xl font-bold text-gray-800 mb-6 tracking-wide"
+        >
           Sản Phẩm Liên Quan
         </h3>
-        <div v-if="relatedProducts.length"
-          class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-6 max-w-6xl mx-auto px-4">
-          <RelatedProductItem v-for="item in displayRelatedProducts" :key="item.id" :product="item" />
+        <div
+          v-if="relatedProducts.length"
+          class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-6 max-w-6xl mx-auto px-4"
+        >
+          <RelatedProductItem
+            v-for="item in displayRelatedProducts"
+            :key="item.id"
+            :product="item"
+          />
         </div>
         <div v-else class="text-center text-gray-500">
           Không có sản phẩm liên quan
         </div>
-        <div v-if="relatedProducts.length > 5" class="max-w-6xl mx-auto px-4 mt-6 flex justify-end">
+        <div
+          v-if="relatedProducts.length > 5"
+          class="max-w-6xl mx-auto px-4 mt-6 flex justify-end"
+        >
           <button
             class="text-sm text-blue-600 cursor-pointer hover:underline hover:text-blue-800 transition-colors duration-200"
-            @click="showAllRelated = !showAllRelated" :aria-expanded="showAllRelated">
+            @click="showAllRelated = !showAllRelated"
+            :aria-expanded="showAllRelated"
+          >
             {{ showAllRelated ? "Thu gọn" : "Xem Tất Cả" }}
           </button>
         </div>
@@ -146,8 +202,12 @@
     </div>
   </main>
   <ChatComponent ref="chatRef" />
-  <AuthModal :show="showModal" :initial-mode="modalMode" @close="showModal = false"
-    @login-success="handleLoginSuccess" />
+  <AuthModal
+    :show="showModal"
+    :initial-mode="modalMode"
+    @close="showModal = false"
+    @login-success="handleLoginSuccess"
+  />
 </template>
 
 <script setup>
@@ -167,7 +227,6 @@ import { useCart } from "~/composables/useCart";
 import { useAuthStore } from "@/stores/auth";
 import ChatComponent from "~/components/chat/ChatWidget.vue";
 import AuthModal from "~/components/shared/AuthModal.vue";
-
 
 const { fetchCart } = useCart();
 const auth = useAuthStore();
@@ -577,7 +636,7 @@ async function buyNow() {
 
   const rawPrice =
     selectedVariant.value?.sale_price &&
-      selectedVariant.value?.sale_price !== "null"
+    selectedVariant.value?.sale_price !== "null"
       ? selectedVariant.value.sale_price
       : selectedVariant.value?.price;
 
@@ -599,11 +658,11 @@ async function buyNow() {
     },
     productVariant: selectedVariant.value?.id
       ? {
-        id: selectedVariant.value.id,
-        sku: selectedVariant.value.sku || "",
-        thumbnail: selectedVariant.value.thumbnail || "",
-        attributes: selectedVariant.value.attributes || [],
-      }
+          id: selectedVariant.value.id,
+          sku: selectedVariant.value.sku || "",
+          thumbnail: selectedVariant.value.thumbnail || "",
+          attributes: selectedVariant.value.attributes || [],
+        }
       : null,
   };
 
@@ -813,23 +872,29 @@ async function fetchShopProducts() {
     }
 
     // Get the category IDs of the current product
-    const currentProductCategoryIds = product.value?.categories?.map(cat => cat.id) || [];
+    const currentProductCategoryIds =
+      product.value?.categories?.map((cat) => cat.id) || [];
 
     // Initialize products array
     let products = [];
 
     // Prioritize products from the same categories as the current product
     if (currentProductCategoryIds.length > 0) {
-      const sameCategoryProducts = data.data.filter(product =>
-        product.categories.some(cat => currentProductCategoryIds.includes(cat.id))
+      const sameCategoryProducts = data.data.filter((product) =>
+        product.categories.some((cat) =>
+          currentProductCategoryIds.includes(cat.id)
+        )
       );
       products = products.concat(sameCategoryProducts);
     }
 
     // If fewer than 10 products, add products from other categories
     if (products.length < 10) {
-      const otherCategoryProducts = data.data.filter(product =>
-        !product.categories.some(cat => currentProductCategoryIds.includes(cat.id))
+      const otherCategoryProducts = data.data.filter(
+        (product) =>
+          !product.categories.some((cat) =>
+            currentProductCategoryIds.includes(cat.id)
+          )
       );
       products = products.concat(otherCategoryProducts);
     }
@@ -837,15 +902,17 @@ async function fetchShopProducts() {
     // Map and filter products
     shopProducts.value = products
       .slice(0, 10) // Limit to 10 products
-      .map(item => {
+      .map((item) => {
         // Lấy variant đầu tiên có số lượng > 0
         const variant =
-          item.product_variants?.find(v => v.price && v.quantity > 0) ||
+          item.product_variants?.find((v) => v.price && v.quantity > 0) ||
           item.product_variants?.[0] ||
           {};
 
         // Tính discountPercent
-        const price = parseFloat(variant?.sale_price || variant?.price || "0.00");
+        const price = parseFloat(
+          variant?.sale_price || variant?.price || "0.00"
+        );
         const originalPrice = parseFloat(variant?.price || "0.00");
         const discountPercent =
           variant?.sale_price && price < originalPrice
@@ -866,8 +933,7 @@ async function fetchShopProducts() {
           sold: String(item.sold || "0"),
         };
       })
-      .filter(item => item !== null && item.id !== product.value.id); // Lọc sản phẩm không hợp lệ và sản phẩm đang xem
-
+      .filter((item) => item !== null && item.id !== product.value.id); // Lọc sản phẩm không hợp lệ và sản phẩm đang xem
   } catch (err) {
     shopProducts.value = [];
     console.error(err);

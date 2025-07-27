@@ -14,7 +14,9 @@
   >
     <!-- Header -->
     <div class="p-4 text-xl font-bold border-b border-gray-800">
-      <span class="text-green-400 bg-gray-800 text-sm px-2 py-0.5 rounded">Live</span>
+      <span class="text-green-400 bg-gray-800 text-sm px-2 py-0.5 rounded"
+        >Live</span
+      >
       <NuxtLink to="/seller/dashboard" class="ml-2">Passion</NuxtLink>
     </div>
 
@@ -55,25 +57,52 @@
           <button
             @click="toggleUser"
             class="flex items-center w-full px-4 py-2 text-white hover:bg-gray-800 rounded focus:outline-none"
-            :class="userActive ? 'bg-gray-800 text-green-400 font-bold' : ''">
-            <svg class="w-4 h-4 mr-3 text-gray-400" fill="none" stroke="currentColor" stroke-width="2"
-              viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            :class="userActive ? 'bg-gray-800 text-green-400 font-bold' : ''"
+          >
+            <svg
+              class="w-4 h-4 mr-3 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+              />
             </svg>
             <span class="flex-1 text-left">Quản lý hồ sơ</span>
-            <font-awesome-icon :icon="['fas', userOpen ? 'angle-down' : 'angle-right']" class="w-3 h-3" />
+            <font-awesome-icon
+              :icon="['fas', userOpen ? 'angle-down' : 'angle-right']"
+              class="w-3 h-3"
+            />
           </button>
           <transition name="slide-fade">
             <ul v-if="userOpen" class="ml-8 mt-1 space-y-0.5">
               <li>
-                <NuxtLink to="/seller/seller_profile" class="flex items-center px-4 py-2 hover:bg-gray-800 rounded"
-                  :class="route.path.startsWith('/seller/users') ? 'bg-gray-800 text-green-400 font-bold' : 'text-gray-300'"
-                  @click="$emit('close')">
-                  <svg class="w-4 h-4 mr-3 text-gray-400" fill="none" stroke="currentColor" stroke-width="2"
-                    viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round"
-                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                <NuxtLink
+                  to="/seller/seller_profile"
+                  class="flex items-center px-4 py-2 hover:bg-gray-800 rounded"
+                  :class="
+                    route.path.startsWith('/seller/users')
+                      ? 'bg-gray-800 text-green-400 font-bold'
+                      : 'text-gray-300'
+                  "
+                  @click="$emit('close')"
+                >
+                  <svg
+                    class="w-4 h-4 mr-3 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                    />
                   </svg>
                   Cá nhân
                 </NuxtLink>
@@ -84,21 +113,39 @@
 
         <!-- người dùng đã mua hàng... -->
         <li class="pt-2 border-t border-gray-800">
-          <NuxtLink to="/seller/CustomerList"
-            class="flex items-center px-4 py-2 gap-3 rounded hover:bg-gray-800 transition" :class="route.path.startsWith('/seller/CustomerList')
-              ? 'bg-gray-800 text-green-400 font-bold'
-              : 'text-white'" @click="$emit('close')">
-            <svg class="w-4 h-4  text-gray-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-5-4m-4 6v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2h5
-           m4-10a4 4 0 110-8 4 4 0 010 8zm6 0a3 3 0 100-6 3 3 0 000 6z" />
+          <NuxtLink
+            to="/seller/CustomerList"
+            class="flex items-center px-4 py-2 gap-3 rounded hover:bg-gray-800 transition"
+            :class="
+              route.path.startsWith('/seller/CustomerList')
+                ? 'bg-gray-800 text-green-400 font-bold'
+                : 'text-white'
+            "
+            @click="$emit('close')"
+          >
+            <svg
+              class="w-4 h-4 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M17 20h5v-2a4 4 0 00-5-4m-4 6v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2h5
+           m4-10a4 4 0 110-8 4 4 0 010 8zm6 0a3 3 0 100-6 3 3 0 000 6z"
+              />
             </svg>
             <span>Người dùng</span>
           </NuxtLink>
         </li>
+
+        <!-- Trò chuyện với khách hàng -->
         <li class="pt-2 border-t border-gray-800">
           <NuxtLink
             to="/seller/chat"
-            class="flex items-center px-4 py-2 hover:bg-gray-800 gap-3 rounded"
+            class="relative flex items-center px-4 py-2 hover:bg-gray-800 gap-3 rounded"
             :class="
               route.path.startsWith('/seller/chat')
                 ? 'bg-gray-800 text-green-400 font-bold'
@@ -106,12 +153,17 @@
             "
             @click="$emit('close')"
           >
-            <font-awesome-icon class="w-4 h-4 text-gray-400" :icon="['fas', 'comment']" />
-
+            <font-awesome-icon
+              class="w-4 h-4 text-gray-400"
+              :icon="['fas', 'comment']"
+            />
             Trò chuyện với khách hàng
+            <span
+              v-if="totalUnread > 0"
+              class="absolute right-4 bg-red-500 w-3 h-3 rounded-full"
+            ></span>
           </NuxtLink>
         </li>
-
 
         <!-- Sản phẩm (Dropdown) -->
         <li class="pt-2 border-t border-gray-800">
@@ -180,10 +232,18 @@
               >
             </li>
             <li>
-              <NuxtLink to="/seller/inventory/inventory" class="block py-1 hover:text-white rounded"
-                :class="route.path.startsWith('/seller/inventory') ? 'text-green-400 font-bold' : ''"
-                @click="$emit('close')">
-                Quản lý kho</NuxtLink>
+              <NuxtLink
+                to="/seller/inventory/inventory"
+                class="block py-1 hover:text-white rounded"
+                :class="
+                  route.path.startsWith('/seller/inventory')
+                    ? 'text-green-400 font-bold'
+                    : ''
+                "
+                @click="$emit('close')"
+              >
+                Quản lý kho</NuxtLink
+              >
             </li>
           </ul>
         </li>
@@ -279,11 +339,20 @@
           <button
             @click="toggleReview"
             class="flex items-center w-full px-4 py-2 hover:bg-gray-800 focus:outline-none rounded"
-            :class="reviewActive ? 'bg-gray-800 text-green-400 font-bold' : ''">
-            <svg class="w-4 h-4 mr-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-              stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                d="M12 9v3m0 0v3m0-3h3m-3 0H9m6.364-7.636a9 9 0 11-12.728 12.728A9 9 0 0118.364 4.364z" />
+            :class="reviewActive ? 'bg-gray-800 text-green-400 font-bold' : ''"
+          >
+            <svg
+              class="w-4 h-4 mr-3 text-gray-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M12 9v3m0 0v3m0-3h3m-3 0H9m6.364-7.636a9 9 0 11-12.728 12.728A9 9 0 0118.364 4.364z"
+              />
             </svg>
             Đánh giá
             <svg
@@ -338,12 +407,27 @@
         </li>
         <!-- Quay về trang chủ -->
         <li>
-          <NuxtLink to="/" class="flex items-center px-4 py-2 hover:bg-gray-800 rounded"
-            :class="route.path === '/' ? 'bg-gray-800 text-green-400 font-bold' : 'text-white'">
-            <svg class="w-4 h-4 mr-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-              stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+          <NuxtLink
+            to="/"
+            class="flex items-center px-4 py-2 hover:bg-gray-800 rounded"
+            :class="
+              route.path === '/'
+                ? 'bg-gray-800 text-green-400 font-bold'
+                : 'text-white'
+            "
+          >
+            <svg
+              class="w-4 h-4 mr-3 text-gray-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+              />
             </svg>
             Trở về trang chủ
           </NuxtLink>
@@ -354,13 +438,21 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRoute } from "vue-router";
+import { watch } from "vue";
+
+import axios from "axios";
+
 defineProps({ show: Boolean });
 defineEmits(["close"]);
 
 const route = useRoute();
 const notificationOpen = ref(false);
+const totalUnread = ref(0);
+const seller = ref(null);
+const config = useRuntimeConfig();
+const API = config.public.apiBaseUrl;
 
 const userOpen = ref(false);
 const toggleUser = () => (userOpen.value = !userOpen.value);
@@ -378,7 +470,6 @@ const reviewActive = computed(
     route.path.startsWith("/seller/reports/reviews")
 );
 
-// const notificationOpen = ref(false)
 const toggleNotification = () =>
   (notificationOpen.value = !notificationOpen.value);
 const notificationActive = computed(() =>
@@ -397,10 +488,84 @@ const productActive = computed(
     route.path.startsWith("/seller/tags")
 );
 
-// const toggleNotification = () => notificationOpen.value = !notificationOpen.value
-// const notificationActive = computed(() =>
-//   route.path.startsWith('/seller/notifications')
-// )
+// Cấu hình Axios để gửi token
+axios.defaults.headers.common["X-Requested-With"] = "XMLHttpRequest";
+axios.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem("access_token");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+const fetchSeller = async () => {
+  try {
+    const token = localStorage.getItem("access_token");
+    if (!token) {
+      console.error("Không tìm thấy access_token");
+      return false;
+    }
+    const res = await axios.get(`${API}/sellers/seller/me`); // Thêm /api
+    seller.value = res.data.data || res.data.seller || {};
+    return true;
+  } catch (error) {
+    console.error("Lỗi khi lấy dữ liệu seller:", error);
+    if (error.response?.status === 401) {
+      console.warn("Token không hợp lệ hoặc đã hết hạn");
+      localStorage.removeItem("access_token");
+      // window.location.href = '/login'; // Chuyển hướng nếu cần
+    }
+    return false;
+  }
+};
+
+const fetchUnread = async () => {
+  if (!seller.value?.id) {
+    console.warn("Không có seller ID, bỏ qua fetchUnread");
+    return;
+  }
+  try {
+    const res = await axios.get(`${API}/chat/sessions`, {
+      params: { user_id: seller.value.id, type: "seller" },
+    });
+    const sessions = res.data.data || [];
+    totalUnread.value = sessions.reduce(
+      (sum, s) => sum + (s.unread_count || 0),
+      0
+    );
+    console.log("Số tin nhắn chưa đọc:", totalUnread.value); // Debug
+  } catch (error) {
+    console.error("Lỗi khi lấy tin nhắn chưa đọc:", error);
+    if (error.response?.status === 400) {
+      console.warn("Tham số không hợp lệ:", error.response.data);
+    } else if (error.response?.status === 500) {
+      console.error("Lỗi server:", error.response.data);
+    }
+  }
+};
+
+onMounted(async () => {
+  const success = await fetchSeller();
+  if (success) {
+    await fetchUnread();
+    const intervalId = setInterval(fetchUnread, 15000); // Poll mỗi 15 giây
+    onUnmounted(() => clearInterval(intervalId));
+  } else {
+    console.warn("Không khởi động polling do lỗi fetchSeller");
+  }
+});
+watch(
+  () => route.path,
+  (newPath) => {
+    if (newPath.startsWith("/seller/chat")) {
+      totalUnread.value = 0;
+    }
+  },
+  { immediate: true }
+);
 </script>
 
 <style>

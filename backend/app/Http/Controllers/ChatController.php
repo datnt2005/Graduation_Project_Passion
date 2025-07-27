@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ChatSession;
 use App\Models\ChatMessage;
 use App\Models\ChatAttachment;
+use App\Models\Notification;
 use App\Models\User;
 use App\Models\Seller;
 use Illuminate\Http\Request;
@@ -13,6 +14,8 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+
+
 
 class ChatController extends Controller
 {
@@ -32,84 +35,88 @@ class ChatController extends Controller
         return response()->json($session);
     }
 
-    // 2️⃣ Lấy danh sách các phiên chat của user hoặc seller
-    public function getSessions(Request $request)
-    {
-        $userId = $request->query('user_id');
-        $type = $request->query('type');
+        // 2️⃣ Lấy danh sách các phiên chat của user hoặc seller
+        public function getSessions(Request $request)
+        {
+            $userId = $request->query('user_id');
+            $type = $request->query('type');
 
-        try {
-            // Validate đầu vào
-            if (!$userId || !in_array($type, ['user', 'seller'])) {
-                Log::warning('Invalid parameters for chat sessions', [
+            try {
+                // Validate đầu vào
+                if (!$userId || !in_array($type, ['user', 'seller'])) {
+                    Log::warning('Invalid parameters for chat sessions', [
+                        'user_id' => $userId,
+                        'type' => $type
+                    ]);
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Tham số không hợp lệ'
+                    ], 400);
+                }
+
+                // Query tùy theo role (user hoặc seller)
+                $query = ChatSession::query();
+
+                if ($type === 'user') {
+                    $query->where('user_id', $userId);
+                } elseif ($type === 'seller') {
+                    $query->where('seller_id', $userId);
+                }
+
+                $sessions = $query
+                    ->with(['user', 'seller'])
+                    ->withCount(['messages as unread_count' => function ($q) use ($type, $userId) {
+                        $q->where('is_read', false)
+                        ->where('sender_type', $type === 'user' ? 'seller' : 'user');
+                    }])
+                    ->orderByDesc(function ($query) {
+                        $query->select('created_at')
+                            ->from('chat_messages')
+                            ->whereColumn('chat_messages.session_id', 'chat_sessions.id')
+                            ->orderByDesc('created_at')
+                            ->limit(1);
+                    })
+                    ->orWhereNotExists(function ($query) {
+                        $query->select(DB::raw(1))
+                            ->from('chat_messages')
+                            ->whereColumn('chat_messages.session_id', 'chat_sessions.id');
+                    })
+                    ->orderByDesc('created_at')
+                    ->get([
+                        'id',
+                        'user_id',
+                        'seller_id',
+                        'last_message',
+                        'last_message_at',
+                        'created_at',
+                        'updated_at',
+                    ]);
+
+                Log::info('Chat sessions retrieved', [
                     'user_id' => $userId,
-                    'type' => $type
+                    'type' => $type,
+                    'sessions' => $sessions->toArray()
                 ]);
+
+                return response()->json([
+                    'success' => true,
+                    'data' => $sessions
+                ]);
+            } catch (\Exception $e) {
+                Log::error('Lỗi khi lấy chat sessions', [
+                    'user_id' => $userId,
+                    'type' => $type,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+
                 return response()->json([
                     'success' => false,
-                    'message' => 'Tham số không hợp lệ'
-                ], 400);
+                    'message' => 'Có lỗi xảy ra khi lấy chat sessions',
+                    'error' => $e->getMessage()
+                ], 500);
             }
-
-            // Query tùy theo role (user hoặc seller)
-            $query = ChatSession::query();
-
-            if ($type === 'user') {
-                $query->where('user_id', $userId);
-            } elseif ($type === 'seller') {
-                $query->where('seller_id', $userId);
-            }
-
-            $sessions = $query
-                ->with(['user', 'seller'])
-                ->orderByDesc(function ($query) {
-                    $query->select('created_at')
-                        ->from('chat_messages')
-                        ->whereColumn('chat_messages.session_id', 'chat_sessions.id')
-                        ->orderByDesc('created_at')
-                        ->limit(1);
-                })
-                ->orWhereNotExists(function ($query) {
-                    $query->select(DB::raw(1))
-                        ->from('chat_messages')
-                        ->whereColumn('chat_messages.session_id', 'chat_sessions.id');
-                })
-                ->orderByDesc('created_at')
-                ->get([
-                    'id',
-                    'user_id',
-                    'seller_id',
-                    'last_message',
-                    'last_message_at',
-                    'created_at',
-                    'updated_at',
-                ]);
-
-            Log::info('Chat sessions retrieved', [
-                'user_id' => $userId,
-                'type' => $type,
-                'sessions' => $sessions->toArray()
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'data' => $sessions
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Lỗi khi lấy chat sessions', [
-                'user_id' => $userId,
-                'type' => $type,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Có lỗi xảy ra khi lấy chat sessions',
-                'error' => $e->getMessage()
-            ], 500);
         }
-    }
 
     // 3️⃣ Gửi tin nhắn mới (text, ảnh hoặc sản phẩm)
     public function sendMessage(Request $request)
@@ -177,6 +184,7 @@ class ChatController extends Controller
             'sender_type'  => $request->sender_type,
             'message'      => $messageContent,
             'message_type' => $request->message_type,
+            'is_read'      => false,
             'status'       => 'normal',
         ]);
 
@@ -261,16 +269,61 @@ class ChatController extends Controller
 
 
     // 5️⃣ Đánh dấu tin nhắn là đã đọc
-    public function markAsRead(Request $request, $sessionId)
-    {
+ public function markAsRead(Request $request, $sessionId)
+{
+    try {
+        // Validate sender_type
+        $senderType = $request->input('sender_type');
+        if (!in_array($senderType, ['user', 'seller'])) {
+            Log::warning('Invalid sender_type for markAsRead', [
+                'session_id' => $sessionId,
+                'sender_type' => $senderType
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'sender_type không hợp lệ'
+            ], 400);
+        }
+
+        // Kiểm tra session tồn tại
+        if (!ChatSession::where('id', $sessionId)->exists()) {
+            Log::warning('Session not found for markAsRead', [
+                'session_id' => $sessionId
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Phiên chat không tồn tại'
+            ], 404);
+        }
+
+        // Cập nhật tin nhắn
         $updated = ChatMessage::where('session_id', $sessionId)
-            ->where('sender_type', '!=', $request->input('sender_type'))
+            ->where('sender_type', '!=', $senderType)
             ->where('is_read', false)
             ->update(['is_read' => true]);
 
+        Log::info('Messages marked as read', [
+            'session_id' => $sessionId,
+            'sender_type' => $senderType,
+            'updated_count' => $updated
+        ]);
+
         return response()->json([
+            'success' => true,
             'updated' => $updated,
             'message' => 'Tin nhắn đã được đánh dấu là đã đọc.'
         ]);
+    } catch (\Exception $e) {
+        Log::error('Error in markAsRead', [
+            'session_id' => $sessionId,
+            'sender_type' => $senderType,
+            'error' => $e->getMessage()
+        ]);
+        return response()->json([
+            'success' => false,
+            'message' => 'Có lỗi xảy ra khi đánh dấu tin nhắn đã đọc',
+            'error' => $e->getMessage()
+        ], 500);
     }
+}
 }
