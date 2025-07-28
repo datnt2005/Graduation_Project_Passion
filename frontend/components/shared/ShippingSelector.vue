@@ -27,34 +27,6 @@
           </button>
         </div>
 
-        <!-- Danh sách phương thức giao hàng cho từng cửa hàng -->
-        <div v-if="shippingMethods[shop.seller_id]?.length" class="mb-4">
-          <label class="block text-xs text-gray-600 mb-1">Phương thức giao hàng</label>
-          <form class="space-y-2">
-            <label v-for="method in shippingMethods[shop.seller_id]" :key="method.service_id"
-              class="relative block p-3 border rounded-[4px] cursor-pointer transition hover:border-blue-400"
-              :class="{
-                'bg-blue-50 border-blue-200': method.service_id === shopServiceIds[shop.seller_id],
-                'bg-white border-blue-300': method.service_id !== shopServiceIds[shop.seller_id]
-              }">
-              <div class="flex items-center gap-3">
-                <input class="w-4 h-4 text-blue-600 border-gray-300 accent-blue-600 focus:ring-blue-500"
-                  type="radio"
-                  :name="'shipping_method_' + shop.seller_id"
-                  :value="method.service_id"
-                  v-model="shopServiceIds[shop.seller_id]"
-                  @change="handleMethodChange(shop.seller_id, method)" />
-                <span :class="method.service_id === shopServiceIds[shop.seller_id] ? 'text-[14px] font-semibold' : 'text-[14px]'">
-                  {{ method.short_name || 'Dịch vụ GHN' }}
-                </span>
-              </div>
-            </label>
-          </form>
-        </div>
-        <div v-else class="text-red-500 text-xs">
-          Không có phương thức giao hàng khả dụng cho cửa hàng này.
-        </div>
-
         <div class="space-y-4">
           <div v-for="item in shop.items" :key="item.id"
             class="flex gap-4 items-center border border-gray-100 rounded-md p-3 bg-gray-50">
@@ -102,24 +74,18 @@
             </div>
             <div v-if="shop.discount > 0" class="flex justify-between gap-4">
               <span>Giảm giá sản phẩm:</span>
-              <div class="flex items-center gap-2">
-                <span class="text-green-600 font-semibold">-{{ formatPrice(shop.discount) }} đ</span>
-                <button @click="removeDiscount(shop)" class="text-red-500 text-xs hover:underline">Huỷ</button>
-              </div>
+              <span class="text-green-600 font-semibold">-{{ formatPrice(shop.discount) }} đ</span>
             </div>
             <div v-if="shop.admin_product_discount > 0" class="text-xs text-blue-600">
               <i class="fas fa-info-circle mr-1"></i> Bao gồm {{ formatPrice(shop.admin_product_discount) }} đ từ mã admin
             </div>
             <div v-if="shop.shipping_discount > 0" class="flex justify-between gap-4">
               <span>Giảm giá phí ship:</span>
-              <div class="flex items-center gap-2">
-                <span class="text-green-600 font-semibold">-{{ formatPrice(shop.shipping_discount) }} đ</span>
-                <button @click="removeShippingDiscount(shop)" class="text-red-500 text-xs hover:underline">Huỷ</button>
-              </div>
+              <span class="text-green-600 font-semibold">-{{ formatPrice(shop.shipping_discount) }} đ</span>
             </div>
             <div class="flex justify-between gap-4 pt-2 border-t border-gray-200">
               <span class="font-semibold">Tổng thanh toán:</span>
-              <span class="font-bold text-blue-600">{{ formatPrice(calculateStoreTotal(shop) - (shop.discount || 0) + Math.max(0, (shop.original_shipping_fee || shop.shipping_fee) - (shop.shipping_discount || 0))) }} đ</span>
+              <span class="font-bold text-blue-600">{{ formatPrice(calculateStoreTotal(shop) - (shop.discount || 0) + Math.max(0, (shop.original_shipping_fee || shop.shipping_fee || 0) - (shop.shipping_discount || 0))) }} đ</span>
             </div>
             <div class="text-xs text-gray-500 mt-1">
               <i class="fas fa-ticket-alt mr-1"></i>
@@ -590,84 +556,9 @@ const applyDiscount = (discount) => {
   selectedSellerId.value = null;
 };
 
-const removeDiscount = (shop) => {
-  shop.discount = 0;
-  shop.selectedDiscountId = null;
-  emit('update:shopDiscount', {
-    sellerId: shop.seller_id,
-    discount: 0,
-    discountId: null
-  });
-  toast('success', `Đã hủy mã giảm giá cho ${shop.store_name || 'cửa hàng'}`);
-};
-
-const removeShippingDiscount = (shop) => {
-  shop.shipping_discount = 0;
-  shop.selectedDiscountId = null;
-  emit('update:shippingDiscount', {
-    sellerId: shop.seller_id,
-    shippingDiscount: 0,
-    discountId: null
-  });
-  toast('success', `Đã hủy mã giảm giá phí vận chuyển cho ${shop.store_name || 'cửa hàng'}`);
-};
-
 const selectShopDiscount = (sellerId) => {
   selectedSellerId.value = sellerId;
   showDiscountPopup.value = true;
-};
-
-const handleMethodChange = async (sellerId, method) => {
-  const shop = localCartItems.value.find(s => s.seller_id === sellerId);
-  if (!shop) {
-    toast('error', `Không tìm thấy cửa hàng ${sellerId}.`);
-    return;
-  }
-
-  if (!method) {
-    toast('error', `Phương thức vận chuyển không hợp lệ cho cửa hàng ${sellerId}.`);
-    return;
-  }
-
-  shopServiceIds.value[sellerId] = method.service_id;
-  shop.service_id = method.service_id;
-  loadingFees.value[sellerId] = true;
-
-  try {
-    const totalWeight = calculateTotalWeight(shop);
-    const { fee } = await calculateShippingFee(sellerId, {
-      district_id: shop.district_id,
-      ward_code: shop.ward_code,
-      service_id: method.service_id,
-      total_weight: totalWeight
-    }, props.address);
-
-    if (fee !== null && !isNaN(fee) && fee >= 0) {
-      fees.value[`${sellerId}_${method.service_id}`] = fee;
-      shop.shipping_fee = fee;
-      shop.original_shipping_fee = fee; // Lưu phí gốc
-      emit('update:shippingFee', { sellerId, fee });
-    } else {
-      fees.value[`${sellerId}_${method.service_id}`] = 'Lỗi';
-      errorMessage.value = `Không thể tính phí cho cửa hàng ${sellerId}.`;
-      shop.shipping_fee = 0;
-    }
-  } catch (error) {
-    console.error(`Lỗi tính phí vận chuyển khi thay đổi phương thức cho shop ${sellerId}:`, error);
-    fees.value[`${sellerId}_${method.service_id}`] = 'Lỗi';
-    errorMessage.value = `Lỗi tính phí cho cửa hàng ${sellerId}: ${error.message}`;
-    shop.shipping_fee = 0;
-  } finally {
-    loadingFees.value[sellerId] = false;
-  }
-
-  const totalShippingFeeValue = localCartItems.value.reduce((sum, shop) => {
-    const shippingFee = shop.shipping_fee || 0;
-    const shippingDiscount = shop.shipping_discount || 0;
-    return sum + Math.max(0, shippingFee - shippingDiscount);
-  }, 0);
-  console.log(`Cập nhật tổng phí vận chuyển: ${totalShippingFeeValue}`);
-  emit('update:totalShippingFee', totalShippingFeeValue);
 };
 
 const calculateStoreTotal = (shop) => {
