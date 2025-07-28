@@ -36,7 +36,7 @@
           <option value="pending">Chờ xác minh</option>
           <option value="verified">Đã xác minh</option>
           <option value="rejected">Đã từ chối</option>
-          <option value ="banned"> Đã bị cấm</option>
+          <option value="banned"> Đã bị cấm</option>
         </select>
       </div>
 
@@ -64,7 +64,7 @@
                   'bg-green-100 text-green-700': seller.verification_status === 'verified',
                   'bg-yellow-100 text-yellow-700': seller.verification_status === 'pending',
                   'bg-red-100 text-red-700': seller.verification_status === 'rejected',
-                   'bg-red-100 text-red-700': seller.verification_status === 'banned'
+                  'bg-red-100 text-red-700': seller.verification_status === 'banned'
                 }">
                   {{ getVerifyText(seller.verification_status) }}
                 </span>
@@ -85,7 +85,8 @@
       <!-- Modal chi tiết -->
       <div v-if="detailModal"
         class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 font-sans backdrop-blur-sm">
-        <div class="bg-white rounded-xl shadow-xl w-full max-w-3xl relative animate-fadeIn p-6 md:p-8 overflow-y-auto max-h-screen">
+        <div
+          class="bg-white rounded-xl shadow-xl w-full max-w-3xl relative animate-fadeIn p-6 md:p-8 overflow-y-auto max-h-screen">
 
           <!-- Header -->
           <div class="border-b border-gray-200 pb-4">
@@ -125,6 +126,18 @@
               <div class="mt-2 text-sm text-gray-500">
                 🏪 {{ currentDetail.store_name || '-' }}
               </div>
+
+              <!-- Thống kê seller -->
+              <hr class="col-span-2 my-4 border-gray-300" />
+
+              <div><strong>Tổng sản phẩm:</strong> {{ currentDetail.total_products }}</div>
+              <div><strong>Tổng đơn hàng:</strong> {{ currentDetail.total_orders }}</div>
+              <div><strong>Đơn hàng :</strong> {{ currentDetail.completed_orders }}</div>
+              <div><strong>Doanh thu:</strong> {{ formatCurrency(currentDetail.total_revenue) }}</div>
+              <div><strong>Giá vốn:</strong> {{ formatCurrency(currentDetail.total_cost) }}</div>
+              <div><strong>Lợi nhuận:</strong> {{ formatCurrency(currentDetail.total_profit) }}</div>
+              <div><strong>Thua lỗ:</strong> {{ formatCurrency(currentDetail.total_loss) }}</div>
+
             </div>
 
             <!-- Chi tiết -->
@@ -139,15 +152,15 @@
               <div><strong>Mã số thuế:</strong> {{ currentDetail.tax_code || '-' }}</div>
               <div><strong>Tên doanh nghiệp:</strong> {{ currentDetail.business_name || '-' }}</div>
               <div><strong>Email doanh nghiệp:</strong> {{ currentDetail.business_email || '-' }}</div>
-             <div>
-  <strong>Giao hàng nhanh:</strong>
-  <span>{{ currentDetail.shipping_options?.express ? ' Có' : ' Không' }}</span>
-</div>
+              <div>
+                <strong>Giao hàng nhanh:</strong>
+                <span>{{ currentDetail.shipping_options?.express ? ' Có' : ' Không' }}</span>
+              </div>
 
-<div>
-  <strong>Giao hàng tiêu chuẩn:</strong>
-  <span>{{ currentDetail.shipping_options?.standard ? ' Có' : ' Không' }}</span>
-</div>
+              <div>
+                <strong>Giao hàng tiêu chuẩn:</strong>
+                <span>{{ currentDetail.shipping_options?.standard ? ' Có' : ' Không' }}</span>
+              </div>
 
             </div>
           </div>
@@ -180,62 +193,66 @@
               </div>
             </div>
 
-           <div class="md:col-span-2 border rounded-lg p-4 flex flex-col justify-between">
-  <div>
-    <!-- Trạng thái xác minh -->
-    <div class="font-semibold text-gray-700 mb-2">Trạng thái xác minh</div>
-    <div class="mb-3">
-      <span v-if="currentDetail.verification_status === 'verified'"
-        class="inline-block bg-green-100 text-green-700 text-xs font-semibold px-3 py-1 rounded-full">✅ Đã xác minh</span>
-      <span v-else-if="currentDetail.verification_status === 'rejected'"
-        class="inline-block bg-red-100 text-red-700 text-xs font-semibold px-3 py-1 rounded-full">❌ Đã từ chối</span>
-      <span v-else-if="currentDetail.verification_status === 'banned'"
-        class="inline-block bg-gray-200 text-gray-600 text-xs font-semibold px-3 py-1 rounded-full">🚫 Đã bị cấm</span>
-      <span v-else
-        class="inline-block bg-yellow-100 text-yellow-700 text-xs font-semibold px-3 py-1 rounded-full">⏳ Chờ xác minh</span>
-    </div>
+            <div class="md:col-span-2 border rounded-lg p-4 flex flex-col justify-between">
+              <div>
+                <!-- Trạng thái xác minh -->
+                <div class="font-semibold text-gray-700 mb-2">Trạng thái xác minh</div>
+                <div class="mb-3">
+                  <span v-if="currentDetail.verification_status === 'verified'"
+                    class="inline-block bg-green-100 text-green-700 text-xs font-semibold px-3 py-1 rounded-full">✅ Đã
+                    xác minh</span>
+                  <span v-else-if="currentDetail.verification_status === 'rejected'"
+                    class="inline-block bg-red-100 text-red-700 text-xs font-semibold px-3 py-1 rounded-full">❌ Đã từ
+                    chối</span>
+                  <span v-else-if="currentDetail.verification_status === 'banned'"
+                    class="inline-block bg-gray-200 text-gray-600 text-xs font-semibold px-3 py-1 rounded-full">🚫 Đã bị
+                    cấm</span>
+                  <span v-else
+                    class="inline-block bg-yellow-100 text-yellow-700 text-xs font-semibold px-3 py-1 rounded-full">⏳
+                    Chờ xác minh</span>
+                </div>
 
-    <!-- Mô tả trạng thái -->
-    <div v-if="currentDetail.verification_status === 'rejected'"
-      class="bg-red-50 text-red-700 text-sm border border-red-200 rounded p-3">
-      Seller này đã bị từ chối.
-    </div>
-    <div v-else-if="currentDetail.verification_status === 'banned'"
-      class="bg-gray-100 text-gray-700 text-sm border border-gray-300 rounded p-3">
-      Seller này đã bị cấm khỏi hệ thống. 
-    </div>
-    <div v-else-if="currentDetail.verification_status === 'pending'"
-      class="bg-blue-50 text-blue-700 text-sm border border-blue-200 rounded p-3">
-      Seller đang chờ xác minh. Vui lòng kiểm tra thông tin kỹ trước khi phê duyệt.
-    </div>
-  </div>
+                <!-- Mô tả trạng thái -->
+                <div v-if="currentDetail.verification_status === 'rejected'"
+                  class="bg-red-50 text-red-700 text-sm border border-red-200 rounded p-3">
+                  Seller này đã bị từ chối.
+                </div>
+                <div v-else-if="currentDetail.verification_status === 'banned'"
+                  class="bg-gray-100 text-gray-700 text-sm border border-gray-300 rounded p-3">
+                  Seller này đã bị cấm khỏi hệ thống.
+                </div>
+                <div v-else-if="currentDetail.verification_status === 'pending'"
+                  class="bg-blue-50 text-blue-700 text-sm border border-blue-200 rounded p-3">
+                  Seller đang chờ xác minh. Vui lòng kiểm tra thông tin kỹ trước khi phê duyệt.
+                </div>
+              </div>
 
-  <!-- Hành động -->
-  <div class="flex gap-3 mt-6">
-    <!-- Nếu đang chờ xác minh -->
-    <template v-if="currentDetail.verification_status === 'pending'">
-      <button @click="approveSeller(currentDetail.id)" :disabled="loadingApprove"
-        class="flex-1 py-2 rounded bg-blue-700 hover:bg-blue-900 text-white font-semibold text-sm transition"
-        :class="{ 'opacity-60 cursor-not-allowed': loadingApprove }">
-        {{ loadingApprove ? 'Đang duyệt...' : 'Duyệt seller' }}
-      </button>
+              <!-- Hành động -->
+              <div class="flex gap-3 mt-6">
+                <!-- Nếu đang chờ xác minh -->
+                <template v-if="currentDetail.verification_status === 'pending'">
+                  <button @click="approveSeller(currentDetail.id)" :disabled="loadingApprove"
+                    class="flex-1 py-2 rounded bg-blue-700 hover:bg-blue-900 text-white font-semibold text-sm transition"
+                    :class="{ 'opacity-60 cursor-not-allowed': loadingApprove }">
+                    {{ loadingApprove ? 'Đang duyệt...' : 'Duyệt seller' }}
+                  </button>
 
-      <button @click="openReject(currentDetail)"
-        class="flex-1 py-2 rounded bg-red-400 hover:bg-red-600 text-white font-semibold text-sm transition">
-        Từ chối
-      </button>
-    </template>
+                  <button @click="openReject(currentDetail)"
+                    class="flex-1 py-2 rounded bg-red-400 hover:bg-red-600 text-white font-semibold text-sm transition">
+                    Từ chối
+                  </button>
+                </template>
 
-    <!-- Nếu đã xác minh -->
-    <template v-else-if="currentDetail.verification_status === 'verified'">
-      <button @click="banSeller(currentDetail.id)"
-        class="flex-1 py-2 rounded bg-red-600 hover:bg-red-700 text-white font-semibold text-sm transition">
-        🚫 Cấm seller
-      </button>
-    </template>
-    
-  </div>
-</div>
+                <!-- Nếu đã xác minh -->
+                <template v-else-if="currentDetail.verification_status === 'verified'">
+                  <button @click="banSeller(currentDetail.id)"
+                    class="flex-1 py-2 rounded bg-red-600 hover:bg-red-700 text-white font-semibold text-sm transition">
+                    🚫 Cấm seller
+                  </button>
+                </template>
+
+              </div>
+            </div>
 
           </div>
           <!-- Modal từ chối -->
@@ -327,6 +344,14 @@ const fetchSellers = async () => {
     loading.value = false
   }
 }
+
+const formatCurrency = (value) => {
+  if (typeof value !== 'number') return '-';
+  return value.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
+};
+
+
+
 
 onMounted(fetchSellers)
 
