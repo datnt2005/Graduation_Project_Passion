@@ -110,60 +110,55 @@
             </div>
           </div>
 
-          <!-- Tab info -->
-          <div v-if="tab === 'info'" class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-            <div class="flex flex-col items-center border rounded-lg p-4">
-              <div class="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center text-xl font-bold">
-                {{ getInitials(currentDetail.user?.name) }}
-              </div>
-              <div class="mt-3 text-lg font-semibold text-gray-800">{{ currentDetail.user?.name || '-' }}</div>
-              <div class="mt-1 text-sm">
-                <span class="inline-block rounded-full px-2 py-0.5 text-xs font-medium"
-                  :class="currentDetail.user?.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-500'">
-                  {{ currentDetail.user?.status === 'active' ? 'Đang hoạt động' : 'Không hoạt động' }}
-                </span>
-              </div>
-              <div class="mt-2 text-sm text-gray-500">
-                🏪 {{ currentDetail.store_name || '-' }}
-              </div>
+         <!-- Tab info -->
+<div v-if="tab === 'info'" class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+  <!-- Bên trái: Thông tin tổng quan + thống kê -->
+  <div class="flex flex-col items-center border rounded-lg p-6">
+    <div class="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center text-xl font-bold">
+      {{ getInitials(currentDetail.user?.name) }}
+    </div>
+    <div class="mt-3 text-lg font-semibold text-gray-800">{{ currentDetail.user?.name || '-' }}</div>
+    <div class="mt-1 text-sm">
+   
+    </div>
+    <div class="mt-1 text-sm text-gray-500">
+      🏪 {{ currentDetail.store_name || '-' }}
+    </div>
 
-              <!-- Thống kê seller -->
-              <hr class="col-span-2 my-4 border-gray-300" />
+    <!-- Thống kê -->
+    <hr class="w-full my-4 border-gray-300" />
+    <div class="w-full text-sm space-y-1">
+      <div><strong>Tổng sản phẩm:</strong> {{ currentDetail.total_products }}</div>
+      <div><strong>Tổng đơn hàng:</strong> {{ currentDetail.total_orders }}</div>
+      <div><strong>Đơn hoàn thành:</strong> {{ currentDetail.completed_orders }}</div>
+      <div><strong>Doanh thu:</strong>
+        <span class="text-green-600 font-semibold">{{ formatCurrency(currentDetail.total_revenue) }}</span>
+      </div>
+      <div><strong>Lợi nhuận:</strong>
+        <span class="text-green-600 font-semibold">{{ formatCurrency(currentDetail.total_profit) }}</span>
+      </div>
+      <div><strong>Thua lỗ:</strong>
+        <span class="text-red-600 font-semibold">{{ formatCurrency(currentDetail.total_loss) }}</span>
+      </div>
+    </div>
+  </div>
 
-              <div><strong>Tổng sản phẩm:</strong> {{ currentDetail.total_products }}</div>
-              <div><strong>Tổng đơn hàng:</strong> {{ currentDetail.total_orders }}</div>
-              <div><strong>Đơn hàng :</strong> {{ currentDetail.completed_orders }}</div>
-              <div><strong>Doanh thu:</strong> {{ formatCurrency(currentDetail.total_revenue) }}</div>
-              <div><strong>Giá vốn:</strong> {{ formatCurrency(currentDetail.total_cost) }}</div>
-              <div><strong>Lợi nhuận:</strong> {{ formatCurrency(currentDetail.total_profit) }}</div>
-              <div><strong>Thua lỗ:</strong> {{ formatCurrency(currentDetail.total_loss) }}</div>
+  <!-- Bên phải: Thông tin chi tiết -->
+  <div class="md:col-span-2 border rounded-lg p-6 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+    <div><strong>CCCD:</strong> {{ currentDetail.identity_card_number || '-' }}</div>
+    <div><strong>Ngày sinh:</strong> {{ currentDetail.date_of_birth || '-' }}</div>
+    <div><strong>Số điện thoại:</strong> {{ currentDetail.phone_number || '-' }}</div>
+    <div><strong>Email:</strong> {{ currentDetail.user?.email || '-' }}</div>
+    <div><strong>Địa chỉ:</strong> {{ currentDetail.personal_address || '-' }}</div>
+    <div><strong>Giới thiệu:</strong> {{ currentDetail.bio || '-' }}</div>
+    <div><strong>Mã số thuế:</strong> {{ currentDetail.tax_code || '-' }}</div>
+    <div><strong>Tên doanh nghiệp:</strong> {{ currentDetail.business_name || '-' }}</div>
+    <div><strong>Email doanh nghiệp:</strong> {{ currentDetail.business_email || '-' }}</div>
+    <div><strong>Giao hàng nhanh:</strong> {{ currentDetail.shipping_options?.express ? 'Có' : 'Không' }}</div>
+    <div><strong>Giao hàng tiêu chuẩn:</strong> {{ currentDetail.shipping_options?.standard ? 'Có' : 'Không' }}</div>
+  </div>
+</div>
 
-            </div>
-
-            <!-- Chi tiết -->
-            <div
-              class="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 border rounded-lg p-4 text-sm min-h-[420px]">
-              <div><strong>CCCD:</strong> {{ currentDetail.identity_card_number || '-' }}</div>
-              <div><strong>Ngày sinh:</strong> {{ currentDetail.date_of_birth || '-' }}</div>
-              <div><strong>Số điện thoại:</strong> {{ currentDetail.phone_number || '-' }}</div>
-              <div><strong>Email:</strong> {{ currentDetail.user?.email || '-' }}</div>
-              <div><strong>Địa chỉ:</strong> {{ currentDetail.personal_address || '-' }}</div>
-              <div><strong>Giới thiệu:</strong> {{ currentDetail.bio || '-' }}</div>
-              <div><strong>Mã số thuế:</strong> {{ currentDetail.tax_code || '-' }}</div>
-              <div><strong>Tên doanh nghiệp:</strong> {{ currentDetail.business_name || '-' }}</div>
-              <div><strong>Email doanh nghiệp:</strong> {{ currentDetail.business_email || '-' }}</div>
-              <div>
-                <strong>Giao hàng nhanh:</strong>
-                <span>{{ currentDetail.shipping_options?.express ? ' Có' : ' Không' }}</span>
-              </div>
-
-              <div>
-                <strong>Giao hàng tiêu chuẩn:</strong>
-                <span>{{ currentDetail.shipping_options?.standard ? ' Có' : ' Không' }}</span>
-              </div>
-
-            </div>
-          </div>
 
           <!-- Tab giấy tờ -->
           <div v-else-if="tab === 'verify'" class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
