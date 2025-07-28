@@ -421,9 +421,6 @@ const fetchSessions = async () => {
     console.log("fetchSessions:", chatSessions.value, totalUnread.value);
   } catch (err) {
     console.error("Lỗi khi fetch sessions:", err);
-    if (err.response?.status === 401) {
-      alert("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.");
-    }
   }
 };
 
@@ -464,9 +461,6 @@ const markAsRead = async (session) => {
       "Lỗi markAsRead:",
       err.response?.data?.message || err.message
     );
-    if (err.response?.status === 401) {
-      alert("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.");
-    }
   }
 };
 // Format thời gian

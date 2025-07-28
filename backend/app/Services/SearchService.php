@@ -404,7 +404,7 @@ class SearchService
                     'id' => $category->id,
                     'name' => $category->name,
                     'slug' => $category->slug,
-                    'image' => $category->image ?? '/default-category.jpg',
+                    'image' => $category->image ?? 'products/default.png',
                 ];
             })
             ->values();

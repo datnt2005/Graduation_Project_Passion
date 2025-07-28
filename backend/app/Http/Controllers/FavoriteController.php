@@ -82,7 +82,7 @@ class FavoriteController extends Controller
                 // Lấy ảnh đầu tiên nếu có
                 $image = $product && $product->productPic->count() > 0
                     ? $product->productPic->first()->imagePath
-                    : null;
+                    : "products/default.png";
                 return [
                     'id' => $item->id,
                     'product' => [

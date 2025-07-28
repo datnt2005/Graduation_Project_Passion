@@ -17,6 +17,7 @@
             <li v-for="(item, idx) in categoryGroup.items" :key="idx" class="truncate">
               <NuxtLink
                 :to="`/shop/${item.slug}`"
+                @click="() => trackCategoryClick(item.id)"
                 class="hover:underline hover:text-blue-500 transition-all duration-150 relative after:content-['|'] after:mx-1 after:text-gray-300"
                 :class="{ 'after:content-none': idx === categoryGroup.items.length - 1 }"
               >
@@ -37,7 +38,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRuntimeConfig } from '#imports'
 
 const config = useRuntimeConfig()
@@ -45,6 +46,26 @@ const apiBase = config.public.apiBaseUrl
 const categoryGroups = ref([])
 const pending = ref(true)
 const error = ref(null)
+
+// Tracking click danh mục
+const trackCategoryClick = async (categoryId) => {
+  try {
+    const token = localStorage.getItem('access_token')
+    await $fetch(`${apiBase}/search/track-category-click`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: {
+        category_id: categoryId,
+      },
+    })
+    console.log(`Đã track click cho danh mục ID: ${categoryId}`)
+  } catch (error) {
+    console.error('Lỗi khi tracking danh mục:', error)
+  }
+}
 
 // Fetch data from API
 async function fetchCategories() {
@@ -63,6 +84,7 @@ async function fetchCategories() {
           groupedCategories[cat.id] = {
             title: cat.name,
             items: [],
+            id: cat.id
           }
         }
       })
@@ -73,12 +95,18 @@ async function fetchCategories() {
             groupedCategories[parent.id] = groupedCategories[parent.id] || {
               title: parent.name,
               items: [],
+              id: parent.id
             }
-            groupedCategories[parent.id].items.push({ name: cat.name, slug: cat.slug })
+            groupedCategories[parent.id].items.push({ 
+              name: cat.name, 
+              slug: cat.slug,
+              id: cat.id 
+            })
           } else {
             groupedCategories[cat.id] = {
               title: cat.name,
               items: [],
+              id: cat.id
             }
           }
         }
@@ -100,7 +128,3 @@ onMounted(() => {
   fetchCategories()
 })
 </script>
-
-<style scoped>
-/* Không cần style bổ sung vì giao diện đã ổn */
-</style>

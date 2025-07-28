@@ -1,5 +1,5 @@
 <template>
-  <div class="bg-[#f5f7fa] font-sans text-[#1a1a1a] min-h-screen">
+  <div class="bg-[#f5f7fa] font-sans text-[#1a1a1a] ">
     <div class=" flex flex-col md:flex-row max-w-screen-2xl mx-auto p-4 sm:p-6">
       <SidebarProfile class="flex-shrink-0 border-r border-gray-200 md:w-64 mb-4 md:mb-0" />
       <main class="flex-1 p-0 md:p-4">
