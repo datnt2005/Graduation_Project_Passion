@@ -1,4 +1,5 @@
 <template>
+  <main class="bg-[#F5F5FA] py-5">
   <div class="p-6 md:p-10 max-w-4xl mx-auto bg-white rounded-xl shadow-lg space-y-6 text-gray-800">
     <h2 class="text-3xl font-extrabold text-indigo-700 border-b pb-2">Điều khoản và Dịch vụ</h2>
 
@@ -112,4 +113,5 @@
       <p>Cập nhật lần cuối: 03/07/2025</p>
     </footer>
   </div>
+  </main>
 </template>

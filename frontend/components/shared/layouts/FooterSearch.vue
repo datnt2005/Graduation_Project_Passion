@@ -1,6 +1,6 @@
 <template>
   <div class="bg-white py-3">
-    <div class="max-w-[1300px] mx-auto px-4">
+    <div class="max-w-7xl mx-auto px-4">
       <h2 class="text-sm font-semibold text-gray-800 mb-1">Từ khóa phổ biến</h2>
       <div
         v-if="!pending && !error && keywords.length"

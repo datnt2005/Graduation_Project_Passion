@@ -387,11 +387,6 @@ const parseMessage = (message) => {
 const fetchSessions = async () => {
   try {
     const token = localStorage.getItem("access_token");
-    if (!token) {
-      console.error("Không có token để gọi API fetchSessions");
-      return;
-    }
-
     // lấy người dùng hien tai
     const resUser = await axios.get(`${API}/me`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -418,7 +413,6 @@ const fetchSessions = async () => {
       (sum, s) => sum + (s.unread_count || 0),
       0
     );
-    console.log("fetchSessions:", chatSessions.value, totalUnread.value);
   } catch (err) {
     console.error("Lỗi khi fetch sessions:", err);
   }
@@ -446,15 +440,9 @@ const markAsRead = async (session) => {
           (sum, s) => sum + (s.unread_count || 0),
           0
         );
-        console.log(
-          "Updated unread_count:",
-          chatSessions.value[sessionIndex].unread_count
-        );
-        console.log("Updated totalUnread:", totalUnread.value);
       }
     } else {
       console.warn("API markAsRead không thành công:", response.data.message);
-      alert("Không thể đánh dấu tin nhắn đã đọc: " + response.data.message);
     }
   } catch (err) {
     console.error(

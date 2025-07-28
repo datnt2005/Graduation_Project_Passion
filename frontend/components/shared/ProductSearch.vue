@@ -1,5 +1,5 @@
 <template>
-  <div class="max-w-[1300px] mx-auto bg-white relative">
+  <div class="max-w-7xl mx-auto bg-white relative">
     <div class="flex justify-between items-center px-4 py-3 border-b border-[#f0f0f0]">
       <div class="text-[#1BA0E2] font-bold text-sm uppercase">SẢN PHẨM THỊNH HÀNH</div>
     </div>

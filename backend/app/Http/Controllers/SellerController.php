@@ -43,7 +43,7 @@ class SellerController extends Controller
 
             // Lọc theo trạng thái
             if ($request->has('status')) {
-                $query->where('verification_status', $request->status);
+                $query->where('status', $request->status);
             }
 
             // Tính toán các thống kê cho mỗi seller
@@ -80,52 +80,53 @@ class SellerController extends Controller
                     if ($totalProfit < 0)
                         $totalProfit = 0;
 
-                    return [
-                        'id' => $seller->id,
-                        'user_id' => $seller->user_id,
-                        'store_name' => $seller->store_name,
-                        'store_slug' => $seller->store_slug,
-                        'seller_type' => $seller->seller_type,
-                        'tax_code' => $seller->tax_code,
-                        'business_name' => $seller->business_name,
-                        'business_email' => $seller->business_email,
-                        'shipping_options' => json_decode($seller->shipping_options),
-                        'bio' => $seller->bio,
-                        'identity_card_number' => $seller->identity_card_number,
-                        'date_of_birth' => $seller->date_of_birth,
-                        'personal_address' => $seller->personal_address,
-                        'pickup_address' => $seller->pickup_address,
-                        'province_id' => $seller->province_id,
-                        'district_id' => $seller->district_id,
-                        'ward_id' => $seller->ward_id,
-                        'address' => $seller->address,
-                        'phone_number' => $seller->phone_number,
-                        'identity_card_file' => $seller->identity_card_file,
-                        'document' => $seller->document,
-                        'verification_status' => $seller->verification_status,
-                        'verified_at' => $seller->verified_at,
-                        'created_at' => $seller->created_at,
-                        'updated_at' => $seller->updated_at,
-                        'deleted_at' => $seller->deleted_at,
-                        'id_card_front_url' => $seller->id_card_front_url,
-                        'id_card_back_url' => $seller->id_card_back_url,
+              return [
+    'id' => $seller->id,
+    'user_id' => $seller->user_id,
+    'store_name' => $seller->store_name,
+    'store_slug' => $seller->store_slug,
+    'seller_type' => $seller->seller_type,
+    'tax_code' => $seller->tax_code,
+    'business_name' => $seller->business_name,
+    'business_email' => $seller->business_email,
+    'shipping_options' => $seller->shipping_options,
+    'bio' => $seller->bio,
+    'identity_card_number' => $seller->identity_card_number,
+    'date_of_birth' => $seller->date_of_birth,
+    'personal_address' => $seller->personal_address,
+    'pickup_address' => $seller->pickup_address,
+    'province_id' => $seller->province_id,
+    'district_id' => $seller->district_id,
+    'ward_id' => $seller->ward_id,
+    'address' => $seller->address,
+    'phone_number' => $seller->phone_number,
+    'identity_card_file' => $seller->identity_card_file,
+    'document' => $seller->document,
+    'verification_status' => $seller->verification_status,
+    'verified_at' => $seller->verified_at,
+    'created_at' => $seller->created_at,
+    'updated_at' => $seller->updated_at,
+    'deleted_at' => $seller->deleted_at,
+    'id_card_front_url' => $seller->id_card_front_url,
+    'id_card_back_url' => $seller->id_card_back_url,
 
-                        // Thông tin user
-                        'user' => [
-                            'id' => $seller->user->id,
-                            'name' => $seller->user->name,
-                            'email' => $seller->user->email,
-                        ],
+    // Thông tin user
+    'user' => [
+        'id' => $seller->user->id,
+        'name' => $seller->user->name,
+        'email' => $seller->user->email,
+    ],
 
-                        // Thống kê
-                        'total_orders' => $totalOrders,
-                        'completed_orders' => $completedOrders,
-                        'total_products' => $seller->products_count,
-                        'total_revenue' => $totalRevenue,
-                        'total_cost' => $totalCost,
-                        'total_profit' => $totalProfit,
-                        'total_loss' => $totalLoss,
-                    ];
+    // Thống kê
+    'total_orders' => $totalOrders,
+    'completed_orders' => $completedOrders,
+    'total_products' => $seller->products_count,
+    'total_revenue' => $totalRevenue,
+    'total_cost' => $totalCost,
+    'total_profit' => $totalProfit,
+    'total_loss' => $totalLoss,
+];
+
                 });
 
             // Sắp xếp theo doanh thu

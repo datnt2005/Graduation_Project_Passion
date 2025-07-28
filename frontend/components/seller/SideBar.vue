@@ -508,7 +508,7 @@ const fetchSeller = async () => {
       console.error("Không tìm thấy access_token");
       return false;
     }
-    const res = await axios.get(`${API}/sellers/seller/me`); // Thêm /api
+    const res = await axios.get(`${API}/sellers/me`); // Thêm /api
     seller.value = res.data.data || res.data.seller || {};
     return true;
   } catch (error) {
@@ -516,7 +516,6 @@ const fetchSeller = async () => {
     if (error.response?.status === 401) {
       console.warn("Token không hợp lệ hoặc đã hết hạn");
       localStorage.removeItem("access_token");
-      // window.location.href = '/login'; // Chuyển hướng nếu cần
     }
     return false;
   }

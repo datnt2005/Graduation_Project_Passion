@@ -1,6 +1,6 @@
 <template>
   <div class="bg-white border-t border-gray-200 py-3 mt-w-6xl">
-    <div class="max-w-[1300px] mx-auto px-4">
+    <div class="max-w-7xl mx-auto px-4">
       <h2 class="text-sm font-semibold text-gray-800 mb-2">Thương hiệu nổi bật</h2>
       <div
         v-if="!pending && !error && brands.length"

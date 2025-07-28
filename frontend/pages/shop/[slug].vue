@@ -1,8 +1,8 @@
 <template>
   <main class="bg-[#F5F5FA] py-2">
-    <div class="container mx-auto p-4">
+    <div class="max-w-7xl mx-auto">
       <!-- Breadcrumb -->
-      <div class="w-full max-w-6xl mb-4 text-sm text-gray-500 rounded">
+      <div class="mb-4 text-sm text-gray-500 rounded">
         <nuxt-link to="/" class="text-gray-400">Trang chủ</nuxt-link>
         <span class="mx-1">›</span>
         <span v-if="isSearchMode" class="text-gray-600 font-semibold">
@@ -177,7 +177,7 @@
             <div v-if="products.length === 0" class="text-center py-8 text-gray-400 text-base">
               Không có sản phẩm nào phù hợp.
             </div>
-            <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+            <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5 gap-4">
               <ProductCard v-for="item in products" :key="item.id" :item="item" />
             </div>
           </div>
@@ -349,7 +349,7 @@ async function fetchProducts(page = 1) {
   try {
     const slug = isSearchMode.value ? 'search' : route.params.slug;
     const url = new URL(`${apiBase}/products/search/${slug}`); // Sửa thành /products/[slug]
-    const params = new URLSearchParams({ page: page.toString(), per_page: '24' });
+    const params = new URLSearchParams({ page: page.toString(), per_page: '20' });
     if (searchQuery.value) params.append('search', searchQuery.value);
     if (filters.value.brand.length) params.append('brands', filters.value.brand.join(','));
     if (filters.value.rating.length) {
@@ -362,8 +362,6 @@ async function fetchProducts(page = 1) {
     if (filters.value.sort !== 'default') params.append('sort', filters.value.sort);
 
     url.search = params.toString();
-    console.log('Fetching products with URL:', url.toString());
-
     const res = await fetch(url);
     const data = await res.json();
 
@@ -507,7 +505,6 @@ const trackCategoryClick = async (categoryId) => {
         category_id: categoryId,
       },
     });
-    console.log(`Đã track click cho danh mục ID: ${categoryId}`);
   } catch (error) {
     console.error('Lỗi khi tracking danh mục:', error);
   }

@@ -1,6 +1,6 @@
 <template>
   <div class="bg-gray-50 py-3">
-    <div class="max-w-[1300px] mx-auto px-2">
+    <div class="max-w-7xl mx-auto px-4">
       <h2 class="text-sm sm:text-base font-bold text-gray-800 mb-2 sm:mb-3">
         Danh mục sản phẩm
       </h2>

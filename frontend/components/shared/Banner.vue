@@ -78,12 +78,12 @@
       <!-- Banner nhỏ bên phải -->
       <div class="hidden sm:flex flex-col gap-4 min-w-[250px] max-w-[360px]">
         <img
-          src="https://sf-static.upanhlaylink.com/img/image_20250718176342fcca97b9ab168d67eb5c15616e.jpg"
+          :src="BannerSmallFirst"
           alt="Banner nhỏ 1"
           class="w-full h-[146px] object-cover shadow-md"
         />
         <img
-          src="https://sf-static.upanhlaylink.com/img/image_202507181fb34ba202f43ade448a5eeb1078e9d5.jpg"
+          :src="BannerSmallSecond"
           alt="Banner nhỏ 2"
           class="w-full h-[146px] object-cover shadow-md"
         />
@@ -95,6 +95,8 @@
   <script setup>
   import { ref, onMounted, onBeforeUnmount, watch } from "vue";
   import { useRuntimeConfig } from "#app";
+  import BannerSmallFirst from "~/images/banner-small-1.png";
+  import BannerSmallSecond from "~/images/banner-small-2.png";
 
   const config = useRuntimeConfig();
   const apiBase = config.public.apiBaseUrl;

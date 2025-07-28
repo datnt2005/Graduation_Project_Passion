@@ -1,14 +1,13 @@
 <template>
   <main class="bg-[#F5F5FA] py-2">
-    <div class="w-full max-w-[1300px] mx-auto mb-4">
+    <div class="w-full max-w-7xl mx-auto mb-4">
       <div class="text-sm text-gray-500 px-4 py-2 rounded">
         <NuxtLink to="/" class="text-gray-400">Trang chủ</NuxtLink>
         <span class="mx-1">›</span>
-        <span class="text-black font-medium">Giỏ hàng</span>
+        <span class="text-black font-medium">{{ seller?.store_name }}</span>
       </div>
     </div>
-    <div class="max-w-[1300px] bg-white p-4 min-h-screen shadow w-full mx-auto mt-4" v-if="seller">
-
+    <div class="max-w-7xl bg-white p-4 min-h-screen shadow w-full mx-auto mt-4" v-if="seller">
       <div v-if="loading" class="animate-pulse">
         <!-- Skeleton for Shop Header -->
         <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -23,7 +22,6 @@
                 </div>
               </div>
             </div>
-            <!-- Skeleton for Quick Vouchers -->
             <div class="flex flex-wrap gap-2">
               <div v-for="n in 3" :key="n" class="h-12 w-32 bg-gray-200 rounded-lg"></div>
             </div>
@@ -164,7 +162,31 @@
 
         <!-- Nội dung chính -->
         <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mt-6">
-          <aside class="bg-white p-5 border-r min-h-screen col-span-1" v-if="activeTab === 'Cửa hàng'">
+          <!-- Danh mục trên mobile -->
+          <aside v-if="activeTab === 'Cửa hàng'" class="block md:hidden col-span-1">
+            <button @click="isCategoryOpen = !isCategoryOpen"
+              class="flex items-center justify-between w-full py-3 px-4 bg-white border border-gray-200 rounded-lg shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all duration-200">
+              <span>Danh mục</span>
+              <font-awesome-icon :icon="['fas', isCategoryOpen ? 'chevron-up' : 'chevron-down']" class="w-4 h-4" />
+            </button>
+            <div v-if="isCategoryOpen" class="mt-2 bg-white p-4 border border-gray-200 rounded-lg shadow-sm">
+              <ul class="space-y-2 text-gray-700 text-sm">
+                <li v-for="category in uniqueCategories" :key="category">
+                  <a href="#" @click.prevent="filterByCategory(category); isCategoryOpen = false"
+                    class="block px-3 py-2 rounded transition"
+                    :class="[
+                      selectedCategory === category
+                        ? 'bg-blue-100 text-blue-600 font-semibold'
+                        : 'hover:bg-blue-50 hover:text-blue-600 text-gray-700'
+                    ]">
+                    {{ category }}
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </aside>
+          <!-- Danh mục trên desktop -->
+          <aside class="hidden md:block bg-white p-5 border-r col-span-1" v-if="activeTab === 'Cửa hàng'">
             <h3 class="font-semibold text-base mb-4 text-gray-800 border-b pb-2">Tất cả danh mục</h3>
             <ul class="space-y-2 text-gray-700 text-sm">
               <li v-for="category in uniqueCategories" :key="category">
@@ -183,9 +205,17 @@
           <section :class="activeTab === 'Cửa hàng' ? 'col-span-1 md:col-span-4' : 'col-span-1 md:col-span-5'">
             <!-- Tab Cửa hàng -->
             <div v-if="activeTab === 'Cửa hàng'">
-              <div class="bg-white p-3 shadow rounded mb-4 flex flex-wrap justify-between items-center text-sm">
-                <h3 class="font-semibold mb-2 md:mb-0">Tất cả sản phẩm: {{ filteredProducts.length }}</h3>
-                <div class="flex flex-wrap gap-3 font-medium text-sm">
+              <div
+                class="bg-white p-3 shadow rounded mb-4 flex flex-col sm:flex-row sm:justify-between sm:items-center text-sm gap-3">
+                <h3 class="font-semibold">Tất cả sản phẩm: {{ filteredProducts.length }}</h3>
+                <!-- Nút mở bộ lọc trên mobile -->
+                <button @click="isFilterOpen = true"
+                  class="md:hidden flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200">
+                  <font-awesome-icon :icon="['fas', 'filter']" class="w-4 h-4" />
+                  Lọc
+                </button>
+                <!-- Bộ lọc trên desktop -->
+                <div class="hidden md:flex flex-wrap gap-3 font-medium text-sm">
                   <button v-for="(label, sortKey) in {
                     popular: 'Phổ biến',
                     sold: 'Bán chạy',
@@ -477,6 +507,59 @@
             </div>
           </section>
         </div>
+
+        <!-- Modal lọc trên mobile -->
+        <div v-if="isFilterOpen"
+          class="fixed inset-0 z-[9999] bg-black bg-opacity-50 flex items-end sm:items-center justify-center md:hidden">
+          <div
+            class="w-full sm:w-[90%] max-w-md bg-white rounded-t-lg sm:rounded-lg p-6 relative animate-slide-up max-h-[80vh] overflow-y-auto">
+            <button @click="isFilterOpen = false"
+              class="absolute top-4 right-4 text-gray-600 hover:text-black transition-all duration-200">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Bộ lọc</h3>
+            <div class="space-y-4">
+              <!-- Tìm kiếm -->
+              <div class="relative">
+                <input type="text" placeholder="Tìm kiếm sản phẩm tại cửa hàng" v-model="searchQuery"
+                  @input="filterProducts"
+                  class="w-full py-2.5 pl-4 pr-12 rounded-lg border border-gray-200 bg-white text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 shadow-sm hover:shadow-md text-sm" />
+                <button v-if="searchQuery" @click="searchQuery = ''; filterProducts()"
+                  class="absolute right-10 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 transition-all duration-200">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+                <svg class="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
+                  fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+              <!-- Sắp xếp -->
+              <div class="relative">
+                <select v-model="activeSort" @change="sortProducts(activeSort)"
+                  class="appearance-none w-full py-2.5 px-3 rounded-lg border border-gray-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 shadow-sm hover:shadow-md pr-8 text-sm">
+                  <option value="popular">Phổ biến</option>
+                  <option value="sold">Bán chạy</option>
+                  <option value="new">Hàng mới</option>
+                  <option value="price-asc">Giá thấp - cao</option>
+                  <option value="price-desc">Giá cao - thấp</option>
+                </select>
+                <svg class="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
+                  fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
+            <button @click="isFilterOpen = false"
+              class="mt-6 w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 font-semibold">
+              Áp dụng
+            </button>
+          </div>
+        </div>
       </div>
     </div>
     <div v-else-if="error" class="text-center py-4 text-red-500">Lỗi: {{ error }}</div>
@@ -543,6 +626,8 @@ const voucherPagination = ref({
 const activeTab = ref('Cửa hàng');
 const activeSort = ref('popular');
 const tabs = ['Cửa hàng', 'Giá sốc hôm nay', 'Hồ sơ cửa hàng', 'Voucher của shop'];
+const isCategoryOpen = ref(false); // Trạng thái mở/đóng danh mục trên mobile
+const isFilterOpen = ref(false); // Trạng thái mở/đóng modal lọc trên mobile
 
 const isLoggedIn = computed(() => auth.isLoggedIn);
 const currentUser = computed(() => auth.currentUser);
@@ -948,3 +1033,92 @@ onBeforeUnmount(() => {
   filterProducts.cancel();
 });
 </script>
+
+<style scoped>
+/* Animation cho modal lọc trên mobile */
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
+}
+
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+/* Tùy chỉnh select để loại bỏ mũi tên mặc định */
+select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+/* Tùy chỉnh dropdown option */
+select option {
+  padding: 8px 12px;
+  background: #fff;
+  color: #374151; /* gray-700 */
+  font-size: 0.875rem; /* text-sm */
+}
+
+select option:hover {
+  background: #eff6ff; /* blue-50 */
+  color: #2563eb; /* blue-600 */
+}
+
+/* Custom scrollbar */
+select::-webkit-scrollbar,
+div::-webkit-scrollbar {
+  width: 6px;
+}
+
+select::-webkit-scrollbar-track,
+div::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+select::-webkit-scrollbar-thumb,
+div::-webkit-scrollbar-thumb {
+  background: #9ca3af; /* gray-400 */
+  border-radius: 4px;
+}
+
+select::-webkit-scrollbar-thumb:hover,
+div::-webkit-scrollbar-thumb:hover {
+  background: #6b7280; /* gray-500 */
+}
+
+/* Hiệu ứng hover và focus */
+input:hover,
+select:hover {
+  border-color: #9ca3af; /* gray-400 */
+  box-shadow: 0 0 0 3px rgba(209, 213, 219, 0.2); /* gray-300 */
+}
+
+input:focus,
+select:focus {
+  border-color: transparent;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3); /* blue-500 */
+}
+
+/* Animation cho dropdown */
+select {
+  transition: all 0.3s ease;
+}
+
+select:focus + svg {
+  transform: translateY(-50%) rotate(180deg);
+  transition: transform 0.2s ease;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .grid-cols-2 {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

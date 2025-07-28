@@ -5,7 +5,7 @@
 
   <FooterCategories />
   <footer class="bg-[#f0f2f5]z text-gray-700 pt-10 pb-6 border-t border-gray-200 text-sm">
-    <div class="max-w-[1300px] mx-auto px-4">
+    <div class="max-w-7xl mx-auto px-4">
       <!-- Logo và giới thiệu -->
       <div class="text-center mb-10 px-4">
         <h2 class="text-2xl sm:text-3xl font-bold text-gray-800 tracking-wide">
