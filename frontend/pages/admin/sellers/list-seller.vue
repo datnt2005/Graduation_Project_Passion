@@ -36,7 +36,7 @@
           <option value="pending">Chờ xác minh</option>
           <option value="verified">Đã xác minh</option>
           <option value="rejected">Đã từ chối</option>
-          <option value ="banned"> Đã bị cấm</option>
+          <option value="banned"> Đã bị cấm</option>
         </select>
       </div>
 
@@ -64,7 +64,7 @@
                   'bg-green-100 text-green-700': seller.verification_status === 'verified',
                   'bg-yellow-100 text-yellow-700': seller.verification_status === 'pending',
                   'bg-red-100 text-red-700': seller.verification_status === 'rejected',
-                   'bg-red-100 text-red-700': seller.verification_status === 'banned'
+                  'bg-red-100 text-red-700': seller.verification_status === 'banned'
                 }">
                   {{ getVerifyText(seller.verification_status) }}
                 </span>
@@ -85,7 +85,8 @@
       <!-- Modal chi tiết -->
       <div v-if="detailModal"
         class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 font-sans backdrop-blur-sm">
-        <div class="bg-white rounded-xl shadow-xl w-full max-w-3xl relative animate-fadeIn p-6 md:p-8 overflow-y-auto max-h-screen">
+        <div
+          class="bg-white rounded-xl shadow-xl w-full max-w-3xl relative animate-fadeIn p-6 md:p-8 overflow-y-auto max-h-screen">
 
           <!-- Header -->
           <div class="border-b border-gray-200 pb-4">
@@ -109,42 +110,55 @@
             </div>
           </div>
 
-          <!-- Tab info -->
-          <div v-if="tab === 'info'" class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-            <div class="flex flex-col items-center border rounded-lg p-4">
-              <div class="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center text-xl font-bold">
-                {{ getInitials(currentDetail.user?.name) }}
-              </div>
-              <div class="mt-3 text-lg font-semibold text-gray-800">{{ currentDetail.user?.name || '-' }}</div>
-              <div class="mt-1 text-sm">
-                <span class="inline-block rounded-full px-2 py-0.5 text-xs font-medium"
-                  :class="currentDetail.user?.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-500'">
-                  {{ currentDetail.user?.status === 'active' ? 'Đang hoạt động' : 'Không hoạt động' }}
-                </span>
-              </div>
-              <div class="mt-2 text-sm text-gray-500">
-                🏪 {{ currentDetail.store_name || '-' }}
-              </div>
-            </div>
+         <!-- Tab info -->
+<div v-if="tab === 'info'" class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+  <!-- Bên trái: Thông tin tổng quan + thống kê -->
+  <div class="flex flex-col items-center border rounded-lg p-6">
+    <div class="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center text-xl font-bold">
+      {{ getInitials(currentDetail.user?.name) }}
+    </div>
+    <div class="mt-3 text-lg font-semibold text-gray-800">{{ currentDetail.user?.name || '-' }}</div>
+    <div class="mt-1 text-sm">
+   
+    </div>
+    <div class="mt-1 text-sm text-gray-500">
+      🏪 {{ currentDetail.store_name || '-' }}
+    </div>
 
-            <!-- Chi tiết -->
-            <div
-              class="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 border rounded-lg p-4 text-sm min-h-[420px]">
-              <div><strong>CCCD:</strong> {{ currentDetail.identity_card_number || '-' }}</div>
-              <div><strong>Ngày sinh:</strong> {{ currentDetail.date_of_birth || '-' }}</div>
-              <div><strong>Số điện thoại:</strong> {{ currentDetail.phone_number || '-' }}</div>
-              <div><strong>Email:</strong> {{ currentDetail.user?.email || '-' }}</div>
-              <div><strong>Địa chỉ:</strong> {{ currentDetail.personal_address || '-' }}</div>
-              <div><strong>Giới thiệu:</strong> {{ currentDetail.bio || '-' }}</div>
-              <div><strong>Mã số thuế:</strong> {{ currentDetail.tax_code || '-' }}</div>
-              <div><strong>Tên doanh nghiệp:</strong> {{ currentDetail.business_name || '-' }}</div>
-              <div><strong>Email doanh nghiệp:</strong> {{ currentDetail.business_email || '-' }}</div>
-              <div><strong>Địa chỉ lấy hàng:</strong> {{ currentDetail.pickup_address || '-' }}</div>
-              <div><strong>Giao hàng:</strong>
-                {{ currentDetail.shipping_options?.express === 'true' ? 'Giao hàng nhanh' : 'Không có thông tin' }}
-              </div>
-            </div>
-          </div>
+    <!-- Thống kê -->
+    <hr class="w-full my-4 border-gray-300" />
+    <div class="w-full text-sm space-y-1">
+      <div><strong>Tổng sản phẩm:</strong> {{ currentDetail.total_products }}</div>
+      <div><strong>Tổng đơn hàng:</strong> {{ currentDetail.total_orders }}</div>
+      <div><strong>Đơn hoàn thành:</strong> {{ currentDetail.completed_orders }}</div>
+      <div><strong>Doanh thu:</strong>
+        <span class="text-green-600 font-semibold">{{ formatCurrency(currentDetail.total_revenue) }}</span>
+      </div>
+      <div><strong>Lợi nhuận:</strong>
+        <span class="text-green-600 font-semibold">{{ formatCurrency(currentDetail.total_profit) }}</span>
+      </div>
+      <div><strong>Thua lỗ:</strong>
+        <span class="text-red-600 font-semibold">{{ formatCurrency(currentDetail.total_loss) }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bên phải: Thông tin chi tiết -->
+  <div class="md:col-span-2 border rounded-lg p-6 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+    <div><strong>CCCD:</strong> {{ currentDetail.identity_card_number || '-' }}</div>
+    <div><strong>Ngày sinh:</strong> {{ currentDetail.date_of_birth || '-' }}</div>
+    <div><strong>Số điện thoại:</strong> {{ currentDetail.phone_number || '-' }}</div>
+    <div><strong>Email:</strong> {{ currentDetail.user?.email || '-' }}</div>
+    <div><strong>Địa chỉ:</strong> {{ currentDetail.personal_address || '-' }}</div>
+    <div><strong>Giới thiệu:</strong> {{ currentDetail.bio || '-' }}</div>
+    <div><strong>Mã số thuế:</strong> {{ currentDetail.tax_code || '-' }}</div>
+    <div><strong>Tên doanh nghiệp:</strong> {{ currentDetail.business_name || '-' }}</div>
+    <div><strong>Email doanh nghiệp:</strong> {{ currentDetail.business_email || '-' }}</div>
+    <div><strong>Giao hàng nhanh:</strong> {{ currentDetail.shipping_options?.express ? 'Có' : 'Không' }}</div>
+    <div><strong>Giao hàng tiêu chuẩn:</strong> {{ currentDetail.shipping_options?.standard ? 'Có' : 'Không' }}</div>
+  </div>
+</div>
+
 
           <!-- Tab giấy tờ -->
           <div v-else-if="tab === 'verify'" class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
@@ -174,62 +188,66 @@
               </div>
             </div>
 
-           <div class="md:col-span-2 border rounded-lg p-4 flex flex-col justify-between">
-  <div>
-    <!-- Trạng thái xác minh -->
-    <div class="font-semibold text-gray-700 mb-2">Trạng thái xác minh</div>
-    <div class="mb-3">
-      <span v-if="currentDetail.verification_status === 'verified'"
-        class="inline-block bg-green-100 text-green-700 text-xs font-semibold px-3 py-1 rounded-full">✅ Đã xác minh</span>
-      <span v-else-if="currentDetail.verification_status === 'rejected'"
-        class="inline-block bg-red-100 text-red-700 text-xs font-semibold px-3 py-1 rounded-full">❌ Đã từ chối</span>
-      <span v-else-if="currentDetail.verification_status === 'banned'"
-        class="inline-block bg-gray-200 text-gray-600 text-xs font-semibold px-3 py-1 rounded-full">🚫 Đã bị cấm</span>
-      <span v-else
-        class="inline-block bg-yellow-100 text-yellow-700 text-xs font-semibold px-3 py-1 rounded-full">⏳ Chờ xác minh</span>
-    </div>
+            <div class="md:col-span-2 border rounded-lg p-4 flex flex-col justify-between">
+              <div>
+                <!-- Trạng thái xác minh -->
+                <div class="font-semibold text-gray-700 mb-2">Trạng thái xác minh</div>
+                <div class="mb-3">
+                  <span v-if="currentDetail.verification_status === 'verified'"
+                    class="inline-block bg-green-100 text-green-700 text-xs font-semibold px-3 py-1 rounded-full">✅ Đã
+                    xác minh</span>
+                  <span v-else-if="currentDetail.verification_status === 'rejected'"
+                    class="inline-block bg-red-100 text-red-700 text-xs font-semibold px-3 py-1 rounded-full">❌ Đã từ
+                    chối</span>
+                  <span v-else-if="currentDetail.verification_status === 'banned'"
+                    class="inline-block bg-gray-200 text-gray-600 text-xs font-semibold px-3 py-1 rounded-full">🚫 Đã bị
+                    cấm</span>
+                  <span v-else
+                    class="inline-block bg-yellow-100 text-yellow-700 text-xs font-semibold px-3 py-1 rounded-full">⏳
+                    Chờ xác minh</span>
+                </div>
 
-    <!-- Mô tả trạng thái -->
-    <div v-if="currentDetail.verification_status === 'rejected'"
-      class="bg-red-50 text-red-700 text-sm border border-red-200 rounded p-3">
-      Seller này đã bị từ chối.
-    </div>
-    <div v-else-if="currentDetail.verification_status === 'banned'"
-      class="bg-gray-100 text-gray-700 text-sm border border-gray-300 rounded p-3">
-      Seller này đã bị cấm khỏi hệ thống. 
-    </div>
-    <div v-else-if="currentDetail.verification_status === 'pending'"
-      class="bg-blue-50 text-blue-700 text-sm border border-blue-200 rounded p-3">
-      Seller đang chờ xác minh. Vui lòng kiểm tra thông tin kỹ trước khi phê duyệt.
-    </div>
-  </div>
+                <!-- Mô tả trạng thái -->
+                <div v-if="currentDetail.verification_status === 'rejected'"
+                  class="bg-red-50 text-red-700 text-sm border border-red-200 rounded p-3">
+                  Seller này đã bị từ chối.
+                </div>
+                <div v-else-if="currentDetail.verification_status === 'banned'"
+                  class="bg-gray-100 text-gray-700 text-sm border border-gray-300 rounded p-3">
+                  Seller này đã bị cấm khỏi hệ thống.
+                </div>
+                <div v-else-if="currentDetail.verification_status === 'pending'"
+                  class="bg-blue-50 text-blue-700 text-sm border border-blue-200 rounded p-3">
+                  Seller đang chờ xác minh. Vui lòng kiểm tra thông tin kỹ trước khi phê duyệt.
+                </div>
+              </div>
 
-  <!-- Hành động -->
-  <div class="flex gap-3 mt-6">
-    <!-- Nếu đang chờ xác minh -->
-    <template v-if="currentDetail.verification_status === 'pending'">
-      <button @click="approveSeller(currentDetail.id)" :disabled="loadingApprove"
-        class="flex-1 py-2 rounded bg-blue-700 hover:bg-blue-900 text-white font-semibold text-sm transition"
-        :class="{ 'opacity-60 cursor-not-allowed': loadingApprove }">
-        {{ loadingApprove ? 'Đang duyệt...' : 'Duyệt seller' }}
-      </button>
+              <!-- Hành động -->
+              <div class="flex gap-3 mt-6">
+                <!-- Nếu đang chờ xác minh -->
+                <template v-if="currentDetail.verification_status === 'pending'">
+                  <button @click="approveSeller(currentDetail.id)" :disabled="loadingApprove"
+                    class="flex-1 py-2 rounded bg-blue-700 hover:bg-blue-900 text-white font-semibold text-sm transition"
+                    :class="{ 'opacity-60 cursor-not-allowed': loadingApprove }">
+                    {{ loadingApprove ? 'Đang duyệt...' : 'Duyệt seller' }}
+                  </button>
 
-      <button @click="openReject(currentDetail)"
-        class="flex-1 py-2 rounded bg-red-400 hover:bg-red-600 text-white font-semibold text-sm transition">
-        Từ chối
-      </button>
-    </template>
+                  <button @click="openReject(currentDetail)"
+                    class="flex-1 py-2 rounded bg-red-400 hover:bg-red-600 text-white font-semibold text-sm transition">
+                    Từ chối
+                  </button>
+                </template>
 
-    <!-- Nếu đã xác minh -->
-    <template v-else-if="currentDetail.verification_status === 'verified'">
-      <button @click="banSeller(currentDetail.id)"
-        class="flex-1 py-2 rounded bg-red-600 hover:bg-red-700 text-white font-semibold text-sm transition">
-        🚫 Cấm seller
-      </button>
-    </template>
-    
-  </div>
-</div>
+                <!-- Nếu đã xác minh -->
+                <template v-else-if="currentDetail.verification_status === 'verified'">
+                  <button @click="banSeller(currentDetail.id)"
+                    class="flex-1 py-2 rounded bg-red-600 hover:bg-red-700 text-white font-semibold text-sm transition">
+                    🚫 Cấm seller
+                  </button>
+                </template>
+
+              </div>
+            </div>
 
           </div>
           <!-- Modal từ chối -->
@@ -321,6 +339,14 @@ const fetchSellers = async () => {
     loading.value = false
   }
 }
+
+const formatCurrency = (value) => {
+  if (typeof value !== 'number') return '-';
+  return value.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
+};
+
+
+
 
 onMounted(fetchSellers)
 
