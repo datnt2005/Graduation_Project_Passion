@@ -1,0 +1,125 @@
+[33mbdb0303[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mchuong[m[33m, [m[1;31morigin/master[m[33m, [m[1;31morigin/HEAD[m[33m)[m HEAD@{0}: pull origin master: Fast-forward
+[33mafe63d8[m[33m ([m[1;31morigin/chuong[m[33m)[m HEAD@{1}: checkout: moving from chuong-test to chuong
+[33m7fff426[m[33m ([m[1;32mchuong-test[m[33m)[m HEAD@{2}: commit (merge): nhanh loi~
+[33mdd2f8a0[m[33m ([m[1;31morigin/chuong-test[m[33m)[m HEAD@{3}: checkout: moving from chuong to chuong-test
+[33mafe63d8[m[33m ([m[1;31morigin/chuong[m[33m)[m HEAD@{4}: commit: chuong
+[33mc3680dc[m HEAD@{5}: commit: chuong add notification to follower when seller add coupon
+[33ma07fed9[m HEAD@{6}: commit: xóa bớt giao diện đơn hàng
+[33m23e5845[m HEAD@{7}: commit: chuong add noti duyệt san pham cho seller
+[33m4b3bf9f[m HEAD@{8}: commit: chuong add notification support
+[33m6ecd11a[m HEAD@{9}: commit: chuong add notification post
+[33m5191aa1[m HEAD@{10}: commit: chuong update seller register UI
+[33m14417ef[m HEAD@{11}: commit: chuong add notification when create products
+[33m6c008ce[m HEAD@{12}: commit: update notification admin
+[33maf9fc9e[m HEAD@{13}: commit: chuong add notification admin
+[33md03fd94[m HEAD@{14}: commit (merge): chuong merge
+[33me9bc84a[m HEAD@{15}: commit: updatge
+[33mc4f0c98[m HEAD@{16}: pull origin master: Fast-forward
+[33m1352fb4[m HEAD@{17}: commit: chuong update tag
+[33me663662[m HEAD@{18}: commit: chuong done return
+[33m8915743[m HEAD@{19}: commit: chuong update return
+[33mf223034[m HEAD@{20}: commit: chuong update inventory
+[33mbc23321[m HEAD@{21}: commit: chuong update
+[33m528e040[m HEAD@{22}: pull origin chuong: Fast-forward
+[33m7673cf3[m HEAD@{23}: commit: chuong
+[33mebef939[m HEAD@{24}: commit: chuong update inventory
+[33mf672af0[m HEAD@{25}: commit: chuong update inventory
+[33m1e99040[m HEAD@{26}: commit: chuong update inventorry
+[33m3f0215f[m HEAD@{27}: commit: add migrate bang quan ly' kho
+[33m04c1c4d[m HEAD@{28}: pull origin master: Fast-forward
+[33mf2845a2[m HEAD@{29}: reset: moving to HEAD
+[33mf2845a2[m HEAD@{30}: commit: update UI
+[33m8801b79[m HEAD@{31}: commit: seller customer
+[33m379cef2[m HEAD@{32}: pull origin master: Fast-forward
+[33m42fd4d5[m HEAD@{33}: commit: update seller
+[33mfb61a45[m HEAD@{34}: commit: chuong update seller pro5
+[33mfb48523[m HEAD@{35}: commit: chuong update
+[33mdd3091f[m HEAD@{36}: commit: chuong update progress seller register
+[33m16bc5a0[m HEAD@{37}: commit: update seller
+[33mb916b3a[m HEAD@{38}: commit: chuong update register seller
+[33m7fc013f[m HEAD@{39}: commit: merge
+[33mee7943a[m HEAD@{40}: pull origin master: Fast-forward
+[33maf13fb2[m HEAD@{41}: commit: chuong update header UI, API role check, and FE UI role
+[33m3a08f21[m HEAD@{42}: commit: chuong update phan quyen
+[33mfa6900a[m HEAD@{43}: commit (merge): chuong update
+[33m8e7a8db[m HEAD@{44}: commit: chuong update
+[33m294bd97[m HEAD@{45}: checkout: moving from chuong-test to chuong
+[33mdd2f8a0[m[33m ([m[1;31morigin/chuong-test[m[33m)[m HEAD@{46}: reset: moving to HEAD
+[33mdd2f8a0[m[33m ([m[1;31morigin/chuong-test[m[33m)[m HEAD@{47}: commit (merge): merge
+[33m294bd97[m HEAD@{48}: checkout: moving from chuong to chuong-test
+[33m294bd97[m HEAD@{49}: checkout: moving from chuong-test to chuong
+[33m294bd97[m HEAD@{50}: checkout: moving from chuong to chuong-test
+[33m294bd97[m HEAD@{51}: commit: phân quyền
+[33m1716f43[m HEAD@{52}: commit: tach file api de bao tri
+[33m9864d97[m HEAD@{53}: reset: moving to HEAD
+[33m9864d97[m HEAD@{54}: commit: update order user
+[33m176d115[m HEAD@{55}: commit: update UI admin seller
+[33m7e255ec[m HEAD@{56}: commit: update orders
+[33m3a92d0a[m HEAD@{57}: commit: update detail show order
+[33m752c82e[m HEAD@{58}: commit: update order user
+[33m83fc8e3[m HEAD@{59}: reset: moving to origin/chuong
+[33m83fc8e3[m HEAD@{60}: commit: ipdate
+[33m1f623d5[m HEAD@{61}: commit: fix BUG BUI VAN CHAU
+[33m5ceb14f[m HEAD@{62}: commit: update
+[33m928fb4a[m HEAD@{63}: rebase (finish): returning to refs/heads/chuong
+[33m928fb4a[m HEAD@{64}: rebase (pick): dat update
+[33mfd8c0e4[m HEAD@{65}: rebase (continue): master marge can fix
+[33m088776d[m HEAD@{66}: rebase (continue): update test case
+[33mc4d2a0b[m HEAD@{67}: rebase (continue): update filter product
+[33mbe66bd7[m HEAD@{68}: rebase (continue): update alert
+[33mfed9c19[m HEAD@{69}: rebase (continue): update interface
+[33m384462c[m HEAD@{70}: rebase (pick): Update register.vue
+[33ma9affe2[m HEAD@{71}: rebase (pick): chau update register.vue seller and controllere sellerController
+[33m0524468[m HEAD@{72}: rebase (continue): chau update register.vue seller and controllere sellerController
+[33mb578c7d[m HEAD@{73}: rebase (continue): chauupdate code validator
+[33m38e2013[m HEAD@{74}: pull origin chuong --rebase (pick): update
+[33ma26666b[m HEAD@{75}: pull origin chuong --rebase (start): checkout a26666bee2e61d52c0e66cd4e1acadd369f17278
+[33me7c2881[m HEAD@{76}: rebase (abort): returning to refs/heads/chuong
+[33m94d6037[m HEAD@{77}: commit: merge
+[33me74efc4[m HEAD@{78}: pull origin chuong --rebase (pick): update
+[33ma26666b[m HEAD@{79}: pull origin chuong --rebase (start): checkout a26666bee2e61d52c0e66cd4e1acadd369f17278
+[33me7c2881[m HEAD@{80}: commit (merge): merge
+[33mcf73153[m HEAD@{81}: commit: update
+[33m2a9e793[m HEAD@{82}: reset: moving to 2a9e793
+[33ma26666b[m HEAD@{83}: commit (merge): merge
+[33m2a9e793[m HEAD@{84}: commit: update
+[33mf58626b[m HEAD@{85}: commit: update UI seller admin
+[33m493c27e[m HEAD@{86}: commit (merge): merge chaufrontend
+[33m0767370[m HEAD@{87}: commit: update api seller
+[33m68bf209[m HEAD@{88}: commit: update UI seller
+[33m16acfcc[m HEAD@{89}: commit: add follow seller
+[33m9a96338[m HEAD@{90}: commit (merge): merge
+[33m5c9c2da[m HEAD@{91}: commit: chuong update UI
+[33m84e25aa[m HEAD@{92}: commit: update UI
+[33m0399b8c[m HEAD@{93}: commit: update seller
+[33m56330af[m HEAD@{94}: commit (merge): merging
+[33m6e5d137[m HEAD@{95}: commit: update
+[33mb6fdfe5[m HEAD@{96}: commit: add regiser sellers
+[33m537c724[m HEAD@{97}: pull origin master: Fast-forward
+[33m7a41470[m HEAD@{98}: commit: update
+[33ma7b2ad7[m HEAD@{99}: commit: UI seller update
+[33mb287b82[m HEAD@{100}: commit (merge): update
+[33m6c6da32[m HEAD@{101}: commit: update
+[33m45b204b[m HEAD@{102}: commit: update pro5
+[33m3a066fc[m HEAD@{103}: commit: pro5 user
+[33m7bbbd08[m HEAD@{104}: commit: update UI
+[33m21f8650[m HEAD@{105}: commit: update seller Auth
+[33m8edb0e4[m HEAD@{106}: commit (merge): update
+[33m11b5b4e[m HEAD@{107}: commit (merge): update
+[33m2bbf2c1[m HEAD@{108}: reset: moving to HEAD
+[33m2bbf2c1[m HEAD@{109}: commit: add FE seller
+[33m2ed28d0[m HEAD@{110}: reset: moving to HEAD~1
+[33mc62db0c[m HEAD@{111}: reset: moving to HEAD~1
+[33me11618c[m HEAD@{112}: commit: update mail
+[33mc62db0c[m HEAD@{113}: commit: update readme
+[33m2ed28d0[m HEAD@{114}: commit: update readme
+[33m82e5bda[m HEAD@{115}: commit: update
+[33m15a95df[m HEAD@{116}: commit: update toc do gui mail
+[33mad14181[m HEAD@{117}: commit: update crud
+[33mf9d1231[m HEAD@{118}: commit: crud user
+[33ma83f6c2[m HEAD@{119}: commit: update google
+[33m0110ac0[m HEAD@{120}: pull origin master: Fast-forward
+[33m33e7a1d[m[33m ([m[1;32mmaster[m[33m)[m HEAD@{121}: merge master: Fast-forward
+[33m1b7fffa[m HEAD@{122}: checkout: moving from master to chuong
+[33m33e7a1d[m[33m ([m[1;32mmaster[m[33m)[m HEAD@{123}: commit: login google
+[33med49751[m HEAD@{124}: clone: from github.com:datnt2005/Graduation_Project_Passion.git
