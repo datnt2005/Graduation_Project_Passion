@@ -447,20 +447,9 @@
   const selectedCategories = ref([]);
   
   // Mock data (thay thế bằng API call sau)
-  const products = ref([
-    { id: 1, name: 'Áo len nữ dài tay cổ tròn' },
-    { id: 2, name: 'Áo len nữ dài tay cổ tròn - Đỏ' },
-    { id: 3, name: 'Áo len nữ dài tay cổ tròn - Hồng' },
-    { id: 4, name: 'Áo khoác dạ nữ hai lớp cổ bẻ dáng suông' },
-    { id: 5, name: 'Áo len polo nam cộc tay' },
-  ]);
+  const products = ref([]);
   
-  const categories = ref([
-    { id: 1, name: 'Áo len nữ' },
-    { id: 2, name: 'Áo khoác nữ' },
-    { id: 3, name: 'Áo len nam' },
-    { id: 4, name: 'Áo khoác nam' },
-  ]);
+  const categories = ref([]);
   
   // Computed properties cho filtered items với tìm kiếm không phân biệt dấu
   const removeVietnameseTones = (str) => {

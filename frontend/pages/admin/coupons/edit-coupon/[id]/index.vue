@@ -1,4 +1,11 @@
 <template>
+  <h1 class="text-xl font-semibold text-gray-800 px-6 pt-6">Thêm chiết khấu</h1>
+  <div class="px-6 pb-4">
+    <nuxt-link to="/admin/coupons/list-coupon" class="text-gray-600 hover:underline text-sm">
+      Danh sách chiết khấu
+    </nuxt-link>
+    <span class="text-gray-600 text-sm"> / Chỉnh sửa chiết khấu</span>
+  </div>
   <div class="flex min-h-screen bg-gray-100">
     <!-- XÓA overlay loading toàn trang -->
     <!-- Sidebar -->

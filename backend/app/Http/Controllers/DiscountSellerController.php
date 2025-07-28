@@ -14,7 +14,7 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Notification;
 
-use App\Models\NotificationRecipient;SELLER
+use App\Models\NotificationRecipient;
 class DiscountSellerController extends Controller
 {
     // List all discounts for current seller
@@ -540,15 +540,10 @@ class DiscountSellerController extends Controller
     public function sellerProducts(Request $request)
     {
         try {
-            \Log::info('sellerProducts method called');
             $user = Auth::user();
-            \Log::info('User:', ['user' => $user]);
-            
             $seller = $user->seller;
-            \Log::info('Seller:', ['seller' => $seller]);
             
             if (!$seller) {
-                \Log::error('No seller found for user');
                 return response()->json([
                     'success' => false,
                     'message' => 'Không tìm thấy seller'
@@ -557,7 +552,6 @@ class DiscountSellerController extends Controller
             
             $perPage = $request->get('per_page', 1000);
             $discountId = $request->get('discount_id'); // Thêm parameter để lấy discount_id
-            \Log::info('Per page:', ['per_page' => $perPage, 'discount_id' => $discountId]);
             
             // Base query cho tất cả sản phẩm của seller
             $query = \App\Models\Product::where('seller_id', $seller->id);
