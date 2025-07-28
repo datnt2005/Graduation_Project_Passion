@@ -701,6 +701,23 @@ public function getStoreDiscounts($slug)
             ->where('end_date', '>', now())
             ->whereNull('seller_id')
             ->get();
+            
+        // Log để debug
+        Log::info('Discounts from indexPublic:', [
+            'count' => $discounts->count(),
+            'discounts' => $discounts->map(function($d) {
+                return [
+                    'id' => $d->id,
+                    'name' => $d->name,
+                    'code' => $d->code,
+                    'discount_type' => $d->discount_type,
+                    'discount_value' => $d->discount_value,
+                    'min_order_value' => $d->min_order_value,
+                    'seller_id' => $d->seller_id
+                ];
+            })->toArray()
+        ]);
+        
         return response()->json([
             'success' => true,
             'data' => $discounts

@@ -74,56 +74,66 @@
           </div>
         </div>
 
-        <div class="flex items-center justify-between gap-4 mt-4">
+        <div class="flex items-start justify-between gap-4 mt-4">
           <div class="flex-1">
             <label class="block text-xs text-gray-600 mb-1">Ghi chú cho cửa hàng</label>
             <textarea v-model="shop.note" rows="1"
               class="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
               placeholder="Nhập ghi chú cho cửa hàng này..."></textarea>
           </div>
-          <div class="text-right text-sm font-semibold text-gray-700 mt-4 space-y-0.5">
-            <template v-if="shop.discount > 0 || shop.shipping_discount > 0">
-              <div>Tiền ban đầu: <span class="font-normal">{{ formatPrice(calculateStoreTotal(shop)) }}</span></div>
-              <div v-if="shop.discount > 0">
-                Tiền giảm (sản phẩm): <span class="text-green-600 font-normal">-{{ formatPrice(shop.discount) }}</span>
-                <button @click="removeDiscount(shop)" class="ml-2 text-red-500 underline text-xs">Huỷ mã</button>
-              </div>
-              <div v-if="shop.shipping_discount > 0">
-                Tiền giảm (phí ship): <span class="text-green-600 font-normal">-{{ formatPrice(shop.shipping_discount) }}</span>
-                <button @click="removeShippingDiscount(shop)" class="ml-2 text-red-500 underline text-xs">Huỷ mã</button>
-              </div>
-              <div>
-                Tổng tiền: <span class="text-blue-600 text-base font-bold">{{ formatPrice(calculateStoreTotal(shop) - (shop.discount || 0)) }}</span>
-              </div>
-              <div class="text-xs text-green-600 mt-1">
-                <i class="fas fa-ticket-alt mr-1"></i>Đã áp dụng mã giảm giá
-              </div>
-            </template>
-            <template v-else>
-              <div>
-                Tổng tiền: <span class="text-blue-600 text-base font-bold">{{ formatPrice(calculateStoreTotal(shop)) }}</span>
-              </div>
-              <div class="text-xs text-gray-500 mt-1">
-                <i class="fas fa-info-circle mr-1"></i>Chưa áp dụng mã giảm giá
-              </div>
-            </template>
-            <div class="text-xs text-gray-700 mt-1">
-              Phí vận chuyển:
-              <span v-if="shop.shipping_discount > 0">
-                <span class="line-through text-gray-400 mr-1">{{ formatPrice(shop.original_shipping_fee || shop.shipping_fee) }}</span>
-                <span class="font-semibold text-blue-700">{{ formatPrice(Math.max(0, (shop.original_shipping_fee || shop.shipping_fee) - shop.shipping_discount)) }}</span>
+          <div class="text-right text-sm text-gray-700 space-y-2">
+            <div class="flex justify-between gap-4">
+              <span>Tổng tiền hàng:</span>
+              <span class="font-semibold">{{ formatPrice(calculateStoreTotal(shop)) }} đ</span>
+            </div>
+            <div class="flex justify-between gap-4">
+              <span>Phí vận chuyển:</span>
+              <span class="font-semibold">
+                <span v-if="shop.shipping_discount > 0" class="line-through text-gray-400 mr-1">
+                  {{ formatPrice(shop.original_shipping_fee || shop.shipping_fee || 0) }} đ
+                </span>
+                <span v-if="shop.shipping_fee > 0 || shop.original_shipping_fee > 0">
+                  {{ formatPrice(Math.max(0, (shop.original_shipping_fee || shop.shipping_fee || 0) - (shop.shipping_discount || 0))) }} đ
+                </span>
+                <span v-else class="text-gray-500">
+                  {{ loadingFees[shop.seller_id] ? 'Đang tính...' : 'Chưa tính' }}
+                </span>
               </span>
-              <span v-else class="font-semibold">{{ formatPrice(shop.shipping_fee) }}</span>
+            </div>
+            <div v-if="shop.discount > 0" class="flex justify-between gap-4">
+              <span>Giảm giá sản phẩm:</span>
+              <div class="flex items-center gap-2">
+                <span class="text-green-600 font-semibold">-{{ formatPrice(shop.discount) }} đ</span>
+                <button @click="removeDiscount(shop)" class="text-red-500 text-xs hover:underline">Huỷ</button>
+              </div>
+            </div>
+            <div v-if="shop.admin_product_discount > 0" class="text-xs text-blue-600">
+              <i class="fas fa-info-circle mr-1"></i> Bao gồm {{ formatPrice(shop.admin_product_discount) }} đ từ mã admin
+            </div>
+            <div v-if="shop.shipping_discount > 0" class="flex justify-between gap-4">
+              <span>Giảm giá phí ship:</span>
+              <div class="flex items-center gap-2">
+                <span class="text-green-600 font-semibold">-{{ formatPrice(shop.shipping_discount) }} đ</span>
+                <button @click="removeShippingDiscount(shop)" class="text-red-500 text-xs hover:underline">Huỷ</button>
+              </div>
+            </div>
+            <div class="flex justify-between gap-4 pt-2 border-t border-gray-200">
+              <span class="font-semibold">Tổng thanh toán:</span>
+              <span class="font-bold text-blue-600">{{ formatPrice(calculateStoreTotal(shop) - (shop.discount || 0) + Math.max(0, (shop.original_shipping_fee || shop.shipping_fee) - (shop.shipping_discount || 0))) }} đ</span>
+            </div>
+            <div class="text-xs text-gray-500 mt-1">
+              <i class="fas fa-ticket-alt mr-1"></i>
+              {{ shop.discount > 0 || shop.shipping_discount > 0 ? 'Đã áp dụng mã giảm giá' : 'Chưa áp dụng mã giảm giá' }}
             </div>
           </div>
         </div>
       </div>
     </div>
     <div class="text-right text-sm font-semibold text-gray-900 mt-4">
-      Tổng tiền vận chuyển:
+      Tổng phí vận chuyển:
       <span id="shipping-fee-display">
-        <span v-if="totalShippingDiscount > 0" class="line-through text-gray-400 mr-1">{{ formatPrice(totalOriginalShippingFee) }}</span>
-        <span class="font-bold text-blue-600">{{ formatPrice(totalShippingFee) }}</span>
+        <span v-if="totalShippingDiscount > 0" class="line-through text-gray-400 mr-1">{{ formatPrice(totalOriginalShippingFee) }} đ</span>
+        <span class="font-bold text-blue-600">{{ formatPrice(totalShippingFee) }} đ</span>
       </span>
     </div>
     <div v-if="Object.values(fees).includes('Lỗi')" class="text-red-500 text-xs mt-2">
@@ -152,8 +162,7 @@
                   <i class="fas fa-ticket-alt text-blue-500 text-lg"></i>
                 </div>
                 <span v-if="discount.level"
-                  class="text-[10px] text-blue-600 bg-blue-50 rounded px-1 py-0.5 font-medium">{{ discount.level
-                  }}</span>
+                  class="text-[10px] text-blue-600 bg-blue-50 rounded px-1 py-0.5 font-medium">{{ discount.level }}</span>
               </div>
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2 mb-0.5">
@@ -283,7 +292,15 @@ const totalShippingFee = computed(() => {
 });
 
 const calculateAllShippingFees = async () => {
-  if (isCalculatingShipping.value) return;
+  console.log('=== calculateAllShippingFees START ===');
+  console.log('isCalculatingShipping:', isCalculatingShipping.value);
+  console.log('props.cartItems:', props.cartItems);
+  console.log('props.address:', props.address);
+  
+  if (isCalculatingShipping.value) {
+    console.log('Already calculating, skipping...');
+    return;
+  }
   isCalculatingShipping.value = true;
 
   if (!props.cartItems || !Array.isArray(props.cartItems) || props.cartItems.length === 0) {
@@ -402,11 +419,20 @@ const calculateAllShippingFees = async () => {
       }, props.address);
 
       if (fee !== null && !isNaN(fee) && fee >= 0) {
+        console.log(`✅ Shop ${shop.seller_id}: Calculated shipping fee = ${fee}`);
         fees.value[`${shop.seller_id}_${effectiveMethod.service_id}`] = fee;
         const shopIndex = localCartItems.value.findIndex(s => s.seller_id === shop.seller_id);
         if (shopIndex !== -1) {
           localCartItems.value[shopIndex].shipping_fee = fee;
           localCartItems.value[shopIndex].original_shipping_fee = fee; // Lưu phí gốc
+          console.log(`✅ Updated shop ${shop.seller_id} shipping_fee to ${fee}`);
+          console.log('Updated localCartItems:', localCartItems.value.map(s => ({
+            seller_id: s.seller_id,
+            shipping_fee: s.shipping_fee,
+            original_shipping_fee: s.original_shipping_fee
+          })));
+        } else {
+          console.warn(`❌ Shop ${shop.seller_id} not found in localCartItems`);
         }
         emit('update:shippingFee', { sellerId: shop.seller_id, fee });
       } else {
@@ -437,6 +463,12 @@ const calculateAllShippingFees = async () => {
     return sum + Math.max(0, shippingFee - shippingDiscount);
   }, 0);
   console.log(`Tổng phí vận chuyển sau chiết khấu: ${totalShippingFeeValue}`);
+  console.log('localCartItems after calculation:', localCartItems.value.map(s => ({
+    seller_id: s.seller_id,
+    shipping_fee: s.shipping_fee,
+    original_shipping_fee: s.original_shipping_fee,
+    shipping_discount: s.shipping_discount
+  })));
   emit('update:totalShippingFee', totalShippingFeeValue);
 
   if (Object.values(fees.value).some(f => f === 'Lỗi')) {
@@ -445,6 +477,7 @@ const calculateAllShippingFees = async () => {
 
   loadingShipping.value = false;
   isCalculatingShipping.value = false;
+  console.log('=== calculateAllShippingFees END ===');
   console.timeEnd('calculateAllShippingFees');
 };
 
@@ -680,7 +713,8 @@ watch(() => props.cartItems, (val) => {
     note: shop.note || '',
     shipping_fee: shop.shipping_fee || 0,
     original_shipping_fee: shop.original_shipping_fee || shop.shipping_fee || 0,
-    service_id: shop.service_id || null
+    service_id: shop.service_id || null,
+    admin_product_discount: shop.admin_product_discount || 0
   }));
 }, { immediate: true, deep: true });
 
@@ -724,3 +758,16 @@ onMounted(async () => {
   await fetchUserVouchers();
 });
 </script>
+
+<style scoped>
+.text-right .flex {
+  align-items: center;
+}
+.text-right .flex span {
+  white-space: nowrap;
+}
+.text-right .border-t {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+}
+</style>

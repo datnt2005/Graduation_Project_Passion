@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Shipping Fee</title>
+</head>
+<body>
+    <h1>Test Shipping Fee Calculation</h1>
+    <div id="debug-info">
+        <h2>Debug Information</h2>
+        <div id="cart-items"></div>
+        <div id="shipping-fees"></div>
+        <div id="total-shipping"></div>
+    </div>
+
+    <script>
+        // Mock data để test
+        const mockCartItems = [
+            {
+                seller_id: 1,
+                store_name: 'Test Store',
+                shipping_fee: 20500,
+                original_shipping_fee: 20500,
+                shipping_discount: 11111,
+                discount: 16666,
+                items: [
+                    {
+                        id: 1,
+                        product: { name: 'Test Product' },
+                        sale_price: 111111,
+                        quantity: 1
+                    }
+                ]
+            }
+        ];
+
+        // Test tính toán
+        const totalShippingFee = mockCartItems.reduce((sum, store) => sum + (store.shipping_fee || 0), 0);
+        const realShippingFee = mockCartItems.reduce((sum, shop) => {
+            const originalFee = shop.original_shipping_fee || shop.shipping_fee || 0;
+            const discount = shop.shipping_discount || 0;
+            const realFee = Math.max(0, originalFee - discount);
+            return sum + realFee;
+        }, 0);
+
+        document.getElementById('cart-items').innerHTML = `
+            <h3>Cart Items:</h3>
+            <pre>${JSON.stringify(mockCartItems, null, 2)}</pre>
+        `;
+
+        document.getElementById('shipping-fees').innerHTML = `
+            <h3>Shipping Fees:</h3>
+            <p>totalShippingFee: ${totalShippingFee}</p>
+            <p>realShippingFee: ${realShippingFee}</p>
+        `;
+
+        document.getElementById('total-shipping').innerHTML = `
+            <h3>Expected Results:</h3>
+            <p>Original shipping fee: 20,500 VND</p>
+            <p>Shipping discount: 11,111 VND</p>
+            <p>Final shipping fee: 9,389 VND</p>
+        `;
+    </script>
+</body>
+</html> 
