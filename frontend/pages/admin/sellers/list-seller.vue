@@ -139,10 +139,16 @@
               <div><strong>Mã số thuế:</strong> {{ currentDetail.tax_code || '-' }}</div>
               <div><strong>Tên doanh nghiệp:</strong> {{ currentDetail.business_name || '-' }}</div>
               <div><strong>Email doanh nghiệp:</strong> {{ currentDetail.business_email || '-' }}</div>
-              <div><strong>Địa chỉ lấy hàng:</strong> {{ currentDetail.pickup_address || '-' }}</div>
-              <div><strong>Giao hàng:</strong>
-                {{ currentDetail.shipping_options?.express === 'true' ? 'Giao hàng nhanh' : 'Không có thông tin' }}
-              </div>
+             <div>
+  <strong>Giao hàng nhanh:</strong>
+  <span>{{ currentDetail.shipping_options?.express ? ' Có' : ' Không' }}</span>
+</div>
+
+<div>
+  <strong>Giao hàng tiêu chuẩn:</strong>
+  <span>{{ currentDetail.shipping_options?.standard ? ' Có' : ' Không' }}</span>
+</div>
+
             </div>
           </div>
 
@@ -312,7 +318,7 @@ const fetchSellers = async () => {
     const res = await secureAxios(`${API}/admin/sellers`, {
       method: 'GET'
     }, ['admin'])
-    sellers.value = res.data || []
+    sellers.value = res.data.data || []
   } catch (error) {
     console.error(error)
     sellers.value = []

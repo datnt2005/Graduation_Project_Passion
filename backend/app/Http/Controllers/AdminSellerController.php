@@ -73,7 +73,7 @@ class AdminSellerController extends Controller
 
     $user = $seller->user;
     $user->role = 'user';
-    $user->save(); 
+    $user->save();
 
     return response()->json(['message' => 'Đã cấm seller thành công.']);
 }
