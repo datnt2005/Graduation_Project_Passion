@@ -43,7 +43,7 @@ class SellerController extends Controller
 
             // Lọc theo trạng thái
             if ($request->has('status')) {
-                $query->where('status', $request->status);
+                $query->where('verification_status', $request->status);
             }
 
             // Tính toán các thống kê cho mỗi seller
@@ -88,6 +88,7 @@ class SellerController extends Controller
                             'email' => $seller->user->email,
                         ],
                         'status' => $seller->status,
+                        'verification_status' => $seller->verification_status,
                         'created_at' => $seller->created_at,
                         'total_orders' => $totalOrders,
                         'completed_orders' => $completedOrders,

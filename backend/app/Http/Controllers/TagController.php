@@ -229,7 +229,7 @@ public function index(Request $request)
             'slug'         => $p->slug,
             'price'        => $variant->price ?? null,
             'sale_price'   => $variant->sale_price ?? null,
-            'thumbnail'    => $variant->thumbnail ?? null,
+            'thumbnail'    => $variant->thumbnail ?? "products/default.png",
             'quantity'     => $variant->quantity ?? null,
             'created_at'   => $p->created_at,
             'status'       => $p->status,

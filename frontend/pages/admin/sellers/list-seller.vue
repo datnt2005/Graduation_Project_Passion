@@ -312,7 +312,7 @@ const fetchSellers = async () => {
     const res = await secureAxios(`${API}/admin/sellers`, {
       method: 'GET'
     }, ['admin'])
-    sellers.value = res.data || []
+    sellers.value = res.data.data || []
   } catch (error) {
     console.error(error)
     sellers.value = []
