@@ -40,12 +40,13 @@
               </div>
               <!-- Shipping Selector -->
               <ShippingSelector
-    :address="selectedAddress"
-    :cart-items="cartItems"
-    @update:shippingFee="updateShippingFee"
-    @update:shopDiscount="handleShopDiscountUpdate"
-    @update:totalShippingFee="updateTotalShippingFee"
-  />
+                :address="selectedAddress"
+                :cart-items="cartItems"
+                @update:shippingFee="updateShippingFee"
+                @update:shopDiscount="handleShopDiscountUpdate"
+                @update:totalShippingFee="updateTotalShippingFee"
+                @update:shippingDiscount="handleShippingDiscountUpdate"
+              />
 
               <!-- Payment Methods -->
               <section class="bg-white rounded-[4px] p-5">
@@ -404,11 +405,7 @@
                   </div>
                   <div class="flex justify-between">
                     <span class="text-[14px]">Tổng phí vận chuyển</span>
-                    <span class="text-[14px] text-gray-800">{{ formatPrice(totalShippingFee) }} đ</span>
-                  </div>
-                  <div class="flex justify-between">
-                    <span class="text-[14px]">Giảm giá phí ship</span>
-                    <span class="text-green-600">- {{ formatPrice(totalShippingDiscount) }} đ</span>
+                    <span class="text-[14px] text-gray-800">{{ formatPrice(realShippingFee) }} đ</span>
                   </div>
                   <div v-for="store in cartItems" :key="store.seller_id" class="flex justify-between">
                     <span class="text-[14px]">Giảm giá {{ store.store_name || store.seller_id }}</span>
@@ -417,6 +414,10 @@
                   <div v-if="calculateDiscount(total) > 0" class="flex justify-between">
                     <span class="text-[14px]">Giảm giá khuyến mãi</span>
                     <span class="text-green-600">- {{ formatPrice(calculateDiscount(total)) }} đ</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-[14px]">Tổng giảm giá phí ship</span>
+                    <span class="text-green-600">- {{ formatPrice(totalShippingDiscount) }} đ</span>
                   </div>
                   <div class="flex justify-between pt-3 border-t border-gray-200 text-base font-semibold">
                     <span class="text-[14px]">Tổng thanh toán</span>
@@ -582,6 +583,24 @@ const updateTotalShippingFee = (fee) => {
   console.log(`Cập nhật totalShippingFee: ${fee}`);
 };
 
+const handleShippingDiscountUpdate = (discountData) => {
+  console.log('Cập nhật shipping discount từ ShippingSelector:', discountData);
+  
+  if (discountData.sellerId) {
+    // Cập nhật discount cho shop cụ thể
+    const shop = cartItems.value.find(s => s.seller_id === discountData.sellerId);
+    if (shop) {
+      shop.shipping_discount = discountData.shippingDiscount || 0;
+      console.log(`Đã cập nhật shipping_discount cho shop ${shop.seller_id}: ${shop.shipping_discount}`);
+    }
+  } else if (discountData.totalDiscount !== undefined) {
+    // Cập nhật tổng discount từ ShippingSelector
+    console.log(`Tổng shipping discount: ${discountData.totalDiscount}`);
+    console.log(`Tổng phí gốc: ${discountData.totalOriginalFee}`);
+    console.log(`Tổng phí thực tế: ${discountData.totalRealFee}`);
+  }
+};
+
 const shopsWithDiscount = computed(() => {
   return cartItems.value.filter(shop => shop.discount > 0);
 });
@@ -599,8 +618,10 @@ const uniqueShippingDiscounts = computed(() => {
 
 const shopCount = computed(() => cartItems.value.length);
 
+// Thay thế totalShippingDiscount bằng tổng phần đã chia đều cho từng shop
 const totalShippingDiscount = computed(() => {
-  return typeof getShippingDiscount === 'function' ? getShippingDiscount(total.value) : 0;
+  // Sử dụng dữ liệu từ ShippingSelector thay vì tính từ useCheckout
+  return cartItems.value.reduce((sum, shop) => sum + (shop.shipping_discount || 0), 0);
 });
 
 // Hàm xử lý sự kiện update:totalShippingFee
@@ -610,7 +631,8 @@ const handleTotalShippingFeeUpdate = (newTotal) => {
 };
 
 const realShippingFee = computed(() => {
-  return Math.max(0, totalShippingFee.value - totalShippingDiscount.value);
+  // Sử dụng totalShippingFee từ ShippingSelector
+  return totalShippingFee.value;
 });
 
 const realFinalTotal = computed(() => {

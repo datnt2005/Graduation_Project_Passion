@@ -618,114 +618,36 @@ class PaymentController extends Controller
     }
 
     public function createMoMoPayment(Request $request)
-    {
-        if ($request->has('order_ids')) {
-            $request->validate([
-                'order_ids' => 'required|array|min:1',
-                'order_ids.*' => 'exists:orders,id'
-            ]);
-            $orderIds = $request->order_ids;
-            $orders = Order::whereIn('id', $orderIds)->get();
-            if ($orders->isEmpty()) {
-                return response()->json(['message' => 'Không tìm thấy đơn hàng'], 404);
-            }
-            $totalAmount = (int) $orders->sum(function($order) {
-                return $order->final_price + ($order->shipping->shipping_fee ?? 0);
-            });
-            $orderInfo = 'Thanh toán nhiều đơn: ' . implode(',', $orderIds);
-            $orderId = time() . "";
-            $redirectUrl = "http://localhost:3000/payment/momo-return";
-            $ipnUrl = "http://localhost:8000/api/payments/momo/ipn";
-            $extraData = base64_encode(json_encode(["order_ids" => $orderIds]));
-            $requestId = time() . "";
-            $requestType = "payWithATM";
-            $partnerCode = "MOMO";
-            $accessKey = "F8BBA842ECF85";
-            $secretKey = "K951B6PE1waDMi640xX08PD3vg6EkVlz";
-
-            // Tạo chữ ký
-            $rawSignature = "accessKey=" . $accessKey . 
-                "&amount=" . $totalAmount . 
-                "&extraData=" . $extraData . 
-                "&ipnUrl=" . $ipnUrl . 
-                "&orderId=" . $orderId . 
-                "&orderInfo=" . $orderInfo . 
-                "&partnerCode=" . $partnerCode . 
-                "&redirectUrl=" . $redirectUrl . 
-                "&requestId=" . $requestId . 
-                "&requestType=" . $requestType;
-            $signature = hash_hmac('sha256', $rawSignature, $secretKey);
-            $data = array(
-                'partnerCode' => $partnerCode,
-                'requestId' => $requestId,
-                'amount' => $totalAmount,
-                'orderId' => $orderId,
-                'orderInfo' => $orderInfo,
-                'redirectUrl' => $redirectUrl,
-                'ipnUrl' => $ipnUrl,
-                'requestType' => $requestType,
-                'extraData' => $extraData,
-                'lang' => 'vi',
-                'signature' => $signature
-            );
-            $endpoint = "https://test-payment.momo.vn/v2/gateway/api/create";
-            $result = $this->execPostRequest($endpoint, json_encode($data));
-            $jsonResult = json_decode($result, true);
-            if (isset($jsonResult['payUrl'])) {
-                // Lưu payment chung
-                $paymentMethod = PaymentMethod::firstOrCreate(
-                    ['name' => 'MOMO'],
-                    ['status' => 'active']
-                );
-                $payment = Payment::create([
-                    'order_id' => null,
-                    'payment_method_id' => $paymentMethod->id,
-                    'amount' => $totalAmount,
-                    'transaction_id' => $orderId,
-                    'status' => 'pending'
-                ]);
-                foreach ($orderIds as $oid) {
-                    \DB::table('payment_orders')->insert([
-                        'payment_id' => $payment->id,
-                        'order_id' => $oid,
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]);
-                }
-                return response()->json([
-                    'data' => [
-                        'payment_url' => $jsonResult['payUrl']
-                    ]
-                ]);
-            }
-            return response()->json([
-                'message' => 'Có lỗi xảy ra khi tạo thanh toán MoMo',
-                'error' => $jsonResult
-            ], 400);
-        }
-        // Logic cũ cho 1 order
+{
+    if ($request->has('order_ids')) {
         $request->validate([
-            'order_id' => 'required|exists:orders,id'
+            'order_ids' => 'required|array|min:1',
+            'order_ids.*' => 'exists:orders,id'
         ], [
-            'order_id.required' => 'ID đơn hàng là bắt buộc',
-            'order_id.exists' => 'ID đơn hàng không tồn tại'
+            'order_ids.required' => 'Danh sách đơn hàng là bắt buộc',
+            'order_ids.*.exists' => 'ID đơn hàng không tồn tại'
         ]);
-        $order = Order::findOrFail($request->order_id);
-        $endpoint = "https://test-payment.momo.vn/v2/gateway/api/create";
+        $orderIds = $request->order_ids;
+        $orders = Order::whereIn('id', $orderIds)->get();
+        if ($orders->isEmpty()) {
+            return response()->json(['message' => 'Không tìm thấy đơn hàng'], 404);
+        }
+        // Tính tổng số tiền bao gồm phí vận chuyển và chiết khấu
+        $totalAmount = (int) $orders->sum('final_price');
+        $orderInfo = 'Thanh toán nhiều đơn: ' . implode(',', $orderIds);
+        $orderId = time() . "";
+        $redirectUrl = "http://localhost:3000/payment/momo-return";
+        $ipnUrl = "http://localhost:8000/api/payments/momo/ipn";
+        $extraData = base64_encode(json_encode(["order_ids" => $orderIds]));
+        $requestId = time() . "";
+        $requestType = "payWithATM";
         $partnerCode = "MOMO";
         $accessKey = "F8BBA842ECF85";
         $secretKey = "K951B6PE1waDMi640xX08PD3vg6EkVlz";
-        $orderInfo = "Thanh toán đơn hàng " . $order->id;
-        $amount = (int)($order->final_price + ($order->shipping->shipping_fee ?? 0)); // Convert to integer
-        $orderId = time() . ""; // Mã đơn hàng, unique
-        $redirectUrl = "http://localhost:3000/payment/momo-return";
-        $ipnUrl = "http://localhost:8000/api/payments/momo/ipn";
-        $extraData = base64_encode(json_encode(["order_id" => $order->id])); // Mã hóa thông tin đơn hàng
-        $requestId = time() . ""; // Request id, unique
-        $requestType = "payWithATM";
+
         // Tạo chữ ký
         $rawSignature = "accessKey=" . $accessKey . 
-            "&amount=" . $amount . 
+            "&amount=" . $totalAmount . 
             "&extraData=" . $extraData . 
             "&ipnUrl=" . $ipnUrl . 
             "&orderId=" . $orderId . 
@@ -738,7 +660,7 @@ class PaymentController extends Controller
         $data = array(
             'partnerCode' => $partnerCode,
             'requestId' => $requestId,
-            'amount' => $amount,
+            'amount' => $totalAmount,
             'orderId' => $orderId,
             'orderInfo' => $orderInfo,
             'redirectUrl' => $redirectUrl,
@@ -748,21 +670,30 @@ class PaymentController extends Controller
             'lang' => 'vi',
             'signature' => $signature
         );
+        $endpoint = "https://test-payment.momo.vn/v2/gateway/api/create";
         $result = $this->execPostRequest($endpoint, json_encode($data));
         $jsonResult = json_decode($result, true);
         if (isset($jsonResult['payUrl'])) {
-            // Lưu thông tin đơn hàng MoMo vào payment
+            // Lưu thông tin thanh toán
             $paymentMethod = PaymentMethod::firstOrCreate(
                 ['name' => 'MOMO'],
                 ['status' => 'active']
             );
-            Payment::create([
-                'order_id' => $order->id,
+            $payment = Payment::create([
+                'order_id' => null,
                 'payment_method_id' => $paymentMethod->id,
-                'amount' => $amount,
-                'transaction_id' => $orderId, // Lưu orderId của MoMo
+                'amount' => $totalAmount,
+                'transaction_id' => $orderId,
                 'status' => 'pending'
             ]);
+            foreach ($orderIds as $oid) {
+                \DB::table('payment_orders')->insert([
+                    'payment_id' => $payment->id,
+                    'order_id' => $oid,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
             return response()->json([
                 'data' => [
                     'payment_url' => $jsonResult['payUrl']
@@ -774,6 +705,75 @@ class PaymentController extends Controller
             'error' => $jsonResult
         ], 400);
     }
+    // Logic cho đơn hàng đơn lẻ giữ nguyên
+    $request->validate([
+        'order_id' => 'required|exists:orders,id'
+    ], [
+        'order_id.required' => 'ID đơn hàng là bắt buộc',
+        'order_id.exists' => 'ID đơn hàng không tồn tại'
+    ]);
+    $order = Order::findOrFail($request->order_id);
+    $endpoint = "https://test-payment.momo.vn/v2/gateway/api/create";
+    $partnerCode = "MOMO";
+    $accessKey = "F8BBA842ECF85";
+    $secretKey = "K951B6PE1waDMi640xX08PD3vg6EkVlz";
+    $orderInfo = "Thanh toán đơn hàng " . $order->id;
+    $amount = (int)($order->final_price + ($order->shipping->shipping_fee ?? 0) - ($order->shipping->shipping_discount ?? 0));
+    $orderId = time() . "";
+    $redirectUrl = "http://localhost:3000/payment/momo-return";
+    $ipnUrl = "http://localhost:8000/api/payments/momo/ipn";
+    $extraData = base64_encode(json_encode(["order_id" => $order->id]));
+    $requestId = time() . "";
+    $requestType = "payWithATM";
+    $rawSignature = "accessKey=" . $accessKey . 
+        "&amount=" . $amount . 
+        "&extraData=" . $extraData . 
+        "&ipnUrl=" . $ipnUrl . 
+        "&orderId=" . $orderId . 
+        "&orderInfo=" . $orderInfo . 
+        "&partnerCode=" . $partnerCode . 
+        "&redirectUrl=" . $redirectUrl . 
+        "&requestId=" . $requestId . 
+        "&requestType=" . $requestType;
+    $signature = hash_hmac('sha256', $rawSignature, $secretKey);
+    $data = array(
+        'partnerCode' => $partnerCode,
+        'requestId' => $requestId,
+        'amount' => $amount,
+        'orderId' => $orderId,
+        'orderInfo' => $orderInfo,
+        'redirectUrl' => $redirectUrl,
+        'ipnUrl' => $ipnUrl,
+        'requestType' => $requestType,
+        'extraData' => $extraData,
+        'lang' => 'vi',
+        'signature' => $signature
+    );
+    $result = $this->execPostRequest($endpoint, json_encode($data));
+    $jsonResult = json_decode($result, true);
+    if (isset($jsonResult['payUrl'])) {
+        $paymentMethod = PaymentMethod::firstOrCreate(
+            ['name' => 'MOMO'],
+            ['status' => 'active']
+        );
+        Payment::create([
+            'order_id' => $order->id,
+            'payment_method_id' => $paymentMethod->id,
+            'amount' => $amount,
+            'transaction_id' => $orderId,
+            'status' => 'pending'
+        ]);
+        return response()->json([
+            'data' => [
+                'payment_url' => $jsonResult['payUrl']
+            ]
+        ]);
+    }
+    return response()->json([
+        'message' => 'Có lỗi xảy ra khi tạo thanh toán MoMo',
+        'error' => $jsonResult
+    ], 400);
+}
 
     private function execPostRequest($url, $data)
     {

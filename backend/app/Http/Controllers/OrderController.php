@@ -673,7 +673,13 @@ class OrderController extends Controller
                 throw new \Exception('Phương thức giao hàng không tồn tại: service_id ' . $shopServiceId);
             }
 
+            $shippingDiscountValue = 0;
+            if ($request->has('store_shipping_discounts') && isset($request->store_shipping_discounts[$sellerId])) {
+                $shippingDiscountValue = floatval($request->store_shipping_discounts[$sellerId]);
+            }
             $shippingFee = $request->store_shipping_fees[$sellerId] ?? 0;
+            // Trừ discount phí ship đã chia đều cho shop này
+            $shippingFee = max(0, $shippingFee - $shippingDiscountValue);
             // Bỏ kiểm tra khớp với shippingMethod->cost
             Log::info("Sử dụng phí vận chuyển từ request cho seller_id: {$sellerId}", [
                 'shipping_fee' => $shippingFee,
@@ -722,7 +728,7 @@ class OrderController extends Controller
             }
 
             if ($shippingDiscount) {
-                $shippingFee = max(0, $shippingFee - $shippingDiscount->discount_value);
+                // FE đã trừ discount rồi, BE chỉ cần ghi nhận việc sử dụng discount
                 DiscountUser::create([
                     'discount_id' => $shippingDiscount->id,
                     'user_id' => $request->user()->id,

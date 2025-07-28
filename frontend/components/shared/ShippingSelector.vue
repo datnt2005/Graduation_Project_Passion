@@ -108,15 +108,22 @@
               </div>
             </template>
             <div class="text-xs text-gray-700 mt-1">
-              Phí vận chuyển: <span class="font-semibold">{{ getShippingFee(shop.seller_id) || 'Đang tính...' }}</span>
+              Phí vận chuyển:
+              <span v-if="shop.shipping_discount > 0">
+                <span class="line-through text-gray-400 mr-1">{{ formatPrice(shop.original_shipping_fee || shop.shipping_fee) }}</span>
+                <span class="font-semibold text-blue-700">{{ formatPrice(Math.max(0, (shop.original_shipping_fee || shop.shipping_fee) - shop.shipping_discount)) }}</span>
+              </span>
+              <span v-else class="font-semibold">{{ formatPrice(shop.shipping_fee) }}</span>
             </div>
           </div>
         </div>
       </div>
     </div>
     <div class="text-right text-sm font-semibold text-gray-900 mt-4">
-      Tổng tiền vận chuyển: <span id="shipping-fee-display">
-        {{ formatPrice(totalShippingFee) }}
+      Tổng tiền vận chuyển:
+      <span id="shipping-fee-display">
+        <span v-if="totalShippingDiscount > 0" class="line-through text-gray-400 mr-1">{{ formatPrice(totalOriginalShippingFee) }}</span>
+        <span class="font-bold text-blue-600">{{ formatPrice(totalShippingFee) }}</span>
       </span>
     </div>
     <div v-if="Object.values(fees).includes('Lỗi')" class="text-red-500 text-xs mt-2">
@@ -259,8 +266,20 @@ const getShippingFee = (sellerId) => {
   return shop && shop.shipping_fee >= 0 ? formatPrice(shop.shipping_fee) : 'Đang tính...';
 };
 
+const totalOriginalShippingFee = computed(() => {
+  return localCartItems.value.reduce((sum, shop) => sum + (shop.original_shipping_fee || shop.shipping_fee || 0), 0);
+});
+
+const totalShippingDiscount = computed(() => {
+  return localCartItems.value.reduce((sum, shop) => sum + (shop.shipping_discount || 0), 0);
+});
+
 const totalShippingFee = computed(() => {
-  return localCartItems.value.reduce((sum, shop) => sum + (shop.shipping_fee || 0), 0);
+  return localCartItems.value.reduce((sum, shop) => {
+    const shippingFee = shop.shipping_fee || 0;
+    const shippingDiscount = shop.shipping_discount || 0;
+    return sum + Math.max(0, shippingFee - shippingDiscount);
+  }, 0);
 });
 
 const calculateAllShippingFees = async () => {
@@ -387,6 +406,7 @@ const calculateAllShippingFees = async () => {
         const shopIndex = localCartItems.value.findIndex(s => s.seller_id === shop.seller_id);
         if (shopIndex !== -1) {
           localCartItems.value[shopIndex].shipping_fee = fee;
+          localCartItems.value[shopIndex].original_shipping_fee = fee; // Lưu phí gốc
         }
         emit('update:shippingFee', { sellerId: shop.seller_id, fee });
       } else {
@@ -411,9 +431,13 @@ const calculateAllShippingFees = async () => {
 
   await Promise.all(shippingPromises);
 
-  const totalShippingFee = localCartItems.value.reduce((sum, shop) => sum + (shop.shipping_fee || 0), 0);
-  console.log(`Tổng phí vận chuyển: ${totalShippingFee}`);
-  emit('update:totalShippingFee', totalShippingFee);
+  const totalShippingFeeValue = localCartItems.value.reduce((sum, shop) => {
+    const shippingFee = shop.shipping_fee || 0;
+    const shippingDiscount = shop.shipping_discount || 0;
+    return sum + Math.max(0, shippingFee - shippingDiscount);
+  }, 0);
+  console.log(`Tổng phí vận chuyển sau chiết khấu: ${totalShippingFeeValue}`);
+  emit('update:totalShippingFee', totalShippingFeeValue);
 
   if (Object.values(fees.value).some(f => f === 'Lỗi')) {
     toast('error', errorMessage.value || 'Có lỗi xảy ra khi tính phí vận chuyển.');
@@ -453,7 +477,7 @@ const fetchUserVouchers = async () => {
 
 const filteredVouchers = computed(() => {
   if (!selectedSellerId.value) return [];
-  return userVouchers.value.filter(v => String(v.seller_id) === String(selectedSellerId.value));
+  return userVouchers.value.filter(v => String(v.seller_id) === String(selectedSellerId.value) || v.seller_id === null);
 });
 
 const filteredVouchersSearched = computed(() => {
@@ -588,6 +612,7 @@ const handleMethodChange = async (sellerId, method) => {
     if (fee !== null && !isNaN(fee) && fee >= 0) {
       fees.value[`${sellerId}_${method.service_id}`] = fee;
       shop.shipping_fee = fee;
+      shop.original_shipping_fee = fee; // Lưu phí gốc
       emit('update:shippingFee', { sellerId, fee });
     } else {
       fees.value[`${sellerId}_${method.service_id}`] = 'Lỗi';
@@ -603,9 +628,13 @@ const handleMethodChange = async (sellerId, method) => {
     loadingFees.value[sellerId] = false;
   }
 
-  const totalShippingFee = localCartItems.value.reduce((sum, shop) => sum + (shop.shipping_fee || 0), 0);
-  console.log(`Cập nhật tổng phí vận chuyển: ${totalShippingFee}`);
-  emit('update:totalShippingFee', totalShippingFee);
+  const totalShippingFeeValue = localCartItems.value.reduce((sum, shop) => {
+    const shippingFee = shop.shipping_fee || 0;
+    const shippingDiscount = shop.shipping_discount || 0;
+    return sum + Math.max(0, shippingFee - shippingDiscount);
+  }, 0);
+  console.log(`Cập nhật tổng phí vận chuyển: ${totalShippingFeeValue}`);
+  emit('update:totalShippingFee', totalShippingFeeValue);
 };
 
 const calculateStoreTotal = (shop) => {
@@ -650,9 +679,24 @@ watch(() => props.cartItems, (val) => {
     ward_code: shop.ward_code || null,
     note: shop.note || '',
     shipping_fee: shop.shipping_fee || 0,
+    original_shipping_fee: shop.original_shipping_fee || shop.shipping_fee || 0,
     service_id: shop.service_id || null
   }));
 }, { immediate: true, deep: true });
+
+// Emit tổng phí vận chuyển thực tế khi có thay đổi
+watch(totalShippingFee, (newValue) => {
+  emit('update:totalShippingFee', newValue);
+}, { immediate: true });
+
+// Emit tổng discount phí ship khi có thay đổi
+watch(totalShippingDiscount, (newValue) => {
+  emit('update:shippingDiscount', {
+    totalDiscount: newValue,
+    totalOriginalFee: totalOriginalShippingFee.value,
+    totalRealFee: totalShippingFee.value
+  });
+}, { immediate: true });
 
 let lastCartItems = null;
 watch(() => props.cartItems, async (val) => {
