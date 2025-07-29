@@ -12,6 +12,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('order_id')->constrained('orders')->onDelete('cascade');
             $table->foreignId('shipping_method_id')->constrained('shipping_methods')->onDelete('restrict');
+            $table->integer('service_id')->nullable(); // Thêm cột service_id để lưu service_id từ GHN
             $table->timestamp('estimated_delivery')->nullable();
             $table->decimal('shipping_fee', 10, 2)->default(0.00);
             $table->string('tracking_code', 50)->nullable();

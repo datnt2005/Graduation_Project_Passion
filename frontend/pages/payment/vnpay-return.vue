@@ -93,7 +93,7 @@
             </div>
           </div>
                       <div class="text-right text-lg font-bold text-blue-700 border-t pt-4 mt-4">
-            Tổng thanh toán: {{ formatPrice(orderDetail?.final_price || 0) }} đ
+            Tổng thanh toán: {{ formatPrice(orderDetail?.final_price || 0) }}
           </div>
 
         </div>
@@ -154,7 +154,9 @@ let countdownInterval = null
 
 const formatPrice = (price) => {
   if (!price) return '0'
-  return price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+  // Chuyển về số nguyên và format
+  const intPrice = Math.floor(parseFloat(price))
+  return intPrice.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 }
 
 const statusText = (status) => ({
