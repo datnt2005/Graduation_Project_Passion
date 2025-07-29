@@ -5,7 +5,7 @@
             <h1 class="text-xl font-semibold text-gray-800">Chi tiết báo cáo đánh giá</h1>
         </div>
         <div class="px-6 pb-4">
-            <NuxtLink to="/seller/reports/reviews" class="text-gray-600 hover:underline text-sm">
+            <NuxtLink to="/admin/reports/reviews" class="text-gray-600 hover:underline text-sm">
                 Danh sách báo cáo
             </NuxtLink>
             <span class="text-gray-600 text-sm"> / Chi tiết báo cáo</span>
@@ -86,7 +86,7 @@
                                 Bỏ qua
                             </button>
                             <button class="ml-auto bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded"
-                                @click="router.push('/seller/reports/reviews/list-reports')">
+                                @click="router.push('/admin/reports/reviews/list-reports')">
                                 ← Quay lại danh sách
                             </button>
                         </div>
@@ -108,7 +108,7 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter, useRuntimeConfig } from '#imports'
 import axios from 'axios'
 
-definePageMeta({ layout: 'default-seller' }) // Layout cho seller
+definePageMeta({ layout: 'default-admin' }) // Layout cho seller
 
 const route = useRoute()
 const router = useRouter()
@@ -157,7 +157,7 @@ async function fetchDetail() {
     try {
         const id = route.params.id
         const token = localStorage.getItem('access_token')
-        const res = await axios.get(`${apiBase}/seller/reports/reviews/${id}`, {
+        const res = await axios.get(`${apiBase}/admin/reports/reviews/${id}`, {
             headers: { Authorization: `Bearer ${token}` }
         })
         report.value = res.data.data
@@ -172,7 +172,7 @@ async function updateStatus(status) {
     try {
         const id = route.params.id
         const token = localStorage.getItem('access_token')
-        await axios.put(`${apiBase}/seller/reports/reviews/${id}/status`, { status }, {
+        await axios.put(`${apiBase}/admin/reports/reviews/${id}/status`, { status }, {
             headers: { Authorization: `Bearer ${token}` }
         })
         await fetchDetail()
