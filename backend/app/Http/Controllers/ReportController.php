@@ -197,19 +197,14 @@ class ReportController extends Controller
         ]);
     }
 
-    public function sellerIndex(Request $request)
+     public function adminIndex(Request $request)
     {
-        $userId = auth()->id();
-
         $reports = Report::with([
             'review.product.seller',
             'review.user',
             'reporter'
         ])
             ->where('type', 'review')
-            ->whereHas('review.product.seller', function ($q) use ($userId) {
-                $q->where('user_id', $userId);
-            })
             ->latest()
             ->get()
             ->filter(fn($report) => $report->review && $report->review->product && $report->review->user)
@@ -233,10 +228,9 @@ class ReportController extends Controller
         return response()->json(['success' => true, 'data' => $reports]);
     }
 
-    public function sellerShow($id)
+    // Phương thức cho admin: Xem chi tiết báo cáo
+    public function adminShow($id)
     {
-        $userId = auth()->id();
-
         $report = Report::with([
             'reporter',
             'review.product.seller',
@@ -247,11 +241,8 @@ class ReportController extends Controller
             ->where('type', 'review')
             ->find($id);
 
-        if (
-            !$report || !$report->review || !$report->review->product ||
-            !$report->review->product->seller || $report->review->product->seller->user_id !== $userId
-        ) {
-            return response()->json(['message' => 'Không tìm thấy hoặc không có quyền truy cập'], 403);
+        if (!$report || !$report->review || !$report->review->product) {
+            return response()->json(['message' => 'Không tìm thấy báo cáo'], 404);
         }
 
         $report->review->loadCount('likes');
@@ -284,21 +275,17 @@ class ReportController extends Controller
         ]);
     }
 
-    public function sellerUpdateStatus(Request $request, $id)
+    // Phương thức cho admin: Cập nhật trạng thái báo cáo
+    public function adminUpdateStatus(Request $request, $id)
     {
         $request->validate([
             'status' => 'required|in:resolved,dismissed',
         ]);
 
-        $userId = auth()->id();
-
         $report = Report::with('review.product.seller')->findOrFail($id);
 
-        if (
-            !$report->review || !$report->review->product ||
-            !$report->review->product->seller || $report->review->product->seller->user_id !== $userId
-        ) {
-            return response()->json(['message' => 'Bạn không có quyền xử lý báo cáo này'], 403);
+        if (!$report->review || !$report->review->product) {
+            return response()->json(['message' => 'Không tìm thấy báo cáo'], 404);
         }
 
         $newStatus = $request->input('status');
@@ -318,6 +305,7 @@ class ReportController extends Controller
         return response()->json(['message' => 'Cập nhật trạng thái thành công']);
     }
 
+    
     public function getReportProduct(Request $request)
     {
         try {

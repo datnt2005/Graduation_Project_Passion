@@ -540,10 +540,15 @@ class DiscountSellerController extends Controller
     public function sellerProducts(Request $request)
     {
         try {
+            \Log::info('sellerProducts method called');
             $user = Auth::user();
+            \Log::info('User:', ['user' => $user]);
+            
             $seller = $user->seller;
+            \Log::info('Seller:', ['seller' => $seller]);
             
             if (!$seller) {
+                \Log::error('No seller found for user');
                 return response()->json([
                     'success' => false,
                     'message' => 'Không tìm thấy seller'
@@ -552,6 +557,7 @@ class DiscountSellerController extends Controller
             
             $perPage = $request->get('per_page', 1000);
             $discountId = $request->get('discount_id'); // Thêm parameter để lấy discount_id
+            \Log::info('Per page:', ['per_page' => $perPage, 'discount_id' => $discountId]);
             
             // Base query cho tất cả sản phẩm của seller
             $query = \App\Models\Product::where('seller_id', $seller->id);
@@ -596,5 +602,103 @@ class DiscountSellerController extends Controller
             ], 500);
         }
     }
+
+    // Thêm method mới để kiểm tra discount cho shop cụ thể
+    public function checkShopDiscount(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'discount_id' => 'required|exists:discounts,id',
+            'seller_id' => 'required|exists:sellers,id',
+            'product_ids' => 'required|array',
+            'product_ids.*' => 'exists:products,id',
+            'order_value' => 'required|numeric|min:0',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi dữ liệu nhập vào',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $discount = Discount::findOrFail($request->discount_id);
+        
+        // Kiểm tra discount có thuộc về seller không
+        if ($discount->seller_id != $request->seller_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Mã giảm giá không thuộc về shop này',
+                'error_code' => 'DISCOUNT_NOT_BELONG_TO_SELLER'
+            ], 400);
+        }
+
+        // Kiểm tra trạng thái và thời hạn
+        if ($discount->status !== 'active' || $discount->end_date <= now()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Mã giảm giá không còn hiệu lực',
+                'error_code' => 'DISCOUNT_INACTIVE'
+            ], 400);
+        }
+
+        // Kiểm tra giới hạn sử dụng
+        if ($discount->usage_limit !== null && $discount->used_count >= $discount->usage_limit) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Mã giảm giá đã hết lượt sử dụng',
+                'error_code' => 'USAGE_LIMIT_EXCEEDED'
+            ], 400);
+        }
+
+        // Kiểm tra giá trị đơn hàng tối thiểu
+        if ($discount->min_order_value && $request->order_value < $discount->min_order_value) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Giá trị đơn hàng không đạt yêu cầu tối thiểu',
+                'error_code' => 'MIN_ORDER_VALUE_NOT_MET'
+            ], 400);
+        }
+
+        $productIds = $request->product_ids;
+        
+        // Kiểm tra xem discount có áp dụng được cho các sản phẩm cụ thể không
+        if ($discount->products()->count() > 0) {
+            $applicableProducts = $discount->products()->whereIn('products.id', $productIds)->pluck('products.id')->toArray();
+            
+            if (empty($applicableProducts)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Mã giảm giá này không áp dụng cho các sản phẩm trong đơn hàng',
+                    'error_code' => 'PRODUCT_NOT_APPLICABLE'
+                ], 400);
+            }
+        }
+        
+        // Kiểm tra categories
+        if ($discount->categories()->count() > 0) {
+            $applicableCategories = $discount->categories()
+                ->whereHas('products', function($query) use ($productIds) {
+                    $query->whereIn('products.id', $productIds);
+                })
+                ->pluck('categories.id')
+                ->toArray();
+            
+            if (empty($applicableCategories)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Mã giảm giá này không áp dụng cho danh mục sản phẩm trong đơn hàng',
+                    'error_code' => 'CATEGORY_NOT_APPLICABLE'
+                ], 400);
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Mã giảm giá có thể áp dụng',
+            'data' => $discount
+        ], 200);
+    }
+
     // Các hàm saveVoucherByCode, myVouchers, deleteUserVoucher, indexPublic giữ nguyên như DiscountController nếu seller cần dùng
 }

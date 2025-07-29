@@ -253,9 +253,9 @@
           </button>
           <ul v-show="reportOpen" class="pl-11 mt-1 space-y-0.5 text-gray-300 text-[13px]">
             <li>
-              <NuxtLink to="/admin/reports/comments" class="block py-1 hover:text-white rounded"
-                :class="route.path === '/admin/reports/comments' ? 'text-green-400 font-bold' : ''"
-                @click="$emit('close')">Tố cáo bình luận</NuxtLink>
+              <NuxtLink to="/admin/reports/reviews/list-reports" class="block py-1 hover:text-white rounded"
+                :class="route.path === '/admin/reports/reviews' ? 'text-green-400 font-bold' : ''"
+                @click="$emit('close')">Tố cáo đánh giá</NuxtLink>
             </li>
             <li>
               <NuxtLink to="/admin/reports/products/list-reports" class="block py-1 hover:text-white rounded"

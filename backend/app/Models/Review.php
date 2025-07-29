@@ -9,6 +9,7 @@ class Review extends Model
 {
     protected $fillable = [
         'product_id',
+        'order_item_id',
         'user_id',
         'parent_id',
         'content',
@@ -26,10 +27,9 @@ class Review extends Model
     {
         return $this->belongsTo(User::class, 'user_id');
     }
-
     public function likes()
     {
-        return $this->hasMany(ReviewLike::class, 'review_id');
+        return $this->hasMany(ReviewLike::class, 'review_id', 'id');
     }
 
     public function likesCount()
@@ -49,5 +49,10 @@ class Review extends Model
     public function reports()
     {
         return $this->hasMany(Report::class, 'review_id');
+    }
+
+    public function orderItem()
+    {
+        return $this->belongsTo(OrderItem::class, 'order_item_id', 'id');
     }
 }

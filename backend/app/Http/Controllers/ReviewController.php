@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
 
@@ -17,89 +18,196 @@ use Illuminate\Support\Str;
 
 class ReviewController extends Controller
 {
-    public function index(Request $request)
+        public function index(Request $request)
     {
-        $productId = $request->query('product_id');
-        if (!$productId) {
-            return response()->json(['message' => 'Thiếu product_id'], 400);
-        }
+        try {
+            $productId = $request->query('product_id');
+            if (!$productId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Thiếu product_id'
+                ], 400);
+            }
 
-        $reviews = Review::where('product_id', $productId)
-            ->whereNull('parent_id')
-            ->where('status', 'approved')
-            ->orderByDesc('created_at')
-            ->with(['reply', 'media']) // Thêm media vào here
-            ->withCount('likes')
-            ->get();
+            $user = Auth::user();
+            $userId = $user ? $user->id : null;
 
-        $totalLikes = $reviews->sum('likes_count');
+            // Xóa cache cho sản phẩm cụ thể
+            Cache::forget('reviews_product_' . $productId);
 
-        $summary = [
-            'rating' => round($reviews->avg('rating'), 1),
-            'count' => $reviews->count(),
-            'likes_count' => $totalLikes,
-            'ratings' => [
-                5 => $reviews->where('rating', 5)->count(),
-                4 => $reviews->where('rating', 4)->count(),
-                3 => $reviews->where('rating', 3)->count(),
-                2 => $reviews->where('rating', 2)->count(),
-                1 => $reviews->where('rating', 1)->count(),
-            ]
-        ];
+            $query = Review::with([
+                'user',
+                'reply',
+                'media',
+                'orderItem.productVariant.product.seller',
+                'orderItem.productVariant.attributeValues.attribute',
+                'likes'
+            ])
+                ->select('reviews.*') // Rõ ràng chọn tất cả cột từ bảng reviews
+                ->where('product_id', $productId)
+                ->whereNull('parent_id')
+                ->where(function ($q) use ($userId) {
+                    $q->where('status', 'approved')
+                    ->orWhere(function ($sub) use ($userId) {
+                        if ($userId) {
+                            $sub->where('user_id', $userId)->where('status', 'pending');
+                        }
+                    });
+                })
+                ->orderByDesc('created_at');
 
-        $list = $reviews->map(function ($review) {
-            $images = $review->media
-                ->where('media_type', 'image')
-                ->map(fn($m) => [
-                    'id' => $m->id,
-                    'url' => Storage::disk('r2')->url($m->media_url),
-                ])
-                ->values();
+            // Filter by rating if provided
+            if ($request->has('rating')) {
+                $query->where('rating', $request->rating);
+            }
 
-            $videos = $review->media
-                ->where('media_type', 'video')
-                ->map(fn($m) => [
-                    'id' => $m->id,
-                    'url' => Storage::disk('r2')->url($m->media_url),
-                ])
-                ->values();
+            // Filter by has_images or has_videos
+            if ($request->has('has_images') && $request->has_images) {
+                $query->whereHas('media', function ($q) {
+                    $q->where('media_type', 'image');
+                });
+            }
+            if ($request->has('has_videos') && $request->has_videos) {
+                $query->whereHas('media', function ($q) {
+                    $q->where('media_type', 'video');
+                });
+            }
 
-            return [
-                'id' => $review->id,
-                'user_id' => $review->user_id,
-                'user' => [
-                    'name' => $review->user->name ?? 'Ẩn danh',
-                    'avatar' => $review->user->avatar ? Storage::disk('r2')->url($review->user->avatar) : null,
-                ],
-                'joined' => 'Tháng 1, 2024', // nếu muốn thực tế thì dùng $review->user->created_at->format(...)
-                'totalReviews' => 5, // nếu cần thật thì count từ DB
-                'purchased' => true,
-                'rating' => $review->rating,
-                'content' => $review->content,
-                'reply' => $review->reply ? [
-                    'id' => $review->reply->id,
-                    'content' => $review->reply->content,
-                    'created_at' => $review->reply->created_at->toISOString(),
-                ] : null,
-                'images' => $images,
-                'videos' => $videos,
-                'color' => 'Không rõ',
-                'created_at' => $review->created_at->toISOString(),
-                'usageTime' => '1 tuần trước',
-                'likes_count' => $review->likes_count,
+            // Paginate
+            $perPage = $request->input('per_page', 3);
+            $reviews = $query->paginate($perPage);
+
+            // Debug: Log dữ liệu reviews
+            Log::info('Reviews fetched:', ['reviews' => $reviews->toArray()]);
+
+            // Calculate summary (only for approved reviews)
+            $approvedReviews = $reviews->filter(fn($r) => $r->status === 'approved');
+            $totalLikes = $approvedReviews->sum(function ($review) {
+                return $review->likesCount(); // Sử dụng likesCount() thay vì likes
+            });
+            $summary = [
+                'rating' => round($approvedReviews->avg('rating') ?: 0, 1),
+                'count' => $approvedReviews->count(),
+                'likes_count' => $totalLikes,
+                'ratings' => [
+                    5 => $approvedReviews->where('rating', 5)->count(),
+                    4 => $approvedReviews->where('rating', 4)->count(),
+                    3 => $approvedReviews->where('rating', 3)->count(),
+                    2 => $approvedReviews->where('rating', 2)->count(),
+                    1 => $approvedReviews->where('rating', 1)->count(),
+                ]
             ];
-        });
 
-        return response()->json([
-            'summary' => $summary,
-            'list' => $list,
-        ]);
+            // Format reviews
+            $formattedReviews = $reviews->through(function ($review) {
+                $images = $review->media
+                    ->where('media_type', 'image')
+                    ->map(function ($m) {
+                        return [
+                            'id' => $m->id,
+                            'url' => Storage::disk('r2')->url($m->media_url),
+                        ];
+                    })
+                    ->values();
+
+                $videos = $review->media
+                    ->where('media_type', 'video')
+                    ->map(function ($m) {
+                        return [
+                            'id' => $m->id,
+                            'url' => Storage::disk('r2')->url($m->media_url),
+                        ];
+                    })
+                    ->values();
+
+                // Format variant
+                $variant = $review->orderItem && $review->orderItem->productVariant
+                    ? [
+                        'id' => $review->orderItem->productVariant->id,
+                        'name' => $review->orderItem->productVariant->name ?? 'Không xác định',
+                        'color' => $review->orderItem->productVariant->color ?? null,
+                        'attributes' => $review->orderItem->productVariant->attributeValues->map(function ($attributeValue) {
+                            return [
+                                'name' => $attributeValue->attribute->name ?? 'Không xác định',
+                                'value' => $attributeValue->value ?? 'Không xác định',
+                            ];
+                        })->values()->toArray(),
+                    ]
+                    : [
+                        'id' => null,
+                        'name' => 'Không xác định',
+                        'color' => null,
+                        'attributes' => [],
+                    ];
+
+                // Debug: Log giá trị likes và likesCount
+                Log::info('Review ID: ' . $review->id, [
+                    'likes' => $review->likes,
+                    'likesCount' => $review->likesCount()
+                ]);
+
+                return [
+                    'id' => $review->id,
+                    'user_id' => $review->user_id,
+                    'user' => [
+                        'name' => $review->user->name ?? 'Ẩn danh',
+                        'avatar' => $review->user->avatar ? Storage::disk('r2')->url($review->user->avatar) : null,
+                    ],
+                    'joined' => $review->user->created_at ? $review->user->created_at->format('F, Y') : 'Tháng 1, 2024',
+                    'totalReviews' => Review::where('user_id', $review->user_id)->count(),
+                    'purchased' => !is_null($review->orderItem),
+                    'rating' => $review->rating,
+                    'content' => $review->content,
+                    'status' => $review->status,
+                    'reply' => $review->reply ? [
+                        'id' => $review->reply->id,
+                        'content' => $review->reply->content,
+                        'created_at' => $review->reply->created_at->toISOString(),
+                    ] : null,
+                    'images' => $images,
+                    'videos' => $videos,
+                    'color' => $variant['color'],
+                    'variant' => $variant,
+                    'created_at' => $review->created_at->toISOString(),
+                    'usageTime' => $review->created_at->diffForHumans(),
+                    'likes_count' => $review->likesCount(), // Sử dụng likesCount() thay vì likes
+                ];
+            });
+
+            // Debug: Log formatted reviews
+            Log::info('Formatted reviews:', ['formatted' => $formattedReviews->toArray()]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Lấy danh sách đánh giá thành công',
+                'data' => [
+                    'summary' => $summary,
+                    'list' => $formattedReviews->items(),
+                ],
+                'meta' => [
+                    'current_page' => $reviews->currentPage(),
+                    'from' => $reviews->firstItem(),
+                    'last_page' => $reviews->lastPage(),
+                    'path' => $reviews->path(),
+                    'per_page' => $reviews->perPage(),
+                    'to' => $reviews->lastItem(),
+                    'total' => $reviews->total(),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error in ReviewController@index: ' . $e->getMessage());
+            Log::error($e->getTraceAsString());
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi khi lấy danh sách đánh giá: ' . $e->getMessage()
+            ], 500);
+        }
     }
-
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'product_id' => 'required|exists:products,id',
+            'order_item_id' => 'required|exists:order_items,id', // Thêm validation cho order_item_id
             'content' => 'required|string|min:10|max:1000',
             'rating' => 'required|integer|min:1|max:5',
             'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
@@ -107,25 +215,22 @@ class ReviewController extends Controller
         ], [
             'product_id.required' => 'Mã sản phẩm là bắt buộc.',
             'product_id.exists' => 'Sản phẩm không tồn tại.',
-
+            'order_item_id.required' => 'Mã đơn hàng là bắt buộc.',
+            'order_item_id.exists' => 'Đơn hàng không tồn tại.',
             'content.required' => 'Nội dung đánh giá là bắt buộc.',
             'content.string' => 'Nội dung đánh giá không hợp lệ.',
             'content.min' => 'Nội dung đánh giá phải có ít nhất :min ký tự.',
             'content.max' => 'Nội dung đánh giá không được vượt quá :max ký tự.',
-
             'rating.required' => 'Vui lòng chọn số sao đánh giá.',
             'rating.integer' => 'Giá trị đánh giá phải là số nguyên.',
             'rating.min' => 'Đánh giá tối thiểu là :min sao.',
             'rating.max' => 'Đánh giá tối đa là :max sao.',
-
             'images.*.image' => 'Tệp tải lên phải là hình ảnh.',
             'images.*.mimes' => 'Hình ảnh chỉ được chấp nhận định dạng: jpeg, png, jpg, gif, svg, webp.',
             'images.*.max' => 'Dung lượng hình ảnh không được vượt quá 2MB.',
-
             'videos.*.mimes' => 'Video chỉ được chấp nhận định dạng: mp4, mkv, avi.',
             'videos.*.max' => 'Dung lượng video không được vượt quá 10MB.',
         ]);
-
 
         if ($validator->fails()) {
             return response()->json([
@@ -144,43 +249,48 @@ class ReviewController extends Controller
         }
 
         $productId = $request->input('product_id');
+        $orderItemId = $request->input('order_item_id');
 
-        // Kiểm tra người dùng đã mua hàng chưa
+        // Kiểm tra người dùng đã mua hàng và order_item hợp lệ
         $hasPurchased = DB::table('orders')
             ->join('order_items', 'orders.id', '=', 'order_items.order_id')
             ->where('orders.user_id', $user->id)
-            ->where('orders.status', 'completed')
+            ->where('orders.status', 'delivered')
+            ->where('order_items.id', $orderItemId)
             ->where('order_items.product_id', $productId)
             ->exists();
 
         if (!$hasPurchased) {
             return response()->json([
                 'success' => false,
-                'message' => 'Bạn chỉ có thể đánh giá khi đã mua sản phẩm này.'
+                'message' => 'Bạn chỉ có thể đánh giá khi đã mua sản phẩm này và đơn hàng đã được giao.'
             ], 403);
         }
 
-        // Kiểm tra trùng đánh giá
-        $existingReview = DB::table('reviews')
-            ->where('user_id', $user->id)
-            ->where('product_id', $productId)
+        // Kiểm tra trùng đánh giá dựa trên order_item_id
+        $existingReview = Review::where('user_id', $user->id)
+            ->where('order_item_id', $orderItemId)
             ->first();
 
         if ($existingReview) {
             return response()->json([
                 'success' => false,
-                'message' => 'Bạn đã đánh giá sản phẩm này rồi.'
+                'message' => 'Bạn đã đánh giá sản phẩm này trong đơn hàng này rồi.'
             ], 409);
         }
 
         try {
+            // Bắt đầu giao dịch
+            DB::beginTransaction();
+
             // Tạo đánh giá
             $review = Review::create([
                 'user_id' => $user->id,
                 'product_id' => $productId,
+                'order_item_id' => $orderItemId,
                 'rating' => $request->input('rating'),
                 'content' => $request->input('content'),
-                'status' => 'approved',
+                'status' => 'approved', 
             ]);
 
             // Lưu ảnh/video vào bảng review_media
@@ -211,13 +321,19 @@ class ReviewController extends Controller
                 }
             }
 
+            DB::commit();
+
             return response()->json([
                 'success' => true,
-                'message' => 'Đánh giá đã được gửi thành công.',
+                'message' => 'Đánh giá đã được gửi và đang chờ duyệt.',
                 'data' => $review
             ], 201);
         } catch (\Exception $e) {
-            Log::error('Lỗi khi lưu đánh giá: ' . $e->getMessage());
+            DB::rollBack();
+            Log::error('Lỗi khi lưu đánh giá: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'request_data' => $request->all()
+            ]);
 
             return response()->json([
                 'success' => false,
@@ -388,33 +504,37 @@ class ReviewController extends Controller
 
 
     public function like($reviewId)
-    {
-        $user = Auth::user();
+{
+    $user = Auth::user();
 
-        if (!$user) {
-            return response()->json(['message' => 'Vui lòng đăng nhập để thích.'], 401);
-        }
-
-        $review = Review::findOrFail($reviewId);
-
-        // Kiểm tra đã like chưa
-        $liked = ReviewLike::where('user_id', $user->id)->where('review_id', $reviewId)->first();
-
-        if ($liked) {
-            return response()->json(['message' => 'Bạn đã thích đánh giá này.'], 400);
-        }
-
-        // Tạo like mới
-        ReviewLike::create([
-            'user_id' => $user->id,
-            'review_id' => $reviewId,
-        ]);
-
-        return response()->json([
-            'message' => 'Đã thích đánh giá.',
-            'likes' => $review->likes()->count()
-        ]);
+    if (!$user) {
+        return response()->json(['message' => 'Vui lòng đăng nhập để thích.'], 401);
     }
+
+    $review = Review::findOrFail($reviewId);
+
+    // Kiểm tra đã like chưa
+    $liked = ReviewLike::where('user_id', $user->id)->where('review_id', $reviewId)->first();
+
+    if ($liked) {
+        return response()->json(['message' => 'Bạn đã thích đánh giá này.'], 400);
+    }
+
+    // Tạo like mới
+    ReviewLike::create([
+        'user_id' => $user->id,
+        'review_id' => $reviewId,
+    ]);
+
+    // Cập nhật cột likes trong bảng reviews
+    $review->likes = $review->likes()->count();
+    $review->save();
+
+    return response()->json([
+        'message' => 'Đã thích đánh giá.',
+        'likes' => $review->likes
+    ]);
+}
 
     // ReviewController.php
     public function checkLiked($reviewId)
@@ -434,30 +554,34 @@ class ReviewController extends Controller
 
 
     public function unlike($reviewId)
-    {
-        $user = Auth::user();
+{
+    $user = Auth::user();
 
-        if (!$user) {
-            return response()->json(['message' => 'Vui lòng đăng nhập để thích.'], 401);
-        }
-
-        $review = Review::findOrFail($reviewId);
-
-        // Kiem tra da like chua
-        $liked = ReviewLike::where('user_id', $user->id)->where('review_id', $reviewId)->first();
-
-        if (!$liked) {
-            return response()->json(['message' => 'Bạn chua thích đánh giá này.'], 400);
-        }
-
-        // Xoa like
-        $liked->delete();
-
-        return response()->json([
-            'message' => 'Đã hủy thích đánh giá.',
-            'likes' => $review->likes()->count()
-        ]);
+    if (!$user) {
+        return response()->json(['message' => 'Vui lòng đăng nhập để thích.'], 401);
     }
+
+    $review = Review::findOrFail($reviewId);
+
+    // Kiểm tra đã like chưa
+    $liked = ReviewLike::where('user_id', $user->id)->where('review_id', $reviewId)->first();
+
+    if (!$liked) {
+        return response()->json(['message' => 'Bạn chưa thích đánh giá này.'], 400);
+    }
+
+    // Xóa like
+    $liked->delete();
+
+    // Cập nhật cột likes trong bảng reviews
+    $review->likes = $review->likes()->count();
+    $review->save();
+
+    return response()->json([
+        'message' => 'Đã hủy thích đánh giá.',
+        'likes' => $review->likes
+    ]);
+}
 
 
     // 1. Controller chỉnh lại cho seller
