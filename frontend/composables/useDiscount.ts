@@ -181,6 +181,49 @@ export const useDiscount = () => {
         });
     };
 
+    const checkShopDiscount = async (discountId: number, sellerId: number, productIds: number[], orderValue: number) => {
+        const token = localStorage.getItem('access_token');
+        if (!token) {
+            return { success: false, message: 'Vui lòng đăng nhập để kiểm tra mã giảm giá' };
+        }
+        
+        const requestData = {
+            discount_id: discountId,
+            seller_id: sellerId,
+            product_ids: productIds,
+            order_value: orderValue
+        };
+        
+        console.log('=== DEBUG checkShopDiscount ===');
+        console.log('Request data:', requestData);
+        
+        try {
+            const res = await fetch(`${config.public.apiBaseUrl}/discounts/check-shop-discount`, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(requestData)
+            });
+            
+            console.log('Response status:', res.status);
+            const data = await res.json();
+            console.log('Response data:', data);
+            
+            return { 
+                success: res.ok, 
+                message: data.message || (res.ok ? 'Mã giảm giá có thể áp dụng' : 'Mã giảm giá không thể áp dụng'),
+                data: data.data,
+                error_code: data.error_code
+            };
+        } catch (e) {
+            console.error('Error in checkShopDiscount:', e);
+            return { success: false, message: 'Lỗi hệ thống khi kiểm tra mã giảm giá' };
+        }
+    };
+
     const applyDiscount = (discount: Discount) => {
         console.log('=== DEBUG applyDiscount ===');
         console.log('Applying discount:', discount);
@@ -404,6 +447,7 @@ const saveVoucherByCode = async (code: string) => {
         calculateDiscount,
         getShippingDiscount,
         saveVoucherByCode,
-        deleteUserCoupon
+        deleteUserCoupon,
+        checkShopDiscount
     };
 };

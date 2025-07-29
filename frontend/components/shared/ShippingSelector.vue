@@ -28,32 +28,7 @@
         </div>
 
         <!-- Danh sách phương thức giao hàng cho từng cửa hàng -->
-        <div v-if="shippingMethods[shop.seller_id]?.length" class="mb-4">
-          <label class="block text-xs text-gray-600 mb-1">Phương thức giao hàng</label>
-          <form class="space-y-2">
-            <label v-for="method in shippingMethods[shop.seller_id]" :key="method.service_id"
-              class="relative block p-3 border rounded-[4px] cursor-pointer transition hover:border-blue-400"
-              :class="{
-                'bg-blue-50 border-blue-200': method.service_id === shopServiceIds[shop.seller_id],
-                'bg-white border-blue-300': method.service_id !== shopServiceIds[shop.seller_id]
-              }">
-              <div class="flex items-center gap-3">
-                <input class="w-4 h-4 text-blue-600 border-gray-300 accent-blue-600 focus:ring-blue-500"
-                  type="radio"
-                  :name="'shipping_method_' + shop.seller_id"
-                  :value="method.service_id"
-                  v-model="shopServiceIds[shop.seller_id]"
-                  @change="handleMethodChange(shop.seller_id, method)" />
-                <span :class="method.service_id === shopServiceIds[shop.seller_id] ? 'text-[14px] font-semibold' : 'text-[14px]'">
-                  {{ method.short_name || 'Dịch vụ GHN' }}
-                </span>
-              </div>
-            </label>
-          </form>
-        </div>
-        <div v-else class="text-red-500 text-xs">
-          Không có phương thức giao hàng khả dụng cho cửa hàng này.
-        </div>
+        
 
         <div class="space-y-4">
           <div v-for="item in shop.items" :key="item.id"
@@ -199,10 +174,13 @@ import { useRuntimeConfig } from '#app';
 import { NuxtLink } from '#components';
 import Swal from 'sweetalert2';
 import { useCheckout } from '~/composables/useCheckout';
+import { useDiscount } from '~/composables/useDiscount';
+import { useToast } from '~/composables/useToast';
 
 const config = useRuntimeConfig();
 const apiBase = config.public.apiBaseUrl;
 const mediaBaseUrl = config.public.mediaBaseUrl;
+const { toast } = useToast();
 
 const fees = ref({});
 const loadingShipping = ref(false);
@@ -510,7 +488,70 @@ const fetchUserVouchers = async () => {
 
 const filteredVouchers = computed(() => {
   if (!selectedSellerId.value) return [];
-  return userVouchers.value.filter(v => String(v.seller_id) === String(selectedSellerId.value) || v.seller_id === null);
+  
+  const shop = localCartItems.value.find(shop => String(shop.seller_id) === String(selectedSellerId.value));
+  if (!shop || !shop.items || shop.items.length === 0) return [];
+  
+  // Lấy danh sách product IDs của shop này
+  const shopProductIds = shop.items.map(item => {
+    const productId = item.product_id || item.product?.id || item.id;
+    return productId;
+  }).filter(id => id);
+  
+  console.log('=== DEBUG filteredVouchers ===');
+  console.log('Shop product IDs:', shopProductIds);
+  console.log('All user vouchers:', userVouchers.value);
+  
+  // Lọc voucher có thể áp dụng cho tất cả sản phẩm trong shop
+  const applicableVouchers = userVouchers.value.filter(voucher => {
+    // Voucher toàn sàn (seller_id === null) luôn có thể áp dụng
+    if (voucher.seller_id === null) {
+      console.log('Voucher toàn sàn:', voucher.name, 'có thể áp dụng');
+      return true;
+    }
+    
+    // Voucher của seller cụ thể
+    if (String(voucher.seller_id) === String(selectedSellerId.value)) {
+      // Nếu voucher có products được gán cụ thể
+      if (voucher.products && voucher.products.length > 0) {
+        // Kiểm tra xem tất cả sản phẩm trong shop có được áp dụng voucher này không
+        const applicableProducts = voucher.products.filter(product => 
+          shopProductIds.includes(product.id)
+        );
+        
+        console.log('Voucher có products:', voucher.name, 'applicable products:', applicableProducts.length, 'shop products:', shopProductIds.length);
+        
+        // Chỉ áp dụng nếu voucher có thể dùng cho tất cả sản phẩm trong shop
+        if (applicableProducts.length === shopProductIds.length) {
+          console.log('Voucher có thể áp dụng cho tất cả sản phẩm:', voucher.name);
+          return true;
+        } else {
+          console.log('Voucher không thể áp dụng cho tất cả sản phẩm:', voucher.name);
+          return false;
+        }
+      }
+      
+      // Nếu voucher có categories được gán cụ thể
+      if (voucher.categories && voucher.categories.length > 0) {
+        // Kiểm tra xem tất cả sản phẩm trong shop có thuộc categories được áp dụng không
+        // Logic này cần kiểm tra từng sản phẩm có thuộc categories không
+        // Tạm thời return true, có thể cần cải thiện sau
+        console.log('Voucher có categories:', voucher.name, 'có thể áp dụng');
+        return true;
+      }
+      
+      // Voucher không có products/categories cụ thể -> có thể áp dụng cho tất cả sản phẩm của seller
+      console.log('Voucher không có products/categories cụ thể:', voucher.name, 'có thể áp dụng');
+      return true;
+    }
+    
+    return false;
+  });
+  
+  console.log('Applicable vouchers:', applicableVouchers.map(v => v.name));
+  console.log('=== END DEBUG ===');
+  
+  return applicableVouchers;
 });
 
 const filteredVouchersSearched = computed(() => {
@@ -530,30 +571,70 @@ const filteredVouchersSearched = computed(() => {
   });
 });
 
-const toast = (icon, title) => {
-  Swal.fire({
-    toast: true,
-    position: 'top-end',
-    icon,
-    title,
-    width: '350px',
-    padding: '10px 20px',
-    customClass: { popup: 'text-sm rounded-md shadow-md' },
-    showConfirmButton: false,
-    timer: 1500,
-    timerProgressBar: true,
-    didOpen: (toastEl) => {
-      toastEl.addEventListener('mouseenter', () => Swal.stopTimer());
-      toastEl.addEventListener('mouseleave', () => Swal.resumeTimer());
-    },
-  });
-};
+// Toast function đã được import từ useToast
 
-const applyDiscount = (discount) => {
+const applyDiscount = async (discount) => {
   const shop = localCartItems.value.find(shop => String(shop.seller_id) === String(selectedSellerId.value));
   if (!shop) {
     toast('error', 'Không tìm thấy cửa hàng.');
     return;
+  }
+
+  // Lấy danh sách product IDs của shop này
+  const productIds = shop.items.map(item => {
+    // Thử các cách khác nhau để lấy product_id
+    const productId = item.product_id || item.product?.id || item.id;
+    console.log('Item:', item, 'Product ID:', productId);
+    return productId;
+  }).filter(id => id);
+  const orderValue = calculateStoreTotal(shop);
+
+  console.log('=== DEBUG applyDiscount ===');
+  console.log('Shop:', shop);
+  console.log('Product IDs:', productIds);
+  console.log('Order value:', orderValue);
+  console.log('Discount:', discount);
+  console.log('Shop items:', shop.items);
+
+  // Kiểm tra xem discount có áp dụng được cho các sản phẩm này không
+  if (discount.seller_id && discount.seller_id === shop.seller_id) {
+    // Đây là shop discount, cần kiểm tra sản phẩm
+    
+    // Kiểm tra trước ở frontend
+    if (discount.products && discount.products.length > 0) {
+      // Kiểm tra xem tất cả sản phẩm trong shop có được áp dụng voucher này không
+      const applicableProducts = discount.products.filter(product => 
+        productIds.includes(product.id)
+      );
+      
+      console.log('Frontend check - Voucher products:', discount.products.length, 'Applicable products:', applicableProducts.length, 'Shop products:', productIds.length);
+      
+      // Chỉ áp dụng nếu voucher có thể dùng cho tất cả sản phẩm trong shop
+      if (applicableProducts.length !== productIds.length) {
+        toast('error', 'Mã giảm giá này chỉ áp dụng cho một số sản phẩm, không thể áp dụng cho toàn bộ đơn hàng');
+        console.log('Frontend check failed - voucher cannot be applied to all products');
+        return;
+      }
+    }
+    
+    // Nếu frontend check passed, gọi API để kiểm tra chi tiết
+    const { checkShopDiscount } = useDiscount();
+    console.log('Calling checkShopDiscount with:', {
+      discountId: discount.id,
+      sellerId: shop.seller_id,
+      productIds: productIds,
+      orderValue: orderValue
+    });
+    
+    const checkResult = await checkShopDiscount(discount.id, shop.seller_id, productIds, orderValue);
+    
+    if (!checkResult.success) {
+      toast('error', checkResult.message);
+      console.log('Discount check failed:', checkResult);
+      return;
+    }
+    
+    console.log('Discount check passed:', checkResult);
   }
 
   shop.selectedDiscountId = discount.id;
@@ -585,6 +666,7 @@ const applyDiscount = (discount) => {
     });
   }
 
+  console.log('=== END DEBUG ===');
   toast('success', `Đã áp dụng mã giảm giá cho ${shop.store_name || 'cửa hàng'}`);
   showDiscountPopup.value = false;
   selectedSellerId.value = null;

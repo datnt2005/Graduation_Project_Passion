@@ -466,12 +466,16 @@ const {
 
 const { fetchMyVouchers, fetchDiscounts: fetchPublicDiscounts, fetchSellerDiscounts, discounts: publicDiscounts } = useDiscount();
 
-const handleShopDiscountUpdate = (data) => {
+const handleShopDiscountUpdate = async (data) => {
   if (data && data.sellerId) {
     // Chỉ cần gọi updateShopDiscount để cập nhật vào shopDiscounts (useCheckout)
     if (updateShopDiscount) {
-      updateShopDiscount(data.sellerId, data.discount, data.discountId);
-      console.log('Cập nhật discount cho shop', data.sellerId, '->', data.discount);
+      const success = await updateShopDiscount(data.sellerId, data.discount, data.discountId);
+      if (success) {
+        console.log('Cập nhật discount cho shop', data.sellerId, '->', data.discount);
+      } else {
+        console.log('Không thể áp dụng mã giảm giá cho shop', data.sellerId);
+      }
     }
   }
 };
