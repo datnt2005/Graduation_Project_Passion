@@ -30,8 +30,8 @@
           </select>
         </div>
       </div>
-    </div>
-    
+  </div>
+
     <div class="h-[400px] min-w-[600px] bg-gradient-to-br from-gray-50 to-white rounded-lg p-4">
       <div v-if="chartLoading" class="flex items-center justify-center h-full">
         <div class="text-center">
@@ -459,13 +459,13 @@
           Tìm kiếm:
         </label>
         <div class="relative">
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="Tên shop, email..."
+        <input
+          v-model="searchQuery"
+          type="text"
+          placeholder="Tên shop, email..."
             class="w-full border-2 border-gray-200 rounded-lg px-4 py-3 pl-10 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-white"
-            @input="debounceSearch"
-          />
+          @input="debounceSearch"
+        />
           <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -638,7 +638,7 @@
       >
         {{ showAllPayouts ? 'Thu gọn' : 'Xem tất cả' }}
       </button>
-    </div>
+      </div>
 
     <div v-if="payoutListLoading" class="text-center py-8">
       <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto"></div>
@@ -657,21 +657,21 @@
 
     <div v-else-if="!payoutList.length" class="text-center py-8">
       <div class="text-gray-500">Không có đơn hàng đã thanh toán</div>
-    </div>
+  </div>
 
     <div v-else>
       <div class="overflow-x-auto">
         <table class="w-full table-auto">
-          <thead>
+        <thead>
             <tr class="bg-gray-50">
-              <th class="px-4 py-2 text-left text-xs font-bold text-gray-600 uppercase">MÃ VẬN ĐƠN</th>
-              <th class="px-4 py-2 text-left text-xs font-bold text-gray-600 uppercase">NGƯỜI BÁN</th>
-              <th class="px-4 py-2 text-left text-xs font-bold text-gray-600 uppercase">SỐ TIỀN</th>
-              <th class="px-4 py-2 text-left text-xs font-bold text-gray-600 uppercase">NGÀY CHUYỂN KHOẢN</th>
-              <th class="px-4 py-2 text-left text-xs font-bold text-gray-600 uppercase">GHI CHÚ</th>
-            </tr>
-          </thead>
-          <tbody>
+            <th class="px-4 py-2 text-left text-xs font-bold text-gray-600 uppercase">MÃ VẬN ĐƠN</th>
+            <th class="px-4 py-2 text-left text-xs font-bold text-gray-600 uppercase">NGƯỜI BÁN</th>
+            <th class="px-4 py-2 text-left text-xs font-bold text-gray-600 uppercase">SỐ TIỀN</th>
+            <th class="px-4 py-2 text-left text-xs font-bold text-gray-600 uppercase">NGÀY CHUYỂN KHOẢN</th>
+            <th class="px-4 py-2 text-left text-xs font-bold text-gray-600 uppercase">GHI CHÚ</th>
+          </tr>
+        </thead>
+        <tbody>
             <tr 
               v-for="item in displayPayouts" 
               :key="item.id" 
@@ -681,16 +681,16 @@
                 <a
                   v-if="getTrackingCode(item) && getTrackingCode(item) !== '-'"
                   :href="`/admin/orders/list-order?tracking_code=${getTrackingCode(item)}`"
-                  @click.prevent="goToOrderWithTracking(getTrackingCode(item))"
+                @click.prevent="goToOrderWithTracking(getTrackingCode(item))"
                   class="font-semibold text-blue-600 underline hover:text-orange-600 cursor-pointer transition"
-                >
-                  {{ getTrackingCode(item) }}
-                </a>
+              >
+                {{ getTrackingCode(item) }}
+              </a>
                 <span v-else class="text-gray-400">Chưa có</span>
-              </td>
+            </td>
               <td class="px-4 py-3">
                 <div class="font-medium">{{ item.seller?.store_name || item.seller?.user?.name || 'N/A' }}</div>
-              </td>
+            </td>
               <td class="px-4 py-3 font-semibold text-green-600">
                 {{ formatCurrency(item.amount) }}
               </td>
@@ -700,26 +700,26 @@
               <td class="px-4 py-3 text-sm text-gray-600 max-w-[200px] truncate" :title="item.note || '-'">
                 {{ item.note || '-' }}
               </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+          </tr>
+        </tbody>
+      </table>
+        </div>
 
       <!-- Phân trang cho payout -->
       <div v-if="showAllPayouts && payoutMeta.last_page > 1" class="mt-4 flex justify-center gap-2">
-        <button
-          v-for="page in payoutMeta.last_page"
-          :key="page"
-          @click="changePage(page)"
-          :class="[
-            'px-3 py-1 rounded text-sm',
-            page === payoutMeta.current_page
+          <button
+            v-for="page in payoutMeta.last_page"
+            :key="page"
+            @click="changePage(page)"
+            :class="[
+              'px-3 py-1 rounded text-sm',
+              page === payoutMeta.current_page
               ? 'bg-green-600 text-white'
-              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-          ]"
-        >
-          {{ page }}
-        </button>
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            ]"
+          >
+            {{ page }}
+          </button>
       </div>
     </div>
   </div>
@@ -1121,7 +1121,7 @@ onMounted(async () => {
     // 1. Load dữ liệu tổng quan trước (quan trọng nhất)
     await Promise.all([
       fetchSystemOverview(),
-      fetchAdminCommission()
+  fetchAdminCommission()
     ])
     
     // 2. Load dữ liệu biểu đồ và danh sách
@@ -1135,12 +1135,12 @@ onMounted(async () => {
     // 3. Load dữ liệu shop (ít quan trọng hơn)
     await Promise.all([
       fetchSellers(),
-      fetchOrderMap()
+  fetchOrderMap()
     ])
     
     // 4. Load shop stats nếu có seller được chọn
     if (selectedSellerId.value) {
-      fetchShopStats()
+  fetchShopStats()
     }
   } catch (error) {
     console.error('Error loading dashboard data:', error)
