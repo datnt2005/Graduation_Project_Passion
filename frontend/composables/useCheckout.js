@@ -617,7 +617,6 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
           toast('error', 'Dữ liệu Buy Now đã hết hạn. Vui lòng chọn lại sản phẩm.');
         } else {
           buyNowData.value = data;
-          // Tự động fetch địa chỉ seller khi load buy now data
           if (data.seller_id) {
             fetchSellerAddress(data.seller_id);
           }
@@ -632,12 +631,10 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
   };
 
   const updateShopDiscount = async (sellerId, discount, discountId = null) => {
-    // Kiểm tra xem discount có áp dụng được cho các sản phẩm của shop này không
     if (discountId && cart.value && cart.value.stores) {
       const shop = cart.value.stores.find(s => s.seller_id === sellerId);
       if (shop && shop.items && shop.items.length > 0) {
         const productIds = shop.items.map(item => {
-          // Thử các cách khác nhau để lấy product_id
           const productId = item.product_id || item.product?.id || item.id;
           console.log('Item:', item, 'Product ID:', productId);
           return productId;
@@ -652,17 +649,14 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
         console.log('Order value:', orderValue);
         console.log('Discount ID:', discountId);
 
-        // Tìm discount object để kiểm tra products
         const discountObject = discounts.value.find(d => d.id === discountId);
         if (discountObject && discountObject.products && discountObject.products.length > 0) {
-          // Kiểm tra xem tất cả sản phẩm trong shop có được áp dụng voucher này không
           const applicableProducts = discountObject.products.filter(product => 
             productIds.includes(product.id)
           );
           
           console.log('Frontend check - Voucher products:', discountObject.products.length, 'Applicable products:', applicableProducts.length, 'Shop products:', productIds.length);
           
-          // Chỉ áp dụng nếu voucher có thể dùng cho tất cả sản phẩm trong shop
           if (applicableProducts.length !== productIds.length) {
             console.log('Frontend check failed - voucher cannot be applied to all products');
             toast('error', 'Mã giảm giá này chỉ áp dụng cho một số sản phẩm, không thể áp dụng cho toàn bộ đơn hàng');
@@ -670,7 +664,6 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
           }
         }
 
-        // Gọi API để kiểm tra discount
         try {
           const token = localStorage.getItem('access_token');
           const res = await fetch(`${config.public.apiBaseUrl}/discounts/check-shop-discount`, {
@@ -730,14 +723,11 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
 
   // Thêm hàm chia đều discount sản phẩm admin cho từng shop
   const getProductDiscountPerShop = (total, shopCount) => {
-    // Tính discount admin trực tiếp thay vì dựa vào calculateDiscount
     let totalAdminDiscount = 0;
-    
     if (selectedDiscounts.value && Array.isArray(selectedDiscounts.value)) {
       const adminProductDiscounts = selectedDiscounts.value.filter(d => 
         (d.discount_type === 'percentage' || d.discount_type === 'fixed') && !d.seller_id
       );
-      
       adminProductDiscounts.forEach(discount => {
         if (total >= (discount.min_order_value || 0)) {
           const value = Number(discount.discount_value);
@@ -754,9 +744,7 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
         }
       });
     }
-    
     const perShopDiscount = Math.floor(totalAdminDiscount / shopCount);
-    
     return perShopDiscount;
   };
 
@@ -841,18 +829,32 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
           discount: getShopDiscount(store.seller_id),
           selectedDiscountId: getShopDiscountId(store.seller_id),
           shipping_fee: store.shipping_fee || 0,
-          original_shipping_fee: store.shipping_fee || 0, // Lưu phí ship gốc
+          original_shipping_fee: store.shipping_fee || 0,
           service_id: shopServiceIds.value[store.seller_id] || null,
-          shipping_discount: store.shipping_discount || 0, // Lấy từ cart.value.stores
+          shipping_discount: store.shipping_discount || 0,
         };
       });
     }
-    // Chia đều discount phí ship admin cho từng shop
+    // Phân bổ discount admin nếu chưa có trong shopDiscounts
     const shopCount = items.length;
-    const perShopDiscount = getShippingDiscountPerShop(total.value, shopCount);
+    const perShopDiscount = getProductDiscountPerShop(total.value, shopCount);
     if (perShopDiscount > 0) {
       items.forEach(shop => {
-        shop.shipping_discount = (shop.shipping_discount || 0) + perShopDiscount;
+        if (!shopDiscounts.value[shop.seller_id]) {
+          shopDiscounts.value[shop.seller_id] = perShopDiscount;
+          const adminDiscount = selectedDiscounts.value.find(d => !d.seller_id && (d.discount_type === 'percentage' || d.discount_type === 'fixed'));
+          if (adminDiscount) {
+            shopDiscountIds.value[shop.seller_id] = adminDiscount.id;
+          }
+        }
+        shop.discount = getShopDiscount(shop.seller_id);
+      });
+    }
+    // Chia đều discount phí ship admin cho từng shop
+    const perShopShippingDiscount = getShippingDiscountPerShop(total.value, shopCount);
+    if (perShopShippingDiscount > 0) {
+      items.forEach(shop => {
+        shop.shipping_discount = (shop.shipping_discount || 0) + perShopShippingDiscount;
       });
     }
     return items;
@@ -893,7 +895,6 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
 
   const finalTotal = computed(() => {
     const baseTotal = total.value;
-    // Không trừ productDiscount ở đây nữa vì đã chia đều cho từng shop
     const shopDiscountsTotal = cartItems.value.reduce((sum, shop) => sum + (shop.discount || 0), 0);
     return Math.max(0, baseTotal - shopDiscountsTotal + finalShippingFee.value);
   });
@@ -906,7 +907,6 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
     const shopCount = cartItems.value.length;
     if (shopCount === 0) return 0;
     
-    // Tính tổng phí ship thực tế từ từng shop
     const totalRealShippingFee = cartItems.value.reduce((sum, shop) => {
       const originalFee = shop.original_shipping_fee || shop.shipping_fee || 0;
       const discount = shop.shipping_discount || 0;
@@ -921,7 +921,6 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
 
   const realFinalTotal = computed(() => {
     const baseTotal = total.value;
-    // Không trừ productDiscount ở đây nữa vì đã chia đều cho từng shop
     const shopDiscountsTotal = cartItems.value.reduce((sum, shop) => sum + (shop.discount || 0), 0);
     return Math.max(0, baseTotal - shopDiscountsTotal + realShippingFee.value);
   });
@@ -949,8 +948,7 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
   };
 
   const placeOrder = async () => {
-    if (isPlacingOrder.value) return; // Ngăn chặn đặt hàng nhiều lần
-    
+    if (isPlacingOrder.value) return;
     if (isAccountBanned.value) {
       toast('error', 'Tài khoản của bạn đã bị khóa do có quá nhiều đơn hàng bị từ chối nhận.');
       return;
@@ -964,7 +962,7 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
       return;
     }
     
-    isPlacingOrder.value = true; // Bắt đầu loading
+    isPlacingOrder.value = true;
     try {
       const token = localStorage.getItem('access_token');
       if (!token) {
@@ -973,7 +971,6 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
         return;
       }
 
-      // Lấy thông tin người dùng
       const userResponse = await fetch(`${config.public.apiBaseUrl}/me`, {
         headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
       });
@@ -988,7 +985,6 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
       const { data: userData } = await userResponse.json();
       if (!userData?.id) throw new Error('Không tìm thấy thông tin người dùng');
 
-      // Kiểm tra và tính lại phí vận chuyển nếu cần
       for (const store of cartItems.value) {
         if (!store.seller_id) {
           throw new Error(`Thiếu seller_id cho cửa hàng ${store.store_name || 'Cửa hàng'}`);
@@ -996,46 +992,22 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
         if (!store.district_id || !store.ward_code) {
           throw new Error(`Thiếu thông tin địa chỉ của cửa hàng ${store.store_name || store.seller_id}`);
         }
-        
-        // Kiểm tra xem có cần tính phí vận chuyển không
-        const needsShippingCalculation = store.shipping_fee === 0 || !store.service_id || 
-          (isBuyNow.value && (!store.service_id || !shopServiceIds.value[store.seller_id]));
-        
-        if (needsShippingCalculation) {
-          console.log(`Tính phí vận chuyển cho shop ${store.seller_id}, buy now: ${isBuyNow.value}`);
-          
-          // Lấy địa chỉ seller
-          let sellerAddress = sellerAddresses.value[store.seller_id];
-          if (!sellerAddress) {
-            // Nếu chưa có địa chỉ seller, fetch từ API
-            await fetchSellerAddress(store.seller_id);
-            sellerAddress = sellerAddresses.value[store.seller_id];
-          }
-          
-          if (!sellerAddress) {
-            throw new Error(`Không thể lấy địa chỉ của cửa hàng ${store.store_name || store.seller_id}`);
-          }
-          
-          const { fee, service_id } = await calculateShippingFee(store.seller_id, sellerAddress, selectedAddress.value);
+        if (store.shipping_fee === 0 || !store.service_id) {
+          console.warn(`Phí vận chuyển hoặc service_id không hợp lệ cho shop ${store.seller_id}. Tính lại...`);
+          const { fee, service_id } = await calculateShippingFee(store.seller_id, sellerAddresses.value[store.seller_id], selectedAddress.value);
           if (fee === 0 || !service_id) {
             throw new Error(`Không thể tính phí vận chuyển cho shop ${store.seller_id}`);
           }
-          
-          console.log(`Đã tính phí vận chuyển cho shop ${store.seller_id}: fee=${fee}, service_id=${service_id}`);
-          
           store.shipping_fee = fee;
-          store.original_shipping_fee = fee; // Lưu phí gốc
           store.service_id = service_id;
           shopServiceIds.value[store.seller_id] = service_id;
         }
       }
 
-      // Chuẩn bị dữ liệu đơn hàng
       const allItems = [];
       const storeShippingFees = {};
       const storeServiceIds = {};
-      const storeDiscounts = {}; // Thêm store discounts
-      const storeShippingDiscounts = {}; // Thêm store shipping discounts
+      const storeDiscounts = {};
       cartItems.value.forEach(store => {
         if (!store.seller_id) {
           throw new Error(`Thiếu seller_id cho cửa hàng ${store.store_name || 'Cửa hàng'}`);
@@ -1046,7 +1018,7 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
         if (store.items && Array.isArray(store.items)) {
           const serviceId = store.service_id || shopServiceIds.value[store.seller_id];
           const shippingFee = store.shipping_fee || 0;
-          const shopDiscount = store.discount || 0; // Lấy discount của shop
+          const shopDiscount = store.discount || 0;
 
           if (!serviceId) {
             throw new Error(`Thiếu service_id cho cửa hàng ${store.seller_id}`);
@@ -1068,32 +1040,16 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
               });
             }
           });
-          storeShippingFees[store.seller_id] = store.original_shipping_fee || store.shipping_fee || 0; // Gửi phí ship gốc
+          storeShippingFees[store.seller_id] = shippingFee;
           storeServiceIds[store.seller_id] = serviceId;
-          storeDiscounts[store.seller_id] = shopDiscount; // Lưu discount của shop
-          storeShippingDiscounts[store.seller_id] = store.shipping_discount || 0; // Lưu discount phí ship của shop
+          storeDiscounts[store.seller_id] = shopDiscount;
         }
       });
 
-      // Kiểm tra hợp lệ
       if (!allItems.length) {
         throw new Error('Không có sản phẩm hợp lệ để đặt hàng');
       }
 
-      // Kiểm tra mutual exclusivity trước khi gửi order
-      const productDiscounts = selectedDiscounts.value.filter(d => 
-        d.discount_type === 'percentage' || d.discount_type === 'fixed'
-      );
-      
-      const adminProductDiscounts = productDiscounts.filter(d => !d.seller_id);
-      const shopProductDiscounts = productDiscounts.filter(d => d.seller_id);
-      
-      if (adminProductDiscounts.length > 0 && shopProductDiscounts.length > 0) {
-        toast('error', 'Không thể áp dụng cùng lúc mã giảm giá của shop và admin. Vui lòng chọn một loại.');
-        return;
-      }
-
-      // Tạo dữ liệu đơn hàng
       const orderData = {
         user_id: userData.id,
         address_id: selectedAddress.value?.id || null,
@@ -1111,11 +1067,9 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
         store_notes: storeNotes.value || {},
         store_shipping_fees: storeShippingFees,
         store_service_ids: storeServiceIds,
-        store_discounts: storeDiscounts, // Thêm store discounts vào payload
-        store_shipping_discounts: storeShippingDiscounts, // Thêm dòng này
+        store_discounts: storeDiscounts,
       };
 
-      // Gửi yêu cầu tạo đơn hàng
       const orderResponse = await fetch(`${config.public.apiBaseUrl}/orders`, {
         method: 'POST',
         headers: {
@@ -1130,10 +1084,12 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
         const errorData = await orderResponse.json().catch(() => ({ message: 'Lỗi máy chủ' }));
         if (errorData.message.includes('COD') && errorData.can_use_cod === false) {
           canUseCod.value = false;
+          toast('error', 'Bạn không thể sử dụng COD do có quá nhiều đơn hàng bị từ chối.');
           return;
         }
         if (errorData.message.includes('khóa') && errorData.is_account_banned) {
           isAccountBanned.value = true;
+          toast('error', errorData.message);
           await logout();
           await navigateTo('/login');
           return;
@@ -1147,11 +1103,8 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
       await removeOrderedItems(allItems);
       if (isBuyNow.value) localStorage.removeItem('buy_now');
 
-      // Chuyển hướng dựa trên phương thức thanh toán
       const orderIds = orders.map(order => order.id).join(',');
-      
       if (selectedPaymentMethod.value === 'VNPAY') {
-        // Với VNPay, tạo payment URL và chuyển hướng đến VNPay
         const paymentResponse = await fetch(`${config.public.apiBaseUrl}/payments/vnpay/create`, {
           method: 'POST',
           headers: {
@@ -1163,11 +1116,9 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
             order_ids: orders.map(order => order.id)
           }),
         });
-        
         if (!paymentResponse.ok) {
           throw new Error('Không thể tạo thanh toán VNPay');
         }
-        
         const paymentData = await paymentResponse.json();
         if (paymentData.data && paymentData.data.payment_url) {
           window.location.href = paymentData.data.payment_url;
@@ -1175,7 +1126,6 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
           throw new Error('Không nhận được URL thanh toán VNPay');
         }
       } else if (selectedPaymentMethod.value === 'MOMO') {
-        // Với MoMo, tạo payment URL và chuyển hướng đến MoMo
         const paymentResponse = await fetch(`${config.public.apiBaseUrl}/payments/momo/create`, {
           method: 'POST',
           headers: {
@@ -1187,11 +1137,9 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
             order_ids: orders.map(order => order.id)
           }),
         });
-        
         if (!paymentResponse.ok) {
           throw new Error('Không thể tạo thanh toán MoMo');
         }
-        
         const paymentData = await paymentResponse.json();
         if (paymentData.data && paymentData.data.payment_url) {
           window.location.href = paymentData.data.payment_url;
@@ -1199,15 +1147,14 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
           throw new Error('Không nhận được URL thanh toán MoMo');
         }
       } else {
-        // Với COD và các phương thức khác, chuyển hướng đến order-success
-      await navigateTo(`/order-success?ids=${orderIds}`);
+        await navigateTo(`/order-success?ids=${orderIds}`);
       }
       await fetchCart();
     } catch (err) {
       console.error('Lỗi khi đặt hàng:', err);
       toast('error', err.message || 'Đã xảy ra lỗi khi đặt hàng. Vui lòng thử lại.');
     } finally {
-      isPlacingOrder.value = false; // Kết thúc loading
+      isPlacingOrder.value = false;
     }
   };
 

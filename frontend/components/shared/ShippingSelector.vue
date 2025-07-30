@@ -26,9 +26,6 @@
           </button>
         </div>
 
-        <!-- Danh sách phương thức giao hàng cho từng cửa hàng -->
-        
-
         <div class="space-y-4">
           <div v-for="item in shop.items" :key="item.id"
             class="flex gap-4 items-center border border-gray-100 rounded-md p-3 bg-gray-50">
@@ -125,12 +122,12 @@
             <div class="animate-spin rounded-full h-6 w-6 border-t-2 border-blue-600"></div>
           </div>
 
-          <div v-else-if="filteredVouchers.length === 0" class="text-center py-4 text-gray-500">
+          <div v-else-if="filteredVouchersSearched.length === 0" class="text-center py-4 text-gray-500">
             Không có mã giảm giá khả dụng
           </div>
 
           <div v-else class="space-y-2 max-h-60 overflow-y-auto">
-            <div v-for="voucher in filteredVouchers" :key="voucher.id"
+            <div v-for="voucher in filteredVouchersSearched" :key="voucher.id"
               class="border border-gray-200 rounded p-3 hover:bg-gray-50 cursor-pointer"
               @click="applyDiscount(voucher)">
               <div class="flex justify-between items-start">
@@ -194,7 +191,6 @@ watch(() => props.cartItems, (newItems) => {
 
 // Watch for changes in cart items and address to trigger shipping fee updates
 watch([() => props.cartItems, () => props.address], () => {
-  // Update local cart items when props change
   localCartItems.value = JSON.parse(JSON.stringify(props.cartItems));
 }, { deep: true });
 
@@ -235,30 +231,12 @@ const fetchUserVouchers = async () => {
       }
     });
     
-    // Log response details for debugging
-    console.log('Vouchers API Response:', {
-      status: res.status,
-      statusText: res.statusText,
-      headers: Object.fromEntries(res.headers.entries())
-    });
-    
     if (res.ok) {
       const data = await res.json();
       userVouchers.value = data.data || [];
       console.log('Vouchers fetched successfully:', userVouchers.value.length);
     } else {
-      // Log the actual response text for debugging
-      const responseText = await res.text();
-      console.error('Failed to fetch vouchers:', {
-        status: res.status,
-        statusText: res.statusText,
-        response: responseText.substring(0, 500) // First 500 chars
-      });
-      
-      if (res.status === 401) {
-        console.error('Authentication failed - token may be invalid or expired');
-      }
-      
+      console.error('Failed to fetch vouchers:', res.status, res.statusText);
       userVouchers.value = [];
     }
   } catch (error) {
@@ -270,12 +248,25 @@ const fetchUserVouchers = async () => {
 };
 
 const filteredVouchers = computed(() => {
-  if (!searchCoupon.value) return userVouchers.value;
-  
-  return userVouchers.value.filter(voucher => 
-    voucher.code.toLowerCase().includes(searchCoupon.value.toLowerCase()) ||
-    voucher.description.toLowerCase().includes(searchCoupon.value.toLowerCase())
-  );
+  if (!selectedSellerId.value) return [];
+  return userVouchers.value.filter(v => String(v.seller_id) === String(selectedSellerId.value));
+});
+
+const filteredVouchersSearched = computed(() => {
+  let arr = filteredVouchers.value;
+  if (searchCoupon.value) {
+    const keyword = searchCoupon.value.toLowerCase();
+    arr = arr.filter(v =>
+      (v.code && v.code.toLowerCase().includes(keyword)) ||
+      (v.description && v.description.toLowerCase().includes(keyword))
+    );
+  }
+  const seen = new Set();
+  return arr.filter(v => {
+    if (seen.has(v.id)) return false;
+    seen.add(v.id);
+    return true;
+  });
 });
 
 const selectShopDiscount = async (sellerId) => {
@@ -342,7 +333,6 @@ const removeShippingDiscount = (shop) => {
 
 const retryCalculateFees = async () => {
   errorMessage.value = '';
-  // Trigger shipping fee calculation in useCheckout
   const { loadShippingFees } = useCheckout();
   await loadShippingFees();
 };
@@ -359,7 +349,6 @@ watch(localCartItems, () => {
 }, { deep: true });
 
 onMounted(() => {
-  // Initialize with current cart items
   localCartItems.value = JSON.parse(JSON.stringify(props.cartItems));
 });
 </script>

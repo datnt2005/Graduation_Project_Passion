@@ -13,8 +13,8 @@ interface Discount {
     start_date: string;
     end_date: string;
     status: 'active' | 'inactive' | 'expired';
-    seller_id?: number; // Added for shop-specific discounts
-    is_saved?: boolean; // Thêm trường is_saved để theo dõi trạng thái lưu
+    seller_id?: number;
+    is_saved?: boolean;
 }
 
 export const useDiscount = () => {
@@ -47,7 +47,7 @@ export const useDiscount = () => {
                 const isValid = discount.status === 'active' &&
                     new Date(discount.end_date) > new Date() &&
                     discount.discount_value > 0 &&
-                    discount.discount_value < 1000000; // Giới hạn tối đa 1 triệu
+                    discount.discount_value < 1000000;
                 
                 if (!isValid) {
                     console.warn('Invalid discount filtered out:', discount);
@@ -88,7 +88,7 @@ export const useDiscount = () => {
                 const isValid = discount.status === 'active' &&
                     new Date(discount.end_date) > new Date() &&
                     discount.discount_value > 0 &&
-                    discount.discount_value < 1000000; // Giới hạn tối đa 1 triệu
+                    discount.discount_value < 1000000;
                 
                 if (!isValid) {
                     console.warn('Invalid seller discount filtered out:', discount);
@@ -134,7 +134,7 @@ export const useDiscount = () => {
             const data = await res.json();
             discounts.value = data.data.map((discount: Discount) => ({
                 ...discount,
-                is_saved: true // Đánh dấu các voucher của tôi là đã lưu
+                is_saved: true
             }));
         } catch (err) {
             error.value = err instanceof Error ? err.message : 'Lỗi không xác định';
@@ -244,9 +244,7 @@ export const useDiscount = () => {
             return;
         }
 
-        // Nếu là shop discount, kiểm tra với API trước khi thêm
         if (discount.seller_id) {
-            // Giả sử có hàm checkShopDiscount
             const checkResult = await checkShopDiscount(discount.id, discount.seller_id, [], 0);
             if (checkResult.error_code === 'USAGE_LIMIT_EXCEEDED' || (checkResult.message && checkResult.message.includes('hết lượt sử dụng'))) {
                 showErrorNotification(checkResult.message || 'Mã giảm giá đã hết lượt sử dụng');
@@ -258,33 +256,26 @@ export const useDiscount = () => {
             }
         }
 
-        // Xử lý shipping discount
         if (isShippingDiscount) {
-            // Chỉ cho phép 1 shipping discount admin
             const removedShipping = selectedDiscounts.value.filter(d => d.discount_type === 'shipping_fee' && !d.seller_id);
             selectedDiscounts.value = selectedDiscounts.value.filter(d => !(d.discount_type === 'shipping_fee' && !d.seller_id));
             console.log('Removed shipping discounts:', removedShipping);
         }
 
-        // Xử lý product discount với mutual exclusivity
         if (isProductDiscount) {
             if (discount.seller_id) {
-                // Đây là shop discount - loại bỏ tất cả admin product discounts
                 const removedAdmin = selectedDiscounts.value.filter(d => !d.seller_id && (d.discount_type === 'percentage' || d.discount_type === 'fixed'));
                 selectedDiscounts.value = selectedDiscounts.value.filter(d => !(!d.seller_id && (d.discount_type === 'percentage' || d.discount_type === 'fixed')));
                 console.log('Removed admin discounts:', removedAdmin);
                 
-                // Loại bỏ shop discount khác của cùng shop
                 const removedShop = selectedDiscounts.value.filter(d => d.seller_id === discount.seller_id && (d.discount_type === 'percentage' || d.discount_type === 'fixed'));
                 selectedDiscounts.value = selectedDiscounts.value.filter(d => !(d.seller_id === discount.seller_id && (d.discount_type === 'percentage' || d.discount_type === 'fixed')));
                 console.log('Removed other shop discounts:', removedShop);
             } else {
-                // Đây là admin discount - loại bỏ tất cả shop product discounts
                 const removedShop = selectedDiscounts.value.filter(d => d.seller_id && (d.discount_type === 'percentage' || d.discount_type === 'fixed'));
                 selectedDiscounts.value = selectedDiscounts.value.filter(d => !(d.seller_id && (d.discount_type === 'percentage' || d.discount_type === 'fixed')));
                 console.log('Removed shop discounts:', removedShop);
                 
-                // Loại bỏ admin product discount khác
                 const removedAdmin = selectedDiscounts.value.filter(d => !d.seller_id && (d.discount_type === 'percentage' || d.discount_type === 'fixed'));
                 selectedDiscounts.value = selectedDiscounts.value.filter(d => !(!d.seller_id && (d.discount_type === 'percentage' || d.discount_type === 'fixed')));
                 console.log('Removed other admin discounts:', removedAdmin);
@@ -308,28 +299,20 @@ export const useDiscount = () => {
 
     const calculateDiscount = (total: number, shopId?: number) => {
         let totalDiscount = 0;
-
-        // Lọc chỉ lấy product discounts (không phải shipping)
         const productDiscounts = selectedDiscounts.value.filter(d => 
             d.discount_type === 'percentage' || d.discount_type === 'fixed'
         );
+        const adminDiscounts = productDiscounts.filter(d => !d.seller_id);
+        const shopDiscounts = productDiscounts.filter(d => d.seller_id);
+        const discountsToApply = shopDiscounts.length > 0 ? shopDiscounts : adminDiscounts;
 
         console.log('=== DEBUG calculateDiscount ===');
         console.log('Total:', total);
         console.log('ShopId:', shopId);
         console.log('All selected discounts:', selectedDiscounts.value);
         console.log('Product discounts:', productDiscounts);
-
-        // Kiểm tra mutual exclusivity
-        const adminDiscounts = productDiscounts.filter(d => !d.seller_id);
-        const shopDiscounts = productDiscounts.filter(d => d.seller_id);
-
         console.log('Admin discounts:', adminDiscounts);
         console.log('Shop discounts:', shopDiscounts);
-
-        // Nếu có cả admin và shop discount, chỉ áp dụng shop discount
-        const discountsToApply = shopDiscounts.length > 0 ? shopDiscounts : adminDiscounts;
-
         console.log('Discounts to apply:', discountsToApply);
 
         discountsToApply.forEach(discount => {
@@ -339,37 +322,29 @@ export const useDiscount = () => {
                 const value = Number(discount.discount_value);
                 console.log('Discount value:', value, 'Type:', discount.discount_type);
 
-                // Validation để tránh tính sai
                 if (value <= 0 || value > 1000000) {
                     console.error('Invalid discount value:', value, 'for discount:', discount);
                     return;
                 }
 
                 if (discount.discount_type === 'percentage') {
-                    // Validation cho percentage
                     if (value > 100) {
                         console.error('Percentage cannot be greater than 100%:', value);
                         return;
                     }
                     
-                    let discountAmount = 0;
-                    // Nếu là mã giảm giá shop, chỉ áp dụng cho shop đó
                     if (discount.seller_id && shopId && discount.seller_id === shopId) {
-                        discountAmount = total * value / 100;
+                        const discountAmount = total * value / 100;
                         totalDiscount += discountAmount;
                         console.log('Shop percentage discount:', discountAmount);
                     } else if (!discount.seller_id && !shopId) {
-                        // Mã toàn sàn, không truyền shopId => áp dụng cho toàn bộ đơn hàng
-                        // Không tính discount admin ở đây nữa vì đã chia đều cho từng shop
                         console.log('Admin percentage discount - đã chia đều cho từng shop');
                     }
                 } else {
-                    // fixed
                     if (discount.seller_id && shopId && discount.seller_id === shopId) {
                         totalDiscount += value;
                         console.log('Shop fixed discount:', value);
                     } else if (!discount.seller_id && !shopId) {
-                        // Không tính discount admin ở đây nữa vì đã chia đều cho từng shop
                         console.log('Admin fixed discount - đã chia đều cho từng shop');
                     }
                 }
@@ -385,7 +360,6 @@ export const useDiscount = () => {
     };
 
     const getShippingDiscount = (total: number) => {
-        // Chỉ lấy mã giảm giá phí ship toàn sàn (không phải của shop)
         const shippingDiscount = selectedDiscounts.value.find(
             d => d.discount_type === 'shipping_fee' && !d.seller_id
         );
@@ -404,27 +378,28 @@ export const useDiscount = () => {
         return Math.floor(price).toLocaleString('vi-VN');
     };
 
-const saveVoucherByCode = async (code: string) => {
-    const token = localStorage.getItem('access_token');
-    if (!token) {
-        return { success: false, message: 'Vui lòng đăng nhập để lưu voucher' };
-    }
-    try {
-        const res = await fetch(`${config.public.apiBaseUrl}/discounts/save-by-code`, {
-            method: 'POST',
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ code })
-        });
-        const data = await res.json();
-        return { success: res.ok, message: data.message || (res.ok ? 'Lưu voucher thành công' : 'Lưu voucher thất bại') };
-    } catch (e) {
-        return { success: false, message: 'Lỗi hệ thống' };
-    }
-};
+    const saveVoucherByCode = async (code: string) => {
+        const token = localStorage.getItem('access_token');
+        if (!token) {
+            return { success: false, message: 'Vui lòng đăng nhập để lưu voucher' };
+        }
+        try {
+            const res = await fetch(`${config.public.apiBaseUrl}/discounts/save-by-code`, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ code })
+            });
+            const data = await res.json();
+            return { success: res.ok, message: data.message || (res.ok ? 'Lưu voucher thành công' : 'Lưu voucher thất bại') };
+        } catch (e) {
+            return { success: false, message: 'Lỗi hệ thống' };
+        }
+    };
+
     const deleteUserCoupon = async (discountId: number) => {
         const token = localStorage.getItem('access_token');
         if (!token) {
