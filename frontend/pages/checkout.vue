@@ -2,10 +2,14 @@
   <div class="bg-[#F8F9FF] text-gray-700">
     <div class="max-w-[1200px] mx-auto px-4 py-6 flex flex-col lg:flex-row gap-6">
       <main class="flex-1 p-8 overflow-y-hidden" :class="{ 'opacity-50 pointer-events-none': isAccountBanned }">
-        <!-- Thông báo khi tài khoản bị khóa -->
-        <div v-if="isAccountBanned" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          Tài khoản của bạn đã bị khóa do có quá nhiều đơn hàng bị từ chối nhận. Vui lòng liên hệ hỗ trợ để biết thêm
-          chi tiết.
+        <!-- Thông báo khi tài khoản bị khóa hoặc không thể dùng COD -->
+        <div v-if="isAccountBanned || (!canUseCod && !isAccountBanned && rejectedOrdersCount >= 2)" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          <template v-if="isAccountBanned">
+            Tài khoản của bạn đã bị khóa do có quá nhiều đơn hàng bị từ chối nhận. Vui lòng liên hệ hỗ trợ để biết thêm chi tiết.
+          </template>
+          <template v-else>
+            Bạn không thể sử dụng phương thức thanh toán COD vì có quá nhiều đơn hàng bị từ chối nhận.
+          </template>
         </div>
 
         <!-- Breadcrumb -->
@@ -55,10 +59,7 @@
                   <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
                 </div>
                 <form v-else class="space-y-6 text-xs text-gray-700 max-w-md">
-                  <!-- Thông báo khi COD không khả dụng -->
-                  <div v-if="!canUseCod && !isAccountBanned && rejectedOrdersCount >= 2" class="text-red-500 text-xs mb-4">
-                    Thanh toán khi nhận hàng (COD) không khả dụng do bạn có quá nhiều đơn hàng bị từ chối nhận.
-                  </div>
+                  <!-- Đã hiển thị ở trên, không hiển thị lại thông báo COD ở đây -->
                   <label v-for="method in paymentMethods" :key="method.id" class="cursor-pointer"
                     :class="method.name === 'VNPAY' || method.name === 'CREDIT' ? 'flex flex-col gap-1' : 'flex items-center gap-3'">
                     <div class="flex items-center gap-3">
@@ -379,6 +380,7 @@ import SelectedAddress from '~/components/shared/SelectedAddress.vue';
 import ShippingSelector from '~/components/shared/ShippingSelector.vue';
 import { useCheckout } from '~/composables/useCheckout';
 import { useDiscount } from '~/composables/useDiscount';
+import { checkoutPerformance } from '~/utils/performance';
 
 const config = useRuntimeConfig();
 const apiBase = config.public.apiBaseUrl;
@@ -728,32 +730,65 @@ watch(discountError, (val) => {
 watch(selectedAddress, async (newAddress) => {
   if (newAddress && newAddress.district_id && newAddress.ward_code) {
     console.log('Địa chỉ đã thay đổi, gọi loadShippingFees');
-    await loadShippingFees();
+    // Thêm debounce để tránh gọi quá nhiều lần
+    if (window.addressChangeTimeout) {
+      clearTimeout(window.addressChangeTimeout);
+    }
+    window.addressChangeTimeout = setTimeout(async () => {
+      await loadShippingFees();
+    }, 500);
   }
 }, { deep: true });
 
+// Tối ưu: Giảm số lượng watchers và log
 watch(cartItems, (newVal) => {
-  console.log('cartItems updated:', newVal.map(s => ({
-    seller_id: s.seller_id,
-    shipping_fee: s.shipping_fee,
-    service_id: s.service_id
-  })));
+  // Chỉ log khi có thay đổi quan trọng
+  const hasShippingFeeChanges = newVal.some(s => s.shipping_fee > 0);
+  if (hasShippingFeeChanges) {
+    console.log('cartItems updated with shipping fees:', newVal.map(s => ({
+      seller_id: s.seller_id,
+      shipping_fee: s.shipping_fee,
+      service_id: s.service_id
+    })));
+  }
 }, { deep: true });
 
 watch(selectedShippingMethod, (newVal) => {
-  console.log('Selected shipping method in checkout.vue:', newVal);
+  // Chỉ log khi có giá trị mới
+  if (newVal) {
+    console.log('Selected shipping method in checkout.vue:', newVal);
+  }
 });
 
 onMounted(async () => {
   try {
-    await Promise.all([
+    checkoutPerformance.start();
+    console.time('checkout-load');
+    
+    // Tối ưu: Load dữ liệu song song thay vì tuần tự
+    const loadPromises = [
       selectStoreItems(),
       fetchPaymentMethods(),
       fetchPublicDiscounts(),
       fetchMyVouchers(),
       loadSelectedAddress(),
       checkCodEligibility(),
-    ]);
+    ];
+    
+    await Promise.all(loadPromises);
+    
+    checkoutPerformance.markMilestone('Data loaded');
+    console.timeEnd('checkout-load');
+    
+    // Log performance summary after initial load
+    console.log('🚀 Checkout page loaded successfully');
+    checkoutPerformance.end();
+    
+    // Log shipping performance summary if available
+    const shippingStats = shippingPerformance.getSummary();
+    if (shippingStats.totalCalculations > 0) {
+      console.log('📊 Shipping Performance Summary:', shippingStats);
+    }
   } catch (err) {
     console.error('Error during checkout load:', err);
     toast('error', 'Lỗi khi tải dữ liệu thanh toán');

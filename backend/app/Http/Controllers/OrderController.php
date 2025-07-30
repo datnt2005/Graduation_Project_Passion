@@ -467,15 +467,20 @@ class OrderController extends Controller
             ]);
         }
 
+        // Chỉ trả về thông báo một lần duy nhất
+        $message = '';
+        if ($user->status === 'banned') {
+            $message = 'Tài khoản của bạn đã bị khóa do có quá nhiều đơn hàng bị từ chối nhận.';
+        } elseif ($rejectedOrdersCount >= 2) {
+            $message = 'Bạn không thể sử dụng phương thức thanh toán COD vì có quá nhiều đơn hàng bị từ chối nhận.';
+        } else {
+            $message = 'Bạn có thể sử dụng phương thức thanh toán COD.';
+        }
         return response()->json([
             'can_use_cod' => $rejectedOrdersCount < 2,
             'is_account_banned' => $user->status === 'banned',
             'rejected_orders_count' => $rejectedOrdersCount,
-            'message' => $user->status === 'banned'
-                ? 'Tài khoản của bạn đã bị khóa do có quá nhiều đơn hàng bị từ chối nhận.'
-                : ($rejectedOrdersCount >= 2
-                    ? 'Bạn không thể sử dụng phương thức thanh toán COD vì có quá nhiều đơn hàng bị từ chối nhận.'
-                    : 'Bạn có thể sử dụng phương thức thanh toán COD.')
+            'message' => $message
         ], 200);
     }
 
