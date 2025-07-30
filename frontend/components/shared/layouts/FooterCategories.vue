@@ -5,22 +5,20 @@
         Danh mục sản phẩm
       </h2>
 
-      <div
-        v-if="!pending && !error && categoryGroups.length"
-        class="grid grid-cols-6 gap-x-2 gap-y-1 text-[11px] sm:text-[12px] md:text-sm text-gray-700"
-      >
+      <div v-if="!pending && !error && categoryGroups.length"
+        class="grid grid-cols-6 gap-x-2 gap-y-1 text-[11px] sm:text-[12px] md:text-sm text-gray-700">
         <div v-for="(categoryGroup, index) in categoryGroups" :key="index">
-          <h3 class="font-semibold text-gray-900 mb-1 text-[12px] sm:text-sm">
-            {{ categoryGroup.title }}
-          </h3>
+          <NuxtLink :to="`/shop/${categoryGroup.slug}`" @click="() => trackCategoryClick(categoryGroup.id)"
+            class="hover:underline transition-all duration-150 relative">
+            <h3 class="font-semibold text-gray-900 mb-1 text-[12px] sm:text-sm">
+              {{ categoryGroup.title }}
+            </h3>
+          </NuxtLink>
           <ul class="space-y-[2px]">
             <li v-for="(item, idx) in categoryGroup.items" :key="idx" class="truncate">
-              <NuxtLink
-                :to="`/shop/${item.slug}`"
-                @click="() => trackCategoryClick(item.id)"
+              <NuxtLink :to="`/shop/${item.slug}`" @click="() => trackCategoryClick(item.id)"
                 class="hover:underline hover:text-blue-500 transition-all duration-150 relative after:content-['|'] after:mx-1 after:text-gray-300"
-                :class="{ 'after:content-none': idx === categoryGroup.items.length - 1 }"
-              >
+                :class="{ 'after:content-none': idx === categoryGroup.items.length - 1 }">
                 {{ item.name }}
               </NuxtLink>
             </li>
@@ -82,7 +80,9 @@ async function fetchCategories() {
       categories.forEach((cat) => {
         if (!cat.parent_id) {
           groupedCategories[cat.id] = {
+            id: cat.id,
             title: cat.name,
+            slug: cat.slug,
             items: [],
             id: cat.id
           }
@@ -97,10 +97,10 @@ async function fetchCategories() {
               items: [],
               id: parent.id
             }
-            groupedCategories[parent.id].items.push({ 
-              name: cat.name, 
+            groupedCategories[parent.id].items.push({
+              name: cat.name,
               slug: cat.slug,
-              id: cat.id 
+              id: cat.id
             })
           } else {
             groupedCategories[cat.id] = {

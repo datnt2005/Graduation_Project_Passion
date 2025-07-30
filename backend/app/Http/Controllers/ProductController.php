@@ -436,16 +436,16 @@ class ProductController extends Controller
 
             $admins = User::where('role', 'admin')->get();
             $notification = Notification::create([
-                'title' =>" Người bán {$user->name} đã thêm sản phẩm mới",
+                'title' => " Người bán {$user->name} đã thêm sản phẩm mới",
                 'content' => "Sản phẩm '{$request->name}' đã được {$user->name} thêm và đang chờ xét duyệt vào " . now()->format('d/m/Y H:i'),
                 'type' => 'system',
-                 'user_id' => $user->id,
+                'user_id' => $user->id,
                 'to_roles' => json_encode(['admin']),
                 'link' => 'admin/products/product-pending',
                 'from_role' => 'system',
                 'status' => 'sent',
                 'channels' => json_encode(['dashboard']),
-                 'created_at' => now(),
+                'created_at' => now(),
                 'updated_at' => now(),
             ]);
 
@@ -1588,7 +1588,18 @@ class ProductController extends Controller
     public function getProducts(Request $request, $slug = null)
     {
         $result = $this->searchService->getProducts($request, $slug);
-        return response()->json($result, $result['success'] ? 200 : ($result['errors'] ? 422 : 500));
+
+        // Default to error response if result is null or not an array
+        if (!is_array($result)) {
+            $result = [
+                'success' => false,
+                'message' => 'Đã xảy ra lỗi không xác định trong dịch vụ tìm kiếm.',
+                'error' => 'Kết quả từ dịch vụ là null hoặc không hợp lệ.',
+            ];
+        }
+
+        $statusCode = $result['success'] ? 200 : (isset($result['errors']) && !empty($result['errors']) ? 422 : 500);
+        return response()->json($result, $statusCode);
     }
     protected function getAllCategoryChildrenIds($category)
     {
@@ -1703,61 +1714,38 @@ class ProductController extends Controller
     }
 
     public function getProductsBySellerId($id)
-{
-    try {
-        $seller = Seller::findOrFail($id);
+    {
+        try {
+            $seller = Seller::findOrFail($id);
 
-        // Get categories associated with the seller's products
-        $categories = Product::where('seller_id', $seller->id)
-            ->where('status', 'active')
-            ->where('admin_status', 'approved')
-            ->with('categories')
-            ->get()
-            ->pluck('categories')
-            ->flatten()
-            ->pluck('id')
-            ->unique()
-            ->values();
+            // Get categories associated with the seller's products
+            $categories = Product::where('seller_id', $seller->id)
+                ->where('status', 'active')
+                ->where('admin_status', 'approved')
+                ->with('categories')
+                ->get()
+                ->pluck('categories')
+                ->flatten()
+                ->pluck('id')
+                ->unique()
+                ->values();
 
-        if ($categories->isEmpty()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Không tìm thấy danh mục nào cho seller này.',
-                'data' => []
-            ], 200);
-        }
+            if ($categories->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không tìm thấy danh mục nào cho seller này.',
+                    'data' => []
+                ], 200);
+            }
 
-        // Initialize products collection and track fetched product IDs
-        $products = collect();
-        $fetchedProductIds = collect();
-        $remaining = 10; // Number of products to fetch
+            // Initialize products collection and track fetched product IDs
+            $products = collect();
+            $fetchedProductIds = collect();
+            $remaining = 10; // Number of products to fetch
 
-        // Fetch products from the primary category
-        $primaryCategoryId = $categories->first();
-        $primaryProducts = Product::select('name', 'id', 'created_at', 'updated_at', 'slug')
-            ->with([
-                'categories',
-                'productVariants',
-                'productPic',
-                'tags'
-            ])
-            ->where('seller_id', $seller->id)
-            ->where('status', 'active')
-            ->where('admin_status', 'approved')
-            ->whereHas('categories', function ($query) use ($primaryCategoryId) {
-                $query->where('categories.id', $primaryCategoryId);
-            })
-            ->orderBy('created_at', 'desc')
-            ->take($remaining)
-            ->get();
-
-        $products = $products->merge($primaryProducts);
-        $fetchedProductIds = $products->pluck('id');
-        $remaining = 10 - $products->count();
-
-        // Fetch additional products from other categories, excluding already fetched products
-        if ($remaining > 0 && $categories->count() > 1) {
-            $otherProducts = Product::select('name', 'id', 'created_at', 'updated_at', 'slug')
+            // Fetch products from the primary category
+            $primaryCategoryId = $categories->first();
+            $primaryProducts = Product::select('name', 'id', 'created_at', 'updated_at', 'slug')
                 ->with([
                     'categories',
                     'productVariants',
@@ -1767,34 +1755,57 @@ class ProductController extends Controller
                 ->where('seller_id', $seller->id)
                 ->where('status', 'active')
                 ->where('admin_status', 'approved')
-                ->whereNotIn('id', $fetchedProductIds)
-                ->whereHas('categories', function ($query) use ($categories, $primaryCategoryId) {
-                    $query->whereIn('categories.id', $categories->except(0)->values());
+                ->whereHas('categories', function ($query) use ($primaryCategoryId) {
+                    $query->where('categories.id', $primaryCategoryId);
                 })
                 ->orderBy('created_at', 'desc')
                 ->take($remaining)
                 ->get();
 
-            $products = $products->merge($otherProducts);
+            $products = $products->merge($primaryProducts);
+            $fetchedProductIds = $products->pluck('id');
+            $remaining = 10 - $products->count();
+
+            // Fetch additional products from other categories, excluding already fetched products
+            if ($remaining > 0 && $categories->count() > 1) {
+                $otherProducts = Product::select('name', 'id', 'created_at', 'updated_at', 'slug')
+                    ->with([
+                        'categories',
+                        'productVariants',
+                        'productPic',
+                        'tags'
+                    ])
+                    ->where('seller_id', $seller->id)
+                    ->where('status', 'active')
+                    ->where('admin_status', 'approved')
+                    ->whereNotIn('id', $fetchedProductIds)
+                    ->whereHas('categories', function ($query) use ($categories, $primaryCategoryId) {
+                        $query->whereIn('categories.id', $categories->except(0)->values());
+                    })
+                    ->orderBy('created_at', 'desc')
+                    ->take($remaining)
+                    ->get();
+
+                $products = $products->merge($otherProducts);
+            }
+
+            // Convert to paginated response
+            $perPage = 10;
+            $page = request()->input('page', 1);
+            $total = $products->count();
+            $products = $products->slice(($page - 1) * $perPage, $perPage);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Lấy danh sách sản phẩm của seller thành công.',
+                'data' => $products->values()
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Đã xảy ra lỗi khi lấy danh sách sản phẩm của seller.',
+                'error' => env('APP_DEBUG') ? $e->getMessage() : null,
+            ], 500);
         }
-
-        // Convert to paginated response
-        $perPage = 10;
-        $page = request()->input('page', 1);
-        $total = $products->count();
-        $products = $products->slice(($page - 1) * $perPage, $perPage);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Lấy danh sách sản phẩm của seller thành công.',
-            'data' => $products->values()
-        ], 200);
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Đã xảy ra lỗi khi lấy danh sách sản phẩm của seller.',
-            'error' => env('APP_DEBUG') ? $e->getMessage() : null,
-        ], 500);
     }
-}
 }

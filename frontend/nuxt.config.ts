@@ -2,6 +2,13 @@ export default defineNuxtConfig({
   ssr: false,
   compatibilityDate: '2025-05-15',
 
+  app: {
+    // ✅ Tắt hiệu ứng loading mặc định (Nuxt logo đen)
+    pageTransition: false,
+    layoutTransition: false,
+   
+  },
+
   css: [
     '@/assets/css/tailwind.css',
     '@fortawesome/fontawesome-free/css/all.min.css',

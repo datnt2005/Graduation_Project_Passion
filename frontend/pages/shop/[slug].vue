@@ -1,23 +1,73 @@
 <template>
   <main class="bg-[#F5F5FA] py-2">
-    <div class="max-w-7xl mx-auto">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <!-- Breadcrumb -->
       <div class="mb-4 text-sm text-gray-500 rounded">
-        <nuxt-link to="/" class="text-gray-400">Trang chủ</nuxt-link>
+        <nuxt-link to="/" class="text-gray-400 hover:text-gray-600">Trang chủ</nuxt-link>
         <span class="mx-1">›</span>
         <span v-if="isSearchMode" class="text-gray-600 font-semibold">
           Kết quả tìm kiếm: “{{ searchQuery }}”
         </span>
-        <span v-else class="text-gray-600 font-semibold capitalize">{{ route.params.slug }}</span>
+        <span v-else class="text-gray-600 font-semibold capitalize">{{ currentCategoryName || route.params.slug }}</span>
+      </div>
+
+      <!-- Related Shop (Show only in shop mode or when shops are available in search mode) -->
+      <div v-if="isSearchMode ? shops.length === 1 : (shop && shop.store_name !== 'N/A')">
+        <h2 class="text-md font-bold mb-2">Cửa hàng liên quan</h2>
+        <nuxt-link :to="`/seller/${isSearchMode ? shops[0]?.store_slug : shop.store_slug}`"
+          class="block shadow hover:-translate-y-1 transition-transform duration-200 ease-in-out">
+          <div class="mb-6 bg-white p-4 rounded shadow">
+            <div class="flex items-center">
+              <img :src="(isSearchMode ? shops[0]?.avatar : shop?.avatar) || `${mediaBase}/default-avatar.jpg`"
+                alt="Shop Avatar" class="w-16 h-16 rounded-full object-cover mr-4 bg-gray-200" />
+              <div>
+                <h2 class="text-md font-bold">
+                  {{ isSearchMode ? shops[0]?.store_name : (shop?.store_name || 'Tên cửa hàng') }}
+                </h2>
+                <p class="text-sm text-gray-600">
+                  @{{ isSearchMode ? shops[0]?.store_slug : shop?.store_slug }}
+                </p>
+                <p class="text-sm text-gray-600 mt-1">
+                  {{ isSearchMode ? (shops[0]?.followers ?? 0) : (shop?.followers ?? 0) }} Người Theo Dõi
+                </p>
+                <div class="flex items-center text-sm text-gray-700 mt-2">
+                  <span class="mr-4">
+                    <strong>{{ isSearchMode ? (shops[0]?.total_products ?? 0) : (shop?.total_products ?? 0) }}</strong> Sản Phẩm
+                  </span>
+                  <span>
+                    <strong>{{ isSearchMode ? (shops[0]?.rating ?? '0.0') : (shop?.rating_value ?? '0.0') }}</strong> Đánh Giá
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </nuxt-link>
+      </div>
+
+      <!-- Related Shops (Show only in search mode with multiple shops) -->
+      <div v-if="isSearchMode && shops.length > 1" class="mb-6">
+        <h2 class="text-md font-bold mb-2">Cửa hàng liên quan</h2>
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+          <div v-for="shop in shops" :key="shop.id" class="bg-white p-2 rounded shadow hover:shadow-md transition">
+            <nuxt-link :to="`/seller/${shop.store_slug}`" class="flex flex-col items-center">
+              <img :src="shop.avatar ? `${mediaBase}/${shop.avatar}` : `${mediaBase}/avatars/default.jpg`" alt="Avatar"
+                class="w-16 h-16 rounded-full object-cover mb-2 bg-gray-200" />
+              <span class="text-sm font-medium text-gray-800 text-center">{{ shop.store_name }}</span>
+              <span class="text-xs text-gray-500">@{{ shop.store_slug }}</span>
+              <span class="text-xs text-gray-500">👥 {{ shop.followers ?? 0 }} theo dõi</span>
+              <span class="text-xs text-gray-500">🛒 {{ shop.total_products ?? 0 }} SP | ⭐ {{ shop.rating ?? '0.0' }}</span>
+            </nuxt-link>
+          </div>
+        </div>
       </div>
 
       <!-- Active Filters -->
-      <div v-if="activeFilters.length" class="mb-4 flex flex-wrap gap-2 ">
+      <div v-if="activeFilters.length" class="mb-4 flex flex-wrap gap-2">
         <span class="text-sm font-semibold text-gray-600">Bộ lọc đã chọn:</span>
         <span v-for="filter in activeFilters" :key="filter.key"
           class="flex items-center gap-1 bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded">
           {{ filter.label }}
-          <button @click="removeFilter(filter)" class="text-red-500 hover:text-red-700 mx-2">
+          <button @click="removeFilter(filter)" class="text-red-500 hover:text-red-700">
             <i class="fas fa-times"></i>
           </button>
         </span>
@@ -33,19 +83,20 @@
           <div v-if="categories.length" class="space-y-2">
             <div v-for="cat in categories" :key="cat.id">
               <div class="flex items-center justify-between">
-                <nuxt-link :to="`/shop/${cat.slug}`"  @click="() => trackCategoryClick(cat.id)"
+                <nuxt-link :to="`/shop/${cat.slug}`" @click="() => trackCategoryClick(cat.id)"
                   class="font-medium text-gray-800 hover:text-blue-600 text-sm leading-snug"
-                  :class="{ 'text-blue-600 font-bold': isSearchMode && searchQuery && cat.name.toLowerCase().includes(searchQuery.toLowerCase()) }">
+                  :class="{ 'text-blue-600 font-bold': isSearchMode && searchQuery && cat.name.toLowerCase().includes(searchQuery.toLowerCase()) || route.params.slug === cat.slug }">
                   {{ cat.name }}
                 </nuxt-link>
                 <button v-if="cat.children?.length" @click.prevent="toggleCategory(cat.id)">
                   <i :class="expandedCategories[cat.id] ? 'fa fa-caret-up' : 'fa fa-caret-down'"></i>
                 </button>
               </div>
-              <ul v-if="expandedCategories[cat.id]" class="ml-4 mt-1 space-y-0.5">
+              <ul v-if="expandedCategories[cat.id] && cat.children?.length" class="ml-4 mt-1 space-y-0.5">
                 <li v-for="child in cat.children" :key="child.id">
-                  <nuxt-link :to="`/shop/${child.slug}`" @click="() => trackCategoryClick(child.id)" class="text-gray-600 hover:text-blue-600 text-sm mx-3"
-                    :class="{ 'text-blue-600 font-medium': isSearchMode && searchQuery && child.name.toLowerCase().includes(searchQuery.toLowerCase()) }">
+                  <nuxt-link :to="`/shop/${child.slug}`" @click="() => trackCategoryClick(child.id)"
+                    class="text-gray-600 hover:text-blue-600 text-sm mx-3"
+                    :class="{ 'text-blue-600 font-medium': isSearchMode && searchQuery && child.name.toLowerCase().includes(searchQuery.toLowerCase()) || route.params.slug === child.slug }">
                     {{ child.name }}
                   </nuxt-link>
                 </li>
@@ -56,19 +107,19 @@
             {{ isSearchMode ? 'Không có danh mục liên quan' : 'Không có danh mục' }}
           </div>
 
-          <!-- Lọc thương hiệu -->
+          <!-- Brand Filter -->
           <div class="mt-6 border-t pt-4">
             <h3 class="font-semibold mb-2">Thương hiệu</h3>
             <div class="ml-2 space-y-1">
               <label v-for="brand in brands" :key="brand" class="flex items-center gap-2">
                 <input type="checkbox" :value="brand" v-model="filters.brand" @change="applyFilters"
-                  class="h-3 w-3 text-blue-500 rounded accent-white" />
+                  class="h-3 w-3 text-blue-500 rounded accent-blue-500" />
                 <span class="text-sm">{{ brand }}</span>
               </label>
             </div>
           </div>
 
-          <!-- Lọc theo sao -->
+          <!-- Rating Filter -->
           <div class="mt-6 border-t pt-4">
             <h3 class="font-semibold mb-2">Đánh giá</h3>
             <div class="ml-2 space-y-2">
@@ -82,24 +133,24 @@
             </div>
           </div>
 
-          <!-- Khuyến mãi -->
+          <!-- Sale Filter -->
           <div class="mt-6 border-t pt-4">
             <h3 class="font-semibold mb-2">Khuyến mãi</h3>
             <div class="ml-2 space-y-1">
               <label class="flex items-center gap-2">
                 <input type="radio" :value="false" v-model="filters.onSale" @change="applyFilters"
-                  class="w-4 text-blue-500 rounded accent-transparent" />
+                  class="w-4 text-blue-500 rounded accent-blue-500" />
                 <span class="text-sm">Tất cả</span>
               </label>
               <label class="flex items-center gap-2">
                 <input type="radio" :value="true" v-model="filters.onSale" @change="applyFilters"
-                  class="w-4 text-blue-500 rounded accent-transparent" />
+                  class="w-4 text-blue-500 rounded accent-blue-500" />
                 <span class="text-sm">Đang giảm giá</span>
               </label>
             </div>
           </div>
 
-          <!-- Lọc khoảng giá -->
+          <!-- Price Range Filter -->
           <div class="mt-6 border-t pt-4">
             <h3 class="font-semibold mb-2">Khoảng giá (₫)</h3>
             <div class="px-1 text-sm text-gray-600">
@@ -127,9 +178,9 @@
           </div>
         </aside>
 
-        <!-- Main content -->
+        <!-- Main Content -->
         <main class="w-full md:w-4/5 bg-white rounded p-4 shadow">
-          <!-- Bộ lọc sắp xếp -->
+          <!-- Sort Filters -->
           <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
             <div class="flex flex-wrap gap-2">
               <p class="text-sm font-semibold text-gray-600 mr-2">Sắp xếp theo:</p>
@@ -145,7 +196,6 @@
                 :class="{ 'bg-blue-100 text-blue-600': filters.sort === 'bestseller' }" @click="sortBy('bestseller')">
                 Bán Chạy
               </button>
-              <!-- Dropdown lọc giá -->
               <div class="relative inline-block text-left" ref="dropdownRef">
                 <button @click="show = !show"
                   class="inline-flex justify-center w-full px-3 py-1 text-sm font-medium border rounded shadow-sm bg-white hover:bg-blue-50 focus:outline-none">
@@ -174,7 +224,10 @@
           <div v-else-if="error" class="text-center py-4 text-red-500">Lỗi: {{ error }}</div>
           <!-- Products -->
           <div v-else>
-            <div v-if="products.length === 0" class="text-center py-8 text-gray-400 text-base">
+            <div v-if="products.length === 0 && shops.length === 0" class="text-center py-8 text-gray-400 text-base">
+              Không có sản phẩm hoặc cửa hàng nào phù hợp.
+            </div>
+            <div v-else-if="products.length === 0 && shops.length > 0" class="text-center py-8 text-gray-400 text-base">
               Không có sản phẩm nào phù hợp.
             </div>
             <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5 gap-4">
@@ -191,9 +244,8 @@
             </button>
             <template v-for="(page, i) in visiblePages" :key="i">
               <span v-if="page === '...'" class="px-3 py-1 text-gray-400 font-semibold select-none">...</span>
-              <button v-else class="px-3 py-1 rounded-full border transition font-semibold shadow-sm" :class="page === pagination.current_page
-                ? 'bg-[#1BA0E2] text-white border-[#1BA0E2] shadow-md sm:scale-100 md:scale-105'
-                : 'bg-white border-gray-300 hover:bg-blue-50 hover:border-blue-400 text-gray-700'"
+              <button v-else class="px-3 py-1 rounded-full border transition font-semibold shadow-sm"
+                :class="page === pagination.current_page ? 'bg-[#1BA0E2] text-white border-[#1BA0E2] shadow-md sm:scale-100 md:scale-105' : 'bg-white border-gray-300 hover:bg-blue-50 hover:border-blue-400 text-gray-700'"
                 @click="changePage(page)">
                 {{ page }}
               </button>
@@ -217,6 +269,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useSearchStore } from '~/stores/search';
 import { debounce } from 'lodash';
 import ProductCard from '~/components/shared/products/ProductCard.vue';
+import fontawesome from '~/plugins/fontawesome';
 
 const route = useRoute();
 const router = useRouter();
@@ -228,12 +281,14 @@ const mediaBase = config.public.mediaBaseUrl;
 const isSearchMode = computed(() => route.params.slug === 'search');
 const searchQuery = computed(() => decodeURIComponent(route.query.search?.trim() || ''));
 const products = ref([]);
+const shops = ref([]);
 const categories = ref([]);
 const brands = ref([]);
 const loading = ref(false);
 const error = ref(null);
 const expandedCategories = ref({});
-const currentCategoryName = ref(''); // Tên danh mục cha
+const currentCategoryName = ref('');
+const shop = ref(null);
 const pagination = ref({
   current_page: 1,
   last_page: 1,
@@ -250,18 +305,11 @@ const priceMin = 0;
 const priceMax = 100000000;
 const priceRange = ref([priceMin, priceMax]);
 
-// Tiêu đề sidebar động
+// Sidebar title
 const sidebarTitle = computed(() => {
-  if (isSearchMode.value) {
-    // Nếu là search, hiển thị "Danh mục liên quan"
-    return 'Danh Mục Liên Quan';
-  }
-  // Nếu không có slug (tức là trang tất cả sản phẩm), hiển thị "Tất cả danh mục"
-  if (!route.params.slug || route.params.slug === '' || route.params.slug === undefined) {
-    return 'Tất Cả Danh Mục';
-  }
-  // Nếu có slug, hiển thị "Danh mục con của ..."
-  return 'Tất Cả Danh Mục';
+  if (isSearchMode.value) return 'Danh Mục Liên Quan';
+  if (!route.params.slug || route.params.slug === '') return 'Tất Cả Danh Mục';
+  return currentCategoryName.value || 'Tất Cả Danh Mục';
 });
 
 // Active filters
@@ -311,44 +359,12 @@ function toggleCategory(catId) {
   expandedCategories.value[catId] = !expandedCategories.value[catId];
 }
 
-async function fetchCategories() {
-  try {
-    const url = new URL(`${apiBase}/categories/tree`);
-    // Nếu là search thì lấy danh mục liên quan đến từ khóa
-    if (isSearchMode.value && searchQuery.value) {
-      url.searchParams.append('search', searchQuery.value);
-    } else if (route.params.slug && !isSearchMode.value) {
-      // Nếu có slug thì lấy danh mục con của slug cha
-      url.searchParams.append('slug', route.params.slug);
-    }
-    const res = await fetch(url);
-    const data = await res.json();
-    if (data.success) {
-      categories.value = data.data?.categories || [];
-      // Nếu có slug và không phải search, lấy tên danh mục cha
-      if (!isSearchMode.value && route.params.slug && data.data?.categories?.length) {
-        currentCategoryName.value = data.data.categories[0]?.name || route.params.slug;
-      }
-      // Nếu là search, không cần currentCategoryName
-      if (isSearchMode.value) {
-        currentCategoryName.value = '';
-      }
-    } else {
-      categories.value = [];
-      currentCategoryName.value = '';
-    }
-  } catch (e) {
-    categories.value = [];
-    currentCategoryName.value = '';
-  }
-}
-
 async function fetchProducts(page = 1) {
   loading.value = true;
   error.value = null;
   try {
     const slug = isSearchMode.value ? 'search' : route.params.slug;
-    const url = new URL(`${apiBase}/products/search/${slug}`); // Sửa thành /products/[slug]
+    const url = new URL(`${apiBase}/products/search/${slug}`);
     const params = new URLSearchParams({ page: page.toString(), per_page: '20' });
     if (searchQuery.value) params.append('search', searchQuery.value);
     if (filters.value.brand.length) params.append('brands', filters.value.brand.join(','));
@@ -366,28 +382,47 @@ async function fetchProducts(page = 1) {
     const data = await res.json();
 
     if (res.ok && data.success) {
-      products.value = (data.data.products || []).map(p => ({
+      shops.value = Array.isArray(data.data.shops) ? data.data.shops : [];
+      products.value = Array.isArray(data.data.products) ? data.data.products.map(p => ({
         ...p,
         image: p.image ? `${mediaBase}${p.image}` : `${mediaBase}/default-image.jpg`,
         sold: parseInt(p.sold) || 0,
         percent: parseFloat(p.percent) || 0,
         price: Number(p.price),
         discount: p.discount ? Number(p.discount) : null,
-      }));
-      
+      })) : [];
       pagination.value = {
         current_page: data.data.current_page || 1,
         last_page: data.data.last_page || 1,
         total: data.data.total || 0,
       };
-      brands.value = data.data.brands || [];
+      brands.value = Array.isArray(data.data.brands) ? data.data.brands : [];
+      shop.value = data.data.shop && data.data.shop.store_name !== 'N/A' ? data.data.shop : null;
+      categories.value = Array.isArray(data.data.categories) ? data.data.categories : [];
+
+      // Set current category name and expand current category in category mode
+      if (!isSearchMode.value && route.params.slug && data.data.categories?.length) {
+        const currentCat = data.data.categories.find(cat => cat.slug === route.params.slug);
+        currentCategoryName.value = currentCat?.name || route.params.slug;
+        if (currentCat) {
+          expandedCategories.value[currentCat.id] = true;
+        }
+      } else {
+        currentCategoryName.value = '';
+      }
     } else {
+      shops.value = [];
       products.value = [];
+      shop.value = null;
+      categories.value = [];
       error.value = data.message || 'Không thể tải sản phẩm';
     }
   } catch (e) {
     console.error('Fetch Error:', e.message);
+    shops.value = [];
     products.value = [];
+    shop.value = null;
+    categories.value = [];
     error.value = 'Không thể tải sản phẩm';
   } finally {
     loading.value = false;
@@ -492,6 +527,7 @@ function handleClickOutside(event) {
     show.value = false;
   }
 }
+
 const trackCategoryClick = async (categoryId) => {
   try {
     const token = localStorage.getItem('access_token');
@@ -509,11 +545,11 @@ const trackCategoryClick = async (categoryId) => {
     console.error('Lỗi khi tracking danh mục:', error);
   }
 };
+
 onMounted(() => {
   document.addEventListener('click', handleClickOutside);
   if (route.query.search) searchStore.updateSearch(decodeURIComponent(route.query.search));
 
-  // Initialize filters from query parameters
   filters.value.brand = route.query.brands ? route.query.brands.split(',') : [];
   filters.value.rating = route.query.ratings ? route.query.ratings.split(',').map(Number) : [];
   filters.value.onSale = route.query.on_sale === 'true';
@@ -523,7 +559,6 @@ onMounted(() => {
   priceRange.value[1] = route.query.price_max ? Number(route.query.price_max) : priceMax;
   pagination.value.current_page = parseInt(route.query.page) || 1;
 
-  fetchCategories();
   fetchProducts(pagination.value.current_page);
 });
 
@@ -533,7 +568,6 @@ onBeforeUnmount(() => {
 
 watch(() => [route.params.slug, route.query.search], () => {
   if (route.query.search) searchStore.updateSearch(decodeURIComponent(route.query.search));
-  fetchCategories();
   fetchProducts(1);
 });
 
@@ -548,8 +582,8 @@ definePageMeta({
     {
       name: 'description',
       content: computed(() => isSearchMode.value
-        ? `Tìm kiếm sản phẩm với từ khóa ${searchQuery.value}" tại quán của chúng tôi.`
-        : `Khám phá các sản phẩm trong danh mục ${currentCategoryName.value} || route.params.slug }.`),
+        ? `Tìm kiếm sản phẩm với từ khóa "${searchQuery.value}" tại cửa hàng của chúng tôi.`
+        : `Khám phá các sản phẩm trong danh mục ${currentCategoryName.value || route.params.slug}.`),
     },
   ],
 });
@@ -569,9 +603,8 @@ input[type="range"]::-webkit-slider-thumb {
   height: 16px;
   background: #1ba0e2;
   border-radius: 50%;
-  border: none;
-  border-color: 2px solid #fff;
-  box-shadow: 0 0 2px #1ba0e2 cursor;
+  border: 2px solid #fff;
+  box-shadow: 0 0 2px #1ba0e2;
   cursor: pointer;
 }
 
@@ -580,9 +613,8 @@ input[type="range"]::-moz-range-thumb {
   height: 16px;
   background: #1ba0e2;
   border-radius: 50%;
-  border: none;
-  border-width: 2px solid #fff;
-  box-shadow: 0 0 2px #1ba0e2 cursor;
+  border: 2px solid #fff;
+  box-shadow: 0 0 2px #1ba0e2;
   cursor: pointer;
 }
 
@@ -591,9 +623,8 @@ input[type="range"]::-ms-thumb {
   height: 16px;
   background: #1ba0e2;
   border-radius: 50%;
-  border: none;
-  border-color: 2px solid #fff;
-  box-shadow: none0 0 2px #1ba0e2;
+  border: 2px solid #fff;
+  box-shadow: 0 0 2px #1ba0e2;
   cursor: pointer;
 }
 
