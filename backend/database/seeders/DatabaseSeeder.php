@@ -19,5 +19,10 @@ class DatabaseSeeder extends Seeder
             'name' => 'Test User',
             'email' => 'test@example.com',
         ]);
+
+        // Chạy DiscountSeeder để tạo voucher mẫu
+        $this->call([
+            DiscountSeeder::class,
+        ]);
     }
 }

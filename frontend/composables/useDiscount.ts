@@ -184,6 +184,7 @@ export const useDiscount = () => {
     const checkShopDiscount = async (discountId: number, sellerId: number, productIds: number[], orderValue: number) => {
         const token = localStorage.getItem('access_token');
         if (!token) {
+            showErrorNotification('Vui lòng đăng nhập để kiểm tra mã giảm giá');
             return { success: false, message: 'Vui lòng đăng nhập để kiểm tra mã giảm giá' };
         }
         
@@ -212,6 +213,9 @@ export const useDiscount = () => {
             const data = await res.json();
             console.log('Response data:', data);
             
+            if (data.error_code === 'USAGE_LIMIT_EXCEEDED' || (data.message && data.message.includes('hết lượt sử dụng'))) {
+                showErrorNotification(data.message || 'Mã giảm giá đã hết lượt sử dụng');
+            }
             return { 
                 success: res.ok, 
                 message: data.message || (res.ok ? 'Mã giảm giá có thể áp dụng' : 'Mã giảm giá không thể áp dụng'),
@@ -219,12 +223,12 @@ export const useDiscount = () => {
                 error_code: data.error_code
             };
         } catch (e) {
-            console.error('Error in checkShopDiscount:', e);
+            showErrorNotification('Lỗi hệ thống khi kiểm tra mã giảm giá');
             return { success: false, message: 'Lỗi hệ thống khi kiểm tra mã giảm giá' };
         }
     };
 
-    const applyDiscount = (discount: Discount) => {
+    const applyDiscount = async (discount: Discount) => {
         console.log('=== DEBUG applyDiscount ===');
         console.log('Applying discount:', discount);
         
@@ -238,6 +242,20 @@ export const useDiscount = () => {
         if (selectedDiscounts.value.find(d => d.id === discount.id)) {
             showErrorNotification('Mã giảm giá này đã được áp dụng');
             return;
+        }
+
+        // Nếu là shop discount, kiểm tra với API trước khi thêm
+        if (discount.seller_id) {
+            // Giả sử có hàm checkShopDiscount
+            const checkResult = await checkShopDiscount(discount.id, discount.seller_id, [], 0);
+            if (checkResult.error_code === 'USAGE_LIMIT_EXCEEDED' || (checkResult.message && checkResult.message.includes('hết lượt sử dụng'))) {
+                showErrorNotification(checkResult.message || 'Mã giảm giá đã hết lượt sử dụng');
+                return;
+            }
+            if (!checkResult.success) {
+                showErrorNotification(checkResult.message || 'Không thể áp dụng mã giảm giá');
+                return;
+            }
         }
 
         // Xử lý shipping discount

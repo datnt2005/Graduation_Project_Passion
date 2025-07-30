@@ -722,6 +722,10 @@ class OrderController extends Controller
                     'user_id' => $request->user()->id,
                     'is_used' => true,
                 ]);
+                // Tăng used_count cho discount
+                if ($usedDiscount) {
+                    $usedDiscount->increment('used_count');
+                }
                 $order->discount_id = $usedDiscount->id;
             }
 
@@ -800,6 +804,8 @@ class OrderController extends Controller
                     'user_id' => $request->user()->id,
                     'is_used' => true,
                 ]);
+                // Tăng used_count cho shipping discount
+                $shippingDiscount->increment('used_count');
             }
 
             $shipping = Shipping::create([
