@@ -706,6 +706,44 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
     return true;
   };
 
+  // Thêm hàm để xóa discount của shop khi admin discount bị huỷ
+  const removeShopDiscount = (sellerId) => {
+    if (shopDiscounts.value[sellerId]) {
+      delete shopDiscounts.value[sellerId];
+    }
+    if (shopDiscountIds.value[sellerId]) {
+      delete shopDiscountIds.value[sellerId];
+    }
+    console.log(`Đã xóa discount cho shop ${sellerId}`);
+  };
+
+  // Thêm hàm để cập nhật lại tất cả shop discounts khi admin discount thay đổi
+  const recalculateAllShopDiscounts = () => {
+    const shopCount = cartItems.value.length;
+    if (shopCount === 0) return;
+
+    // Xóa tất cả shop discounts hiện tại
+    Object.keys(shopDiscounts.value).forEach(sellerId => {
+      removeShopDiscount(sellerId);
+    });
+
+    // Tính toán lại discount cho từng shop
+    const perShopDiscount = getProductDiscountPerShop(total.value, shopCount);
+    if (perShopDiscount > 0) {
+      const adminDiscount = selectedDiscounts.value.find(d => !d.seller_id && (d.discount_type === 'percentage' || d.discount_type === 'fixed'));
+      if (adminDiscount) {
+        cartItems.value.forEach(shop => {
+          if (shop.seller_id) {
+            shopDiscounts.value[shop.seller_id] = perShopDiscount;
+            shopDiscountIds.value[shop.seller_id] = adminDiscount.id;
+          }
+        });
+      }
+    }
+    
+    console.log('Đã cập nhật lại tất cả shop discounts:', shopDiscounts.value);
+  };
+
   const getShopDiscount = (sellerId) => {
     return shopDiscounts.value[sellerId] || 0;
   };
@@ -835,6 +873,7 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
         };
       });
     }
+    
     // Phân bổ discount admin nếu chưa có trong shopDiscounts
     const shopCount = items.length;
     const perShopDiscount = getProductDiscountPerShop(total.value, shopCount);
@@ -849,7 +888,19 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
         }
         shop.discount = getShopDiscount(shop.seller_id);
       });
+    } else {
+      // Nếu không có admin discount, xóa tất cả shop discounts
+      items.forEach(shop => {
+        if (shopDiscounts.value[shop.seller_id]) {
+          delete shopDiscounts.value[shop.seller_id];
+        }
+        if (shopDiscountIds.value[shop.seller_id]) {
+          delete shopDiscountIds.value[shop.seller_id];
+        }
+        shop.discount = 0;
+      });
     }
+    
     // Chia đều discount phí ship admin cho từng shop
     const perShopShippingDiscount = getShippingDiscountPerShop(total.value, shopCount);
     if (perShopShippingDiscount > 0) {
@@ -1254,6 +1305,8 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
     realFinalTotal,
     totalShippingDiscount,
     isPlacingOrder,
-    isCheckoutCalculatingShipping
+    isCheckoutCalculatingShipping,
+    removeShopDiscount,
+    recalculateAllShopDiscounts
   };
 }

@@ -363,7 +363,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch, computed } from 'vue';
+import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
 import { useRoute, useRuntimeConfig } from '#app';
 import axios from 'axios';
 import Swal from 'sweetalert2';
@@ -450,7 +450,9 @@ const {
   shopServiceIds,
   getShippingDiscountPerShop,
   getProductDiscountPerShop,
-  totalShippingDiscount
+  totalShippingDiscount,
+  removeShopDiscount,
+  recalculateAllShopDiscounts
 } = useCheckout(shippingRef, selectedShippingMethod, selectedAddress, storeNotes);
 
 const { fetchMyVouchers, fetchDiscounts: fetchPublicDiscounts, fetchSellerDiscounts, discounts: publicDiscounts } = useDiscount();
@@ -485,11 +487,18 @@ const handleTotalShippingFeeUpdate = (newTotal) => {
 
 const handleShopDiscountUpdate = async (data) => {
   if (data && data.sellerId) {
-    const success = await updateShopDiscount(data.sellerId, data.discount, data.discountId);
-    if (success) {
-      console.log('Cập nhật discount cho shop', data.sellerId, '->', data.discount);
+    if (data.action === 'remove') {
+      // Xóa discount cho shop cụ thể
+      removeShopDiscount(data.sellerId);
+      console.log('Đã xóa discount cho shop', data.sellerId);
     } else {
-      console.log('Không thể áp dụng mã giảm giá cho shop', data.sellerId);
+      // Áp dụng discount cho shop
+      const success = await updateShopDiscount(data.sellerId, data.discount, data.discountId);
+      if (success) {
+        console.log('Cập nhật discount cho shop', data.sellerId, '->', data.discount);
+      } else {
+        console.log('Không thể áp dụng mã giảm giá cho shop', data.sellerId);
+      }
     }
   }
 };
@@ -760,6 +769,34 @@ watch(selectedShippingMethod, (newVal) => {
   if (newVal) {
     console.log('Selected shipping method in checkout.vue:', newVal);
   }
+});
+
+// Lắng nghe sự kiện khi admin discount bị huỷ hoặc được áp dụng
+onMounted(() => {
+  const handleAdminDiscountRemoved = (event) => {
+    const { discountId, discount } = event.detail;
+    console.log('Admin discount removed:', discountId, discount);
+    
+    // Cập nhật lại tất cả shop discounts
+    recalculateAllShopDiscounts();
+  };
+
+  const handleAdminDiscountApplied = (event) => {
+    const { discountId, discount } = event.detail;
+    console.log('Admin discount applied:', discountId, discount);
+    
+    // Cập nhật lại tất cả shop discounts
+    recalculateAllShopDiscounts();
+  };
+
+  window.addEventListener('adminDiscountRemoved', handleAdminDiscountRemoved);
+  window.addEventListener('adminDiscountApplied', handleAdminDiscountApplied);
+
+  // Cleanup khi component unmount
+  onUnmounted(() => {
+    window.removeEventListener('adminDiscountRemoved', handleAdminDiscountRemoved);
+    window.removeEventListener('adminDiscountApplied', handleAdminDiscountApplied);
+  });
 });
 
 onMounted(async () => {

@@ -286,13 +286,39 @@ export const useDiscount = () => {
         console.log('Final selected discounts:', selectedDiscounts.value);
         console.log('=== END DEBUG ===');
         
+        // Nếu là admin discount, emit event để checkout.vue có thể cập nhật shop discounts
+        if (!discount.seller_id && (discount.discount_type === 'percentage' || discount.discount_type === 'fixed')) {
+            if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('adminDiscountApplied', {
+                    detail: {
+                        discountId: discount.id,
+                        discount: discount
+                    }
+                }));
+            }
+        }
+        
         showSuccessNotification('Mã giảm giá được áp dụng');
     };
 
     const removeDiscount = (discountId: number) => {
         const index = selectedDiscounts.value.findIndex(d => d.id === discountId);
         if (index !== -1) {
-            selectedDiscounts.value.splice(index, 1)[0];
+            const removedDiscount = selectedDiscounts.value.splice(index, 1)[0];
+            
+            // Nếu là mã giảm giá admin (không có seller_id), cần cập nhật lại giá cho tất cả shop
+            if (!removedDiscount.seller_id && (removedDiscount.discount_type === 'percentage' || removedDiscount.discount_type === 'fixed')) {
+                // Emit event để checkout.vue có thể cập nhật lại giá shop
+                if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent('adminDiscountRemoved', {
+                        detail: {
+                            discountId: discountId,
+                            discount: removedDiscount
+                        }
+                    }));
+                }
+            }
+            
             showSuccessNotification('Mã giảm giá được bỏ');
         }
     };

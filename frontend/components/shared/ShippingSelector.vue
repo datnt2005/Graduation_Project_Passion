@@ -75,7 +75,13 @@
               <span>Giảm giá sản phẩm:</span>
               <div class="flex items-center gap-2">
                 <span class="text-green-600 font-semibold">-{{ formatPrice(shop.discount) }} đ</span>
-                <button @click="removeDiscount(shop)" class="text-red-500 text-xs hover:underline">Huỷ</button>
+                <button 
+                  v-if="!isShopDiscountFromAdmin(shop)" 
+                  @click="removeDiscount(shop)" 
+                  class="text-red-500 text-xs hover:underline"
+                >
+                  Huỷ
+                </button>
               </div>
             </div>
             <div v-if="shop.admin_product_discount > 0" class="text-xs text-blue-600">
@@ -172,7 +178,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:shippingFee', 'update:totalShippingFee']);
 
-const { isCheckoutCalculatingShipping } = useCheckout();
+const { isCheckoutCalculatingShipping, selectedDiscounts, getShopDiscountId } = useCheckout();
 const { toast } = useToast();
 
 const config = useRuntimeConfig();
@@ -318,6 +324,14 @@ const removeDiscount = (shop) => {
     localCartItems.value[shopIndex].discount = 0;
     localCartItems.value[shopIndex].discount_code = null;
     localCartItems.value[shopIndex].discount_id = null;
+    
+    // Emit event để checkout.vue có thể cập nhật lại
+    emit('update:shopDiscount', {
+      sellerId: shop.seller_id,
+      discount: 0,
+      discountId: null,
+      action: 'remove'
+    });
   }
   toast('success', 'Đã huỷ mã giảm giá');
 };
@@ -329,6 +343,21 @@ const removeShippingDiscount = (shop) => {
     localCartItems.value[shopIndex].shipping_discount_code = null;
   }
   toast('success', 'Đã huỷ giảm giá phí ship');
+};
+
+// Kiểm tra xem discount của shop có phải từ admin không
+const isShopDiscountFromAdmin = (shop) => {
+  if (!shop.discount || shop.discount <= 0) return false;
+  
+  // Lấy discount ID của shop
+  const shopDiscountId = getShopDiscountId(shop.seller_id);
+  
+  // Kiểm tra xem discount ID này có tương ứng với admin discount không
+  const adminDiscount = selectedDiscounts.value?.find(d => 
+    d.id === shopDiscountId && !d.seller_id && (d.discount_type === 'percentage' || d.discount_type === 'fixed')
+  );
+  
+  return !!adminDiscount;
 };
 
 const retryCalculateFees = async () => {
