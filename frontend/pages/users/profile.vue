@@ -1,7 +1,6 @@
 <template>
   <div class="bg-[#f5f7fa] text-[#1a1a1a] font-sans">
     <div class="max-w-7xl mx-auto md:pt-6 md:pb-6 flex flex-col md:flex-row gap-6">
-      
       <!-- Sidebar trái -->
       <SidebarProfile class="w-full md:w-[260px] bg-white rounded-xl shadow-sm border border-[#e0e6ed] p-4" />
 
@@ -99,21 +98,26 @@
                 type="text"
                 class="border border-[#0b74e5] rounded px-2 py-1 text-sm w-[120px] focus:outline-none"
                 aria-label="Số điện thoại"
+                placeholder="Nhập số điện thoại"
               />
-              <span v-else>{{ formData.phone || 'Số điện thoại' }}</span>
+              <span v-else>{{ formData.phone || 'Chưa có số điện thoại' }}</span>
             </div>
             <button
               class="text-sm font-medium border border-[#0b74e5] text-[#0b74e5] px-4 py-1 rounded hover:bg-[#eaf4fe]"
-              @click="editingPhone = !editingPhone"
-              :aria-label="editingPhone ? 'Hủy chỉnh sửa số điện thoại' : 'Chỉnh sửa số điện thoại'"
+              @click="editingPhone ? handlePhoneSubmit() : editingPhone = true"
+              :aria-label="editingPhone ? 'Lưu số điện thoại' : 'Chỉnh sửa số điện thoại'"
             >
-              {{ editingPhone ? 'Hủy' : 'Cập nhật' }}
+              {{ editingPhone ? 'Lưu' : 'Cập nhật' }}
             </button>
           </div>
+          <!-- Thông báo lỗi số điện thoại -->
+          <transition name="fade">
+            <p v-if="editingPhone && phoneError" class="text-red-500 text-sm mt-1">{{ phoneError }}</p>
+          </transition>
           <!-- Email -->
           <div class="flex items-center gap-2 text-[#637381] truncate mb-3">
             <font-awesome-icon :icon="['fas', 'envelope']" class="w-5 h-5" />
-            <span class="truncate">{{ formData.email || 'Thêm email' }}</span>
+            <span class="truncate">{{ formData.email || 'Chưa có email' }}</span>
           </div>
         </div>
 
@@ -136,33 +140,42 @@
           </div>
 
           <div v-if="showChangePassword" class="space-y-2">
-            <input
-              type="password"
-              class="w-full border px-3 py-2 rounded text-sm"
-              v-model="changePasswordForm.old_password"
-              placeholder="Mật khẩu cũ"
-              autocomplete="off"
-              aria-required="true"
-              aria-label="Mật khẩu cũ"
-            />
-            <input
-              type="password"
-              class="w-full border px-3 py-2 rounded text-sm"
-              v-model="changePasswordForm.password"
-              placeholder="Mật khẩu mới"
-              autocomplete="off"
-              aria-required="true"
-              aria-label="Mật khẩu mới"
-            />
-            <input
-              type="password"
-              class="w-full border px-3 py-2 rounded text-sm"
-              v-model="changePasswordForm.confirm_password"
-              placeholder="Xác nhận mật khẩu mới"
-              autocomplete="off"
-              aria-required="true"
-              aria-label="Xác nhận mật khẩu mới"
-            />
+            <div>
+              <input
+                type="password"
+                class="w-full border px-3 py-2 rounded text-sm"
+                v-model="changePasswordForm.old_password"
+                placeholder="Mật khẩu cũ"
+                autocomplete="off"
+                aria-required="true"
+                aria-label="Mật khẩu cũ"
+              />
+            </div>
+            <div>
+              <input
+                type="password"
+                class="w-full border px-3 py-2 rounded text-sm"
+                v-model="changePasswordForm.password"
+                placeholder="Mật khẩu mới"
+                autocomplete="off"
+                aria-required="true"
+                aria-label="Mật khẩu mới"
+              />
+              <p class="text-xs text-[#7a869a] mt-1">
+                Mật khẩu phải có ít nhất 6 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt.
+              </p>
+            </div>
+            <div>
+              <input
+                type="password"
+                class="w-full border px-3 py-2 rounded text-sm"
+                v-model="changePasswordForm.confirm_password"
+                placeholder="Xác nhận mật khẩu mới"
+                autocomplete="off"
+                aria-required="true"
+                aria-label="Xác nhận mật khẩu mới"
+              />
+            </div>
             <button
               class="w-full bg-[#0b74e5] text-white rounded px-3 py-2 font-semibold"
               :disabled="loading || !isPasswordFormValid"
@@ -190,7 +203,7 @@ useHead({
   title: 'Thông tin tài khoản | Quản lý hồ sơ',
   meta: [
     { name: 'description', content: 'Quản lý thông tin cá nhân, số điện thoại, email và mật khẩu của bạn.' },
-    { name: 'robots', content: 'noindex, nofollow' }, // Trang hồ sơ không cần lập chỉ mục
+    { name: 'robots', content: 'noindex, nofollow' },
     { property: 'og:title', content: 'Thông tin tài khoản - Quản lý hồ sơ' },
     { property: 'og:description', content: 'Cập nhật thông tin cá nhân và bảo mật tài khoản của bạn.' }
   ]
@@ -210,6 +223,7 @@ const fileInput = ref(null)
 const userId = ref(null)
 const editingPhone = ref(false)
 const showChangePassword = ref(false)
+const phoneError = ref('')
 
 const formData = reactive({
   name: '',
@@ -227,17 +241,24 @@ const changePasswordForm = reactive({
 })
 
 const isFormValid = computed(() => {
-  return formData.name.trim() && (!editingPhone || formData.phone.match(/^\d{10}$/))
+  if (editingPhone.value && formData.phone) {
+    const phoneValid = formData.phone.match(/^\d{10}$/)
+    phoneError.value = phoneValid ? '' : 'Số điện thoại phải là 10 chữ số'
+    return formData.name.trim() && phoneValid
+  }
+  return formData.name.trim()
 })
 
 const isPasswordFormValid = computed(() => {
-  return (
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).+$/
+  const isValid =
     changePasswordForm.old_password &&
     changePasswordForm.password &&
     changePasswordForm.confirm_password &&
     changePasswordForm.password === changePasswordForm.confirm_password &&
-    changePasswordForm.password.length >= 8
-  )
+    changePasswordForm.password.length >= 6 &&
+    passwordRegex.test(changePasswordForm.password)
+  return isValid
 })
 
 const fetchUser = async () => {
@@ -250,7 +271,7 @@ const fetchUser = async () => {
       name: cachedData.name || '',
       email: cachedData.email || '',
       phone: cachedData.phone || '',
-      avatar_url: cachedData.avatar_url,
+      avatar_url: cachedData.avatar_url || DEFAULT_AVATAR,
       role: cachedData.role || '',
       avatar: null
     })
@@ -276,7 +297,7 @@ const fetchUser = async () => {
         phone: data.phone || '',
         avatar_url: data.avatar?.startsWith('http')
           ? data.avatar
-          : `${UrlAvatar}${data.avatar}`,
+          : `${UrlAvatar}${data.avatar || 'avatars/default.jpg'}`,
         role: data.role || '',
         avatar: null
       })
@@ -312,7 +333,7 @@ const handleImageUpload = (event) => {
     imagePreview.value = URL.createObjectURL(file)
   } else {
     formData.avatar = null
-    imagePreview.value = formData.avatar_url
+    imagePreview.value = formData.avatar_url || DEFAULT_AVATAR
   }
 }
 
@@ -341,7 +362,7 @@ const handleSubmit = async () => {
     if (!token || !userId.value) throw new Error('Bạn chưa đăng nhập!')
 
     const payload = new FormData()
-    const fieldsToSend = ['name', 'phone', 'avatar']
+    const fieldsToSend = ['name', 'avatar']
     fieldsToSend.forEach((key) => {
       if (key === 'avatar' && !formData.avatar) return
       if (formData[key] === undefined || formData[key] === null) return
@@ -358,14 +379,70 @@ const handleSubmit = async () => {
 
     if (res.data.success || res.data.data) {
       showSuccess('Cập nhật thông tin thành công!')
-      localStorage.removeItem('user_profile') // Xóa cache để tải lại dữ liệu mới
+      localStorage.removeItem('user_profile')
       await fetchUser()
-      editingPhone.value = false
     } else {
       showError(res.data.error || 'Cập nhật thất bại!')
     }
   } catch (e) {
-    showError(e.response?.data?.message || e.message || 'Lỗi kết nối máy chủ!')
+    const errorMessage = e.response?.data?.errors
+      ? Object.values(e.response.data.errors).flat().join(' ')
+      : e.response?.data?.error || e.message || 'Lỗi kết nối máy chủ!'
+    showError(errorMessage)
+  } finally {
+    loading.value = false
+  }
+}
+
+const handlePhoneSubmit = async () => {
+  if (!formData.phone.match(/^\d{10}$/)) {
+    phoneError.value = 'Số điện thoại phải là 10 chữ số'
+    return
+  }
+
+  const confirm = await Swal.fire({
+    title: 'Cập nhật số điện thoại?',
+    text: 'Bạn có chắc chắn muốn lưu số điện thoại mới?',
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonText: 'Lưu',
+    cancelButtonText: 'Hủy',
+    confirmButtonColor: '#3b82f6',
+    cancelButtonColor: '#6b7280'
+  })
+
+  if (!confirm.isConfirmed) return
+
+  loading.value = true
+  try {
+    const token = localStorage.getItem('access_token')
+    if (!token || !userId.value) throw new Error('Bạn chưa đăng nhập!')
+
+    const payload = new FormData()
+    payload.append('phone', formData.phone)
+    payload.append('_method', 'PATCH')
+
+    const res = await axios.post(`${apiBase}/users/${userId.value}`, payload, {
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    })
+
+    if (res.data.success || res.data.data) {
+      showSuccess('Cập nhật số điện thoại thành công!')
+      localStorage.removeItem('user_profile')
+      await fetchUser()
+      editingPhone.value = false
+      phoneError.value = ''
+    } else {
+      showError(res.data.error || 'Cập nhật số điện thoại thất bại!')
+    }
+  } catch (e) {
+    const errorMessage = e.response?.data?.errors
+      ? Object.values(e.response.data.errors).flat().join(' ')
+      : e.response?.data?.error || e.message || 'Lỗi kết nối máy chủ!'
+    showError(errorMessage)
   } finally {
     loading.value = false
   }
@@ -373,7 +450,7 @@ const handleSubmit = async () => {
 
 const handlePasswordSubmit = async () => {
   if (!isPasswordFormValid.value) {
-    showError('Vui lòng nhập đầy đủ mật khẩu hợp lệ (tối thiểu 8 ký tự, xác nhận khớp)!')
+    showError('Mật khẩu phải có ít nhất 6 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt, và xác nhận phải khớp!')
     return
   }
 
@@ -398,6 +475,7 @@ const handlePasswordSubmit = async () => {
     const payload = new FormData()
     payload.append('old_password', changePasswordForm.old_password)
     payload.append('password', changePasswordForm.password)
+    payload.append('password_confirmation', changePasswordForm.confirm_password)
     payload.append('_method', 'PATCH')
 
     const res = await axios.post(`${apiBase}/users/${userId.value}`, payload, {
@@ -417,7 +495,10 @@ const handlePasswordSubmit = async () => {
       showError(res.data.error || 'Đổi mật khẩu thất bại!')
     }
   } catch (e) {
-    showError(e.response?.data?.message || e.message || 'Lỗi kết nối máy chủ!')
+    const errorMessage = e.response?.data?.errors
+      ? Object.values(e.response.data.errors).flat().join(' ')
+      : e.response?.data?.error || e.message || 'Lỗi kết nối máy chủ!'
+    showError(errorMessage)
   } finally {
     loading.value = false
   }
