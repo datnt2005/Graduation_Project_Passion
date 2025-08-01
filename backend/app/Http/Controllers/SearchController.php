@@ -107,7 +107,7 @@ class SearchController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Lấy sản phẩm thịnh hành thành công',
-            'data' => $this->searchService->getTrendingProducts(20), // lấy 10 sản phẩm top
+            'data' => $this->searchService->getTrendingProducts(32),
         ]);
     }
 

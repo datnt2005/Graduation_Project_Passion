@@ -710,7 +710,7 @@ protected function getAllCategoryChildrenIds($category)
         }
     }
 
-    public function getTrendingProducts($limit = 20)
+    public function getTrendingProducts($limit = 32)
     {
         // Lấy top N sản phẩm theo tổng search_count + click_count
         $topProducts = DB::table('trends')

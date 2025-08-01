@@ -1,5 +1,12 @@
 <template>
   <div class="bg-[#f5f7fa] font-sans text-[#1a1a1a]">
+    <div class="max-w-7xl mx-auto">
+      <div class="text-sm text-gray-500 px-4 py-2 rounded">
+        <NuxtLink to="/" class="text-gray-400">Trang chủ</NuxtLink>
+        <span class="mx-1">›</span>
+        <span class="text-black font-medium">Kho Voucher</span>
+      </div>
+    </div>
     <div class="max-w-7xl mx-auto md:pt-6 md:pb-6 p-4">
       <div class="mx-auto">
         <h2 class="text-2xl text-center sm:text-3xl font-extrabold text-gray-900 mb-2 text-left">Kho Voucher</h2>
@@ -380,7 +387,7 @@ const handleDeleteVoucher = (id) => {
 
 function goToCheckout(code) {
   if (!code) return
-  router.push({ path: '/checkout', query: { voucher: code } })
+  router.push({ path: '/cart', query: { voucher: code } })
 }
 
 onMounted(() => {

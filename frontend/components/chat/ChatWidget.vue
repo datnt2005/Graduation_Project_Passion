@@ -397,7 +397,6 @@ const fetchSessions = async () => {
       return;
     }
     await nextTick(() => {
-      console.log("fetchSessions - nextTick");
     });
 
     if (!user.value?.id) {

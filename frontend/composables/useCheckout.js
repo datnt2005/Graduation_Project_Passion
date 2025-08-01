@@ -403,7 +403,6 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
       const cacheKey = getCacheKey(payload);
       const cachedFee = getCachedFee(cacheKey);
       if (cachedFee !== null) {
-        console.log(`✅ Cache hit cho seller ${sellerId}, service_id ${serviceId}: ${cachedFee}`);
         shippingPerformance.cacheHit();
         const shop = cartItems.value.find(s => s.seller_id === sellerId);
         if (shop) {
@@ -424,7 +423,6 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
         return { fee: 0, service_id: null };
       }
       
-      console.log(`🌐 Gọi API tính phí vận chuyển cho seller ${sellerId}, service_id ${serviceId}`);
       const response = await fetch(`${config.public.apiBaseUrl}/ghn/shipping-fee`, {
         method: 'POST',
         headers: {
@@ -450,7 +448,6 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
         return { fee: 0, service_id: serviceId };
       }
       
-      console.log(`✅ Tính phí vận chuyển thành công cho seller ${sellerId}: ${shippingFee}`);
       setCachedFee(cacheKey, shippingFee);
       const shop = cartItems.value.find(s => s.seller_id === sellerId);
       if (shop) {
@@ -470,12 +467,10 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
   const loadShippingFees = async () => {
     const now = Date.now();
     if (now - lastShippingCalculation.value < SHIPPING_COOLDOWN) {
-      console.log(`⏳ Cooldown active, bỏ qua loadShippingFees. Còn ${SHIPPING_COOLDOWN - (now - lastShippingCalculation.value)}ms`);
       return;
     }
     
     if (isCheckoutCalculatingShipping.value) {
-      console.log(`⏳ Đang tính phí vận chuyển, bỏ qua loadShippingFees`);
       return;
     }
     
@@ -489,15 +484,7 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
       return;
     }
     
-    console.time('loadShippingFees-total');
-    console.log('🚀 loadShippingFees - cartItems:', cartItems.value.map(s => ({
-      seller_id: s.seller_id,
-      shipping_fee: s.shipping_fee,
-      service_id: s.service_id,
-      district_id: s.district_id,
-      ward_code: s.ward_code
-    })));
-    
+    console.time('loadShippingFees-total');    
     try {
       // Tối ưu: Fetch tất cả seller addresses song song
       console.time('fetch-seller-addresses');
@@ -511,14 +498,10 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
         
         const hasValidShippingFee = store.shipping_fee > 0 && store.service_id && store.district_id && store.ward_code;
         if (hasValidShippingFee) {
-          console.log(`✅ Shop ${store.seller_id} đã có shipping_fee: ${store.shipping_fee}, service_id: ${store.service_id}`);
           return store;
         }
         
-        console.log(`🔄 Tính phí vận chuyển cho shop ${store.seller_id}`);
-        
         if (!sellerAddresses.value[store.seller_id]) {
-          console.log(`📍 Chưa có địa chỉ seller ${store.seller_id}, đang fetch...`);
           await fetchSellerAddress(store.seller_id);
         }
         
@@ -534,7 +517,6 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
         if (!store.seller_id || store.shipping_fee > 0) return;
         
         const { fee, service_id } = await calculateShippingFee(store.seller_id, sellerAddresses.value[store.seller_id], selectedAddress.value);
-        console.log(`📊 Kết quả tính phí cho shop ${store.seller_id}: fee=${fee}, service_id=${service_id}`);
         
         // Cập nhật cartItems để ShippingSelector.vue có thể react
         const storeIndex = cartItems.value.findIndex(s => s.seller_id === store.seller_id);
@@ -562,7 +544,6 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
       await Promise.all(shippingFeePromises);
       console.timeEnd('calculate-shipping-fees');
       
-      console.log('✅ loadShippingFees hoàn thành');
       console.timeEnd('loadShippingFees-total');
     } catch (error) {
       console.error('Lỗi trong loadShippingFees:', error);
@@ -636,29 +617,19 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
       if (shop && shop.items && shop.items.length > 0) {
         const productIds = shop.items.map(item => {
           const productId = item.product_id || item.product?.id || item.id;
-          console.log('Item:', item, 'Product ID:', productId);
           return productId;
         }).filter(id => id);
         const orderValue = shop.items.reduce((total, item) => {
           return total + (parsePrice(item.sale_price || item.price || 0) * (item.quantity || 1));
         }, 0);
-
-        console.log('=== DEBUG updateShopDiscount ===');
-        console.log('Shop:', shop);
-        console.log('Product IDs:', productIds);
-        console.log('Order value:', orderValue);
-        console.log('Discount ID:', discountId);
-
         const discountObject = discounts.value.find(d => d.id === discountId);
         if (discountObject && discountObject.products && discountObject.products.length > 0) {
           const applicableProducts = discountObject.products.filter(product => 
             productIds.includes(product.id)
           );
           
-          console.log('Frontend check - Voucher products:', discountObject.products.length, 'Applicable products:', applicableProducts.length, 'Shop products:', productIds.length);
           
           if (applicableProducts.length !== productIds.length) {
-            console.log('Frontend check failed - voucher cannot be applied to all products');
             toast('error', 'Mã giảm giá này chỉ áp dụng cho một số sản phẩm, không thể áp dụng cho toàn bộ đơn hàng');
             return false;
           }
@@ -683,12 +654,10 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
 
           const data = await res.json();
           if (!res.ok) {
-            console.log('Discount check failed:', data);
             toast('error', data.message || 'Mã giảm giá không thể áp dụng cho các sản phẩm này');
             return false;
           }
 
-          console.log('Discount check passed:', data);
         } catch (error) {
           console.error('Error checking discount:', error);
           toast('error', 'Lỗi khi kiểm tra mã giảm giá');
@@ -702,7 +671,6 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
       shopDiscountIds.value[sellerId] = discountId;
     }
     
-    console.log('=== END DEBUG ===');
     return true;
   };
 
@@ -714,7 +682,6 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
     if (shopDiscountIds.value[sellerId]) {
       delete shopDiscountIds.value[sellerId];
     }
-    console.log(`Đã xóa discount cho shop ${sellerId}`);
   };
 
   // Thêm hàm để cập nhật lại tất cả shop discounts khi admin discount thay đổi
@@ -740,8 +707,6 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
         });
       }
     }
-    
-    console.log('Đã cập nhật lại tất cả shop discounts:', shopDiscounts.value);
   };
 
   const getShopDiscount = (sellerId) => {
@@ -932,10 +897,6 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
 
   const totalShippingFee = computed(() => {
     const total = cartItems.value.reduce((sum, store) => sum + (store.shipping_fee || 0), 0);
-    console.log('totalShippingFee computed:', total, 'from stores:', cartItems.value.map(s => ({
-      seller_id: s.seller_id,
-      shipping_fee: s.shipping_fee
-    })));
     return total;
   });
 
@@ -962,11 +923,9 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
       const originalFee = shop.original_shipping_fee || shop.shipping_fee || 0;
       const discount = shop.shipping_discount || 0;
       const realFee = Math.max(0, originalFee - discount);
-      console.log(`Shop ${shop.seller_id}: originalFee=${originalFee}, discount=${discount}, realFee=${realFee}`);
       return sum + realFee;
     }, 0);
     
-    console.log('realShippingFee computed:', totalRealShippingFee);
     return totalRealShippingFee;
   });
 

@@ -865,7 +865,7 @@ const saveVoucher = async (code) => {
 
 const goToUseVoucher = (voucher) => {
   if (voucher.seller) {
-    router.push(`/seller/${voucher.seller.store_slug}`);
+    router.push(`/cart`);
   }
 };
 

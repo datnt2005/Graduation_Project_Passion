@@ -85,7 +85,7 @@
                   to="/seller/seller_profile"
                   class="flex items-center px-4 py-2 hover:bg-gray-800 rounded"
                   :class="
-                    route.path.startsWith('/seller/users')
+                    route.path.startsWith('/seller/seller_profile')
                       ? 'bg-gray-800 text-green-400 font-bold'
                       : 'text-gray-300'
                   "

@@ -58,13 +58,13 @@
       </NuxtLink>
 
       <NuxtLink
-        to="/commitment"
+        to="/voucher"
         class="pl-2 border-l border-gray-300 flex items-center gap-2 whitespace-nowrap hover:underline"
       >
         <i
           class="fa-solid fa-money-bill text-[#1BA9FF] w-5 h-5 text-base inline-block"
         ></i>
-        Giá siêu rẻ
+        Kho Voucher
       </NuxtLink>
     </div>
 
@@ -136,14 +136,14 @@
 
         <NuxtLink
           v-else
-          to="/commitment"
+          to="/voucher"
           key="6"
           class="pl-2 border-l border-gray-300 flex items-center gap-2 absolute left-1/2 -translate-x-1/2 hover:underline"
         >
           <i
             class="fa-solid fa-money-bill text-[#1BA9FF] w-5 h-5 text-base inline-block"
           ></i>
-          Giá siêu rẻ
+          Kho Voucher
         </NuxtLink>
       </transition>
     </div>

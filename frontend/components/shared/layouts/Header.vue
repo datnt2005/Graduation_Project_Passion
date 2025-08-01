@@ -649,6 +649,7 @@ const logout = async () => {
       headers: { Authorization: `Bearer ${token}` },
     });
     localStorage.removeItem("access_token");
+    localStorage.removeItem("user_profile");
     updateLoginState();
     toast("success", "Đăng xuất thành công!");
     setTimeout(() => {

@@ -110,10 +110,6 @@ export const useDiscount = () => {
 
     const fetchMyVouchers = async () => {
         const token = localStorage.getItem('access_token');
-        if (!token) {
-            error.value = 'Vui lòng đăng nhập để tiếp tục';
-            return navigateTo('/auth/login');
-        }
 
         loading.value = true;
         error.value = null;

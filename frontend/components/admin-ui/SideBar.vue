@@ -262,11 +262,6 @@
                 :class="route.path === '/admin/reports/products' ? 'text-green-400 font-bold' : ''"
                 @click="$emit('close')">Tố cáo sản phẩm</NuxtLink>
             </li>
-            <li>
-              <NuxtLink to="/admin/reports/posts" class="block py-1 hover:text-white rounded"
-                :class="route.path === '/admin/reports/posts' ? 'text-green-400 font-bold' : ''"
-                @click="$emit('close')">Tố cáo bài viết</NuxtLink>
-            </li>
           </ul>
         </li>
         <li class="pt-2 border-t border-gray-800">

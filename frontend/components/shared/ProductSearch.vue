@@ -6,7 +6,8 @@
 
     <div
       ref="scrollContainer"
-      class="flex overflow-x-auto scrollbar-hide space-x-4 px-4 py-4 relative touch-pan-y"
+      class="grid grid-cols-8 gap-4 overflow-x-auto scrollbar-hide px-4 py-4 relative touch-pan-y"
+      style="grid-template-rows: repeat(2, minmax(0, 1fr));"
       @mousedown="startDragging"
       @mousemove="dragging"
       @mouseup="stopDragging"
@@ -16,8 +17,8 @@
       @touchend="stopDragging"
     >
       <div
-        v-if="products.length"
-        v-for="(product, index) in products"
+        v-if="displayProducts.length"
+        v-for="(product, index) in displayProducts"
         :key="index"
         class="flex-shrink-0 w-[140px]"
       >
@@ -41,9 +42,9 @@
       </div>
 
       <!-- Loading hoặc lỗi fallback -->
-      <div v-if="pending" class="text-sm text-gray-500 px-4">Đang tải sản phẩm thịnh hành...</div>
-      <div v-if="error" class="text-sm text-red-500 px-4">Lỗi khi tải sản phẩm: {{ error.message }}</div>
-      <div v-if="!pending && !error && !products.length" class="text-sm text-gray-500 px-4">
+      <div v-if="pending" class="col-span-8 text-sm text-gray-500 px-4">Đang tải sản phẩm thịnh hành...</div>
+      <div v-if="error" class="col-span-8 text-sm text-red-500 px-4">Lỗi khi tải sản phẩm: {{ error.message }}</div>
+      <div v-if="!pending && !error && !displayProducts.length" class="col-span-8 text-sm text-gray-500 px-4">
         Không có sản phẩm thịnh hành.
       </div>
     </div>
@@ -95,6 +96,11 @@ const scrollContainer = ref(null)
 const products = ref([])
 const pending = ref(true)
 const error = ref(null)
+
+// Limit to 32 products
+const displayProducts = computed(() => {
+  return products.value.slice(0, 32)
+})
 
 // Drag state
 const isDragging = ref(false)
@@ -216,5 +222,20 @@ onMounted(() => {
 /* Thay đổi con trỏ khi hover */
 .touch-pan-y:hover {
   cursor: grab;
+}
+
+/* Ensure grid layout for two rows */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(8, 140px); /* 8 products per row */
+  grid-template-rows: repeat(2, auto); /* Two rows */
+  gap: 16px; /* Space between products */
+  overflow-x: auto;
+  scroll-snap-type: x mandatory; /* Optional: Snap to products when scrolling */
+}
+
+/* Ensure products are properly sized */
+.grid > div {
+  scroll-snap-align: start; /* Optional: Align products when snapping */
 }
 </style>
