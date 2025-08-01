@@ -12,18 +12,18 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
         }
         .container {
-            max-width: 500px;
+            max-width: 600px;
             margin: 32px auto;
             background: #fff;
-            border-radius: 12px 12px 0 0;
+            border-radius: 8px;
             overflow: hidden;
             box-shadow: 0 4px 24px rgba(0,0,0,0.08);
         }
         .header {
             background: #1a73e8;
-            padding: 32px 24px 18px 24px;
+            padding: 20px 24px;
             text-align: center;
-            border-radius: 12px 12px 0 0;
+            border-bottom: 2px solid #e0e0e0;
         }
         .header img {
             max-width: 60px;
@@ -34,76 +34,165 @@
         }
         .header-title {
             color: #fff;
-            font-size: 2.1rem;
+            font-size: 1.5rem;
             font-weight: bold;
             margin: 0;
-            letter-spacing: 1px;
         }
-        .content {
-            padding: 32px 24px 16px 24px;
+        
+        /* Tracking Code Section */
+        .tracking-section {
+            padding: 20px 24px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e0e0e0;
             text-align: center;
-        }
-        .greeting {
-            font-size: 1.25rem;
-            font-weight: bold;
-            margin-bottom: 8px;
-        }
-        .desc {
-            color: #222;
-            font-size: 1rem;
-            margin-bottom: 22px;
-        }
-        .tracking-box {
-            background: #f1f3f4;
-            border-radius: 10px;
-            display: inline-block;
-            padding: 22px 38px;
-            margin-bottom: 24px;
         }
         .tracking-code {
-            font-size: 2.3rem;
+            font-size: 1.8rem;
             font-weight: bold;
             color: #1a73e8;
-            letter-spacing: 8px;
+            letter-spacing: 2px;
             font-family: 'Segoe UI Mono', 'Consolas', monospace;
+            margin-bottom: 8px;
         }
-        .order-info {
-            margin: 0 auto 18px auto;
-            font-size: 1.08rem;
-            color: #222;
-            text-align: center;
-        }
-        .order-info strong {
-            font-weight: 600;
-        }
-        .note {
-            color: #444;
-            margin-bottom: 22px;
+        .order-code {
             font-size: 1rem;
+            color: #666;
+            font-weight: 500;
+        }
+        
+        /* Sender/Recipient Section */
+        .address-section {
+            padding: 20px 24px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .address-row {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 15px;
+        }
+        .address-box {
+            flex: 1;
+            padding: 15px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            background: #fafafa;
+        }
+        .address-label {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+        .address-content {
+            font-size: 0.85rem;
+            color: #555;
+            line-height: 1.4;
+        }
+        .delivery-note {
+            font-size: 0.8rem;
+            color: #888;
+            font-style: italic;
+            margin-top: 5px;
+        }
+        
+        /* Order Content Section */
+        .order-content-section {
+            padding: 20px 24px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .order-content-title {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 1rem;
+        }
+        .order-items {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+        }
+        .order-item {
+            font-size: 0.85rem;
+            color: #555;
+            margin-bottom: 8px;
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .order-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+        
+        /* Payment Section */
+        .payment-section {
+            padding: 20px 24px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .payment-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .payment-label {
+            font-weight: bold;
+            color: #333;
+            font-size: 1rem;
+        }
+        .payment-amount {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #1a73e8;
+        }
+        
+        /* Status Section */
+        .status-section {
+            padding: 20px 24px;
+            text-align: center;
+            background: #fff;
+        }
+        .status-box {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #e8f5e8;
+            border: 1px solid #4caf50;
+            border-radius: 6px;
+            color: #2e7d32;
+            font-weight: bold;
+            font-size: 1rem;
+        }
+        
+        /* Action Button */
+        .action-section {
+            padding: 20px 24px;
+            text-align: center;
+            background: #fff;
         }
         .button {
             display: inline-block;
-            padding: 15px 38px;
+            padding: 12px 30px;
             background-color: #1a73e8;
             color: #fff;
             text-decoration: none;
-            border-radius: 8px;
+            border-radius: 6px;
             font-weight: bold;
-            font-size: 1.1rem;
-            margin: 18px 0 0 0;
-            box-shadow: 0 2px 8px rgba(26,115,232,0.08);
+            font-size: 1rem;
+            box-shadow: 0 2px 8px rgba(26,115,232,0.2);
             transition: background 0.2s;
         }
         .button:hover {
             background: #1761c6;
         }
+        
+        /* Footer */
         .footer {
             background: #f4f6fa;
-            padding: 28px 18px 10px 18px;
+            padding: 20px 24px;
             text-align: center;
-            font-size: 15px;
-            color: #555;
-            border-radius: 0 0 12px 12px;
+            font-size: 0.85rem;
+            color: #666;
+            border-top: 1px solid #e0e0e0;
         }
         .footer a {
             color: #1a73e8;
@@ -112,11 +201,26 @@
         .footer a:hover {
             text-decoration: underline;
         }
+        
         @media only screen and (max-width: 600px) {
-            .container { width: 100%; border-radius: 0; }
-            .content { padding: 18px 5px 10px 5px; }
-            .tracking-box { padding: 16px 0; width: 100%; }
-            .tracking-code { font-size: 1.3rem; letter-spacing: 4px; }
+            .container { 
+                width: 100%; 
+                margin: 0;
+                border-radius: 0;
+            }
+            .address-row {
+                flex-direction: column;
+                gap: 10px;
+            }
+            .tracking-code {
+                font-size: 1.4rem;
+                letter-spacing: 1px;
+            }
+            .payment-row {
+                flex-direction: column;
+                gap: 10px;
+                text-align: center;
+            }
         }
     </style>
 </head>
@@ -126,35 +230,87 @@
             <img src="https://www.passionjewelry.co.id/uploads/logo-passion-360x145.png" alt="Logo Passion">
             <div class="header-title">Xác thực đơn hàng</div>
         </div>
-        <div class="content">
-            <div class="greeting">Chào {{ $order->user->name }}</div>
-            <div class="desc">
-                Cảm ơn bạn đã đặt hàng tại PASSION! <br>
-            </div>
-            <div class="tracking-box">
-                <span class="tracking-code">{{ $order->shipping->tracking_code }}</span>
-            </div>
-            <div class="order-info">
-                <div><strong>Tổng tiền:</strong> {{ number_format($order->final_price, 0, '', ',') }} đ</div>
-                <div><strong>Trạng thái:</strong> 
-                    @php
-                        $statusMap = [
-                            'pending' => 'Chờ xác nhận',
-                            'processing' => 'Đang xử lý',
-                            'shipped' => 'Đang giao',
-                            'delivered' => 'Đã giao',
-                            'cancelled' => 'Đã hủy',
-                            'completed' => 'Hoàn thành',
-                        ];
-                        $status = $order->status;
-                        echo $statusMap[$status] ?? ucfirst($status);
-                    @endphp
+        
+        <!-- Tracking Code Section -->
+        <div class="tracking-section">
+            <div class="tracking-code">{{ $order->shipping->tracking_code }}</div>
+            <div class="order-code">Mã đơn hàng: {{ $order->order_code }}</div>
+        </div>
+        
+        <!-- Sender/Recipient Section -->
+        <div class="address-section">
+            <div class="address-row">
+                <div class="address-box">
+                    <div class="address-label">Từ:</div>
+                    <div class="address-content">
+                        <strong>PASSION - Thế giới trang sức</strong><br>
+                        {{ $order->shipping->sender_address ?? 'Địa chỉ gửi hàng' }}<br>
+                        SĐT: {{ $order->shipping->sender_phone ?? 'Liên hệ' }}
+                    </div>
+                </div>
+                <div class="address-box">
+                    <div class="address-label">Đến:</div>
+                    <div class="address-content">
+                        <div class="delivery-note">(Chỉ giao giờ hành chính)</div>
+                        <strong>{{ $order->shipping->recipient_name }}</strong><br>
+                        {{ $order->shipping->recipient_address }}<br>
+                        SĐT: {{ $order->shipping->recipient_phone }}
+                    </div>
                 </div>
             </div>
-            <div class="note">Bạn sẽ sớm nhận được thông tin giao hàng qua email hoặc điện thoại.</div>
+        </div>
+        
+        <!-- Order Content Section -->
+        <div class="order-content-section">
+            <div class="order-content-title">
+                Nội dung hàng (Tổng SL sản phẩm: {{ $order->orderItems->count() }})
+            </div>
+            <div class="order-items">
+                @foreach($order->orderItems as $index => $item)
+                <div class="order-item">
+                    {{ $index + 1 }}. {{ $item->product->name }}, SL: {{ $item->quantity }}
+                </div>
+                @endforeach
+            </div>
+        </div>
+        
+        <!-- Payment Section -->
+        <div class="payment-section">
+            <div class="payment-row">
+                <div class="payment-label">Tổng tiền:</div>
+                <div class="payment-amount">{{ number_format($order->final_price, 0, '', ',') }} đ</div>
+            </div>
+        </div>
+        
+        <!-- Status Section -->
+        <div class="status-section">
+            <div class="status-box">
+                @php
+                    $statusMap = [
+                        'pending' => 'Chờ xác nhận',
+                        'processing' => 'Đang xử lý',
+                        'shipped' => 'Đang giao',
+                        'delivered' => 'Đã giao',
+                        'cancelled' => 'Đã hủy',
+                        'completed' => 'Hoàn thành',
+                    ];
+                    $status = $order->status;
+                    echo $statusMap[$status] ?? ucfirst($status);
+                @endphp
+            </div>
+        </div>
+        
+        <!-- Action Section -->
+        <div class="action-section">
             <a href="{{ url('/orders/' . $order->id) }}" class="button">Xem chi tiết đơn hàng</a>
         </div>
+        
+        <!-- Footer -->
         <div class="footer">
+            <div style="margin-bottom: 10px;">
+                <strong>Chỉ dẫn giao hàng:</strong> Được đồng kiểm<br>
+                <small>Chuyển hoàn sau 3 lần phát; Lưu kho tối đa 5 ngày</small>
+            </div>
             Nếu có thắc mắc, vui lòng liên hệ bộ phận CSKH của chúng tôi.<br><br>
             Trân trọng,<br>
             Đội ngũ <strong>PASSION</strong><br>

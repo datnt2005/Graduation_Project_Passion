@@ -131,7 +131,7 @@ import { useCart } from '~/composables/useCart'
 
 const route = useRoute()
 const config = useRuntimeConfig()
-const { clearAllCart } = useCart()
+const { clearOrderedItems } = useCart()
 
 const loading = ref(true)
 const success = ref(false)
@@ -248,13 +248,15 @@ onMounted(async () => {
 
       const orderData = await orderRes.json()
       console.log('Order Data for ID ' + id + ':', orderData)
+      console.log('Order Data order_items structure:', orderData.order_items)
+      console.log('Order Data order_items length:', orderData.order_items?.length)
 
       if (!orderRes.ok || !orderData) throw new Error(orderData.message || 'Không thể lấy thông tin đơn hàng')
 
       const shippingFee = orderData.shipping?.shipping_fee || (parseInt(orderData.final_price) - parseInt(orderData.total_price)) || 0
       const enrichedOrder = {
         ...orderData,
-        order_items: orderData.items || [],
+        order_items: orderData.order_items || [],
         address: orderData.address || {},
         user: orderData.user || {},
         payments: orderData.payments || [],
@@ -264,6 +266,9 @@ onMounted(async () => {
           shipping_fee: shippingFee,
         },
       }
+      
+      console.log('Enriched order order_items:', enrichedOrder.order_items)
+      console.log('Enriched order order_items length:', enrichedOrder.order_items?.length)
 
       // Làm giàu địa chỉ cho từng đơn hàng
       if (enrichedOrder.address) {
@@ -293,7 +298,54 @@ onMounted(async () => {
       throw new Error('Chỉ hỗ trợ xác nhận đơn hàng thanh toán COD trên trang này. Đối với thanh toán VNPAY, vui lòng kiểm tra trạng thái tại trang VNPAY Return.')
     }
 
-    await clearAllCart()
+          // Lấy danh sách sản phẩm đã được thanh toán để xóa khỏi giỏ hàng
+      const orderedItems = [];
+      console.log('Processing orderDetails.value:', orderDetails.value);
+      console.log('orderDetails.value length:', orderDetails.value?.length);
+      
+      if (Array.isArray(orderDetails.value)) {
+        orderDetails.value.forEach((order, orderIndex) => {
+          console.log(`Processing order ${orderIndex}:`, order);
+          console.log(`Order ${orderIndex} order_items:`, order.order_items);
+          console.log(`Order ${orderIndex} order_items length:`, order.order_items?.length);
+          
+          if (order.order_items && Array.isArray(order.order_items)) {
+            order.order_items.forEach((item, itemIndex) => {
+              console.log(`Processing item ${itemIndex}:`, item);
+              console.log(`Item ${itemIndex} product:`, item.product);
+              console.log(`Item ${itemIndex} variant:`, item.variant);
+              
+              const orderedItem = {
+                product_id: item.product?.id,
+                product_variant_id: item.variant?.id || null,
+                quantity: item.quantity
+              };
+              
+              console.log(`Created orderedItem:`, orderedItem);
+              orderedItems.push(orderedItem);
+            });
+          } else {
+            console.log(`Order ${orderIndex} has no order_items or it's not an array`);
+          }
+        });
+      }
+      
+      console.log('Order success - orderedItems để xóa:', orderedItems);
+      console.log('Order success - orderDetails.value:', orderDetails.value);
+      
+      // Chỉ xóa những sản phẩm đã được thanh toán
+      if (orderedItems.length > 0) {
+        console.log('Bắt đầu xóa items khỏi giỏ hàng...');
+        try {
+          await clearOrderedItems(orderedItems);
+          console.log('Hoàn thành xóa items khỏi giỏ hàng');
+        } catch (error) {
+          console.error('Lỗi khi xóa items khỏi giỏ hàng:', error);
+        }
+      } else {
+        console.log('Không có items nào để xóa');
+      }
+    
     loading.value = false
   } catch (err) {
     console.error('Error fetching orders:', err)

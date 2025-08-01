@@ -13,6 +13,7 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
     parsePrice,
     selectStoreItems,
     fetchCart,
+    clearOrderedItems,
   } = useCart();
   const {
     paymentMethods,
@@ -829,49 +830,57 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
         original_shipping_fee: cart.value?.stores?.find(s => s.seller_id === sellerId)?.shipping_fee || 0,
       }];
     } else if (cart.value && cart.value.stores) {
-      items = cart.value.stores.map((store) => {
-        const sellerAddress = sellerAddresses.value[store.seller_id] || {};
-        const items = (store.items || [])
-          .filter((item) => item.is_selected)
-          .map((item) => ({
-            id: item.id,
-            quantity: item.quantity,
-            price: parsePrice(item.price),
-            sale_price: parsePrice(item.sale_price || item.price),
-            productVariant: item.productVariant?.id ? {
-              id: item.productVariant.id,
-              sku: item.productVariant.sku || '',
-              thumbnail: item.productVariant.thumbnail || '',
-              attributes: item.productVariant.attributes || [],
-              weight: item.productVariant.weight || 1000,
-              length: item.productVariant.length || 30,
-              width: item.productVariant.width || 20,
-              height: item.productVariant.height || 10,
-            } : null,
-            product: item.product?.id ? {
-              id: item.product.id,
-              name: item.product.name || '',
-              slug: item.product.slug || '',
-              images: item.product.images || [],
-            } : null
-          }));
-        const storeTotal = items.reduce((sum, item) => sum + item.sale_price * item.quantity, 0);
-        return {
-          seller_id: store.seller_id,
-          store_name: store.store_name || '',
-          store_url: store.store_url || '',
-          district_id: sellerAddress.district_id || null,
-          ward_code: sellerAddress.ward_code || null,
-          items,
-          store_total: storeTotal,
-          discount: getShopDiscount(store.seller_id),
-          selectedDiscountId: getShopDiscountId(store.seller_id),
-          shipping_fee: store.shipping_fee || 0,
-          original_shipping_fee: store.shipping_fee || 0,
-          service_id: shopServiceIds.value[store.seller_id] || null,
-          shipping_discount: store.shipping_discount || 0,
-        };
-      });
+      items = cart.value.stores
+        .map((store) => {
+          const sellerAddress = sellerAddresses.value[store.seller_id] || {};
+          const items = (store.items || [])
+            .filter((item) => item.is_selected)
+            .map((item) => ({
+              id: item.id,
+              quantity: item.quantity,
+              price: parsePrice(item.price),
+              sale_price: parsePrice(item.sale_price || item.price),
+              productVariant: item.productVariant?.id ? {
+                id: item.productVariant.id,
+                sku: item.productVariant.sku || '',
+                thumbnail: item.productVariant.thumbnail || '',
+                attributes: item.productVariant.attributes || [],
+                weight: item.productVariant.weight || 1000,
+                length: item.productVariant.length || 30,
+                width: item.productVariant.width || 20,
+                height: item.productVariant.height || 10,
+              } : null,
+              product: item.product?.id ? {
+                id: item.product.id,
+                name: item.product.name || '',
+                slug: item.product.slug || '',
+                images: item.product.images || [],
+              } : null
+            }));
+          
+          // Chỉ bao gồm store nếu có ít nhất 1 item được chọn
+          if (items.length === 0) {
+            return null;
+          }
+          
+          const storeTotal = items.reduce((sum, item) => sum + item.sale_price * item.quantity, 0);
+          return {
+            seller_id: store.seller_id,
+            store_name: store.store_name || '',
+            store_url: store.store_url || '',
+            district_id: sellerAddress.district_id || null,
+            ward_code: sellerAddress.ward_code || null,
+            items,
+            store_total: storeTotal,
+            discount: getShopDiscount(store.seller_id),
+            selectedDiscountId: getShopDiscountId(store.seller_id),
+            shipping_fee: store.shipping_fee || 0,
+            original_shipping_fee: store.shipping_fee || 0,
+            service_id: shopServiceIds.value[store.seller_id] || null,
+            shipping_discount: store.shipping_discount || 0,
+          };
+        })
+        .filter(store => store !== null); // Lọc bỏ các store null (không có item được chọn)
     }
     
     // Phân bổ discount admin nếu chưa có trong shopDiscounts
@@ -1151,7 +1160,28 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
       const { orders } = await orderResponse.json();
       if (!orders || !orders.length) throw new Error('Không nhận được đơn hàng từ server');
 
-      await removeOrderedItems(allItems);
+      // Chuyển đổi allItems sang format mà clearOrderedItems mong đợi
+      const orderedItemsForRemoval = allItems.map(item => ({
+        product_id: item.product_id,
+        product_variant_id: item.product_variant_id,
+        quantity: item.quantity
+      }));
+      
+      console.log('Sẽ xóa các items sau khi thanh toán:', orderedItemsForRemoval);
+      console.log('Số lượng items sẽ xóa:', orderedItemsForRemoval.length);
+      console.log('allItems gốc:', allItems);
+      
+      if (orderedItemsForRemoval.length > 0) {
+        console.log('Bắt đầu gọi clearOrderedItems...');
+        try {
+          await clearOrderedItems(orderedItemsForRemoval);
+          console.log('Đã gọi clearOrderedItems thành công');
+        } catch (error) {
+          console.error('Lỗi khi gọi clearOrderedItems:', error);
+        }
+      } else {
+        console.log('Không có items nào để xóa');
+      }
       if (isBuyNow.value) localStorage.removeItem('buy_now');
 
       const orderIds = orders.map(order => order.id).join(',');
@@ -1209,41 +1239,7 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
     }
   };
 
-  const removeOrderedItems = async (orderedItems) => {
-    try {
-      const token = localStorage.getItem('access_token');
-      if (!token) return;
-      const cartResponse = await fetch(`${config.public.apiBaseUrl}/cart`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/json',
-        },
-      });
-      if (!cartResponse.ok) return;
-      const cartData = await cartResponse.json();
-      const cartItems = cartData.data?.stores || [];
-      for (const orderedItem of orderedItems) {
-        for (const store of cartItems) {
-          const itemToRemove = store.items?.find(item =>
-            item.product?.id === orderedItem.product_id &&
-            item.product_variant?.id === orderedItem.product_variant_id
-          );
-          if (itemToRemove) {
-            await fetch(`${config.public.apiBaseUrl}/cart/${itemToRemove.id}`, {
-              method: 'DELETE',
-              headers: {
-                Authorization: `Bearer ${token}`,
-                Accept: 'application/json',
-              },
-            });
-          }
-        }
-      }
-      await fetchCart();
-    } catch (error) {
-      console.error('Lỗi khi xóa mặt hàng đã đặt:', error);
-    }
-  };
+
 
   loadBuyNowData();
   checkCodEligibility();
@@ -1279,7 +1275,6 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
     parsePrice,
     getPaymentMethodLabel,
     selectStoreItems,
-    removeOrderedItems,
     isBuyNow,
     buyNowData,
     updateShopDiscount,
