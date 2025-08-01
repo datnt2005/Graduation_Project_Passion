@@ -211,7 +211,7 @@ import { ref, onMounted, reactive } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useRuntimeConfig } from '#app'
 import TiptapEditor from '@/components/TiptapEditor.vue'
-
+import { secureFetch } from '@/utils/secureFetch'
 
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBaseUrl
@@ -251,13 +251,8 @@ const generateSlug = (text) => {
 
 const fetchCategories = async () => {
   try {
-    const token = localStorage.getItem('access_token')
-    const res = await $fetch(`${apiBase}/post-categories`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
+    const res = await secureFetch(`${apiBase}/post-categories`, {},['admin'])
     categories.value = res.data.data || res.data || []
-    console.log('Categories response:', res)
-    console.log('Categories:', categories.value)
     if (categories.value.length > 0 && !category_id.value) {
       category_id.value = categories.value[0].id
     }
@@ -269,10 +264,7 @@ const fetchCategories = async () => {
 
 const fetchPost = async () => {
   try {
-    const token = localStorage.getItem('access_token')
-    const data = await $fetch(`${apiBase}/posts/${route.params.id}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
+    const data = await secureFetch(`${apiBase}/posts/${route.params.id}`, {}, ['admin'])
     title.value = data.data.title
     slug.value = data.data.slug
     content.value = data.data.content
@@ -345,20 +337,17 @@ const submitEdit = async () => {
     formData.append('excerpt', excerpt.value)
     formData.append('status', status.value)
     formData.append('published_at', published_at.value)
+    formData.append('_method', 'PUT') 
     if (image.value) {
       formData.append('thumbnail', image.value)
     } else if (!imageUrl.value) {
       formData.append('thumbnail', '') // Explicitly clear thumbnail if removed
     }
 
-    const token = localStorage.getItem('access_token')
-    await $fetch(`${apiBase}/posts/${route.params.id}`, {
-      method: 'PUT', // Use PUT directly
+    await secureFetch(`${apiBase}/posts/${route.params.id}`, {
+      method: 'POST',
       body: formData,
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
+    }, ['admin'])
 
     showNotificationMessage('Cập nhật bài viết thành công!', 'success')
     setTimeout(() => router.push('/admin/posts/list-post'), 1200)

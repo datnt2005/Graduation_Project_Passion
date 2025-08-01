@@ -88,8 +88,9 @@
               </NuxtLink>
               <NuxtLink :to="`/posts/${post.slug}`">
                 <h3 class="text-lg font-semibold text-gray-800 mb-2 hover:text-blue-500 transition-colors duration-200">
-                  {{ post.title }}
+                  {{ truncateText(post.title, 20) }}
                 </h3>
+
               </NuxtLink>
               <p class="text-gray-600 text-sm mb-3 line-clamp-2">
                 {{ post.excerpt || post.description || 'Không có tóm tắt' }}
@@ -269,6 +270,10 @@ const fetchRelated = async () => {
   } finally {
     relatedLoading.value = false
   }
+}
+const truncateText = (text, max = 100) => {
+  if (!text) return ''
+  return text.length > max ? text.slice(0, max) + '…' : text
 }
 
 const debouncedSearch = debounce(() => fetchPosts(1), 300)
