@@ -1,5 +1,6 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-gray-100 mt-20 mb-20 pb-10">
+  <main class="bg-[#F5F5FA] py-4"> 
+  <div class="flex items-center justify-center pb-10">
     <div class="relative bg-white rounded-2xl shadow-xl p-8 max-w-2xl w-full text-center transform transition-all duration-300 hover:scale-[1.01]">
       <div class="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-green-500/10 rounded-2xl -z-10"></div>
 
@@ -119,6 +120,7 @@
       </div>
     </div>
   </div>
+  </main>
 </template>
 
 <script setup>

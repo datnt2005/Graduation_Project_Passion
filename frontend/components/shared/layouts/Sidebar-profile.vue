@@ -97,7 +97,7 @@ const fetchUser = async () => {
         name: data.data.name || '',
         avatar_url: avatar.startsWith('http')
           ? avatar
-          : config.public.mediaBaseUrl + avatar || defaultAvatar
+          : config.public.mediaBaseUrl + avatar,
       }
     }
   } catch (e) {

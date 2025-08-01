@@ -1,7 +1,7 @@
 <template>
   <div class="bg-[#F8F9FF] text-gray-700">
-    <div class="max-w-[1200px] mx-auto px-4 py-6 flex flex-col lg:flex-row gap-6">
-      <main class="flex-1 p-8 overflow-y-hidden" :class="{ 'opacity-50 pointer-events-none': isAccountBanned }">
+    <div class="max-w-7xl mx-auto px-4 py-6 flex flex-col lg:flex-row gap-6">
+      <main class="flex-1 overflow-y-hidden" :class="{ 'opacity-50 pointer-events-none': isAccountBanned }">
         <!-- Thông báo khi tài khoản bị khóa hoặc không thể dùng COD -->
         <div v-if="isAccountBanned || (!canUseCod && !isAccountBanned && rejectedOrdersCount >= 2)" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
           <template v-if="isAccountBanned">
@@ -13,7 +13,7 @@
         </div>
 
         <!-- Breadcrumb -->
-        <div class="w-full max-w-6xl mb-4">
+        <div class="w-full max-w-7xl mb-4">
           <div class="text-sm text-gray-500 px-4 py-2 rounded">
             <NuxtLink to="/" class="text-gray-400">Trang chủ</NuxtLink>
             <span class="mx-1">›</span>
@@ -35,7 +35,7 @@
           </div>
         </section>
 
-        <div class="min-h-full max-w-6xl mx-auto">
+        <div class="min-h-full max-w-7xl mx-auto">
           <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div class="lg:col-span-2 space-y-2">
               <!-- Loading state -->

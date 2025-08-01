@@ -748,6 +748,8 @@
 <script setup>
 import { ref, onMounted, computed, nextTick, watch } from 'vue';
 import { useRuntimeConfig } from '#app';
+import { secureFetch } from '@/utils/secureFetch' 
+
 
 const config = useRuntimeConfig();
 const apiBase = config.public.apiBaseUrl;
@@ -834,10 +836,7 @@ const fetchOrders = async () => {
     params.append('per_page', orderPageSize.value);
     const url = `${apiBase}/orders?${params.toString()}`;
 
-    const response = await fetch(url, {
-      headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-    });
-    const data = await response.json();
+    const data = await secureFetch(url, {},['seller'], token);
     orders.value = data.data || [];
   } catch (e) {
     orders.value = [];
