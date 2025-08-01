@@ -2,10 +2,14 @@
   <div class="bg-[#F8F9FF] text-gray-700">
     <div class="max-w-[1200px] mx-auto px-4 py-6 flex flex-col lg:flex-row gap-6">
       <main class="flex-1 p-8 overflow-y-hidden" :class="{ 'opacity-50 pointer-events-none': isAccountBanned }">
-        <!-- Thông báo khi tài khoản bị khóa -->
-        <div v-if="isAccountBanned" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          Tài khoản của bạn đã bị khóa do có quá nhiều đơn hàng bị từ chối nhận. Vui lòng liên hệ hỗ trợ để biết thêm
-          chi tiết.
+        <!-- Thông báo khi tài khoản bị khóa hoặc không thể dùng COD -->
+        <div v-if="isAccountBanned || (!canUseCod && !isAccountBanned && rejectedOrdersCount >= 2)" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          <template v-if="isAccountBanned">
+            Tài khoản của bạn đã bị khóa do có quá nhiều đơn hàng bị từ chối nhận. Vui lòng liên hệ hỗ trợ để biết thêm chi tiết.
+          </template>
+          <template v-else>
+            Bạn không thể sử dụng phương thức thanh toán COD vì có quá nhiều đơn hàng bị từ chối nhận.
+          </template>
         </div>
 
         <!-- Breadcrumb -->
@@ -44,7 +48,7 @@
                 :cart-items="cartItems"
                 @update:shippingFee="updateShippingFee"
                 @update:shopDiscount="handleShopDiscountUpdate"
-                @update:totalShippingFee="updateTotalShippingFee"
+                @update:totalShippingFee="handleTotalShippingFeeUpdate"
                 @update:shippingDiscount="handleShippingDiscountUpdate"
               />
 
@@ -55,10 +59,6 @@
                   <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
                 </div>
                 <form v-else class="space-y-6 text-xs text-gray-700 max-w-md">
-                  <!-- Thông báo khi COD không khả dụng -->
-                  <div v-if="!canUseCod && !isAccountBanned && rejectedOrdersCount >= 2" class="text-red-500 text-xs mb-4">
-                    Thanh toán khi nhận hàng (COD) không khả dụng do bạn có quá nhiều đơn hàng bị từ chối nhận.
-                  </div>
                   <label v-for="method in paymentMethods" :key="method.id" class="cursor-pointer"
                     :class="method.name === 'VNPAY' || method.name === 'CREDIT' ? 'flex flex-col gap-1' : 'flex items-center gap-3'">
                     <div class="flex items-center gap-3">
@@ -139,8 +139,6 @@
                   </div>
                 </form>
               </section>
-
-
             </div>
 
             <!-- Sidebar -->
@@ -171,11 +169,11 @@
                             {{ discount.discount_type === 'percentage'
                               ? `Giảm ${Math.round(discount.discount_value)}%`
                               : (discount.discount_type === 'shipping_fee'
-                                ? `Giảm ${formatPrice(Number(discount.discount_value) / 100)}`
-                                : `Giảm ${formatPrice(discount.discount_value)}`)
+                                ? `Giảm ${formatPrice(Number(discount.discount_value))} đ`
+                                : `Giảm ${formatPrice(discount.discount_value)} đ`)
                             }}
                             <span v-if="discount.min_order_value">
-                              (Đơn tối thiểu {{ formatPrice(discount.min_order_value) }})
+                              (Đơn tối thiểu {{ formatPrice(discount.min_order_value) }} đ)
                             </span>
                           </p>
                         </div>
@@ -220,8 +218,7 @@
                     <div class="space-y-6 max-h-[450px] overflow-y-auto">
                       <div>
                         <h3 class="text-sm font-medium text-gray-700 mb-2">Mã giảm phí vận chuyển</h3>
-                        <div v-if="discountLoading" class="text-gray-500 text-sm italic mt-2">Đang tải mã giảm giá...
-                        </div>
+                        <div v-if="discountLoading" class="text-gray-500 text-sm italic mt-2">Đang tải mã giảm giá...</div>
                         <div v-else-if="uniqueShippingDiscounts.length" class="space-y-3">
                           <div v-for="discount in uniqueShippingDiscounts" :key="discount.id"
                             class="border border-gray-300 rounded-md p-4 hover:border-blue-500 transition duration-200"
@@ -230,9 +227,9 @@
                               <div>
                                 <p class="font-semibold text-sm text-gray-800">{{ discount.name }}</p>
                                 <p class="text-xs text-gray-600">
-                                  Giảm {{ formatPrice(Number(discount.discount_value) / 100) }}
+                                  Giảm {{ formatPrice(Number(discount.discount_value)) }} đ
                                   <span v-if="discount.min_order_value">
-                                    | Đơn tối thiểu {{ formatPrice(discount.min_order_value) }}
+                                    | Đơn tối thiểu {{ formatPrice(discount.min_order_value) }} đ
                                   </span>
                                 </p>
                                 <p class="text-[11px] text-gray-400 mt-1">HSD: {{ formatDate(discount.end_date) }}</p>
@@ -255,13 +252,10 @@
                       </div>
                       <div>
                         <h3 class="text-sm font-medium text-gray-700 mb-2">Mã giảm giá sản phẩm</h3>
-                        <div v-if="discountLoading" class="text-gray-500 text-sm italic mt-2">Đang tải mã giảm giá...
-                        </div>
-                        <div
-                          v-else-if="publicDiscounts.filter(d => d.discount_type !== 'shipping_fee' && d.seller_id === null).length"
+                        <div v-if="discountLoading" class="text-gray-500 text-sm italic mt-2">Đang tải mã giảm giá...</div>
+                        <div v-else-if="publicDiscounts.filter(d => d.discount_type !== 'shipping_fee' && d.seller_id === null).length"
                           class="space-y-3">
-                          <div
-                            v-for="discount in publicDiscounts.filter(d => d.discount_type !== 'shipping_fee' && d.seller_id === null)"
+                          <div v-for="discount in publicDiscounts.filter(d => d.discount_type !== 'shipping_fee' && d.seller_id === null)"
                             :key="discount.id"
                             class="border border-gray-300 rounded-md p-4 hover:border-blue-500 transition duration-200"
                             :class="{ 'opacity-50': total < discount.min_order_value }">
@@ -271,9 +265,9 @@
                                 <p class="text-xs text-gray-600">
                                   {{ discount.discount_type === 'percentage'
                                     ? `Giảm ${Math.round(discount.discount_value)}%`
-                                    : `Giảm ${formatPrice(Number(discount.discount_value) / 100)}` }}
+                                    : `Giảm ${formatPrice(Number(discount.discount_value))} đ` }}
                                   <span v-if="discount.min_order_value">
-                                    | Đơn tối thiểu {{ formatPrice(discount.min_order_value) }}
+                                    | Đơn tối thiểu {{ formatPrice(discount.min_order_value) }} đ
                                   </span>
                                 </p>
                                 <p class="text-[11px] text-gray-400 mt-1">HSD: {{ formatDate(discount.end_date) }}</p>
@@ -299,8 +293,6 @@
                 </div>
               </section>
 
-
-
               <!-- Order Summary -->
               <section class="bg-white rounded-lg p-5 text-sm text-gray-700 border border-gray-200 space-y-4">
                 <div class="flex justify-between items-center">
@@ -325,7 +317,7 @@
                       class="flex items-center py-2 border-b last:border-b-0">
                       <span class="text-xs text-gray-500 w-12 text-center">{{ item.quantity }} x</span>
                       <span v-if="item.productVariant?.attributes" class="text-xs text-gray-500 w-16 text-center">
-                        {{item.productVariant.attributes.map(attr => attr.value).join(', ')}}
+                        {{ item.productVariant.attributes.map(attr => attr.value).join(', ') }}
                       </span>
                       <span class="flex-1 font-semibold text-sm truncate">{{ item.product?.name }}</span>
                       <span class="font-semibold w-24 text-right">{{ formatPrice(item.sale_price) }} đ</span>
@@ -371,7 +363,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch, computed, reactive } from 'vue';
+import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
 import { useRoute, useRuntimeConfig } from '#app';
 import axios from 'axios';
 import Swal from 'sweetalert2';
@@ -379,6 +371,7 @@ import SelectedAddress from '~/components/shared/SelectedAddress.vue';
 import ShippingSelector from '~/components/shared/ShippingSelector.vue';
 import { useCheckout } from '~/composables/useCheckout';
 import { useDiscount } from '~/composables/useDiscount';
+import { checkoutPerformance } from '~/utils/performance';
 
 const config = useRuntimeConfig();
 const apiBase = config.public.apiBaseUrl;
@@ -395,9 +388,7 @@ const manualCode = ref('');
 const showDiscountModal = ref(false);
 const storeNotes = ref({});
 const isOrderDetailsOpen = ref(true);
-const shippingFees = ref({}); // Thêm biến để lưu phí vận chuyển
-
-
+const shippingFees = ref({});
 
 const cardPromotions = ref([
   {
@@ -417,14 +408,14 @@ const cardPromotions = ref([
     limit: 'Hạn sử dụng 30 ngày',
   },
 ]);
-const totalShippingFee = ref(0);
+
 const {
   cartItems,
   cart,
   total,
   formattedTotal,
-  finalTotal,
-  formattedFinalShippingFee,
+  realShippingFee,
+  realFinalTotal,
   loading,
   error,
   paymentMethods,
@@ -459,68 +450,14 @@ const {
   shopServiceIds,
   getShippingDiscountPerShop,
   getProductDiscountPerShop,
-  realShippingFee,
-  realFinalTotal,
-  totalShippingDiscount
+  totalShippingDiscount,
+  removeShopDiscount,
+  recalculateAllShopDiscounts
 } = useCheckout(shippingRef, selectedShippingMethod, selectedAddress, storeNotes);
 
 const { fetchMyVouchers, fetchDiscounts: fetchPublicDiscounts, fetchSellerDiscounts, discounts: publicDiscounts } = useDiscount();
 
-const handleShopDiscountUpdate = async (data) => {
-  if (data && data.sellerId) {
-    // Chỉ cần gọi updateShopDiscount để cập nhật vào shopDiscounts (useCheckout)
-    if (updateShopDiscount) {
-      const success = await updateShopDiscount(data.sellerId, data.discount, data.discountId);
-      if (success) {
-        console.log('Cập nhật discount cho shop', data.sellerId, '->', data.discount);
-      } else {
-        console.log('Không thể áp dụng mã giảm giá cho shop', data.sellerId);
-      }
-    }
-  }
-};
-
-// Cập nhật phí vận chuyển cho từng shop
-const updateShippingFee = ({ sellerId, fee }) => {
-  console.log(`Cập nhật phí vận chuyển cho shop ${sellerId}: ${fee}`);
-  // Cập nhật thông qua cart.value.stores thay vì cartItems.value
-  if (cart.value && cart.value.stores) {
-    const store = cart.value.stores.find(s => s.seller_id === sellerId);
-    if (store) {
-      store.shipping_fee = fee;
-      console.log(`Đã cập nhật shipping_fee cho shop ${sellerId}: ${fee}`);
-    }
-  }
-};
-
-const updateTotalShippingFee = (fee) => {
-  totalShippingFee.value = fee;
-  console.log(`Cập nhật totalShippingFee: ${fee}`);
-};
-
-const handleShippingDiscountUpdate = (discountData) => {
-  console.log('Cập nhật shipping discount từ ShippingSelector:', discountData);
-  
-  if (discountData.sellerId) {
-    // Cập nhật discount cho shop cụ thể thông qua cart.value.stores
-    if (cart.value && cart.value.stores) {
-      const store = cart.value.stores.find(s => s.seller_id === discountData.sellerId);
-      if (store) {
-        store.shipping_discount = discountData.shippingDiscount || 0;
-        console.log(`Đã cập nhật shipping_discount cho shop ${store.seller_id}: ${store.shipping_discount}`);
-      }
-    }
-  } else if (discountData.totalDiscount !== undefined) {
-    // Cập nhật tổng discount từ ShippingSelector
-    console.log(`Tổng shipping discount: ${discountData.totalDiscount}`);
-    console.log(`Tổng phí gốc: ${discountData.totalOriginalFee}`);
-    console.log(`Tổng phí thực tế: ${discountData.totalRealFee}`);
-  }
-};
-
-const shopsWithDiscount = computed(() => {
-  return cartItems.value.filter(shop => shop.discount > 0);
-});
+const shopCount = computed(() => cartItems.value.length);
 
 const uniqueShippingDiscounts = computed(() => {
   const seen = new Set();
@@ -533,12 +470,150 @@ const uniqueShippingDiscounts = computed(() => {
   });
 });
 
-const shopCount = computed(() => cartItems.value.length);
+const updateShippingFee = ({ sellerId, fee }) => {
+  console.log(`Cập nhật phí vận chuyển cho shop ${sellerId}: ${fee}`);
+  if (cart.value && cart.value.stores) {
+    const store = cart.value.stores.find(s => s.seller_id === sellerId);
+    if (store) {
+      store.shipping_fee = fee;
+      console.log(`Đã cập nhật shipping_fee cho shop ${sellerId}: ${fee}`);
+    }
+  }
+};
 
-// Hàm xử lý sự kiện update:totalShippingFee
 const handleTotalShippingFeeUpdate = (newTotal) => {
   console.log(`Cập nhật totalShippingFee: ${newTotal}`);
-  totalShippingFee.value = newTotal || 0;
+};
+
+const handleShopDiscountUpdate = async (data) => {
+  if (data && data.sellerId) {
+    if (data.action === 'remove') {
+      // Xóa discount cho shop cụ thể
+      removeShopDiscount(data.sellerId);
+      console.log('Đã xóa discount cho shop', data.sellerId);
+    } else {
+      // Áp dụng discount cho shop
+      const success = await updateShopDiscount(data.sellerId, data.discount, data.discountId);
+      if (success) {
+        console.log('Cập nhật discount cho shop', data.sellerId, '->', data.discount);
+      } else {
+        console.log('Không thể áp dụng mã giảm giá cho shop', data.sellerId);
+      }
+    }
+  }
+};
+
+const handleShippingDiscountUpdate = (discountData) => {
+  console.log('Cập nhật shipping discount từ ShippingSelector:', discountData);
+  if (discountData.sellerId) {
+    if (cart.value && cart.value.stores) {
+      const store = cart.value.stores.find(s => s.seller_id === discountData.sellerId);
+      if (store) {
+        store.shipping_discount = discountData.shippingDiscount || 0;
+        console.log(`Đã cập nhật shipping_discount cho shop ${store.seller_id}: ${store.shipping_discount}`);
+      }
+    }
+  }
+};
+
+const applyManualDiscount = async () => {
+  const code = manualCode.value.trim().toUpperCase();
+  if (!code) {
+    toast('warning', 'Vui lòng nhập mã giảm giá');
+    return;
+  }
+
+  let discount = publicDiscounts.value.find((d) => d.code?.toUpperCase() === code);
+
+  if (!discount) {
+    for (const shop of cartItems.value) {
+      if (shop.seller_id) {
+        const sellerDiscounts = await fetchSellerDiscounts(shop.seller_id);
+        discount = sellerDiscounts.find((d) => d.code?.toUpperCase() === code);
+        if (discount) {
+          const discountAmount = discount.discount_type === 'percentage'
+            ? (shop.store_total * discount.discount_value / 100)
+            : discount.discount_value;
+          const success = await updateShopDiscount(shop.seller_id, discountAmount, discount.id);
+          if (success) {
+            await applyDiscount(discount);
+            toast('success', `Đã áp dụng mã giảm giá cho ${shop.store_name}`);
+            manualCode.value = '';
+            showDiscountModal.value = false;
+            return;
+          } else {
+            toast('error', `Không thể áp dụng mã giảm giá cho ${shop.store_name}`);
+            return;
+          }
+        }
+      }
+    }
+  }
+
+  if (!discount) {
+    toast('error', 'Không tìm thấy mã giảm giá này');
+    return;
+  }
+
+  if (total.value < discount.min_order_value) {
+    toast('error', `Đơn hàng chưa đủ điều kiện (${formatPrice(discount.min_order_value)} đ) để dùng mã này`);
+    return;
+  }
+
+  await applyDiscount(discount);
+
+  if (!discount.seller_id && (discount.discount_type === 'percentage' || discount.discount_type === 'fixed')) {
+    const shopCount = cartItems.value.length;
+    const perShopDiscount = getProductDiscountPerShop(total.value, shopCount);
+    if (perShopDiscount > 0) {
+      for (const shop of cartItems.value) {
+        await updateShopDiscount(shop.seller_id, perShopDiscount, discount.id);
+      }
+      toast('success', `Đã áp dụng mã giảm giá ${discount.name} cho tất cả cửa hàng`);
+    } else {
+      toast('error', 'Không thể phân bổ mã giảm giá do tổng tiền hàng hoặc số lượng shop không hợp lệ');
+    }
+  } else if (discount.seller_id) {
+    const shop = cartItems.value.find(s => s.seller_id === discount.seller_id);
+    if (shop) {
+      const discountAmount = discount.discount_type === 'percentage'
+        ? (shop.store_total * discount.discount_value / 100)
+        : discount.discount_value;
+      const success = await updateShopDiscount(shop.seller_id, discountAmount, discount.id);
+      if (success) {
+        toast('success', `Đã áp dụng mã giảm giá cho ${shop.store_name}`);
+      } else {
+        toast('error', `Không thể áp dụng mã giảm giá cho ${shop.store_name}`);
+      }
+    }
+  }
+
+  manualCode.value = '';
+  showDiscountModal.value = false;
+};
+
+const selectCardPromotion = async (promo) => {
+  const discount = discounts.value.find((d) => d.name === promo.name);
+  if (!discount) {
+    toast('error', 'Ưu đãi không khả dụng');
+    return;
+  }
+  await applyDiscount(discount);
+
+  if (!discount.seller_id && (discount.discount_type === 'percentage' || discount.discount_type === 'fixed')) {
+    const shopCount = cartItems.value.length;
+    const perShopDiscount = getProductDiscountPerShop(total.value, shopCount);
+    if (perShopDiscount > 0) {
+      for (const shop of cartItems.value) {
+        await updateShopDiscount(shop.seller_id, perShopDiscount, discount.id);
+      }
+      toast('success', `Đã áp dụng ưu đãi ${discount.name} cho tất cả cửa hàng`);
+    }
+  }
+};
+
+const addNewCard = () => {
+  toast('info', 'Chức năng thêm thẻ mới chưa được triển khai');
 };
 
 const loadProvinces = async () => {
@@ -632,64 +707,6 @@ const loadSelectedAddress = async () => {
   }
 };
 
-const applyManualDiscount = async () => {
-  const code = manualCode.value.trim().toUpperCase();
-  if (!code) {
-    toast('warning', 'Vui lòng nhập mã giảm giá');
-    return;
-  }
-
-  let discount = publicDiscounts.value.find((d) => d.code?.toUpperCase() === code);
-
-  if (!discount) {
-    for (const shop of cartItems.value) {
-      if (shop.seller_id) {
-        const sellerDiscounts = await fetchSellerDiscounts(shop.seller_id);
-        discount = sellerDiscounts.find((d) => d.code?.toUpperCase() === code);
-        if (discount) {
-          const discountAmount = discount.discount_type === 'percentage'
-            ? (shop.store_total * discount.discount_value / 100)
-            : discount.discount_value;
-          updateShopDiscount(shop.seller_id, discountAmount, discount.id);
-          toast('success', `Đã áp dụng mã giảm giá cho ${shop.store_name}`);
-          manualCode.value = '';
-          showDiscountModal.value = false;
-          return;
-        }
-      }
-    }
-  }
-
-  if (!discount) {
-    toast('error', 'Không tìm thấy mã giảm giá này');
-    return;
-  }
-  if (total.value < discount.min_order_value) {
-    toast('error', `Đơn hàng chưa đủ điều kiện (${formatPrice(discount.min_order_value)}) để dùng mã này`);
-    return;
-  }
-  await applyDiscount(discount);
-  manualCode.value = '';
-  showDiscountModal.value = false;
-};
-
-
-
-const selectCardPromotion = async (promo) => {
-  const discount = discounts.value.find((d) => d.name === promo.name);
-  if (!discount) {
-    toast('error', 'Ưu đãi không khả dụng');
-    return;
-  }
-  await applyDiscount(discount);
-};
-
-const addNewCard = () => {
-  toast('info', 'Chức năng thêm thẻ mới chưa được triển khai');
-};
-
-
-
 const formatDate = (date) => {
   if (!date) return '';
   const d = new Date(date);
@@ -728,32 +745,86 @@ watch(discountError, (val) => {
 watch(selectedAddress, async (newAddress) => {
   if (newAddress && newAddress.district_id && newAddress.ward_code) {
     console.log('Địa chỉ đã thay đổi, gọi loadShippingFees');
-    await loadShippingFees();
+    if (window.addressChangeTimeout) {
+      clearTimeout(window.addressChangeTimeout);
+    }
+    window.addressChangeTimeout = setTimeout(async () => {
+      await loadShippingFees();
+    }, 500);
   }
 }, { deep: true });
 
 watch(cartItems, (newVal) => {
-  console.log('cartItems updated:', newVal.map(s => ({
-    seller_id: s.seller_id,
-    shipping_fee: s.shipping_fee,
-    service_id: s.service_id
-  })));
+  const hasShippingFeeChanges = newVal.some(s => s.shipping_fee > 0);
+  if (hasShippingFeeChanges) {
+    console.log('cartItems updated with shipping fees:', newVal.map(s => ({
+      seller_id: s.seller_id,
+      shipping_fee: s.shipping_fee,
+      service_id: s.service_id
+    })));
+  }
 }, { deep: true });
 
 watch(selectedShippingMethod, (newVal) => {
-  console.log('Selected shipping method in checkout.vue:', newVal);
+  if (newVal) {
+    console.log('Selected shipping method in checkout.vue:', newVal);
+  }
+});
+
+// Lắng nghe sự kiện khi admin discount bị huỷ hoặc được áp dụng
+onMounted(() => {
+  const handleAdminDiscountRemoved = (event) => {
+    const { discountId, discount } = event.detail;
+    console.log('Admin discount removed:', discountId, discount);
+    
+    // Cập nhật lại tất cả shop discounts
+    recalculateAllShopDiscounts();
+  };
+
+  const handleAdminDiscountApplied = (event) => {
+    const { discountId, discount } = event.detail;
+    console.log('Admin discount applied:', discountId, discount);
+    
+    // Cập nhật lại tất cả shop discounts
+    recalculateAllShopDiscounts();
+  };
+
+  window.addEventListener('adminDiscountRemoved', handleAdminDiscountRemoved);
+  window.addEventListener('adminDiscountApplied', handleAdminDiscountApplied);
+
+  // Cleanup khi component unmount
+  onUnmounted(() => {
+    window.removeEventListener('adminDiscountRemoved', handleAdminDiscountRemoved);
+    window.removeEventListener('adminDiscountApplied', handleAdminDiscountApplied);
+  });
 });
 
 onMounted(async () => {
   try {
-    await Promise.all([
+    checkoutPerformance.start();
+    console.time('checkout-load');
+    
+    const loadPromises = [
       selectStoreItems(),
       fetchPaymentMethods(),
       fetchPublicDiscounts(),
       fetchMyVouchers(),
       loadSelectedAddress(),
       checkCodEligibility(),
-    ]);
+    ];
+    
+    await Promise.all(loadPromises);
+    
+    checkoutPerformance.markMilestone('Data loaded');
+    console.timeEnd('checkout-load');
+    
+    console.log('🚀 Checkout page loaded successfully');
+    checkoutPerformance.end();
+    
+    const shippingStats = shippingPerformance.getSummary();
+    if (shippingStats.totalCalculations > 0) {
+      console.log('📊 Shipping Performance Summary:', shippingStats);
+    }
   } catch (err) {
     console.error('Error during checkout load:', err);
     toast('error', 'Lỗi khi tải dữ liệu thanh toán');

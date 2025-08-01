@@ -33,9 +33,9 @@
                   class="w-24 h-24 object-cover rounded-xl border bg-white shadow-sm group-hover:scale-105 transition-transform duration-200"
                   @error="e => { e.target.src = DEFAULT_IMAGE }" />
                 <div class="flex-1">
-                  <h2 class="font-semibold text-lg text-[#212b36] mb-1 truncate max-w-[220px]">
+                  <h3 class="font-semibold text-lg text-[#212b36] mb-1 truncate max-w-[140px]">
                     {{ item.product?.name || 'Không có tiêu đề' }}
-                  </h2>
+                  </h3>
                   <p class="text-[#637381] text-sm mb-2 line-clamp-2"
                     v-html="item.product?.fullDescription || 'Không có mô tả'"></p>
                   <div v-if="item.product?.price" class="text-green-600 font-bold mb-1">

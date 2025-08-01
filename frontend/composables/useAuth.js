@@ -11,6 +11,7 @@ export function useAuth() {
   const logout = async () => {
     try {
       localStorage.removeItem('access_token');
+      localStorage.removeItem('user_profile');
       isAuthenticated.value = false;
       toast('success', 'Đã đăng xuất thành công');
       await router.push('/login');
