@@ -331,9 +331,11 @@ const fetchReviews = async () => {
     const res = await fetch(`${apiBase}/reviews?product_id=${props.productId}&page=${currentPage.value}&per_page=${itemsPerPage}`)
     if (!res.ok) throw new Error('Lỗi khi lấy đánh giá')
     const data = await res.json()
+    const summary = data.data?.summary || { rating: 0, count: 0, ratings: {} }
+    const list = data.data?.list || []
     reviews.value = {
-      summary: { ...data.summary, ratings: data.summary.ratings || {} },
-      list: structuredClone(data.list || [])
+      summary: { ...summary, ratings: summary.ratings || {} },
+      list: structuredClone(list)
     }
     localStorage.setItem(cacheKey, JSON.stringify({ data: reviews.value, expires: Date.now() + 3600 * 1000 }))
   } catch (err) {

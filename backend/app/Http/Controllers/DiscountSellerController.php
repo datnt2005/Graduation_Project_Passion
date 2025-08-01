@@ -648,7 +648,7 @@ class DiscountSellerController extends Controller
                 'success' => false,
                 'message' => 'Mã giảm giá đã hết lượt sử dụng',
                 'error_code' => 'USAGE_LIMIT_EXCEEDED'
-            ], 400);
+            ], 410);
         }
 
         // Kiểm tra giá trị đơn hàng tối thiểu

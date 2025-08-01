@@ -6,6 +6,11 @@ use Illuminate\Http\Request;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
+use App\Models\Seller;
+use App\Models\Review;
+use App\Models\OrderItem;
+use App\Models\ProductVariant;
+use App\Models\Shipping;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -526,6 +531,417 @@ class DashboardController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Lỗi khi lấy dữ liệu biểu đồ: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Lấy danh sách tất cả seller với thống kê doanh thu
+     */
+    public function getAllSellersStats(Request $request)
+    {
+        try {
+            $query = \App\Models\Seller::with(['user'])
+                ->where('verification_status', 'verified');
+
+            // Tìm kiếm
+            if ($request->has('search') && $request->search) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('store_name', 'like', "%{$search}%")
+                        ->orWhereHas('user', function ($q) use ($search) {
+                            $q->where('email', 'like', "%{$search}%")
+                                ->orWhere('name', 'like', "%{$search}%");
+                        });
+                });
+            }
+
+            // Sắp xếp
+            $sortBy = $request->get('sort', 'revenue_desc');
+            switch ($sortBy) {
+                case 'revenue_desc':
+                    $query->orderByRaw('(SELECT COALESCE(SUM(orders.final_price), 0) FROM orders 
+                        INNER JOIN order_items ON orders.id = order_items.order_id 
+                        INNER JOIN product_variants ON order_items.product_variant_id = product_variants.id 
+                        INNER JOIN products ON product_variants.product_id = products.id 
+                        WHERE products.seller_id = sellers.id AND orders.status = "delivered") DESC');
+                    break;
+                case 'revenue_asc':
+                    $query->orderByRaw('(SELECT COALESCE(SUM(orders.final_price), 0) FROM orders 
+                        INNER JOIN order_items ON orders.id = order_items.order_id 
+                        INNER JOIN product_variants ON order_items.product_variant_id = product_variants.id 
+                        INNER JOIN products ON product_variants.product_id = products.id 
+                        WHERE products.seller_id = sellers.id AND orders.status = "delivered") ASC');
+                    break;
+                case 'orders_desc':
+                    $query->orderByRaw('(SELECT COUNT(DISTINCT orders.id) FROM orders 
+                        INNER JOIN order_items ON orders.id = order_items.order_id 
+                        INNER JOIN product_variants ON order_items.product_variant_id = product_variants.id 
+                        INNER JOIN products ON product_variants.product_id = products.id 
+                        WHERE products.seller_id = sellers.id) DESC');
+                    break;
+                case 'orders_asc':
+                    $query->orderByRaw('(SELECT COUNT(DISTINCT orders.id) FROM orders 
+                        INNER JOIN order_items ON orders.id = order_items.order_id 
+                        INNER JOIN product_variants ON order_items.product_variant_id = product_variants.id 
+                        INNER JOIN products ON product_variants.product_id = products.id 
+                        WHERE products.seller_id = sellers.id) ASC');
+                    break;
+                default:
+                    $query->orderBy('created_at', 'desc');
+            }
+
+            $sellers = $query->get();
+
+            // Tính toán thống kê cho từng seller
+            $sellersWithStats = $sellers->map(function ($seller) {
+                // Tổng doanh thu
+                $totalRevenue = \App\Models\Order::whereHas('orderItems.productVariant.product', function($query) use ($seller) {
+                    $query->where('seller_id', $seller->id);
+                })->where('status', 'delivered')->sum('final_price');
+
+                // Tổng đơn hàng
+                $totalOrders = \App\Models\Order::whereHas('orderItems.productVariant.product', function($query) use ($seller) {
+                    $query->where('seller_id', $seller->id);
+                })->count();
+
+                // Đơn hàng đã bán
+                $deliveredOrders = \App\Models\Order::whereHas('orderItems.productVariant.product', function($query) use ($seller) {
+                    $query->where('seller_id', $seller->id);
+                })->where('status', 'delivered')->count();
+
+                // Tổng sản phẩm
+                $totalProducts = \App\Models\Product::where('seller_id', $seller->id)
+                    ->where('status', '!=', 'trash')
+                    ->count();
+
+                return [
+                    'id' => $seller->id,
+                    'store_name' => $seller->store_name,
+                    'user' => [
+                        'id' => $seller->user->id,
+                        'name' => $seller->user->name,
+                        'email' => $seller->user->email,
+                        'status' => $seller->user->status,
+                    ],
+                    'total_revenue' => $totalRevenue,
+                    'total_orders' => $totalOrders,
+                    'delivered_orders' => $deliveredOrders,
+                    'total_products' => $totalProducts,
+                    'verification_status' => $seller->verification_status,
+                    'created_at' => $seller->created_at,
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => $sellersWithStats
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi khi lấy danh sách seller: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Lấy danh sách đơn hàng với thống kê - Tối ưu hóa
+     */
+    public function getAllOrdersStats(Request $request)
+    {
+        try {
+            $query = Order::with(['user', 'orderItems.productVariant.product.seller', 'shipping']);
+
+            // Filter theo trạng thái
+            if ($request->has('status') && $request->status) {
+                $query->where('status', $request->status);
+            }
+
+            // Filter theo ngày
+            if ($request->has('from_date') && $request->from_date) {
+                $query->whereDate('created_at', '>=', $request->from_date);
+            }
+            if ($request->has('to_date') && $request->to_date) {
+                $query->whereDate('created_at', '<=', $request->to_date);
+            }
+
+            // Tìm kiếm theo tracking code
+            if ($request->has('search') && $request->search) {
+                $search = $request->search;
+                $query->whereHas('shipping', function($q) use ($search) {
+                    $q->where('tracking_code', 'like', "%{$search}%");
+                });
+            }
+
+            // Sắp xếp
+            $sortBy = $request->get('sort', 'created_at_desc');
+            switch ($sortBy) {
+                case 'created_at_desc':
+                    $query->orderBy('created_at', 'desc');
+                    break;
+                case 'created_at_asc':
+                    $query->orderBy('created_at', 'asc');
+                    break;
+                case 'final_price_desc':
+                    $query->orderBy('final_price', 'desc');
+                    break;
+                case 'final_price_asc':
+                    $query->orderBy('final_price', 'asc');
+                    break;
+                default:
+                    $query->orderBy('created_at', 'desc');
+            }
+
+            $orders = $query->paginate($request->get('per_page', 15));
+
+            // Tối ưu: Chỉ tính stats nếu cần thiết
+            $totalStats = null;
+            if ($request->get('include_stats', true)) {
+                $totalStats = DB::select("
+                    SELECT 
+                        COUNT(*) as total_orders,
+                        SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_orders,
+                        SUM(CASE WHEN status = 'processing' THEN 1 ELSE 0 END) as processing_orders,
+                        SUM(CASE WHEN status = 'shipped' THEN 1 ELSE 0 END) as shipped_orders,
+                        SUM(CASE WHEN status = 'delivered' THEN 1 ELSE 0 END) as delivered_orders,
+                        SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled_orders,
+                        SUM(CASE WHEN status = 'delivered' THEN final_price ELSE 0 END) as total_revenue,
+                        SUM(CASE WHEN status = 'delivered' THEN discount_price ELSE 0 END) as total_discount
+                    FROM orders
+                ")[0];
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $orders->items(),
+                'meta' => $orders->toArray(),
+                'stats' => $totalStats ? (array)$totalStats : null
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi khi lấy danh sách đơn hàng: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Lấy danh sách người dùng đang hoạt động
+     */
+    public function getActiveUsersStats(Request $request)
+    {
+        try {
+            $query = \App\Models\User::with(['seller']);
+
+            // Chỉ lấy người dùng đang hoạt động
+            $query->where('status', 'active');
+
+            // Tìm kiếm
+            if ($request->has('search') && $request->search) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhere('phone', 'like', "%{$search}%");
+                });
+            }
+
+            // Filter theo role
+            if ($request->has('role') && $request->role) {
+                $query->where('role', $request->role);
+            }
+
+            // Sắp xếp
+            $sortBy = $request->get('sort', 'created_at_desc');
+            switch ($sortBy) {
+                case 'created_at_desc':
+                    $query->orderBy('created_at', 'desc');
+                    break;
+                case 'created_at_asc':
+                    $query->orderBy('created_at', 'asc');
+                    break;
+                case 'name_asc':
+                    $query->orderBy('name', 'asc');
+                    break;
+                case 'name_desc':
+                    $query->orderBy('name', 'desc');
+                    break;
+                default:
+                    $query->orderBy('created_at', 'desc');
+            }
+
+            $users = $query->paginate($request->get('per_page', 15));
+
+            // Tính toán thống kê cho từng user
+            $usersWithStats = $users->getCollection()->map(function ($user) {
+                // Tổng đơn hàng của user
+                $totalOrders = \App\Models\Order::where('user_id', $user->id)->count();
+                
+                // Tổng tiền đã mua
+                $totalSpent = \App\Models\Order::where('user_id', $user->id)
+                    ->where('status', 'delivered')
+                    ->sum('final_price');
+
+                // Đơn hàng gần nhất
+                $lastOrder = \App\Models\Order::where('user_id', $user->id)
+                    ->orderBy('created_at', 'desc')
+                    ->first();
+
+                // Số sản phẩm đã review
+                $totalReviews = \App\Models\Review::where('user_id', $user->id)->count();
+
+                return [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'phone' => $user->phone,
+                    'role' => $user->role,
+                    'status' => $user->status,
+                    'avatar' => $user->avatar,
+                    'is_verified' => $user->is_verified,
+                    'total_orders' => $totalOrders,
+                    'total_spent' => $totalSpent,
+                    'total_reviews' => $totalReviews,
+                    'last_order_date' => $lastOrder ? $lastOrder->created_at : null,
+                    'created_at' => $user->created_at,
+                    'seller' => $user->seller ? [
+                        'id' => $user->seller->id,
+                        'store_name' => $user->seller->store_name,
+                        'verification_status' => $user->seller->verification_status,
+                    ] : null,
+                ];
+            });
+
+            // Tính toán thống kê tổng quan
+            $totalStats = [
+                'total_users' => \App\Models\User::where('status', 'active')->count(),
+                'total_customers' => \App\Models\User::where('status', 'active')->where('role', 'user')->count(),
+                'total_sellers' => \App\Models\User::where('status', 'active')->where('role', 'seller')->count(),
+                'total_admins' => \App\Models\User::where('status', 'active')->where('role', 'admin')->count(),
+                'verified_users' => \App\Models\User::where('status', 'active')->where('is_verified', true)->count(),
+                'unverified_users' => \App\Models\User::where('status', 'active')->where('is_verified', false)->count(),
+            ];
+
+            return response()->json([
+                'success' => true,
+                'data' => $usersWithStats,
+                'meta' => $users->toArray(),
+                'stats' => $totalStats
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi khi lấy danh sách người dùng: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Lấy tổng quan thống kê hệ thống - Tối ưu hóa với ít queries hơn
+     */
+    public function getSystemOverview()
+    {
+        try {
+            // Sử dụng raw queries để tối ưu performance
+            $userStats = DB::select("
+                SELECT 
+                    COUNT(*) as total,
+                    SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active,
+                    SUM(CASE WHEN status = 'active' AND role = 'user' THEN 1 ELSE 0 END) as customers,
+                    SUM(CASE WHEN status = 'active' AND role = 'seller' THEN 1 ELSE 0 END) as sellers,
+                    SUM(CASE WHEN status = 'active' AND role = 'admin' THEN 1 ELSE 0 END) as admins,
+                    SUM(CASE WHEN status = 'active' AND is_verified = 1 THEN 1 ELSE 0 END) as verified
+                FROM users
+            ")[0];
+
+            $orderStats = DB::select("
+                SELECT 
+                    COUNT(*) as total,
+                    SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+                    SUM(CASE WHEN status = 'processing' THEN 1 ELSE 0 END) as processing,
+                    SUM(CASE WHEN status = 'shipped' THEN 1 ELSE 0 END) as shipped,
+                    SUM(CASE WHEN status = 'delivered' THEN 1 ELSE 0 END) as delivered,
+                    SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled,
+                    SUM(CASE WHEN status = 'delivered' THEN final_price ELSE 0 END) as total_revenue,
+                    SUM(CASE WHEN status = 'delivered' THEN discount_price ELSE 0 END) as total_discount
+                FROM orders
+            ")[0];
+
+            $sellerStats = DB::select("
+                SELECT 
+                    COUNT(*) as total,
+                    SUM(CASE WHEN verification_status = 'verified' THEN 1 ELSE 0 END) as verified,
+                    SUM(CASE WHEN verification_status = 'pending' THEN 1 ELSE 0 END) as pending,
+                    SUM(CASE WHEN verification_status = 'rejected' THEN 1 ELSE 0 END) as rejected
+                FROM sellers
+            ")[0];
+
+            $productStats = DB::select("
+                SELECT 
+                    SUM(CASE WHEN status != 'trash' THEN 1 ELSE 0 END) as total,
+                    SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active,
+                    SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+                    SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected
+                FROM products
+            ")[0];
+
+            $reviewStats = DB::select("
+                SELECT 
+                    COUNT(*) as total,
+                    SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved,
+                    SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+                    SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected
+                FROM reviews
+            ")[0];
+
+            $stats = [
+                'users' => [
+                    'total' => (int)$userStats->total,
+                    'active' => (int)$userStats->active,
+                    'customers' => (int)$userStats->customers,
+                    'sellers' => (int)$userStats->sellers,
+                    'admins' => (int)$userStats->admins,
+                    'verified' => (int)$userStats->verified,
+                ],
+                'orders' => [
+                    'total' => (int)$orderStats->total,
+                    'pending' => (int)$orderStats->pending,
+                    'processing' => (int)$orderStats->processing,
+                    'shipped' => (int)$orderStats->shipped,
+                    'delivered' => (int)$orderStats->delivered,
+                    'cancelled' => (int)$orderStats->cancelled,
+                    'total_revenue' => (float)$orderStats->total_revenue,
+                    'total_discount' => (float)$orderStats->total_discount,
+                ],
+                'sellers' => [
+                    'total' => (int)$sellerStats->total,
+                    'verified' => (int)$sellerStats->verified,
+                    'pending' => (int)$sellerStats->pending,
+                    'rejected' => (int)$sellerStats->rejected,
+                ],
+                'products' => [
+                    'total' => (int)$productStats->total,
+                    'active' => (int)$productStats->active,
+                    'pending' => (int)$productStats->pending,
+                    'rejected' => (int)$productStats->rejected,
+                ],
+                'reviews' => [
+                    'total' => (int)$reviewStats->total,
+                    'approved' => (int)$reviewStats->approved,
+                    'pending' => (int)$reviewStats->pending,
+                    'rejected' => (int)$reviewStats->rejected,
+                ],
+            ];
+
+            return response()->json([
+                'success' => true,
+                'data' => $stats
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi khi lấy thống kê tổng quan: ' . $e->getMessage()
             ], 500);
         }
     }
