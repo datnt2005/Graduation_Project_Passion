@@ -49,12 +49,15 @@
       <i class="fas fa-check-circle"></i> Đã mua hàng
     </p>
 
-    <!-- Content -->
-    <p class="mb-2 text-base text-gray-700">{{ review.content }}</p>
+    <div class="text-xs text-gray-600 mt-1">
+      <span v-if="review.variant?.color"> | Màu: {{ review.variant.color }}</span>
+      <span v-if="review.variant?.attributes?.length"><b> {{review.variant.attributes.map(attr => `${attr.name}:
+        ${attr.value}`).join(', ') }} </b></span>
+    </div>
 
 
     <!-- Media -->
-    <div class="flex flex-wrap gap-2 mb-2">
+    <div class="flex flex-wrap gap-2 mb-2 mt-2">
       <!-- Hình ảnh -->
       <img v-for="(img, index) in review.images" :key="'img-' + index" :src="img.url"
         class="w-20 h-20 object-cover rounded border" alt="Ảnh sản phẩm" />
@@ -66,8 +69,11 @@
       </video>
     </div>
 
+
+    <!-- Content --> <!-- Content -->
+    <p class="mb-2 text-base text-gray-700">{{ review.content }}</p>
     <!-- Metadata -->
-    <p class="text-sm text-gray-500 mb-1">Màu: {{ review.color }}</p>
+    <!-- Variant Info -->
     <p class="text-sm text-gray-500 mb-2">
       Đánh giá vào {{ formatDate(review.created_at) }}
     </p>

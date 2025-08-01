@@ -697,31 +697,51 @@ public function getStoreDiscounts($slug)
     // Public: Get all active admin vouchers
     public function indexPublic()
     {
-        $discounts = Discount::where('status', 'active')
-            ->where('end_date', '>', now())
-            ->whereNull('seller_id')
-            ->get();
+        try {
+            // Lấy tất cả discount active và chưa hết hạn
+            $discounts = Discount::where('status', 'active')
+                ->where('end_date', '>', now())
+                ->whereNull('seller_id') // Chỉ lấy voucher của admin (không có seller_id)
+                ->get();
+                
+            // Log để debug
+            Log::info('Discounts from indexPublic:', [
+                'count' => $discounts->count(),
+                'current_time' => now(),
+                'discounts' => $discounts->map(function($d) {
+                    return [
+                        'id' => $d->id,
+                        'name' => $d->name,
+                        'code' => $d->code,
+                        'discount_type' => $d->discount_type,
+                        'discount_value' => $d->discount_value,
+                        'min_order_value' => $d->min_order_value,
+                        'seller_id' => $d->seller_id,
+                        'status' => $d->status,
+                        'start_date' => $d->start_date,
+                        'end_date' => $d->end_date,
+                        'usage_limit' => $d->usage_limit,
+                        'used_count' => $d->used_count
+                    ];
+                })->toArray()
+            ]);
             
-        // Log để debug
-        Log::info('Discounts from indexPublic:', [
-            'count' => $discounts->count(),
-            'discounts' => $discounts->map(function($d) {
-                return [
-                    'id' => $d->id,
-                    'name' => $d->name,
-                    'code' => $d->code,
-                    'discount_type' => $d->discount_type,
-                    'discount_value' => $d->discount_value,
-                    'min_order_value' => $d->min_order_value,
-                    'seller_id' => $d->seller_id
-                ];
-            })->toArray()
-        ]);
-        
-        return response()->json([
-            'success' => true,
-            'data' => $discounts
-        ]);
+            return response()->json([
+                'success' => true,
+                'data' => $discounts
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error in indexPublic:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi khi lấy danh sách voucher: ' . $e->getMessage(),
+                'data' => []
+            ], 500);
+        }
     }
 
     // Public: Get seller discounts by seller_id

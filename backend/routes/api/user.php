@@ -17,8 +17,8 @@ Route::middleware('auth:sanctum')->get('/user-list', [UserController::class, 'ge
 
 
 Route::middleware(['auth:sanctum', 'checkRole:user,admin'])->group(function () {
-    Route::apiResource('users', UserController::class);
 });
+    Route::patch('users/{user}', [UserController::class, 'update'])->name('users.update');
 
 // Route gửi email cảnh báo khi người dùng từ chối nhận hàng
 Route::middleware('auth:sanctum')->post('/send-warning-email', [UserController::class, 'sendWarningEmail']);
