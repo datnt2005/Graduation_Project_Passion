@@ -21,3 +21,13 @@ Route::prefix('admin/reports')
         Route::put('/{id}/status', [ReportController::class, 'updateStatus']); // Cập nhật trạng thái
     });
 
+// ✅ Seller xử lý báo cáo liên quan đến sản phẩm của họ (review)
+Route::prefix('seller/reports/reviews')
+    ->middleware(['auth:sanctum', 'checkRole:seller'])
+    ->group(function () {
+        Route::get('/', [ReportController::class, 'sellerIndex']);
+        Route::get('/{id}', [ReportController::class, 'sellerShow']);
+        Route::put('/{id}/status', [ReportController::class, 'sellerUpdateStatus']);
+    });
+
+

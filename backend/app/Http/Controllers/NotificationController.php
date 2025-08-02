@@ -327,36 +327,23 @@ class NotificationController extends Controller
     }
 
 
-    public function destroyAll()
-    {
-        try {
-            DB::beginTransaction();
-            Log::info('Bắt đầu xóa tất cả thông báo');
-            DB::statement('SET FOREIGN_KEY_CHECKS=0');
-            Log::info('Đã vô hiệu hóa ràng buộc khóa ngoại');
-            $count = Notification::count();
-            Log::info('Số lượng thông báo trước khi xóa: ' . $count);
-            Notification::query()->delete();
-            Log::info('Đã xóa tất cả thông báo');
-            DB::statement('SET FOREIGN_KEY_CHECKS=1');
-            DB::commit();
-            return response()->json(['message' => 'Đã xóa tất cả thông báo'], 200);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            DB::statement('SET FOREIGN_KEY_CHECKS=1');
-            Log::error('Lỗi khi xóa tất cả thông báo: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString(),
-                'code' => $e->getCode(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine()
-            ]);
-            return response()->json([
-                'message' => 'Không thể xóa thông báo: ' . $e->getMessage(),
-                'error' => $e->getMessage(),
-                'code' => $e->getCode()
-            ], 500);
+  public function destroyAll()
+{
+    try {
+        $user = auth()->user();
+        if (!$user) {
+            return response()->json(['error' => 'Người dùng chưa được xác thực'], 401);
         }
+
+        $user->notifications()->delete(); // Xóa hàng loạt
+
+        return response()->json(['message' => 'Đã xóa tất cả thông báo'], 200);
+    } catch (\Exception $e) {
+        \Log::error('Lỗi xóa tất cả thông báo: ' . $e->getMessage(), ['exception' => $e]);
+        return response()->json(['error' => 'Lỗi khi xóa tất cả thông báo', 'message' => $e->getMessage()], 500);
     }
+}
+
 
     public function sendMultiple(Request $request)
     {
