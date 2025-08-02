@@ -16,13 +16,13 @@
                   <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Họ và tên</label>
                   <input type="text" id="name" v-model="addressForm.name"
                     class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3"
-                    placeholder="Nhập họ và tên" required />
+                    placeholder="Nhập họ và tên"/>
                 </div>
                 <div>
                   <label for="phone" class="block text-sm font-medium text-gray-700 mb-1">Số điện thoại</label>
                   <input type="tel" id="phone" v-model="addressForm.phone"
                     class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3"
-                    placeholder="Nhập số điện thoại" required />
+                    placeholder="Nhập số điện thoại"/>
                 </div>
               </div>
 
@@ -30,7 +30,7 @@
                 <label for="detail" class="block text-sm font-medium text-gray-700 mb-1">Địa chỉ cụ thể</label>
                 <input type="text" id="detail" v-model="addressForm.detail"
                   class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3"
-                  placeholder="VD: 234 Thôn 2" required />
+                  placeholder="VD: 234 Thôn 2" />
               </div>
 
               <div class="mb-4">
@@ -50,7 +50,7 @@
               <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-1">Tỉnh/Thành phố</label>
-                  <select v-model="addressForm.province_id" class="w-full border border-gray-300 rounded-md py-2 px-3" required @change="loadDistricts(addressForm.province_id)">
+                  <select v-model="addressForm.province_id" class="w-full border border-gray-300 rounded-md py-2 px-3" @change="loadDistricts(addressForm.province_id)">
                     <option value="">Chọn tỉnh</option>
                     <option v-for="province in provinces" :key="province.ProvinceID" :value="province.ProvinceID">
                       {{ province.ProvinceName }}
@@ -60,7 +60,7 @@
 
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-1">Quận/Huyện</label>
-                  <select v-model="addressForm.district_id" class="w-full border border-gray-300 rounded-md py-2 px-3" required @change="loadWards(addressForm.district_id)">
+                  <select v-model="addressForm.district_id" class="w-full border border-gray-300 rounded-md py-2 px-3"  @change="loadWards(addressForm.district_id)">
                     <option value="">Chọn huyện</option>
                     <option v-for="district in districts" :key="district.DistrictID" :value="district.DistrictID">
                       {{ district.DistrictName }}
@@ -70,7 +70,7 @@
 
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-1">Phường/Xã</label>
-                  <select v-model="addressForm.ward_code" class="w-full border border-gray-300 rounded-md py-2 px-3" required>
+                  <select v-model="addressForm.ward_code" class="w-full border border-gray-300 rounded-md py-2 px-3" >
                     <option value="">Chọn xã</option>
                     <option v-for="ward in wards" :key="ward.WardCode" :value="ward.WardCode">
                       {{ ward.WardName }}

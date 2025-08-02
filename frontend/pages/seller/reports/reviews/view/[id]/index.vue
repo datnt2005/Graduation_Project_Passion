@@ -5,7 +5,7 @@
             <h1 class="text-xl font-semibold text-gray-800">Chi tiết báo cáo đánh giá</h1>
         </div>
         <div class="px-6 pb-4">
-            <NuxtLink to="/seller/reports/reviews" class="text-gray-600 hover:underline text-sm">
+            <NuxtLink to="/seller/reports/reviews/list-reports" class="text-gray-600 hover:underline text-sm">
                 Danh sách báo cáo
             </NuxtLink>
             <span class="text-gray-600 text-sm"> / Chi tiết báo cáo</span>
@@ -39,7 +39,8 @@
                                 <strong>Trạng thái:</strong>
                                 <span :class="badgeClass(report.status)">{{ statusText(report.status) }}</span>
                             </div>
-                            <div><strong>Số sao:</strong> <span class="text-yellow-500">{{ report.review.rating }} ★</span></div>
+                            <div><strong>Số sao:</strong> <span class="text-yellow-500">{{ report.review.rating }}
+                                    ★</span></div>
                             <div><strong>Lượt thích:</strong> {{ report.review.likes_count }}</div>
                         </div>
 
@@ -57,7 +58,8 @@
                                 <img v-if="item.type === 'image'" :src="item.url" @click="showImage = item.url"
                                     class="w-20 h-20 object-cover rounded border hover:scale-105 transition-transform cursor-pointer"
                                     :alt="'Ảnh ' + (i + 1)" />
-                                <video v-else-if="item.type === 'video'" controls class="w-20 h-20 object-cover rounded border">
+                                <video v-else-if="item.type === 'video'" controls
+                                    class="w-20 h-20 object-cover rounded border">
                                     <source :src="item.url" type="video/mp4" />
                                     Trình duyệt không hỗ trợ video.
                                 </video>
@@ -70,22 +72,13 @@
                             <div class="bg-gray-50 p-4 rounded border text-gray-700 whitespace-pre-line">
                                 {{ report.review.reply.content }}
                             </div>
-                            <p class="text-xs text-gray-500 mt-1">Gửi lúc: {{ formatDate(report.review.reply.created_at) }}</p>
+                            <p class="text-xs text-gray-500 mt-1">Gửi lúc: {{ formatDate(report.review.reply.created_at)
+                                }}</p>
                         </div>
 
                         <!-- Hành động -->
-                        <div class="flex gap-4 mt-6 border-t pt-6">
-                            <button @click="updateStatus('resolved')"
-                                class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-                                :disabled="report.status !== 'pending'">
-                                Ẩn đánh giá
-                            </button>
-                            <button @click="updateStatus('rejected')"
-                                class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-                                :disabled="report.status !== 'pending'">
-                                Bỏ qua
-                            </button>
-                            <button class="ml-auto bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded"
+                        <div class="flex justify-end mt-6 border-t pt-6">
+                            <button class="bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded"
                                 @click="router.push('/seller/reports/reviews/list-reports')">
                                 ← Quay lại danh sách
                             </button>
@@ -165,19 +158,6 @@ async function fetchDetail() {
         console.error('Lỗi khi tải chi tiết báo cáo:', error)
     } finally {
         loading.value = false
-    }
-}
-
-async function updateStatus(status) {
-    try {
-        const id = route.params.id
-        const token = localStorage.getItem('access_token')
-        await axios.put(`${apiBase}/seller/reports/reviews/${id}/status`, { status }, {
-            headers: { Authorization: `Bearer ${token}` }
-        })
-        await fetchDetail()
-    } catch (error) {
-        console.error('Lỗi khi cập nhật trạng thái:', error)
     }
 }
 
