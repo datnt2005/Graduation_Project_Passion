@@ -56,7 +56,7 @@ class DiscountSellerController extends Controller
             'discount_value' => 'numeric|min:0',
             'usage_limit' => 'nullable|integer|min:1',
             'min_order_value' => 'nullable|numeric|min:0',
-            'start_date' => 'required|date|after_or_equal:today',
+            'start_date' => 'required|date',
             'end_date' => 'required|date|after:start_date',
             'status' => 'required|in:active,inactive,expired',
         ], [
@@ -71,7 +71,6 @@ class DiscountSellerController extends Controller
             'min_order_value.min' => 'Giá trị đơn hàng tối thiểu phải lớn hơn 0',
             'start_date.required' => 'Ngày bắt đầu không được để trống',
             'start_date.date' => 'Ngày bắt đầu không đúng định dạng',
-            'start_date.after_or_equal' => 'Ngày bắt đầu phải từ ngày hôm nay trở đi',
             'end_date.required' => 'Ngày kết thúc không được để trống',
             'end_date.date' => 'Ngày kết thúc không đúng định dạng',
             'end_date.after' => 'Ngày kết thúc phải sau ngày bắt đầu',

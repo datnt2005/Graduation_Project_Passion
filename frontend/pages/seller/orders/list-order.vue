@@ -834,9 +834,9 @@ const fetchOrders = async () => {
     if (trackingCode.value) params.append('tracking_code', trackingCode.value);
     params.append('page', orderPage.value);
     params.append('per_page', orderPageSize.value);
-    const url = `${apiBase}/orders?${params.toString()}`;
+    const url = `${apiBase}/orders/seller?${params.toString()}`;
 
-    const data = await secureFetch(url, {},['seller'], token);
+    const data = await secureFetch(url, {},['seller']);
     orders.value = data.data || [];
   } catch (e) {
     orders.value = [];

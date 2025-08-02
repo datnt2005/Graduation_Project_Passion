@@ -155,7 +155,7 @@ const route = useRoute()
 const router = useRouter()
 const config = useRuntimeConfig()
 const mediaBaseUrl = config.public.mediaBaseUrl.endsWith('/') ? config.public.mediaBaseUrl : config.public.mediaBaseUrl + '/'
-const { clearAllCart } = useCart()
+const { clearOrderedItems } = useCart()
 
 const loading = ref(true)
 const success = ref(false)
@@ -361,8 +361,8 @@ onMounted(async () => {
         }
 
         // Fetch product images if needed
-        if (orderData.items) {
-          for (const item of orderData.items) {
+        if (orderData.order_items) {
+          for (const item of orderData.order_items) {
             if (!item.variant?.thumbnail && !item.product?.thumbnail) {
               item.product.thumbnail = await fetchProductDetails(item.product.id);
             }
@@ -372,7 +372,7 @@ onMounted(async () => {
         const shippingFee = orderData.shipping?.shipping_fee || orderData.final_price - orderData.total_price || 0;
         orderDetail.value.push({
           ...orderData,
-          order_items: orderData.items || [],
+          order_items: orderData.order_items || [],
           address: orderData.address || {},
           user: orderData.user || {},
           payments: orderData.payments || [],
@@ -402,7 +402,38 @@ onMounted(async () => {
         enrichAddress(orderDetail.value.address);
       }
 
-      await clearAllCart();
+      // Lấy danh sách sản phẩm đã được thanh toán để xóa khỏi giỏ hàng
+      const orderedItems = [];
+      if (Array.isArray(orderDetail.value)) {
+        orderDetail.value.forEach(order => {
+          if (order.order_items && Array.isArray(order.order_items)) {
+            order.order_items.forEach(item => {
+              orderedItems.push({
+                product_id: item.product?.id,
+                product_variant_id: item.variant?.id || null,
+                quantity: item.quantity
+              });
+            });
+          }
+        });
+      }
+      
+      console.log('Momo return - orderedItems để xóa:', orderedItems);
+      console.log('Momo return - orderDetail.value:', orderDetail.value);
+      
+      // Chỉ xóa những sản phẩm đã được thanh toán
+      if (orderedItems.length > 0) {
+        console.log('Bắt đầu xóa items khỏi giỏ hàng...');
+        try {
+          await clearOrderedItems(orderedItems);
+          console.log('Hoàn thành xóa items khỏi giỏ hàng');
+        } catch (error) {
+          console.error('Lỗi khi xóa items khỏi giỏ hàng:', error);
+        }
+      } else {
+        console.log('Không có items nào để xóa');
+      }
+      
       loading.value = false;
     } else {
       // Thanh toán thất bại

@@ -153,7 +153,6 @@
                                <input
                                  v-model="formData.start_date"
                                  type="date"
-                                 :min="minStartDate"
                                  class="w-full md:w-60 rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                                />
                                <span v-if="errors.start_date" class="text-red-500 text-xs mt-1">{{ errors.start_date }}</span>
@@ -382,7 +381,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
+import { useRoute } from 'vue-router';
 import { useRuntimeConfig } from '#imports';
 import { secureFetch } from '@/utils/secureFetch';
 import { useAlert } from '@/composables/useAlert';
@@ -391,7 +390,7 @@ definePageMeta({
   layout: 'default-seller'
 });
 
-const router = useRouter();
+
 const route = useRoute();
 const config = useRuntimeConfig();
 const apiBase = config.public.apiBaseUrl;
@@ -417,14 +416,7 @@ const currentDate = computed(() => {
   return today.toISOString().split('T')[0];
 });
 
-// Computed property for minimum start date - allow existing dates for editing
-const minStartDate = computed(() => {
-  // For editing existing coupons, don't restrict the minimum date
-  if (route.params.id) {
-    return '';
-  }
-  return currentDate.value;
-});
+
 
 const formData = reactive({
   name: '',
@@ -615,17 +607,6 @@ const validateForm = () => {
      if (!formData.start_date) {
      errors.start_date = 'Ngày bắt đầu không được để trống';
      isValid = false;
-   } else {
-     // For editing existing coupons, don't validate date restrictions
-     if (!route.params.id) {
-       const startDate = new Date(formData.start_date);
-       const today = new Date();
-       today.setHours(0, 0, 0, 0);
-       if (startDate < today) {
-         errors.start_date = 'Ngày bắt đầu phải từ ngày hôm nay trở đi';
-         isValid = false;
-       }
-     }
    }
 
   if (!formData.end_date) {
@@ -702,7 +683,7 @@ const updateCoupon = async () => {
 
     showSuccessNotification('Cập nhật mã giảm giá thành công!');
     setTimeout(() => {
-      router.push('/seller/coupons/list-coupon');
+      navigateTo('/seller/coupons/list-coupon');
     }, 1200);
   } catch (error) {
     console.error('Error:', error);

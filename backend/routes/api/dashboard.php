@@ -31,7 +31,7 @@ Route::middleware(['auth:sanctum', 'checkRole:admin'])
         // Orders
         Route::get('/orders', [OrderController::class, 'adminList']);
         Route::get('/orders/list', [OrderController::class, 'index']);
-        
+         
         // Sellers
         Route::get('/sellers', [SellerController::class, 'index']);
         Route::get('/sellers/stats', [SellerController::class, 'stats']);
