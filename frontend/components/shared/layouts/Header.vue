@@ -18,7 +18,9 @@
           </div>
           <div class="flex items-center gap-1">
             <i class="fa-solid fa-handshake"></i>
-            <nuxt-link to="/sell-together-passion" class="hover:underline">Bán hàng cùng Passion</nuxt-link>
+            <nuxt-link to="/sell-together-passion" class="hover:underline"
+              >Bán hàng cùng Passion</nuxt-link
+            >
           </div>
         </div>
 
@@ -161,7 +163,9 @@
         <!-- Ưu đãi: luôn hiển thị và căn giữa -->
         <div class="flex items-center gap-1 justify-center">
           <i class="fa-solid fa-handshake"></i>
-          <nuxt-link to="/sell-together-passion" class="hover:underline">Bán hàng cùng Passion</nuxt-link>
+          <nuxt-link to="/sell-together-passion" class="hover:underline"
+            >Bán hàng cùng Passion</nuxt-link
+          >
         </div>
       </div>
 
@@ -278,7 +282,10 @@
                   Danh mục sản phẩm
                 </h4>
                 <ul class="text-gray-700 space-y-2">
-                  <li v-for="(item, index) in categories" :key="index">
+                  <li
+                    v-for="(item, index) in categories.slice(0, 6)"
+                    :key="index"
+                  >
                     <NuxtLink
                       :to="`/shop/${item.slug}`"
                       class="flex items-center gap-2 hover:underline"
@@ -590,9 +597,12 @@
             </ul>
           </div>
           <NuxtLink to="/cart" class="block text-gray-700 hover:text-blue-600"
-            ><font-awesome-icon :icon="['fas', 'cart-shopping']" /> Giỏ hàng</NuxtLink
+            ><font-awesome-icon :icon="['fas', 'cart-shopping']" /> Giỏ
+            hàng</NuxtLink
           >
-          <NuxtLink to="/notifications" class="block text-gray-700 hover:text-blue-600"
+          <NuxtLink
+            to="/notifications"
+            class="block text-gray-700 hover:text-blue-600"
             ><font-awesome-icon :icon="['fas', 'bell']" /> Thông báo</NuxtLink
           >
           <NuxtLink
@@ -700,7 +710,7 @@ const fetchNotifications = async () => {
         notifications.value,
         "Số lượng chưa đọc:",
         unreadCount.value
-      )
+      );
     } else {
       console.warn("Dữ liệu không hợp lệ:", data.data);
       notifications.value = [];
@@ -711,27 +721,27 @@ const fetchNotifications = async () => {
   }
 };
 const markAsRead = async (item) => {
-    const token = localStorage.getItem("access_token");
-    if (!token || item.is_read === 1) return;
+  const token = localStorage.getItem("access_token");
+  if (!token || item.is_read === 1) return;
 
-    try {
-        const response = await fetch(`${api}/notifications/${item.id}/read`, {
-            method: "POST",
-            headers: { Authorization: `Bearer ${token}` },
-        });
+  try {
+    const response = await fetch(`${api}/notifications/${item.id}/read`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
 
-        const data = await response.json();
-        if (response.ok) {
-            // Cập nhật toàn bộ danh sách notifications
-            const index = notifications.value.findIndex(n => n.id === item.id);
-            if (index !== -1) {
-                notifications.value[index] = data.data; // Sử dụng dữ liệu từ API
-            }
-            unreadCount.value = notifications.value.filter((n) => !n.is_read).length;
-        }
-    } catch (err) {
-        console.error("Lỗi đánh dấu đã đọc:", err);
+    const data = await response.json();
+    if (response.ok) {
+      // Cập nhật toàn bộ danh sách notifications
+      const index = notifications.value.findIndex((n) => n.id === item.id);
+      if (index !== -1) {
+        notifications.value[index] = data.data; // Sử dụng dữ liệu từ API
+      }
+      unreadCount.value = notifications.value.filter((n) => !n.is_read).length;
     }
+  } catch (err) {
+    console.error("Lỗi đánh dấu đã đọc:", err);
+  }
 };
 
 // NEW từ dat_dev: dùng cho categories động

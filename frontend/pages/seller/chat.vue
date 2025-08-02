@@ -461,10 +461,8 @@ onMounted(async () => {
     const sellerRes = await fetch(`${API}/sellers/seller/me`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    // console.log("sellerRes status:", sellerRes.status);
     if (!sellerRes.ok) throw new Error("Không thể lấy dữ liệu seller");
     const dataSeller = await sellerRes.json();
-    // console.log("dataSeller:", dataSeller);
     seller.value = dataSeller?.seller || {};
 
     if (!seller.value?.id) {
@@ -478,9 +476,7 @@ onMounted(async () => {
         headers: { Authorization: `Bearer ${token}` },
       }
     );
-    // console.log("sessionsRes status:", sessionsRes.status);
     const sessionsData = await sessionsRes.json();
-    // console.log("sessionsData:", sessionsData);
     if (!sessionsRes.ok) throw new Error("Không thể lấy danh sách session");
     chatSessions.value = Array.isArray(sessionsData)
       ? sessionsData

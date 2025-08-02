@@ -402,7 +402,7 @@ const fetchSessions = async () => {
       return;
     }
     await nextTick(() => {
-      console.log("fetchSessions - nextTick");
+    
     });
 
     if (!user.value?.id) {
@@ -418,7 +418,6 @@ const fetchSessions = async () => {
       (sum, s) => sum + (s.unread_count || 0),
       0
     );
-    console.log("fetchSessions:", chatSessions.value, totalUnread.value);
   } catch (err) {
     console.error("Lỗi khi fetch sessions:", err);
   }
