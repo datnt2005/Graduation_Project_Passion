@@ -67,97 +67,103 @@ class PostController extends Controller
     }
 
     public function store(Request $request)
-    {
-        try {
-            $validated = $request->validate([
-                'title' => 'required|string|max:255',
-                'content' => 'required|string',
-                'category_id' => 'required|exists:post_categories,id',
-                'thumbnail' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:4048',
-                'excerpt' => 'nullable|string|max:500',
-                'status' => 'required|in:draft,published,pending',
-                'published_at' => 'nullable|date',
-            ], [
-                'title.required' => 'Tiêu đề là bắt buộc.',
-                'title.string' => 'Tiêu đề phải là chuỗi.',
-                'title.max' => 'Tiêu đề tối đa 255 ký tự.',
-                'content.required' => 'Nội dung là bắt buộc.',
-                'content.string' => 'Nội dung phải là chuỗi.',
-                'category_id.required' => 'Danh mục là bắt buộc.',
-                'category_id.exists' => 'Danh mục không tồn tại.',
-                'thumbnail.image' => 'File phải là ảnh.',
-                'thumbnail.mimes' => 'Ảnh phải có định dạng: jpeg, png, jpg, gif, svg, webp.',
-                'thumbnail.max' => 'Ảnh tối đa 4MB.',
-                'excerpt.max' => 'Tóm tắt tối đa 500 ký tự.',
-                'status.required' => 'Trạng thái là bắt buộc.',
-                'status.in' => 'Trạng thái phải là draft, published hoặc pending.',
-                'published_at.date' => 'Ngày xuất bản phải là định dạng ngày hợp lệ.',
-            ]);
+{
+    try {
+        // Validate dữ liệu đầu vào
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'slug' => 'nullable|string|unique:posts,slug|regex:/^[a-z0-9\-]+$/',
+            'content' => 'required|string',
+            'category_id' => 'required|exists:post_categories,id',
+            'thumbnail' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:4048',
+            'excerpt' => 'nullable|string|max:500',
+            'status' => 'required|in:draft,published,pending',
+            'published_at' => 'nullable|date',
+        ], [
+            'title.required' => 'Tiêu đề là bắt buộc.',
+            'title.string' => 'Tiêu đề phải là chuỗi.',
+            'title.max' => 'Tiêu đề tối đa 255 ký tự.',
+            'slug.regex' => 'Slug chỉ bao gồm chữ thường, số và dấu gạch ngang.',
+            'slug.unique' => 'Slug đã tồn tại.',
+            'content.required' => 'Nội dung là bắt buộc.',
+            'content.string' => 'Nội dung phải là chuỗi.',
+            'category_id.required' => 'Danh mục là bắt buộc.',
+            'category_id.exists' => 'Danh mục không tồn tại.',
+            'thumbnail.image' => 'File phải là ảnh.',
+            'thumbnail.mimes' => 'Ảnh phải có định dạng: jpeg, png, jpg, gif, svg, webp.',
+            'thumbnail.max' => 'Ảnh tối đa 4MB.',
+            'excerpt.max' => 'Tóm tắt tối đa 500 ký tự.',
+            'status.required' => 'Trạng thái là bắt buộc.',
+            'status.in' => 'Trạng thái phải là draft, published hoặc pending.',
+            'published_at.date' => 'Ngày xuất bản phải là định dạng ngày hợp lệ.',
+        ]);
 
-            $thumbnailPath = null;
-            if ($request->hasFile('thumbnail')) {
-                $file = $request->file('thumbnail');
-                $filename = 'posts/' . time() . '_' . $file->getClientOriginalName();
-                Storage::disk('r2')->put($filename, file_get_contents($file));
-                $thumbnailPath = $filename;
-            }
-
-            // Generate slug if not provided
-            $slug = $request->input('slug');
-            if (!$slug) {
-                $slug = Str::slug($request->input('title'));
-                $originalSlug = $slug;
-                $count = 1;
-                while (Post::where('slug', $slug)->exists()) {
-                    $slug = "{$originalSlug}-{$count}";
-                    $count++;
-                }
-            }
-
-            $validated['user_id'] = Auth::id();
-            $validated['thumbnail'] = $thumbnailPath;
-            $validated['slug'] = $slug;
-
-            $post = Post::create($validated);
-
-            $post->thumbnail_url = $thumbnailPath ? Storage::disk('r2')->url($thumbnailPath) : null;
-
-
-            $user = Auth::user();
-           $admins = User::where('role', 'admin')->get();
-            $notification = Notification::create([
-                'title' => 'Bài viết mới được tạo',
-                'content' => "Bài viết '{$request->title}' đã được {$user->name} tạo thành công vào " . now()->format('d/m/Y H:i'),
-                'type' => 'system',
-                'to_roles' => json_encode(['admin']),
-                'link' => "/admin/posts",
-                'user_id' => $user->id,
-                'from_role' => 'system',
-                'status' => 'sent',
-                'channels' => json_encode(['dashboard']),
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Tạo bài viết thành công',
-                'data' => $post
-            ], 201);
-        } catch (ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Lỗi xác thực',
-                'errors' => $e->errors()
-            ], 422);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Lỗi khi tạo bài viết',
-                'error' => $e->getMessage()
-            ], 500);
+        // Xử lý ảnh thumbnail nếu có
+        $thumbnailPath = null;
+        if ($request->hasFile('thumbnail')) {
+            $file = $request->file('thumbnail');
+            $filename = 'posts/' . time() . '_' . Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) . '.' . $file->getClientOriginalExtension();
+            Storage::disk('r2')->put($filename, file_get_contents($file));
+            $thumbnailPath = $filename;
         }
+
+        // Tạo slug nếu chưa có
+        $slug = $request->input('slug');
+        if (!$slug) {
+            $slug = Str::slug($request->input('title'));
+        }
+        $originalSlug = $slug;
+        $count = 1;
+        while (Post::where('slug', $slug)->exists()) {
+            $slug = "{$originalSlug}-{$count}";
+            $count++;
+        }
+
+        // Gán thêm các giá trị còn lại
+        $validated['user_id'] = Auth::id();
+        $validated['thumbnail'] = $thumbnailPath;
+        $validated['slug'] = $slug;
+
+        $post = Post::create($validated);
+
+        // Gắn URL ảnh (nếu cần hiển thị)
+        $post->thumbnail_url = $thumbnailPath ? Storage::disk('r2')->url($thumbnailPath) : null;
+
+        // Gửi thông báo cho admin
+        $user = Auth::user();
+        Notification::create([
+            'title' => 'Bài viết mới được tạo',
+            'content' => "Bài viết '{$post->title}' đã được {$user->name} tạo thành công vào " . now()->format('d/m/Y H:i'),
+            'type' => 'system',
+            'to_roles' => json_encode(['admin']),
+            'link' => "/admin/posts",
+            'user_id' => $user->id,
+            'from_role' => 'system',
+            'status' => 'sent',
+            'channels' => json_encode(['dashboard']),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Tạo bài viết thành công',
+            'data' => $post
+        ], 201);
+    } catch (ValidationException $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Lỗi xác thực',
+            'errors' => $e->errors()
+        ], 422);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Lỗi khi tạo bài viết',
+            'error' => $e->getMessage()
+        ], 500);
     }
+}
 
     public function show($id)
     {
@@ -183,83 +189,88 @@ class PostController extends Controller
         }
     }
 
-    public function update(Request $request, $id)
-    {
-        try {
-            $post = Post::findOrFail($id);
+public function update(Request $request, $id)
+{
+    try {
+        $post = Post::findOrFail($id);
 
-            $validated = $request->validate([
-                'title' => 'sometimes|required|string|max:255',
-                'content' => 'sometimes|required|string',
-                'category_id' => 'sometimes|required|exists:post_categories,id',
-                'thumbnail' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:4048',
-                'excerpt' => 'nullable|string|max:500',
-                'status' => 'sometimes|required|in:draft,published,pending',
-                'published_at' => 'nullable|date',
-            ], [
-                'title.required' => 'Tiêu đề là bắt buộc.',
-                'title.string' => 'Tiêu đề phải là chuỗi.',
-                'title.max' => 'Tiêu đề tối đa 255 ký tự.',
-                'content.required' => 'Nội dung là bắt buộc.',
-                'content.string' => 'Nội dung phải là chuỗi.',
-                'category_id.required' => 'Danh mục là bắt buộc.',
-                'category_id.exists' => 'Danh mục không tồn tại.',
-                'thumbnail.image' => 'File phải là ảnh.',
-                'thumbnail.mimes' => 'Ảnh phải có định dạng: jpeg, png, jpg, gif, svg, webp.',
-                'thumbnail.max' => 'Ảnh tối đa 4MB.',
-                'excerpt.max' => 'Tóm tắt tối đa 500 ký tự.',
-                'status.required' => 'Trạng thái là bắt buộc.',
-                'status.in' => 'Trạng thái phải là draft, published hoặc pending.',
-                'published_at.date' => 'Ngày xuất bản phải là định dạng ngày hợp lệ.',
-            ]);
+        $validated = $request->validate([
+            'title' => 'sometimes|required|string|max:255',
+            'slug' => 'nullable|string|unique:posts,slug,' . $id . '|regex:/^[a-z0-9\-]+$/',
+            'content' => 'sometimes|required|string',
+            'category_id' => 'sometimes|required|exists:post_categories,id',
+            'thumbnail' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:4048',
+            'excerpt' => 'nullable|string|max:500',
+            'status' => 'sometimes|required|in:draft,published,pending',
+            'published_at' => 'nullable|date',
+        ], [
+            'title.required' => 'Tiêu đề là bắt buộc.',
+            'title.string' => 'Tiêu đề phải là chuỗi.',
+            'title.max' => 'Tiêu đề tối đa 255 ký tự.',
+            'slug.regex' => 'Slug chỉ bao gồm chữ thường, số và dấu gạch ngang.',
+            'slug.unique' => 'Slug đã tồn tại.',
+            'content.required' => 'Nội dung là bắt buộc.',
+            'content.string' => 'Nội dung phải là chuỗi.',
+            'category_id.required' => 'Danh mục là bắt buộc.',
+            'category_id.exists' => 'Danh mục không tồn tại.',
+            'thumbnail.image' => 'File phải là ảnh.',
+            'thumbnail.mimes' => 'Ảnh phải có định dạng: jpeg, png, jpg, gif, svg, webp.',
+            'thumbnail.max' => 'Ảnh tối đa 4MB.',
+            'excerpt.max' => 'Tóm tắt tối đa 500 ký tự.',
+            'status.required' => 'Trạng thái là bắt buộc.',
+            'status.in' => 'Trạng thái phải là draft, published hoặc pending.',
+            'published_at.date' => 'Ngày xuất bản phải là định dạng ngày hợp lệ.',
+        ]);
 
-            if ($request->hasFile('thumbnail')) {
-                $file = $request->file('thumbnail');
-                $filename = 'posts/' . time() . '_' . $file->getClientOriginalName();
-                Storage::disk('r2')->put($filename, file_get_contents($file));
-                $validated['thumbnail'] = $filename;
-            }
-
-            // Generate slug if not provided
-            $slug = $request->input('slug', $post->slug); // Keep existing slug if not changed
-            if (!$slug || $slug === $post->slug) {
-                $slug = Str::slug($request->input('title', $post->title));
-                $originalSlug = $slug;
-                $count = 1;
-                while (Post::where('slug', $slug)->where('id', '!=', $id)->exists()) {
-                    $slug = "{$originalSlug}-{$count}";
-                    $count++;
-                }
-            }
-
-            $validated['slug'] = $slug;
-
-            $post->update($validated);
-
-            $post = $post->fresh();
-            $post->thumbnail_url = $post->thumbnail
-                ? Storage::disk('r2')->url($post->thumbnail)
-                : null;
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Cập nhật bài viết thành công',
-                'data' => $post
-            ], 200);
-        } catch (ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Lỗi xác thực',
-                'errors' => $e->errors()
-            ], 422);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Lỗi khi cập nhật bài viết',
-                'error' => $e->getMessage()
-            ], 500);
+        // Xử lý ảnh nếu có
+        if ($request->hasFile('thumbnail')) {
+            $file = $request->file('thumbnail');
+            $filename = 'posts/' . time() . '_' . Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) . '.' . $file->getClientOriginalExtension();
+            Storage::disk('r2')->put($filename, file_get_contents($file));
+            $validated['thumbnail'] = $filename;
         }
+
+        // Slug logic
+        $slug = $request->input('slug', $post->slug);
+        if (!$slug || $slug === $post->slug) {
+            $slug = Str::slug($request->input('title', $post->title));
+        }
+        $originalSlug = $slug;
+        $count = 1;
+        while (Post::where('slug', $slug)->where('id', '!=', $post->id)->exists()) {
+            $slug = "{$originalSlug}-{$count}";
+            $count++;
+        }
+        $validated['slug'] = $slug;
+
+        // Cập nhật
+        $post->update($validated);
+
+        $post = $post->fresh();
+        $post->thumbnail_url = $post->thumbnail
+            ? Storage::disk('r2')->url($post->thumbnail)
+            : null;
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Cập nhật bài viết thành công',
+            'data' => $post
+        ], 200);
+    } catch (ValidationException $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Lỗi xác thực',
+            'errors' => $e->errors()
+        ], 422);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Lỗi khi cập nhật bài viết',
+            'error' => $e->getMessage()
+        ], 500);
     }
+}
+
 
     public function destroy($id)
     {

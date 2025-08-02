@@ -1,8 +1,8 @@
 <template>
   <main class="bg-[#F5F5FA] py-2">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto">
       <!-- Breadcrumb -->
-      <div class="mb-4 text-sm text-gray-500 rounded">
+      <div class="mb-4 mt-2 text-sm text-gray-500 rounded">
         <nuxt-link to="/" class="text-gray-400 hover:text-gray-600">Trang chủ</nuxt-link>
         <span class="mx-1">›</span>
         <span v-if="isSearchMode" class="text-gray-600 font-semibold">

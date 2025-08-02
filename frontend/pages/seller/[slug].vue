@@ -114,10 +114,10 @@
             <div v-else class="text-sm text-gray-500">Không có voucher nào khả dụng.</div>
           </div>
           <div class="flex space-x-2">
-            <button v-if="isLoggedIn && isNotOwner"
+            <!-- <button v-if="isLoggedIn && isNotOwner"
               class="border px-3 py-1 rounded hover:bg-gray-100 transition text-sm">
               Chat
-            </button>
+            </button> -->
             <button v-if="isLoggedIn && isNotOwner"
               class="border px-3 py-1 rounded hover:bg-gray-100 transition text-sm flex items-center gap-2"
               @click="toggleFollow" :disabled="isFollowLoading">
