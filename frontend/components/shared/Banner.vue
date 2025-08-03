@@ -129,13 +129,6 @@
     }
   }
 
-  // Slide
-  function goToSlide(i) {
-    index.value = i;
-    realIndex.value = i + 1;
-  }
-}
-
 // Slide
 function goToSlide(i) {
   index.value = i;

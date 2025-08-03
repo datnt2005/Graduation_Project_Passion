@@ -11,7 +11,7 @@ Route::prefix('sellers')->group(function () {
 
     // 2. Seller và Admin có quyền xem/ cập nhật thông tin của chính mình
     Route::middleware(['auth:sanctum', 'checkRole:seller,admin'])->group(function () {
-        Route::get('seller/me', [SellerController::class, 'getMySellerInfo']);
+        Route::get('/me', [SellerController::class, 'getMySellerInfo']);
         Route::post('/update', [SellerController::class, 'update']);
     });
 
