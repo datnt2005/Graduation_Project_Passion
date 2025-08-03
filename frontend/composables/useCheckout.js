@@ -1130,20 +1130,27 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
       console.log('Số lượng items sẽ xóa:', orderedItemsForRemoval.length);
       console.log('allItems gốc:', allItems);
       
-      if (orderedItemsForRemoval.length > 0) {
-        console.log('Bắt đầu gọi clearOrderedItems...');
-        try {
-          await clearOrderedItems(orderedItemsForRemoval);
-          console.log('Đã gọi clearOrderedItems thành công');
-        } catch (error) {
-          console.error('Lỗi khi gọi clearOrderedItems:', error);
-        }
-      } else {
-        console.log('Không có items nào để xóa');
-      }
       if (isBuyNow.value) localStorage.removeItem('buy_now');
 
       const orderIds = orders.map(order => order.id).join(',');
+      
+      // Chỉ xóa cart items ngay lập tức nếu là COD (thanh toán ngay)
+      // Với MoMo/VNPay, sẽ xóa sau khi thanh toán thành công
+      if (selectedPaymentMethod.value === 'COD') {
+        if (orderedItemsForRemoval.length > 0) {
+          console.log('COD - Bắt đầu gọi clearOrderedItems...');
+          try {
+            await clearOrderedItems(orderedItemsForRemoval);
+            console.log('COD - Đã gọi clearOrderedItems thành công');
+          } catch (error) {
+            console.error('COD - Lỗi khi gọi clearOrderedItems:', error);
+          }
+        } else {
+          console.log('COD - Không có items nào để xóa');
+        }
+      } else {
+        console.log(`${selectedPaymentMethod.value} - Không xóa cart items ngay, đợi thanh toán thành công`);
+      }
       if (selectedPaymentMethod.value === 'VNPAY') {
         const paymentResponse = await fetch(`${config.public.apiBaseUrl}/payments/vnpay/create`, {
           method: 'POST',
