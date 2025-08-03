@@ -3,7 +3,7 @@
     <div class="flex items-center justify-between mb-6">
               <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
           <div class="w-6 h-6 bg-green-500 rounded-lg flex items-center justify-center">
-            <OrdersIcon class="svg-icon text-white" />
+            <FontAwesomeIcon icon="fas fa-shopping-cart" class="text-white" />
           </div>
           Đơn Hàng Gần Đây
         </h3>
@@ -65,6 +65,7 @@
 import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 import ErrorMessage from '@/components/ui/ErrorMessage.vue'
 import Pagination from '@/components/Pagination.vue'
+import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 
 const props = defineProps({
   orders: {
@@ -121,14 +122,5 @@ function getOrderStatusLabel(status) {
   return labels[status] || status
 }
 
-// SVG Icon Component
-const OrdersIcon = {
-  template: `
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
-      <line x1="3" y1="6" x2="21" y2="6"></line>
-      <path d="M16 10a4 4 0 0 1-8 0"></path>
-    </svg>
-  `
-}
+
 </script> 

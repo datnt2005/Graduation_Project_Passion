@@ -2,7 +2,7 @@
   <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h3 class="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
         <div class="w-6 h-6 bg-indigo-500 rounded-lg flex items-center justify-center">
-          <StatsIcon class="svg-icon text-white" />
+                      <FontAwesomeIcon icon="fas fa-chart-line" class="text-white" />
         </div>
         Thống Kê Shop
       </h3>
@@ -41,6 +41,7 @@
 <script setup>
 import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 import ErrorMessage from '@/components/ui/ErrorMessage.vue'
+import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 
 const props = defineProps({
   stats: {
@@ -67,14 +68,5 @@ function formatCurrency(value) {
   }).format(value)
 }
 
-// SVG Icon Component
-const StatsIcon = {
-  template: `
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <path d="M18 20V10"></path>
-      <path d="M12 20V4"></path>
-      <path d="M6 20v-6"></path>
-    </svg>
-  `
-}
+
 </script> 

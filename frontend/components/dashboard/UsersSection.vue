@@ -3,7 +3,7 @@
     <div class="flex items-center justify-between mb-6">
               <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
           <div class="w-6 h-6 bg-purple-500 rounded-lg flex items-center justify-center">
-            <UsersIcon class="svg-icon text-white" />
+            <FontAwesomeIcon icon="fas fa-users" class="text-white" />
           </div>
           Người Dùng Đang Hoạt Động
         </h3>
@@ -63,6 +63,7 @@
 import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 import ErrorMessage from '@/components/ui/ErrorMessage.vue'
 import Pagination from '@/components/Pagination.vue'
+import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 
 const props = defineProps({
   users: {
@@ -115,15 +116,5 @@ function getRoleLabel(role) {
   return labels[role] || role
 }
 
-// SVG Icon Component
-const UsersIcon = {
-  template: `
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-      <circle cx="9" cy="7" r="4"></circle>
-      <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-      <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-    </svg>
-  `
-}
+
 </script> 

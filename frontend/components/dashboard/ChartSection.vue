@@ -6,7 +6,7 @@
         <div>
           <h2 class="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
             <div class="w-6 h-6 bg-blue-500 rounded-lg flex items-center justify-center">
-              <ChartIcon class="svg-icon text-white" />
+              <FontAwesomeIcon icon="fas fa-chart-bar" class="text-white" />
             </div>
             Biểu Đồ Doanh Thu Chiết Khấu
           </h2>
@@ -44,12 +44,12 @@
     <!-- Users Donut Chart -->
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
       <div class="mb-6">
-        <h2 class="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
-          <div class="w-6 h-6 bg-blue-500 rounded-lg flex items-center justify-center">
-            <UsersIcon class="svg-icon text-white" />
-          </div>
-          Tổng Người Dùng
-        </h2>
+                  <h2 class="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
+            <div class="w-6 h-6 bg-blue-500 rounded-lg flex items-center justify-center">
+              <FontAwesomeIcon icon="fas fa-users" class="text-white" />
+            </div>
+            Tổng Người Dùng
+          </h2>
         <p class="text-gray-600 text-sm">Thống kê người dùng hệ thống</p>
       </div>
 
@@ -71,12 +71,12 @@
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
       <div class="mb-4">
         <div class="flex items-center justify-between mb-2">
-          <h3 class="text-base font-bold text-gray-800 flex items-center gap-2">
-            <div class="w-5 h-5 bg-green-500 rounded-lg flex items-center justify-center">
-              <OrdersIcon class="svg-icon small text-white" />
-            </div>
-            Tổng Đơn Hàng
-          </h3>
+                      <h3 class="text-base font-bold text-gray-800 flex items-center gap-2">
+              <div class="w-5 h-5 bg-green-500 rounded-lg flex items-center justify-center">
+                <FontAwesomeIcon icon="fas fa-shopping-cart" class="text-white text-sm" />
+              </div>
+              Tổng Đơn Hàng
+            </h3>
           <SelectControl
             :model-value="smallChartYear"
             :options="yearOptions"
@@ -103,12 +103,12 @@
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
       <div class="mb-4">
         <div class="flex items-center justify-between mb-2">
-          <h3 class="text-base font-bold text-gray-800 flex items-center gap-2">
-            <div class="w-5 h-5 bg-orange-500 rounded-lg flex items-center justify-center">
-              <RevenueIcon class="svg-icon small text-white" />
-            </div>
-            Doanh Thu Shop
-          </h3>
+                      <h3 class="text-base font-bold text-gray-800 flex items-center gap-2">
+              <div class="w-5 h-5 bg-orange-500 rounded-lg flex items-center justify-center">
+                <FontAwesomeIcon icon="fas fa-dollar-sign" class="text-white text-sm" />
+              </div>
+              Doanh Thu Shop
+            </h3>
           <SelectControl
             :model-value="smallChartYear"
             :options="yearOptions"
@@ -139,6 +139,7 @@ import { Bar, Line, Doughnut } from 'vue-chartjs'
 import SelectControl from '@/components/ui/SelectControl.vue'
 import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 import ErrorMessage from '@/components/ui/ErrorMessage.vue'
+import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 
 const props = defineProps({
   chartType: {
@@ -401,46 +402,5 @@ function formatCurrency(value) {
   }).format(value)
 }
 
-// SVG Icon Components
-const ChartIcon = {
-  template: `
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <line x1="18" y1="20" x2="18" y2="10"></line>
-      <line x1="12" y1="20" x2="12" y2="4"></line>
-      <line x1="6" y1="20" x2="6" y2="14"></line>
-    </svg>
-  `
-}
 
-
-
-const OrdersIcon = {
-  template: `
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
-      <line x1="3" y1="6" x2="21" y2="6"></line>
-      <path d="M16 10a4 4 0 0 1-8 0"></path>
-    </svg>
-  `
-}
-
-const RevenueIcon = {
-  template: `
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <line x1="12" y1="1" x2="12" y2="23"></line>
-      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-    </svg>
-  `
-}
-
-const UsersIcon = {
-  template: `
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-      <circle cx="9" cy="7" r="4"></circle>
-      <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-      <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-    </svg>
-  `
-}
 </script> 

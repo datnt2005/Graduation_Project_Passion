@@ -3,7 +3,7 @@
     <div class="flex items-center justify-between mb-6">
               <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
           <div class="w-6 h-6 bg-emerald-500 rounded-lg flex items-center justify-center">
-            <MoneyIcon class="svg-icon text-white" />
+            <FontAwesomeIcon icon="fas fa-money-bill-wave" class="text-white" />
           </div>
           Đơn Hàng Đã Thanh Toán
         </h3>
@@ -29,7 +29,7 @@
         >
           <div class="flex items-center gap-3">
                          <div class="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center">
-               <MoneyIcon class="svg-icon text-white" />
+               <FontAwesomeIcon icon="fas fa-money-bill-wave" class="text-white" />
              </div>
             <div>
               <div class="font-medium text-gray-800">
@@ -66,6 +66,7 @@
 import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 import ErrorMessage from '@/components/ui/ErrorMessage.vue'
 import Pagination from '@/components/Pagination.vue'
+import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 
 const props = defineProps({
   payouts: {
@@ -124,14 +125,5 @@ function getTrackingCode(payout) {
   return '-'
 }
 
-// SVG Icon Component
-const MoneyIcon = {
-  template: `
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <circle cx="12" cy="12" r="8"></circle>
-      <line x1="12" y1="8" x2="12" y2="12"></line>
-      <line x1="12" y1="16" x2="12.01" y2="16"></line>
-    </svg>
-  `
-}
+
 </script> 

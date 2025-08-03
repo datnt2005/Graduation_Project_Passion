@@ -115,6 +115,7 @@ import { Bar, Line, Pie } from 'vue-chartjs'
 import { Chart as ChartJS, Title, Tooltip, Legend, BarElement, LineElement, PointElement, ArcElement, CategoryScale, LinearScale } from 'chart.js'
 import { secureFetch } from '@/utils/secureFetch' 
 import { useRouter } from 'vue-router'
+import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 
 // Components
 import StatsCard from '@/components/dashboard/StatsCard.vue'
