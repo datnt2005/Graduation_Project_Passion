@@ -128,7 +128,6 @@
     <div class="h-[300px] sm:h-[400px] min-w-[600px]">
       <div v-if="chartLoading" class="text-center text-gray-400 py-10">Đang tải biểu đồ...</div>
       <div v-else-if="chartError" class="text-center text-red-500 py-10">{{ chartError }}</div>
-      <div v-else-if="!hasChartData" class="text-center text-gray-400 py-10">Không có dữ liệu biểu đồ</div>
       <component v-else :is="chartComponent" :data="combinedChartData" :options="combinedChartOptions" />
     </div>
       </div>
