@@ -4,7 +4,17 @@
       <h2 class="text-xl font-bold mb-4">2. Địa chỉ giao hàng</h2>
       <p class="mb-4 text-gray-600">Chọn địa chỉ giao hàng có sẵn dưới đây:</p>
 
-      <div v-for="address in addresses" :key="address.id" class="border border-green-500 p-4 rounded-lg mb-6 relative">
+      <!-- Loading skeleton -->
+      <div v-if="loading" class="space-y-4">
+        <div v-for="i in 3" :key="i" class="border p-4 rounded-lg animate-pulse">
+          <div class="h-6 bg-gray-200 rounded w-1/4 mb-2"></div>
+          <div class="h-4 bg-gray-200 rounded w-3/4 mb-1"></div>
+          <div class="h-4 bg-gray-200 rounded w-1/2"></div>
+        </div>
+      </div>
+
+      <!-- Address list -->
+      <div v-else v-for="address in addresses" :key="address.id" class="border border-green-500 p-4 rounded-lg mb-6 relative">
         <span v-if="address.is_default"
           class="absolute top-0 right-0 bg-green-500 text-white text-xs px-2 py-1 rounded-bl-lg">Mặc định</span>
         <h3 class="font-semibold text-lg mb-2">{{ address.name }}</h3>
@@ -209,20 +219,23 @@ const isFormValid = computed(() => {
 
 const getProvinceName = (id) => {
   if (!id || !provinces.value.length) return '';
-  return provinceMap.value.get(id) || 'Đang tải...';
+  const name = provinceMap.value.get(id);
+  return name || '';
 };
 
 const getDistrictName = (id) => {
   if (!id || !districts.value.length) return '';
-  return districtMap.value.get(id) || 'Đang tải...';
+  const name = districtMap.value.get(id);
+  return name || '';
 };
 
 const getWardName = (code, did) => {
   if (!code || !did || !wards.value.length) return '';
-  return wardMap.value.get(`${code}-${did}`) || 'Đang tải...';
+  const name = wardMap.value.get(`${code}-${did}`);
+  return name || '';
 };
 
-const isCacheValid = (key, ttl = 24 * 60 * 60 * 1000) => {
+const isCacheValid = (key, ttl = 7 * 24 * 60 * 60 * 1000) => { // 7 days cache
   const cached = localStorage.getItem(key);
   if (!cached) return false;
   const { data, timestamp } = JSON.parse(cached);
@@ -236,12 +249,12 @@ const loadProvinces = async () => {
     return;
   }
   try {
-    const res = await axios.get(`${apiBase}/ghn/provinces`);
+    const res = await axios.get(`${apiBase}/ghn/provinces`, { timeout: 5000 });
     provinces.value = res.data.data || [];
     localStorage.setItem(cacheKey, JSON.stringify({ data: provinces.value, timestamp: Date.now() }));
   } catch (error) {
-    showError('Không tải được danh sách tỉnh.');
     console.error('Error loading provinces:', error);
+    // Don't show error for provinces, just log it
   }
 };
 
@@ -253,13 +266,13 @@ const loadDistricts = async (provinceId) => {
     return;
   }
   try {
-    const res = await axios.post(`${apiBase}/ghn/districts`, { province_id: provinceId });
+    const res = await axios.post(`${apiBase}/ghn/districts`, { province_id: provinceId }, { timeout: 5000 });
     const newDistricts = res.data.data || [];
     districts.value = [...districts.value, ...newDistricts];
     localStorage.setItem(cacheKey, JSON.stringify({ data: newDistricts, timestamp: Date.now() }));
   } catch (error) {
-    showError('Không tải được danh sách quận.');
     console.error('Error loading districts:', error);
+    // Don't show error for background loading
   }
 };
 
@@ -271,27 +284,39 @@ const loadWards = async (districtId) => {
     return;
   }
   try {
-    const res = await axios.post(`${apiBase}/ghn/wards`, { district_id: districtId });
+    const res = await axios.post(`${apiBase}/ghn/wards`, { district_id: districtId }, { timeout: 5000 });
     const newWards = res.data.data || [];
     wards.value = [...wards.value, ...newWards];
     localStorage.setItem(cacheKey, JSON.stringify({ data: newWards, timestamp: Date.now() }));
   } catch (error) {
-    showError('Không tải được danh sách phường.');
     console.error('Error loading wards:', error);
+    // Don't show error for background loading
   }
 };
 
 const loadAddresses = async () => {
   loading.value = true;
   try {
+    // Load addresses first - show immediately
     const res = await axios.get(`${apiBase}/address`, useAuthHeaders());
     addresses.value = res.data.data || [];
-    const uniqueProvinceIds = [...new Set(addresses.value.map(addr => addr.province_id))].filter(Boolean);
-    const uniqueDistrictIds = [...new Set(addresses.value.map(addr => addr.district_id))].filter(Boolean);
-    await Promise.allSettled([
-      ...uniqueProvinceIds.map(pid => loadDistricts(pid)),
-      ...uniqueDistrictIds.map(did => loadWards(did))
-    ]);
+    
+    // Preload location data in background without blocking UI
+    if (addresses.value.length > 0) {
+      const uniqueProvinceIds = [...new Set(addresses.value.map(addr => addr.province_id))].filter(Boolean);
+      const uniqueDistrictIds = [...new Set(addresses.value.map(addr => addr.district_id))].filter(Boolean);
+      
+      // Load location data in parallel with timeout
+      setTimeout(() => {
+        Promise.allSettled([
+          ...uniqueProvinceIds.map(pid => loadDistricts(pid)),
+          ...uniqueDistrictIds.map(did => loadWards(did))
+        ]).then(() => {
+          // Force re-render after location data is loaded
+          addresses.value = [...addresses.value];
+        });
+      }, 100); // Small delay to prioritize UI rendering
+    }
   } catch (error) {
     showError('Không thể tải địa chỉ.');
     console.error('Error loading addresses:', error);
@@ -307,10 +332,20 @@ const calculateShippingFee = async () => {
     return;
   }
 
+  try {
+    const res = await axios.post(`${apiBase}/ghn/shipping-fee`, {
+      province_id,
+      district_id,
+      ward_code
+    }, { timeout: 3000 });
+    shippingFee.value = res.data.fee || 0;
+  } catch (error) {
+    console.error('Error calculating shipping fee:', error);
+    shippingFee.value = 0;
+  }
 };
 
 const startEditAddress = async (addr) => {
-  console.time('startEditAddress');
   loadingEdit.value = true;
   editAddress.value = addr;
   Object.assign(form, {
@@ -325,19 +360,22 @@ const startEditAddress = async (addr) => {
   });
   showNewAddressForm.value = true;
 
+  // Load location data in parallel for better performance
+  const loadPromises = [];
+  if (!provinces.value.length) {
+    loadPromises.push(loadProvinces());
+  }
+  if (addr.province_id) {
+    loadPromises.push(loadDistricts(addr.province_id));
+  }
+  if (addr.district_id) {
+    loadPromises.push(loadWards(addr.district_id));
+  }
+
   try {
-    if (!provinces.value.length) {
-      await loadProvinces();
-    }
-    if (addr.province_id) {
-      await loadDistricts(addr.province_id);
-    }
-    if (addr.district_id) {
-      await loadWards(addr.district_id);
-    }
+    await Promise.allSettled(loadPromises);
   } finally {
     loadingEdit.value = false;
-    console.timeEnd('startEditAddress');
   }
 };
 
@@ -375,12 +413,17 @@ const submitForm = async () => {
     if (editAddress.value) {
       await axios.put(`${apiBase}/address/${editAddress.value.id}`, payload, useAuthHeaders())
       showSuccess('Cập nhật địa chỉ thành công!')
+      // Update local data instead of reloading
+      const index = addresses.value.findIndex(a => a.id === editAddress.value.id);
+      if (index !== -1) {
+        addresses.value[index] = { ...editAddress.value, ...payload };
+      }
     } else {
-      await axios.post(`${apiBase}/address`, payload, useAuthHeaders())
+      const res = await axios.post(`${apiBase}/address`, payload, useAuthHeaders())
       showSuccess('Thêm địa chỉ thành công!')
+      // Add new address to local data
+      addresses.value.unshift(res.data.data);
     }
-    // Reload trang để làm mới dữ liệu
-    window.location.reload()
   } catch (error) {
     showError(error.response?.data?.message || 'Lỗi khi lưu địa chỉ.')
     console.error('Error submitting form:', error)
@@ -407,7 +450,8 @@ const deleteAddress = async (id) => {
   try {
     await axios.delete(`${apiBase}/address/${id}`, useAuthHeaders())
     showSuccess('Xóa địa chỉ thành công!')
-    await loadAddresses()
+    // Remove from local data instead of reloading
+    addresses.value = addresses.value.filter(a => a.id !== id);
   } catch (error) {
     showError('Không thể xóa địa chỉ.')
     console.error('Error deleting address:', error)
@@ -444,7 +488,6 @@ const onProvinceChange = async () => {
   districts.value = []
   wards.value = []
   if (form.province_id) {
-    console.log('Selected province_id:', form.province_id)
     await loadDistricts(form.province_id)
   }
 }
@@ -453,33 +496,50 @@ const onDistrictChange = async () => {
   form.ward_code = ''
   wards.value = []
   if (form.district_id) {
-    console.log('Selected district_id:', form.district_id)
     await loadWards(form.district_id)
   }
 }
 
 onMounted(async () => {
-  await Promise.all([
-    loadProvinces(),
-    loadAddresses()
-  ])
+  // Load addresses first for faster UI display
+  await loadAddresses();
+  
+  // Load provinces in background with delay
+  setTimeout(() => {
+    loadProvinces();
+  }, 200);
 })
 
+// Simple debounced shipping fee calculation
+let shippingFeeTimeout;
 watch([() => form.province_id, () => form.district_id, () => form.ward_code], async ([province_id, district_id, ward_code]) => {
+  clearTimeout(shippingFeeTimeout);
   if (province_id && district_id && ward_code) {
-    await calculateShippingFee();
+    shippingFeeTimeout = setTimeout(() => {
+      calculateShippingFee();
+    }, 500); // Increased debounce time
   } else {
     shippingFee.value = 0;
   }
 });
-
-watchEffect(() => {
-  if (form.ward_code) calculateShippingFee()
-})
 </script>
 
 <style>
 body {
   margin: 0;
+}
+
+/* Loading animation */
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: .5;
+  }
 }
 </style>
