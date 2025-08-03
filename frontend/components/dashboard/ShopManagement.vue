@@ -1,11 +1,11 @@
 <template>
   <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-    <h3 class="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
-      <div class="w-6 h-6 bg-orange-500 rounded-lg flex items-center justify-center">
-        <span class="text-white text-xs">🏪</span>
-      </div>
-      Quản Lý Shop
-    </h3>
+          <h3 class="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
+        <div class="w-6 h-6 bg-orange-500 rounded-lg flex items-center justify-center">
+          <ShopIcon class="svg-icon text-white" />
+        </div>
+        Quản Lý Shop
+      </h3>
     
     <div class="space-y-4 mb-6">
       <SelectControl
@@ -132,5 +132,15 @@ function formatCurrency(value) {
     style: 'currency',
     currency: 'VND'
   }).format(value)
+}
+
+// SVG Icon Component
+const ShopIcon = {
+  template: `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+      <polyline points="9,22 9,12 15,12 15,22"></polyline>
+    </svg>
+  `
 }
 </script> 

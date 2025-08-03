@@ -26,6 +26,9 @@
       :data="combinedChartData"
       :options="combinedChartOptions"
       :selected-seller="selectedSellerId"
+      :orders-data="ordersChartData"
+      :revenue-data="revenueChartData"
+      :users-data="usersChartData"
       @update-chart="fetchPayoutChartData"
       @type-change="chartType = $event"
       @mode-change="chartTypeMode = $event"
@@ -68,8 +71,8 @@
          :selected-id="selectedSellerId"
          :search-query="searchQuery"
          :sort-by="sortBy"
-         :current-page="currentShopPage"
-         :total-pages="totalShopPages"
+            :current-page="currentShopPage"
+            :total-pages="totalShopPages"
          :shop-options="shopOptions"
          :sort-options="sortOptions"
          @select-seller="selectSeller"
@@ -92,7 +95,7 @@
         @page-change="changePage"
         @retry="fetchPayoutList"
       />
-    </div>
+        </div>
 
     <!-- Shop Stats -->
     <ShopStats 
@@ -135,6 +138,9 @@ const chartTypeMode = ref('bar')
 const chartLoading = ref(false)
 const chartError = ref('')
 const payoutChartData = ref([])
+const ordersChartData = ref({ labels: [], data: [] })
+const revenueChartData = ref({ labels: [], data: [] })
+const usersChartData = ref({ total: 0, active: 0, inactive: 0 })
 
 const systemOverview = ref(null)
 const systemOverviewLoading = ref(true)
@@ -182,7 +188,7 @@ const statsCards = computed(() => [
     title: 'Tổng người dùng',
     value: systemOverview.value?.users?.total || 0,
     subtitle: `${systemOverview.value?.users?.active || 0} đang hoạt động`,
-    icon: '👥',
+    icon: 'users',
     color: 'blue'
   },
   {
@@ -190,7 +196,7 @@ const statsCards = computed(() => [
     title: 'Tổng đơn hàng',
     value: systemOverview.value?.orders?.total || 0,
     subtitle: `${systemOverview.value?.orders?.delivered || 0} đã giao`,
-    icon: '📦',
+    icon: 'orders',
     color: 'green'
   },
   {
@@ -198,7 +204,7 @@ const statsCards = computed(() => [
     title: 'Tổng doanh thu',
     value: formatCurrency(systemOverview.value?.orders?.total_revenue || 0),
     subtitle: `${formatCurrency(systemOverview.value?.orders?.total_discount || 0)} giảm giá`,
-    icon: '💰',
+    icon: 'revenue',
     color: 'purple'
   },
   {
@@ -206,7 +212,7 @@ const statsCards = computed(() => [
     title: 'Người bán hàng',
     value: systemOverview.value?.sellers?.total || 0,
     subtitle: `${systemOverview.value?.sellers?.verified || 0} đã xác thực`,
-    icon: '🏪',
+    icon: 'sellers',
     color: 'orange'
   }
 ])
@@ -386,6 +392,15 @@ async function fetchSystemOverview() {
       throw new Error(data.message || 'Không lấy được tổng quan hệ thống')
     }
     systemOverview.value = data.data
+    
+    // Cập nhật dữ liệu người dùng cho biểu đồ
+    if (data.data?.users) {
+      usersChartData.value = {
+        total: data.data.users.total || 0,
+        active: data.data.users.active || 0,
+        inactive: (data.data.users.total || 0) - (data.data.users.active || 0)
+      }
+    }
   } catch (error) {
     console.error('Error fetching system overview:', error)
     systemOverviewError.value = error.message || 'Không thể tải tổng quan hệ thống!'
@@ -412,6 +427,36 @@ async function fetchPayoutChartData(type = 'month') {
     payoutChartData.value = { labels: [], data: [] }
   } finally {
     chartLoading.value = false
+  }
+}
+
+async function fetchOrdersChartData(type = 'month') {
+  try {
+    let url = `${apiBaseUrl}/dashboard/orders-chart?type=${type}`
+    if (selectedSellerId.value) url += `&seller_id=${selectedSellerId.value}`
+    const data = await secureFetch(url, {}, ['admin'])
+    if (!data.success) {
+      throw new Error(data.message || 'Không lấy được dữ liệu đơn hàng')
+    }
+    return data.data
+  } catch (error) {
+    console.error('Error fetching orders chart data:', error)
+    return { labels: [], data: [] }
+  }
+}
+
+async function fetchRevenueChartData(type = 'month') {
+  try {
+    let url = `${apiBaseUrl}/dashboard/revenue-chart?type=${type}`
+    if (selectedSellerId.value) url += `&seller_id=${selectedSellerId.value}`
+    const data = await secureFetch(url, {}, ['admin'])
+    if (!data.success) {
+      throw new Error(data.message || 'Không lấy được dữ liệu doanh thu')
+    }
+    return data.data
+  } catch (error) {
+    console.error('Error fetching revenue chart data:', error)
+    return { labels: [], data: [] }
   }
 }
 
@@ -554,6 +599,12 @@ function selectSeller(id) {
 
 function onSellerChange() {
   fetchPayoutChartData(chartType.value)
+  fetchOrdersChartData(chartType.value).then(data => {
+    ordersChartData.value = data
+  })
+  fetchRevenueChartData(chartType.value).then(data => {
+    revenueChartData.value = data
+  })
   fetchPayoutList()
   fetchShopStats()
 }
@@ -603,6 +654,14 @@ function getTrackingCode(payout) {
 // Watchers
 watch(chartType, () => {
   debounceChartUpdate()
+  // Cũng cập nhật orders chart data
+  fetchOrdersChartData(chartType.value).then(data => {
+    ordersChartData.value = data
+  })
+  // Cập nhật revenue chart data
+  fetchRevenueChartData(chartType.value).then(data => {
+    revenueChartData.value = data
+  })
 })
 
 // Lifecycle
@@ -611,6 +670,12 @@ onMounted(async () => {
     await Promise.all([
       fetchSystemOverview(),
       fetchPayoutChartData(chartType.value),
+      fetchOrdersChartData(chartType.value).then(data => {
+        ordersChartData.value = data
+      }),
+      fetchRevenueChartData(chartType.value).then(data => {
+        revenueChartData.value = data
+      }),
       fetchPayoutList(),
       fetchOrders(),
       fetchUsers(),

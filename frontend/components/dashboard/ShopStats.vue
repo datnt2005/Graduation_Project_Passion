@@ -1,11 +1,11 @@
 <template>
   <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-    <h3 class="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
-      <div class="w-6 h-6 bg-indigo-500 rounded-lg flex items-center justify-center">
-        <span class="text-white text-xs">📊</span>
-      </div>
-      Thống Kê Shop
-    </h3>
+          <h3 class="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
+        <div class="w-6 h-6 bg-indigo-500 rounded-lg flex items-center justify-center">
+          <StatsIcon class="svg-icon text-white" />
+        </div>
+        Thống Kê Shop
+      </h3>
     
     <LoadingSpinner v-if="loading" />
     <ErrorMessage v-else-if="error" :message="error" @retry="$emit('retry')" />
@@ -65,5 +65,16 @@ function formatCurrency(value) {
     style: 'currency',
     currency: 'VND'
   }).format(value)
+}
+
+// SVG Icon Component
+const StatsIcon = {
+  template: `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M18 20V10"></path>
+      <path d="M12 20V4"></path>
+      <path d="M6 20v-6"></path>
+    </svg>
+  `
 }
 </script> 

@@ -1,12 +1,12 @@
 <template>
   <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
     <div class="flex items-center justify-between mb-6">
-      <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
-        <div class="w-6 h-6 bg-purple-500 rounded-lg flex items-center justify-center">
-          <span class="text-white text-xs">👥</span>
-        </div>
-        Người Dùng Đang Hoạt Động
-      </h3>
+              <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+          <div class="w-6 h-6 bg-purple-500 rounded-lg flex items-center justify-center">
+            <UsersIcon class="svg-icon text-white" />
+          </div>
+          Người Dùng Đang Hoạt Động
+        </h3>
       <button 
         @click="$emit('toggle-view')"
         class="px-3 py-1.5 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors text-sm font-medium"
@@ -113,5 +113,17 @@ function getRoleLabel(role) {
     user: 'Khách hàng'
   }
   return labels[role] || role
+}
+
+// SVG Icon Component
+const UsersIcon = {
+  template: `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+      <circle cx="9" cy="7" r="4"></circle>
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+      <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+    </svg>
+  `
 }
 </script> 

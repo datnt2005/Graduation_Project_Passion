@@ -1,12 +1,12 @@
 <template>
   <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
     <div class="flex items-center justify-between mb-6">
-      <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
-        <div class="w-6 h-6 bg-emerald-500 rounded-lg flex items-center justify-center">
-          <span class="text-white text-xs">💸</span>
-        </div>
-        Đơn Hàng Đã Thanh Toán
-      </h3>
+              <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+          <div class="w-6 h-6 bg-emerald-500 rounded-lg flex items-center justify-center">
+            <MoneyIcon class="svg-icon text-white" />
+          </div>
+          Đơn Hàng Đã Thanh Toán
+        </h3>
       <button 
         @click="$emit('toggle-view')"
         class="px-3 py-1.5 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors text-sm font-medium"
@@ -28,9 +28,9 @@
           class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
         >
           <div class="flex items-center gap-3">
-            <div class="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center">
-              <span class="text-white text-xs font-bold">💸</span>
-            </div>
+                         <div class="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center">
+               <MoneyIcon class="svg-icon text-white" />
+             </div>
             <div>
               <div class="font-medium text-gray-800">
                 {{ getTrackingCode(item) !== '-' ? getTrackingCode(item) : 'Chưa có mã vận đơn' }}
@@ -122,5 +122,16 @@ function getTrackingCode(payout) {
   if (payout.tracking_code) return payout.tracking_code
   if (payout.order && payout.order.shipping && payout.order.shipping.tracking_code) return payout.order.shipping.tracking_code
   return '-'
+}
+
+// SVG Icon Component
+const MoneyIcon = {
+  template: `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="8"></circle>
+      <line x1="12" y1="8" x2="12" y2="12"></line>
+      <line x1="12" y1="16" x2="12.01" y2="16"></line>
+    </svg>
+  `
 }
 </script> 
