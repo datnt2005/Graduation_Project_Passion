@@ -79,6 +79,39 @@ class ReturnController extends Controller
             }
         }
 
+        $seller = optional($item->product)->seller;
+if ($seller && $seller->user_id) {
+    try {
+        $notification = \App\Models\Notification::create([
+            'title' => 'Yêu cầu đổi/trả mới',
+            'content' => "Người dùng đã gửi yêu cầu {$return->type} cho sản phẩm trong đơn hàng #{$item->order_id}.",
+            'type' => 'system',
+            'link' => 'seller/return/list-return',
+            'user_id' => $seller->user_id,
+            'from_role' => 'customer',
+            'channels' => json_encode(['dashboard']),
+            'status' => 'sent',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        \App\Models\NotificationRecipient::create([
+            'notification_id' => $notification->id,
+            'user_id' => $seller->user_id,
+            'is_read' => false,
+            'is_hidden' => false,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    } catch (\Exception $e) {
+        \Log::warning('Lỗi tạo thông báo yêu cầu đổi/trả cho seller', [
+            'seller_user_id' => $seller->user_id ?? null,
+            'return_request_id' => $return->id,
+            'error' => $e->getMessage(),
+        ]);
+    }
+}
+
         return response()->json(['message' => 'Yêu cầu đổi/trả đã được gửi thành công!']);
     }
 
