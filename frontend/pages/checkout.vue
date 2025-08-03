@@ -1,7 +1,67 @@
 <template>
   <div class="bg-[#F8F9FF] text-gray-700">
+    <!-- Loading Overlay -->
+    <div v-if="isPlacingOrder" class="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center loading-backdrop">
+      <div class="bg-white rounded-2xl shadow-2xl p-10 flex flex-col items-center space-y-6 max-w-md mx-4 relative overflow-hidden">
+        <!-- Background decoration -->
+        <div class="absolute inset-0 bg-gradient-to-br from-blue-50 to-indigo-50 opacity-50"></div>
+        
+        <!-- Animated Shopping Cart Icon -->
+        <div class="relative z-10">
+          <svg class="w-16 h-16 text-blue-600 animate-float" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12L8.1 13h7.45c.75 0 1.41-.41 1.75-1.03L21.7 4H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/>
+          </svg>
+          <!-- Animated dots -->
+          <div class="absolute -top-2 -right-2 flex space-x-1">
+            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <div class="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" style="animation-delay: 0.2s"></div>
+            <div class="w-2 h-2 bg-red-500 rounded-full animate-pulse" style="animation-delay: 0.4s"></div>
+          </div>
+        </div>
+        
+        <!-- Enhanced Loading Spinner -->
+        <div class="relative z-10">
+          <div class="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+          <div class="absolute inset-0 w-12 h-12 border-4 border-transparent border-t-green-500 rounded-full animate-spin" style="animation-duration: 1.5s"></div>
+          <div class="absolute inset-0 w-12 h-12 border-4 border-transparent border-t-yellow-500 rounded-full animate-spin" style="animation-duration: 2s"></div>
+        </div>
+        
+        <div class="text-center space-y-3 z-10">
+          <h3 class="text-xl font-bold text-gray-800">Đang xử lý đơn hàng</h3>
+          <p class="text-sm text-gray-600 leading-relaxed">
+            Vui lòng chờ trong giây lát, chúng tôi đang chuẩn bị đơn hàng của bạn...
+          </p>
+          
+          <!-- Enhanced Progress indicators -->
+          <div class="flex justify-center space-x-4 mt-6">
+            <div class="flex items-center space-x-2">
+              <div class="w-3 h-3 bg-blue-600 rounded-full animate-pulse"></div>
+              <span class="text-xs text-gray-600 font-medium">Kiểm tra tồn kho</span>
+            </div>
+            <div class="flex items-center space-x-2">
+              <div class="w-3 h-3 bg-green-600 rounded-full animate-pulse" style="animation-delay: 0.5s"></div>
+              <span class="text-xs text-gray-600 font-medium">Tính toán phí</span>
+            </div>
+            <div class="flex items-center space-x-2">
+              <div class="w-3 h-3 bg-yellow-600 rounded-full animate-pulse" style="animation-delay: 1s"></div>
+              <span class="text-xs text-gray-600 font-medium">Tạo đơn hàng</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Decorative elements -->
+        <div class="absolute top-4 right-4 z-10">
+          <svg class="w-6 h-6 text-blue-200" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+          </svg>
+        </div>
+        
+        <!-- Bottom decoration -->
+        <div class="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-green-500 to-yellow-500"></div>
+      </div>
+    </div>
     <div class="max-w-7xl mx-auto px-4 py-6 flex flex-col lg:flex-row gap-6">
-      <main class="flex-1 overflow-y-hidden" :class="{ 'opacity-50 pointer-events-none': isAccountBanned }">
+              <main class="flex-1 overflow-y-hidden" :class="{ 'opacity-50 pointer-events-none': isAccountBanned || isPlacingOrder }">
         <!-- Thông báo khi tài khoản bị khóa hoặc không thể dùng COD -->
         <div v-if="isAccountBanned || (!canUseCod && !isAccountBanned && rejectedOrdersCount >= 2)" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
           <template v-if="isAccountBanned">
@@ -348,9 +408,28 @@
                 </div>
                 <div class="pt-2">
                   <button @click="placeOrder"
-                    class="w-full bg-red-500 text-white py-3 rounded-md font-bold text-base hover:bg-red-600 transition"
-                    :disabled="!cartItems.length || loading || isAccountBanned">
-                    Đặt hàng
+                    class="w-full bg-gradient-to-r from-red-500 to-red-600 text-white py-4 rounded-lg font-bold text-base hover:from-red-600 hover:to-red-700 transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg hover:shadow-xl"
+                    :disabled="!cartItems.length || loading || isAccountBanned || isPlacingOrder">
+                    <span v-if="isPlacingOrder" class="flex items-center justify-center">
+                      <!-- Animated shopping cart icon -->
+                      <svg class="w-5 h-5 mr-2 animate-bounce" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12L8.1 13h7.45c.75 0 1.41-.41 1.75-1.03L21.7 4H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/>
+                      </svg>
+                      <!-- Loading dots -->
+                      <div class="flex space-x-1 mr-2">
+                        <div class="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></div>
+                        <div class="w-1.5 h-1.5 bg-white rounded-full animate-pulse" style="animation-delay: 0.2s"></div>
+                        <div class="w-1.5 h-1.5 bg-white rounded-full animate-pulse" style="animation-delay: 0.4s"></div>
+                      </div>
+                      Đang xử lý đơn hàng...
+                    </span>
+                    <span v-else class="flex items-center justify-center">
+                      <!-- Shopping cart icon -->
+                      <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12L8.1 13h7.45c.75 0 1.41-.41 1.75-1.03L21.7 4H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/>
+                      </svg>
+                      Đặt hàng ngay
+                    </span>
                   </button>
                 </div>
               </section>
@@ -437,6 +516,7 @@ const {
   placeOrder,
   selectStoreItems,
   removeOrderedItems,
+  isPlacingOrder,
   isBuyNow,
   buyNowData,
   updateShopDiscount,
@@ -835,5 +915,38 @@ onMounted(async () => {
 <style scoped>
 .form-radio {
   @apply text-blue-600 focus:ring-blue-500;
+}
+
+/* Custom animations for loading overlay */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200px 0; }
+  100% { background-position: calc(200px + 100%) 0; }
+}
+
+.animate-float {
+  animation: float 2s ease-in-out infinite;
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200px 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Enhanced button hover effects */
+button:not(:disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+/* Loading overlay backdrop blur */
+.loading-backdrop {
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 </style>
