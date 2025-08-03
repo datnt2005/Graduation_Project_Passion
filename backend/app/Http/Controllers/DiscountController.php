@@ -47,7 +47,7 @@ class DiscountController extends Controller
             'discount_value' => 'numeric|min:0',
             'usage_limit' => 'nullable|integer|min:1',
             'min_order_value' => 'nullable|numeric|min:0',
-            'start_date' => 'required|date|after_or_equal:today',
+            'start_date' => 'required|date',
             'end_date' => 'required|date|after:start_date',
             'status' => 'required|in:active,inactive,expired',
         ], [
@@ -60,7 +60,6 @@ class DiscountController extends Controller
             'min_order_value.min' => 'Giá trị đơn hàng tối thiểu phải lớn hơn 0',
             'start_date.required' => 'Ngày bắt đầu không được để trống',
             'start_date.date' => 'Ngày bắt đầu không đúng định dạng',
-            'start_date.after_or_equal' => 'Ngày bắt đầu phải từ ngày hôm nay trở đi',
             'end_date.required' => 'Ngày kết thúc không được để trống',
             'end_date.date' => 'Ngày kết thúc không đúng định dạng',
             'end_date.after' => 'Ngày kết thúc phải sau ngày bắt đầu',
@@ -129,7 +128,7 @@ class DiscountController extends Controller
             'discount_value' => 'numeric|min:0',
             'usage_limit' => 'nullable|integer|min:1',
             'min_order_value' => 'nullable|numeric|min:0',
-            'start_date' => 'sometimes|required|date|after_or_equal:today',
+            'start_date' => 'sometimes|required|date',
             'end_date' => 'sometimes|required|date|after:start_date',
             'status' => 'in:active,inactive,expired',
         ], [
@@ -697,14 +696,51 @@ public function getStoreDiscounts($slug)
     // Public: Get all active admin vouchers
     public function indexPublic()
     {
-        $discounts = Discount::where('status', 'active')
-            ->where('end_date', '>', now())
-            ->whereNull('seller_id')
-            ->get();
-        return response()->json([
-            'success' => true,
-            'data' => $discounts
-        ]);
+        try {
+            // Lấy tất cả discount active và chưa hết hạn
+            $discounts = Discount::where('status', 'active')
+                ->where('end_date', '>', now())
+                ->whereNull('seller_id') // Chỉ lấy voucher của admin (không có seller_id)
+                ->get();
+                
+            // Log để debug
+            Log::info('Discounts from indexPublic:', [
+                'count' => $discounts->count(),
+                'current_time' => now(),
+                'discounts' => $discounts->map(function($d) {
+                    return [
+                        'id' => $d->id,
+                        'name' => $d->name,
+                        'code' => $d->code,
+                        'discount_type' => $d->discount_type,
+                        'discount_value' => $d->discount_value,
+                        'min_order_value' => $d->min_order_value,
+                        'seller_id' => $d->seller_id,
+                        'status' => $d->status,
+                        'start_date' => $d->start_date,
+                        'end_date' => $d->end_date,
+                        'usage_limit' => $d->usage_limit,
+                        'used_count' => $d->used_count
+                    ];
+                })->toArray()
+            ]);
+            
+            return response()->json([
+                'success' => true,
+                'data' => $discounts
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error in indexPublic:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi khi lấy danh sách voucher: ' . $e->getMessage(),
+                'data' => []
+            ], 500);
+        }
     }
 
     // Public: Get seller discounts by seller_id
@@ -726,6 +762,8 @@ public function getStoreDiscounts($slug)
         $validator = Validator::make($request->all(), [
             'code' => 'required|string|exists:discounts,code',
             'order_value' => 'required|numeric|min:0',
+            'product_ids' => 'nullable|array', // Thêm product_ids để kiểm tra
+            'product_ids.*' => 'exists:products,id',
         ]);
         if ($validator->fails()) {
             return response()->json([
@@ -773,9 +811,179 @@ public function getStoreDiscounts($slug)
             ], 400);
         }
 
+        // Kiểm tra xem discount có áp dụng được cho các sản phẩm cụ thể không
+        if ($request->has('product_ids') && !empty($request->product_ids)) {
+            $productIds = $request->product_ids;
+            
+            // Nếu discount có products được gán cụ thể
+            if ($discount->products()->count() > 0) {
+                $applicableProducts = $discount->products()->whereIn('products.id', $productIds)->pluck('products.id')->toArray();
+                
+                if (empty($applicableProducts)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Mã voucher này không áp dụng cho các sản phẩm trong đơn hàng',
+                        'error_code' => 'PRODUCT_NOT_APPLICABLE'
+                    ], 400);
+                }
+            }
+            
+            // Nếu discount có categories được gán cụ thể
+            if ($discount->categories()->count() > 0) {
+                $applicableCategories = $discount->categories()
+                    ->whereHas('products', function($query) use ($productIds) {
+                        $query->whereIn('products.id', $productIds);
+                    })
+                    ->pluck('categories.id')
+                    ->toArray();
+                
+                if (empty($applicableCategories)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Mã voucher này không áp dụng cho danh mục sản phẩm trong đơn hàng',
+                        'error_code' => 'CATEGORY_NOT_APPLICABLE'
+                    ], 400);
+                }
+            }
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Mã voucher có thể sử dụng',
+            'data' => $discount
+        ], 200);
+    }
+
+    // Thêm method mới để kiểm tra discount cho shop cụ thể
+    public function checkShopDiscount(Request $request)
+    {
+        // Log request data để debug
+        Log::info('checkShopDiscount request data:', $request->all());
+        
+        $validator = Validator::make($request->all(), [
+            'discount_id' => 'required|exists:discounts,id',
+            'seller_id' => 'required|exists:sellers,id',
+            'product_ids' => 'required|array',
+            'product_ids.*' => 'exists:products,id',
+            'order_value' => 'required|numeric|min:0',
+        ]);
+
+        if ($validator->fails()) {
+            Log::error('checkShopDiscount validation failed:', $validator->errors()->toArray());
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi dữ liệu nhập vào',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        Log::info('checkShopDiscount validation passed');
+        
+        $discount = Discount::findOrFail($request->discount_id);
+        
+        // Kiểm tra discount có thuộc về seller không
+        if ($discount->seller_id != $request->seller_id) {
+            Log::warning('Discount does not belong to seller', [
+                'discount_seller_id' => $discount->seller_id,
+                'request_seller_id' => $request->seller_id
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Mã giảm giá không thuộc về shop này',
+                'error_code' => 'DISCOUNT_NOT_BELONG_TO_SELLER'
+            ], 400);
+        }
+
+        // Kiểm tra trạng thái và thời hạn
+        if ($discount->status !== 'active' || $discount->end_date <= now()) {
+            Log::warning('Discount is not active or expired', [
+                'discount_status' => $discount->status,
+                'discount_end_date' => $discount->end_date,
+                'current_time' => now()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Mã giảm giá không còn hiệu lực',
+                'error_code' => 'DISCOUNT_INACTIVE'
+            ], 400);
+        }
+
+        // Kiểm tra giới hạn sử dụng
+        if ($discount->usage_limit !== null && $discount->used_count >= $discount->usage_limit) {
+            Log::warning('Discount usage limit exceeded', [
+                'usage_limit' => $discount->usage_limit,
+                'used_count' => $discount->used_count
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Mã giảm giá đã hết lượt sử dụng',
+                'error_code' => 'USAGE_LIMIT_EXCEEDED'
+            ], 400);
+        }
+
+        // Kiểm tra giá trị đơn hàng tối thiểu
+        if ($discount->min_order_value && $request->order_value < $discount->min_order_value) {
+            Log::warning('Order value does not meet minimum requirement', [
+                'order_value' => $request->order_value,
+                'min_order_value' => $discount->min_order_value
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Giá trị đơn hàng không đạt yêu cầu tối thiểu',
+                'error_code' => 'MIN_ORDER_VALUE_NOT_MET'
+            ], 400);
+        }
+
+        $productIds = $request->product_ids;
+        
+        // Kiểm tra xem discount có áp dụng được cho các sản phẩm cụ thể không
+        if ($discount->products()->count() > 0) {
+            $applicableProducts = $discount->products()->whereIn('products.id', $productIds)->pluck('products.id')->toArray();
+            
+            Log::info('Checking product applicability', [
+                'discount_products_count' => $discount->products()->count(),
+                'request_product_ids' => $productIds,
+                'applicable_products' => $applicableProducts
+            ]);
+            
+            if (empty($applicableProducts)) {
+                Log::warning('No applicable products found');
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Mã giảm giá này không áp dụng cho các sản phẩm trong đơn hàng',
+                    'error_code' => 'PRODUCT_NOT_APPLICABLE'
+                ], 400);
+            }
+        }
+        
+        // Kiểm tra categories
+        if ($discount->categories()->count() > 0) {
+            $applicableCategories = $discount->categories()
+                ->whereHas('products', function($query) use ($productIds) {
+                    $query->whereIn('products.id', $productIds);
+                })
+                ->pluck('categories.id')
+                ->toArray();
+            
+            Log::info('Checking category applicability', [
+                'discount_categories_count' => $discount->categories()->count(),
+                'applicable_categories' => $applicableCategories
+            ]);
+            
+            if (empty($applicableCategories)) {
+                Log::warning('No applicable categories found');
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Mã giảm giá này không áp dụng cho danh mục sản phẩm trong đơn hàng',
+                    'error_code' => 'CATEGORY_NOT_APPLICABLE'
+                ], 400);
+            }
+        }
+
+        Log::info('checkShopDiscount validation successful');
+        return response()->json([
+            'success' => true,
+            'message' => 'Mã giảm giá có thể áp dụng',
             'data' => $discount
         ], 200);
     }

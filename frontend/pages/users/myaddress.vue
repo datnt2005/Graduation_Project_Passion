@@ -1,6 +1,6 @@
 <template>
   <div class="bg-[#f5f7fa] font-sans text-[#1a1a1a]">
-    <div class="flex flex-col md:flex-row max-w-screen-2xl mx-auto px-4 sm:px-6 py-6 gap-6">
+    <div class="max-w-7xl mx-auto md:pt-6 md:pb-6 flex flex-col md:flex-row gap-6">
       <SidebarProfile class="flex-shrink-0 border-r border-gray-200" />
 
       <main class="flex-1 p-4 sm:p-6">

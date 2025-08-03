@@ -458,7 +458,7 @@ onMounted(async () => {
   }
 
   try {
-    const sellerRes = await fetch(`${API}/sellers/seller/me`, {
+    const sellerRes = await fetch(`${API}/sellers/me`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!sellerRes.ok) throw new Error("Không thể lấy dữ liệu seller");

@@ -50,20 +50,20 @@ class Order extends Model
 
 
     public function getStatusText(): string
-{
-    $statusMap = [
-        'pending' => 'Chờ xử lý',
-        'confirmed' => 'Đã xác nhận',
-        'processing' => 'Đang xử lý',
-        'shipped' => 'Đã gửi hàng',
-        'delivered' => 'Đã giao hàng',
-        'cancelled' => 'Đã hủy',
-        'failed' => 'Giao thất bại',
-        'failed_delivery' => 'Giao không thành công',
-        'rejected_by_customer' => 'Khách từ chối nhận',
-    ];
-    return $statusMap[$this->status] ?? $this->status;
-}
+    {
+        $statusMap = [
+            'pending' => 'Chờ xử lý',
+            'confirmed' => 'Đã xác nhận',
+            'processing' => 'Đang xử lý',
+            'shipped' => 'Đã gửi hàng',
+            'delivered' => 'Đã giao hàng',
+            'cancelled' => 'Đã hủy',
+            'failed' => 'Giao thất bại',
+            'failed_delivery' => 'Giao không thành công',
+            'rejected_by_customer' => 'Khách từ chối nhận',
+        ];
+        return $statusMap[$this->status] ?? $this->status;
+    }
 
 
     // Relationships
@@ -195,21 +195,31 @@ class Order extends Model
     public function isValidStatus($status)
     {
         return in_array($status, [
-            'pending', 'processing', 'shipping', 'shipped', 'delivered',
-            'cancelled', 'failed', 'failed_delivery', 'rejected_by_customer'
+            'pending',
+            'processing',
+            'shipping',
+            'shipped',
+            'delivered',
+            'cancelled',
+            'failed',
+            'failed_delivery',
+            'rejected_by_customer'
         ]);
     }
 
-   public function canTransitionTo($newStatus)
+    public function canTransitionTo($newStatus)
     {
         $transitions = [
             'pending' => ['processing', 'shipping', 'cancelled'],
-            'confirmed' => ['processing', 'shipping', 'cancelled'],
-            'processing' => ['shipping', 'shipped', 'delivered', 'cancelled'],
-            'shipping' => ['delivered', 'cancelled'],
-            'shipped' => ['delivered', 'cancelled'],
+            'confirmed' => ['processing', 'cancelled', 'shipping'],
+            'processing' => ['shipped', 'cancelled', 'shipping'],
+            'shipping' => ['shipped', 'failed', 'failed_delivery', 'rejected_by_customer'],
+            'shipped' => ['delivered', 'failed', 'failed_delivery', 'rejected_by_customer'],
+            'failed' => ['rejected_by_customer', 'failed_delivery', 'cancelled'],
+            'failed_delivery' => ['rejected_by_customer', 'cancelled'],
+            'rejected_by_customer' => ['cancelled'],
             'delivered' => [],
-            'cancelled' => []
+            'cancelled' => [],
         ];
 
         return in_array($newStatus, $transitions[$this->status] ?? []);

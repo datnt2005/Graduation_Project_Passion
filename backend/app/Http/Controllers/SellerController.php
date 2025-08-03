@@ -77,18 +77,47 @@ class SellerController extends Controller
                     }
                     $totalProfit = $totalRevenue - $totalCost;
                     $totalLoss = $totalProfit < 0 ? abs($totalProfit) : 0;
-                    if ($totalProfit < 0) $totalProfit = 0;
+                    if ($totalProfit < 0)
+                        $totalProfit = 0;
 
                     return [
                         'id' => $seller->id,
+                        'user_id' => $seller->user_id,
                         'store_name' => $seller->store_name,
+                        'store_slug' => $seller->store_slug,
+                        'seller_type' => $seller->seller_type,
+                        'tax_code' => $seller->tax_code,
+                        'business_name' => $seller->business_name,
+                        'business_email' => $seller->business_email,
+                        'shipping_options' => $seller->shipping_options,
+                        'bio' => $seller->bio,
+                        'identity_card_number' => $seller->identity_card_number,
+                        'date_of_birth' => $seller->date_of_birth,
+                        'personal_address' => $seller->personal_address,
+                        'pickup_address' => $seller->pickup_address,
+                        'province_id' => $seller->province_id,
+                        'district_id' => $seller->district_id,
+                        'ward_id' => $seller->ward_id,
+                        'address' => $seller->address,
+                        'phone_number' => $seller->phone_number,
+                        'identity_card_file' => $seller->identity_card_file,
+                        'document' => $seller->document,
+                        'verification_status' => $seller->verification_status,
+                        'verified_at' => $seller->verified_at,
+                        'created_at' => $seller->created_at,
+                        'updated_at' => $seller->updated_at,
+                        'deleted_at' => $seller->deleted_at,
+                        'id_card_front_url' => $seller->id_card_front_url,
+                        'id_card_back_url' => $seller->id_card_back_url,
+
+                        // Thông tin user
                         'user' => [
                             'id' => $seller->user->id,
                             'name' => $seller->user->name,
                             'email' => $seller->user->email,
                         ],
-                        'status' => $seller->status,
-                        'created_at' => $seller->created_at,
+
+                        // Thống kê
                         'total_orders' => $totalOrders,
                         'completed_orders' => $completedOrders,
                         'total_products' => $seller->products_count,
@@ -120,7 +149,7 @@ class SellerController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => $sellers->values(),
-                'message' => 'Lấy danh sách seller thành công'
+                'message' => 'Lấy danh sách seller thành công 123'
             ]);
         } catch (\Exception $e) {
             Log::error('Error in SellerController@index: ' . $e->getMessage());
@@ -387,7 +416,7 @@ class SellerController extends Controller
                 'return_rate' => $returnRate,
                 'business' => $seller->seller_type === 'business' ? [
                     'name' => $seller->business_name ?? 'N/A',
-                    'address' => $seller->pickup_address  ?? 'N/A',
+                    'address' => $seller->pickup_address ?? 'N/A',
                     'description' => $seller->bio ?? 'N/A',
                     'tax_code' => $seller->tax_code ?? 'N/A',
                 ] : null,
@@ -558,9 +587,11 @@ class SellerController extends Controller
                 ->where('status', 'active')
                 ->where('end_date', '>=', now())
                 ->where('start_date', '<=', now())
-                ->with(['products' => function ($q) {
-                    $q->select('products.id', 'name', 'slug');
-                }])
+                ->with([
+                    'products' => function ($q) {
+                        $q->select('products.id', 'name', 'slug');
+                    }
+                ])
                 ->get()
                 ->map(function ($discount) {
                     $discountData = [
@@ -1018,9 +1049,11 @@ class SellerController extends Controller
 
             // Top 5 seller theo doanh thu tháng này
             $topSellers = Seller::with(['user'])
-                ->withSum(['orders' => function ($q) {
-                    $q->where('created_at', '>=', Carbon::now()->startOfMonth());
-                }], 'final_price')
+                ->withSum([
+                    'orders' => function ($q) {
+                        $q->where('created_at', '>=', Carbon::now()->startOfMonth());
+                    }
+                ], 'final_price')
                 ->orderByDesc('orders_sum_final_price')
                 ->limit(5)
                 ->get()

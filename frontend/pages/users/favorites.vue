@@ -1,6 +1,6 @@
 <template>
   <div class="bg-[#f5f7fa] text-[#1a1a1a] font-sans">
-    <div class="max-w-[1535px] mx-auto p-4 md:p-6 flex flex-col md:flex-row gap-6">
+    <div class="max-w-7xl mx-auto md:pt-6 md:pb-6 flex flex-col md:flex-row gap-6">
       <SidebarProfile class="w-full md:w-[260px] bg-white rounded-xl shadow-sm border border-[#e0e6ed] p-4" />
 
       <main class="flex-1 p-0 md:p-4">
@@ -33,9 +33,9 @@
                   class="w-24 h-24 object-cover rounded-xl border bg-white shadow-sm group-hover:scale-105 transition-transform duration-200"
                   @error="e => { e.target.src = DEFAULT_IMAGE }" />
                 <div class="flex-1">
-                  <h2 class="font-semibold text-lg text-[#212b36] mb-1 truncate max-w-[220px]">
+                  <h3 class="font-semibold text-lg text-[#212b36] mb-1 truncate max-w-[140px]">
                     {{ item.product?.name || 'Không có tiêu đề' }}
-                  </h2>
+                  </h3>
                   <p class="text-[#637381] text-sm mb-2 line-clamp-2"
                     v-html="item.product?.fullDescription || 'Không có mô tả'"></p>
                   <div v-if="item.product?.price" class="text-green-600 font-bold mb-1">

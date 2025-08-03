@@ -11,7 +11,9 @@
       <div v-else-if="!post" class="text-center text-gray-500 py-16 text-lg">Không tìm thấy bài viết.</div>
 
       <div v-else>
-        <h1 class="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-4 leading-tight">{{ post.title }}</h1>
+        <h1 class="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-4 leading-tight break-words whitespace-normal">
+          {{ post.title }}
+        </h1>
         <div class="flex flex-wrap gap-4 text-xs text-gray-500 mb-6 items-center">
           <span class="flex items-center gap-1">
             <i class="i-mdi-account-circle-outline text-base"></i>
@@ -31,13 +33,15 @@
           </span>
         </div>
 
-        <img v-if="post.thumbnail_url" :src="post.thumbnail_url" alt="Thumbnail" class="w-full max-h-96 object-cover rounded-lg mb-8 shadow" />
-        <div class="prose prose-blue max-w-none mb-8 text-base leading-relaxed" v-html="post.content"></div>
+        <img v-if="post.thumbnail_url" :src="post.thumbnail_url" alt="Thumbnail"
+          class="w-full max-h-96 object-cover rounded-lg mb-8 shadow" />
+        <div class="prose prose-blue max-w-none mb-8 text-gray-700 break-words text-base leading-relaxed" v-html="post.content"></div>
 
         <!-- Tags -->
         <div v-if="post.tags?.length" class="mt-6 flex flex-wrap items-center gap-2">
           <span class="font-semibold text-gray-700">Tags:</span>
-          <span v-for="tag in post.tags" :key="tag" class="inline-block bg-blue-100 text-blue-700 rounded px-2 py-1 text-xs">
+          <span v-for="tag in post.tags" :key="tag"
+            class="inline-block bg-blue-100 text-blue-700 rounded px-2 py-1 text-xs">
             #{{ tag }}
           </span>
         </div>
@@ -45,7 +49,7 @@
     </div>
 
     <!-- Sidebar -->
-   
+
   </main>
 </template>
 

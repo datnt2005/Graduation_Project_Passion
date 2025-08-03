@@ -197,19 +197,14 @@ class ReportController extends Controller
         ]);
     }
 
-    public function sellerIndex(Request $request)
+     public function adminIndex(Request $request)
     {
-        $userId = auth()->id();
-
         $reports = Report::with([
             'review.product.seller',
             'review.user',
             'reporter'
         ])
             ->where('type', 'review')
-            ->whereHas('review.product.seller', function ($q) use ($userId) {
-                $q->where('user_id', $userId);
-            })
             ->latest()
             ->get()
             ->filter(fn($report) => $report->review && $report->review->product && $report->review->user)
@@ -233,10 +228,9 @@ class ReportController extends Controller
         return response()->json(['success' => true, 'data' => $reports]);
     }
 
-    public function sellerShow($id)
+    // Phương thức cho admin: Xem chi tiết báo cáo
+    public function adminShow($id)
     {
-        $userId = auth()->id();
-
         $report = Report::with([
             'reporter',
             'review.product.seller',
@@ -247,11 +241,8 @@ class ReportController extends Controller
             ->where('type', 'review')
             ->find($id);
 
-        if (
-            !$report || !$report->review || !$report->review->product ||
-            !$report->review->product->seller || $report->review->product->seller->user_id !== $userId
-        ) {
-            return response()->json(['message' => 'Không tìm thấy hoặc không có quyền truy cập'], 403);
+        if (!$report || !$report->review || !$report->review->product) {
+            return response()->json(['message' => 'Không tìm thấy báo cáo'], 404);
         }
 
         $report->review->loadCount('likes');
@@ -284,21 +275,17 @@ class ReportController extends Controller
         ]);
     }
 
-    public function sellerUpdateStatus(Request $request, $id)
+    // Phương thức cho admin: Cập nhật trạng thái báo cáo
+    public function adminUpdateStatus(Request $request, $id)
     {
         $request->validate([
             'status' => 'required|in:resolved,dismissed',
         ]);
 
-        $userId = auth()->id();
-
         $report = Report::with('review.product.seller')->findOrFail($id);
 
-        if (
-            !$report->review || !$report->review->product ||
-            !$report->review->product->seller || $report->review->product->seller->user_id !== $userId
-        ) {
-            return response()->json(['message' => 'Bạn không có quyền xử lý báo cáo này'], 403);
+        if (!$report->review || !$report->review->product) {
+            return response()->json(['message' => 'Không tìm thấy báo cáo'], 404);
         }
 
         $newStatus = $request->input('status');
@@ -318,6 +305,7 @@ class ReportController extends Controller
         return response()->json(['message' => 'Cập nhật trạng thái thành công']);
     }
 
+    
     public function getReportProduct(Request $request)
     {
         try {
@@ -404,6 +392,93 @@ class ReportController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    public function sellerIndex(Request $request)
+    {
+        $userId = auth()->id();
+
+        $reports = Report::with([
+                'review.product.seller',
+                'review.user',
+                'reporter'
+            ])
+            ->where('type', 'review')
+            ->whereHas('review.product.seller', function ($q) use ($userId) {
+                $q->where('user_id', $userId);
+            })
+            ->latest()
+            ->get()
+            ->filter(fn($report) => $report->review && $report->review->product && $report->review->user)
+            ->map(function ($report) {
+                return [
+                    'report_id' => $report->id,
+                    'reason' => $report->reason,
+                    'status' => $report->status,
+                    'reported_at' => $report->created_at,
+                    'review' => [
+                        'id' => $report->review->id,
+                        'content' => $report->review->content,
+                        'product_name' => $report->review->product->name,
+                        'user_name' => $report->review->user->name,
+                    ],
+                    'reporter' => $report->reporter->name ?? 'Ẩn danh',
+                ];
+            })
+            ->values();
+
+        return response()->json(['success' => true, 'data' => $reports]);
+    }
+
+    public function sellerShow($id)
+    {
+        $userId = auth()->id();
+
+        $report = Report::with([
+                'reporter',
+                'review.product.seller',
+                'review.user',
+                'review.reply',
+                'review.media',
+            ])
+            ->where('type', 'review')
+            ->find($id);
+
+        if (
+            !$report || !$report->review || !$report->review->product ||
+            !$report->review->product->seller || $report->review->product->seller->user_id !== $userId
+        ) {
+            return response()->json(['message' => 'Không tìm thấy hoặc không có quyền truy cập'], 403);
+        }
+
+        $report->review->loadCount('likes');
+
+        return response()->json([
+            'data' => [
+                'report_id' => $report->id,
+                'reason' => $report->reason,
+                'status' => $report->status,
+                'reported_at' => $report->created_at,
+                'review' => [
+                    'id' => $report->review->id,
+                    'content' => $report->review->content,
+                    'rating' => $report->review->rating,
+                    'likes_count' => $report->review->likes_count ?? 0,
+                    'status' => $report->review->status,
+                    'created_at' => $report->review->created_at,
+                    'product_name' => optional($report->review->product)->name,
+                    'product_image' => optional($report->review->product)->image,
+                    'user_name' => optional($report->review->user)->name,
+                    'reply' => $report->review->reply,
+                    'media' => $report->review->media->map(fn($m) => [
+                        'id' => $m->id,
+                        'url' => Storage::disk('r2')->url($m->media_url),
+                        'type' => $m->media_type,
+                    ])->values(),
+                ],
+                'reporter' => $report->reporter->name ?? 'Ẩn danh',
+            ]
+        ]);
     }
 
 }

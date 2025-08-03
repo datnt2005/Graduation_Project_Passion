@@ -1,7 +1,7 @@
 <template>
-  <main class="bg-[#f5f7fa] font-sans text-sm text-[#222222]">
-    <div class="max-w-[1200px] mx-auto p-6 space-y-6">
-      <div class="w-full max-w-6xl">
+  <main class="bg-[#f5f5f5] font-sans text-sm text-[#222222]">
+    <div class="max-w-7xl mx-auto p-6 space-y-6">
+      <div class="w-full max-w-7xl">
         <div class="text-sm text-gray-500 rounded">
           <nuxt-link to="/">
             <span class="text-gray-400">Trang chủ</span>
@@ -13,7 +13,7 @@
       <!-- Loading State -->
       <div
         v-if="loading"
-        class="grid grid-cols-1 md:grid-cols-2 gap-6 animate-pulse bg-white border border-gray-200 rounded-md p-4 md:p-6 mx-auto w-full max-w-[1102px] min-h-[610px]"
+        class="grid grid-cols-1 md:grid-cols-2 gap-6 animate-pulse bg-white border border-gray-200 rounded-md p-4 md:p-6 mx-auto w-full max-w-7xl min-h-[610px]"
       >
         <!-- Left: Ảnh sản phẩm lớn + thumbnail -->
         <div class="flex flex-col gap-4">
@@ -173,7 +173,7 @@
         </h3>
         <div
           v-if="relatedProducts.length"
-          class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-6 max-w-6xl mx-auto px-4"
+          class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-6 max-w-7xl mx-auto px-4"
         >
           <RelatedProductItem
             v-for="item in displayRelatedProducts"
@@ -186,7 +186,7 @@
         </div>
         <div
           v-if="relatedProducts.length > 5"
-          class="max-w-6xl mx-auto px-4 mt-6 flex justify-end"
+          class="max-w-7xl mx-auto px-4 mt-6 flex justify-end"
         >
           <button
             class="text-sm text-blue-600 cursor-pointer hover:underline hover:text-blue-800 transition-colors duration-200"

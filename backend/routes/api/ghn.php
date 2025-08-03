@@ -11,4 +11,3 @@ Route::post('/ghn/districts', [GHNController::class, 'getDistricts']);
 Route::post('/ghn/wards', [GHNController::class, 'getWards']);
 Route::post('ghn/shipping-fee', [GHNController::class, 'calculateFee']);
 Route::post('/ghn/services', [GHNController::class, 'getServices']);
-

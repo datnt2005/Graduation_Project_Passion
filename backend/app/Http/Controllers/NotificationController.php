@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use App\Models\Notification;
 use App\Models\User;
 use App\Models\NotificationRecipient;
@@ -326,15 +327,23 @@ class NotificationController extends Controller
     }
 
 
-    public function destroyAll()
-    {
-        try {
-            Notification::truncate();
-            return response()->json(['message' => 'Đã xóa tất cả thông báo']);
-        } catch (\Exception $e) {
-            return response()->json(['message' => 'Lỗi khi xóa tất cả thông báo'], 500);
+  public function destroyAll()
+{
+    try {
+        $user = auth()->user();
+        if (!$user) {
+            return response()->json(['error' => 'Người dùng chưa được xác thực'], 401);
         }
+
+        $user->notifications()->delete(); // Xóa hàng loạt
+
+        return response()->json(['message' => 'Đã xóa tất cả thông báo'], 200);
+    } catch (\Exception $e) {
+        \Log::error('Lỗi xóa tất cả thông báo: ' . $e->getMessage(), ['exception' => $e]);
+        return response()->json(['error' => 'Lỗi khi xóa tất cả thông báo', 'message' => $e->getMessage()], 500);
     }
+}
+
 
     public function sendMultiple(Request $request)
     {
@@ -366,8 +375,7 @@ class NotificationController extends Controller
                 ], 422);
             }
 
-            if ($notification->status === 'sent')
-                continue;
+            if ($notification->status === 'sent') continue;
 
             $recipientUsers = $notification->users;
 
@@ -452,65 +460,63 @@ class NotificationController extends Controller
 
 
 
-   public function getMyNotifications(Request $request)
-{
-    try {
-        $user = auth()->user();
-        if (!$user) {
-            return response()->json(['message' => 'Chưa đăng nhập.'], 401);
-        }
-
-        $baseImageUrl = rtrim(env('R2_URL'), '/');
-
-        $notifications = NotificationRecipient::with([
-            'notification' => function ($query) {
-                $query->where('status', 'sent'); // 🔥 lọc chỉ lấy thông báo đã gửi
+    public function getMyNotifications(Request $request)
+    {
+        try {
+            $user = auth()->user();
+            if (!$user) {
+                return response()->json(['message' => 'Chưa đăng nhập.'], 401);
             }
-        ])
-            ->where('user_id', $user->id)
-            ->where('is_hidden', 0)
-            ->orderByDesc('created_at')
-            ->get()
-            ->filter(fn($recipient) => $recipient->notification) // loại bỏ những dòng không có notification (do không match status)
-            ->map(function ($recipient) use ($baseImageUrl) {
-                $n = $recipient->notification;
 
-                return [
-                    'id' => $n->id,
-                    'title' => $n->title,
-                    'content' => (string) $n->content,
-                    'link' => $n->link,
-                    'image_url' => $n->image_url && !str_starts_with($n->image_url, 'http')
-                        ? $baseImageUrl . '/' . ltrim($n->image_url, '/')
-                        : $n->image_url,
-                    'type' => $n->type,
-                    'status' => $n->status,
-                    'is_read' => $recipient->is_read,
-                    'read_at' => $recipient->read_at,
-                    'sent_at' => $n->sent_at ? Carbon::parse($n->sent_at)->format('Y-m-d H:i:s') : null,
-                    'time_ago' => $n->sent_at
-                        ? Carbon::parse($n->sent_at)->timezone('Asia/Ho_Chi_Minh')->diffForHumans()
-                        : null,
-                ];
-            });
+            $baseImageUrl = rtrim(env('R2_URL'), '/');
 
-        // Thêm log để debug
-        Log::info('Notifications fetched', ['count' => $notifications->count(), 'unread' => $notifications->where('is_read', 0)->count()]);
+            $notifications = NotificationRecipient::with(['notification' => function ($query) {
+                $query->where('status', 'sent'); // Chỉ lấy thông báo đã gửi
+            }])
+                ->where('user_id', $user->id)
+                ->where('is_hidden', 0)
+                ->orderByDesc('created_at')
+                ->get()
+                ->filter(fn($recipient) => $recipient->notification) // Loại bỏ bản ghi không hợp lệ
+                ->map(function ($recipient) use ($baseImageUrl) {
+                    $n = $recipient->notification;
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Lấy danh sách thông báo thành công.',
-            'data' => $notifications->values()->all(),
-        ]);
-    } catch (\Exception $e) {
-        Log::error('Lỗi khi lấy thông báo người dùng: ' . $e->getMessage());
-        return response()->json([
-            'success' => false,
-            'message' => 'Đã xảy ra lỗi khi lấy thông báo.',
-            'error' => config('app.debug') ? $e->getMessage() : null
-        ], 500);
+                    return [
+                        'id' => $n->id,
+                        'title' => $n->title,
+                        'content' => (string) $n->content,
+                        'link' => $n->link,
+                        'image_url' => $n->image_url && !str_starts_with($n->image_url, 'http')
+                            ? $baseImageUrl . '/' . ltrim($n->image_url, '/')
+                            : $n->image_url,
+                        'type' => $n->type,
+                        'status' => $n->status,
+                        'is_read' => $recipient->is_read,
+                        'read_at' => $recipient->read_at,
+                        'sent_at' => $n->sent_at ? Carbon::parse($n->sent_at)->format('Y-m-d H:i:s') : null,
+                        'time_ago' => $n->sent_at
+                            ? Carbon::parse($n->sent_at)->timezone('Asia/Ho_Chi_Minh')->diffForHumans()
+                            : null,
+                    ];
+                });
+
+            // Thêm log để debug
+            Log::info('Notifications fetched', ['count' => $notifications->count(), 'unread' => $notifications->where('is_read', 0)->count()]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Lấy danh sách thông báo thành công.',
+                'data' => $notifications->values()->all(),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Lỗi khi lấy thông báo người dùng: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Đã xảy ra lỗi khi lấy thông báo.',
+                'error' => config('app.debug') ? $e->getMessage() : null
+            ], 500);
+        }
     }
-}
 
 
 
@@ -760,8 +766,4 @@ class NotificationController extends Controller
             ], 404);
         }
     }
-
-    
-
-
 }

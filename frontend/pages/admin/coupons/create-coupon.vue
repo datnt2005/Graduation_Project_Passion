@@ -1,4 +1,11 @@
 <template>
+  <h1 class="text-xl font-semibold text-gray-800 px-6 pt-6">Thêm chiết khấu</h1>
+  <div class="px-6 pb-4">
+    <nuxt-link to="/admin/coupons/list-coupon" class="text-gray-600 hover:underline text-sm">
+      Danh sách chiết khấu
+    </nuxt-link>
+    <span class="text-gray-600 text-sm"> / Thêm chiết khấu</span>
+  </div>
   <div class="flex min-h-screen bg-gray-100">
     <!-- Loading Overlay -->
     <div v-if="loading" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -141,7 +148,6 @@
                           <option value="fixed">Giảm giá cố định</option>
                           <option value="percentage">Giảm giá theo phần trăm</option>
                           <option value="shipping_fee">Giảm giá vận chuyển</option>
-
                         </select>
                         <span v-if="errors.discount_type" class="text-red-500 text-xs mt-1">{{ errors.discount_type }}</span>
                       </div>
@@ -169,7 +175,6 @@
                             <input
                               v-model="formData.start_date"
                               type="date"
-                              :min="currentDate"
                               class="w-full md:w-60 rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                             />
                             <span v-if="errors.start_date" class="text-red-500 text-xs mt-1">{{ errors.start_date }}</span>
@@ -178,7 +183,7 @@
                             <input
                               v-model="formData.end_date"
                               type="date"
-                              :min="formData.start_date || currentDate"
+                              :min="formData.start_date"
                               class="w-full md:w-60 rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                             />
                             <span v-if="errors.end_date" class="text-red-500 text-xs mt-1">{{ errors.end_date }}</span>
@@ -527,15 +532,13 @@ definePageMeta({
 });
 
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
-import { useRouter } from 'vue-router';
-import { useRuntimeConfig } from '#imports'
+import { useRuntimeConfig, navigateTo } from '#imports'
 import { secureFetch } from '@/utils/secureFetch'
 
 const products = ref([]);
 const categories = ref([]);
 const users = ref([]);
 
-const router = useRouter();
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBaseUrl
 
@@ -741,16 +744,9 @@ const validateForm = () => {
   if (!formData.start_date) {
     errors.start_date = 'Vui lòng chọn ngày bắt đầu';
     isValid = false;
-  } else {
-    const startDate = new Date(formData.start_date);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    if (startDate < today) {
-      errors.start_date = 'Ngày bắt đầu phải từ ngày hôm nay trở đi';
-      isValid = false;
-    }
   }
+  // Bỏ validation kiểm tra ngày bắt đầu phải từ hôm nay trở đi
+  // Cho phép chọn ngày trong quá khứ
 
   // Validate end_date
   if (!formData.end_date) {
@@ -798,39 +794,43 @@ const createCoupon = async () => {
 
   try {
     loading.value = true;
+    console.log('Creating coupon with data:', formData);
     const data = await secureFetch(`${apiBase}/discounts`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(formData)
     }, ['admin']);
-    if (data && data.id) {
+    console.log('API response:', data);
+    if (data && data.success && data.data && data.data.id) {
       showSuccessNotification('Tạo mã giảm giá thành công!');
       // Gán sản phẩm, danh mục, user nếu có
       if (selectedProducts.value.length > 0) {
-        await secureFetch(`${apiBase}/discounts/${data.id}/products`, {
+        await secureFetch(`${apiBase}/discounts/${data.data.id}/products`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ product_ids: selectedProducts.value.map(p => p.id) })
         }, ['admin']);
       }
       if (selectedCategories.value.length > 0) {
-        await secureFetch(`${apiBase}/discounts/${data.id}/categories`, {
+        await secureFetch(`${apiBase}/discounts/${data.data.id}/categories`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ category_ids: selectedCategories.value.map(c => c.id) })
         }, ['admin']);
       }
       if (selectedUsers.value.length > 0) {
-        await secureFetch(`${apiBase}/discounts/${data.id}/users`, {
+        await secureFetch(`${apiBase}/discounts/${data.data.id}/users`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ user_ids: selectedUsers.value.map(u => u.id) })
         }, ['admin']);
       }
+      console.log('Redirecting to list page...');
       setTimeout(() => {
-        router.push('/admin/coupons/list-coupon');
+        navigateTo('/admin/coupons/list-coupon');
       }, 1200);
     } else {
+      console.error('API response does not contain expected data:', data);
       showErrorNotification(data && data.message ? data.message : 'Có lỗi xảy ra khi tạo mã giảm giá');
     }
   } catch (error) {
@@ -907,4 +907,4 @@ onMounted(() => {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
-</style>
+</style> 

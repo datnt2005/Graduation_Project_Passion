@@ -84,7 +84,7 @@
                       <option value="">Chọn quyền</option>
                       <option value="admin">Quản trị viên</option>
                       <option value="user">Người dùng</option>
-                      <option value="seller">Seller</option>
+                      <option value="seller">Người bán</option>
                     </select>
                     <span v-if="errors.role" class="text-red-500 text-xs mt-1">{{ errors.role }}</span>
                   </div>

@@ -15,6 +15,13 @@ Route::middleware(['auth:sanctum', 'checkRole:admin'])
         Route::get('/stats-list', [DashboardController::class, 'statsList']);
         Route::get('/revenue-chart', [DashboardController::class, 'revenueChart']);
         Route::get('/revenue-profit-chart', [DashboardController::class, 'revenueProfitChart']);
+        Route::get('/user-stats', [DashboardController::class, 'getUserStats']);
+        
+        // Thêm các routes mới
+        Route::get('/sellers-stats', [DashboardController::class, 'getAllSellersStats']);
+        Route::get('/orders-stats', [DashboardController::class, 'getAllOrdersStats']);
+        Route::get('/users-stats', [DashboardController::class, 'getActiveUsersStats']);
+        Route::get('/system-overview', [DashboardController::class, 'getSystemOverview']);
     });
 
 // Admin routes
@@ -24,7 +31,7 @@ Route::middleware(['auth:sanctum', 'checkRole:admin'])
         // Orders
         Route::get('/orders', [OrderController::class, 'adminList']);
         Route::get('/orders/list', [OrderController::class, 'index']);
-        
+         
         // Sellers
         Route::get('/sellers', [SellerController::class, 'index']);
         Route::get('/sellers/stats', [SellerController::class, 'stats']);
@@ -33,6 +40,8 @@ Route::middleware(['auth:sanctum', 'checkRole:admin'])
         Route::get('/payouts/approved', [PayoutController::class, 'approvedList']);
         Route::get('/payouts/stats', [PayoutController::class, 'stats']);
         Route::get('/payouts/chart', [PayoutController::class, 'chart']);
+        
+
     });
 
 // Orders routes

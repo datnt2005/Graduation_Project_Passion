@@ -27,7 +27,7 @@
               <img
                 :src="seller.user?.avatar?.startsWith('https://') 
                   ? seller.user.avatar 
-                  : `https://pub-3fc809b4396849cba1c342a5b9f50be9.r2.dev/${seller.user?.avatar || 'default.jpg'}`"
+                  : `https://pub-3fc809b4396849cba1c342a5b9f50be9.r2.dev/${seller.user?.avatar || 'avatars/default.jpg'}`"
                 class="w-20 h-20 rounded-full border object-cover"
                 alt="avatar"
               />

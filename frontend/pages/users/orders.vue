@@ -1,6 +1,6 @@
 <template>
   <section class="bg-[#f5f7fa] font-sans text-[#1a1a1a] ">
-    <div class="flex flex-col md:flex-row max-w-screen-2xl mx-auto px-4 sm:px-6 py-6 gap-6">
+    <div class="max-w-7xl mx-auto md:pt-6 md:pb-6 flex flex-col md:flex-row gap-6">
       <!-- Sidebar -->
       <aside class="w-full md:w-auto md:min-w-[250px]">
         <SidebarProfile class="w-full border border-gray-200 rounded-md bg-white" />

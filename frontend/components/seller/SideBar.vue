@@ -85,7 +85,7 @@
                   to="/seller/seller_profile"
                   class="flex items-center px-4 py-2 hover:bg-gray-800 rounded"
                   :class="
-                    route.path.startsWith('/seller/users')
+                    route.path.startsWith('/seller/seller_profile')
                       ? 'bg-gray-800 text-green-400 font-bold'
                       : 'text-gray-300'
                   "
@@ -508,7 +508,7 @@ const fetchSeller = async () => {
       console.error("Không tìm thấy access_token");
       return false;
     }
-    const res = await axios.get(`${API}/sellers/seller/me`); // Thêm /api
+    const res = await axios.get(`${API}/sellers/me`); // Thêm /api
     seller.value = res.data.data || res.data.seller || {};
     return true;
   } catch (error) {
@@ -516,7 +516,6 @@ const fetchSeller = async () => {
     if (error.response?.status === 401) {
       console.warn("Token không hợp lệ hoặc đã hết hạn");
       localStorage.removeItem("access_token");
-      // window.location.href = '/login'; // Chuyển hướng nếu cần
     }
     return false;
   }

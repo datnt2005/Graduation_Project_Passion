@@ -162,8 +162,6 @@
   </div>
 </template>
 
-
-
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useToast } from '@/composables/useToast';

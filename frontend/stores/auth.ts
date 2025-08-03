@@ -35,6 +35,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   const logout = () => {
     localStorage.removeItem('access_token')
+    localStorage.removeItem('user_profile')
     delete axios.defaults.headers.common['Authorization']
     isLoggedIn.value = false
     currentUser.value = null

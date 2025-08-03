@@ -467,16 +467,20 @@ class OrderController extends Controller
             ]);
         }
 
+        // Chỉ trả về thông báo một lần duy nhất
+        $message = '';
+        if ($user->status === 'banned') {
+            $message = 'Tài khoản của bạn đã bị khóa do có quá nhiều đơn hàng bị từ chối nhận.';
+        } elseif ($rejectedOrdersCount >= 2) {
+            $message = 'Bạn không thể sử dụng phương thức thanh toán COD vì có quá nhiều đơn hàng bị từ chối nhận.';
+        } else {
+            $message = 'Bạn có thể sử dụng phương thức thanh toán COD.';
+        }
         return response()->json([
             'can_use_cod' => $rejectedOrdersCount < 2,
             'is_account_banned' => $user->status === 'banned',
-            'message' => $user->status === 'banned'
-                ? 'Tài khoản của bạn đã bị khóa do có quá nhiều đơn hàng bị từ chối nhận.'
-                : ($rejectedOrdersCount >= 2
-                    ? 'Bạn không thể sử dụng phương thức thanh toán COD vì có
-
- quá nhiều đơn hàng bị từ chối nhận.'
-                    : 'Bạn có thể sử dụng phương thức thanh toán COD.')
+            'rejected_orders_count' => $rejectedOrdersCount,
+            'message' => $message
         ], 200);
     }
 
@@ -538,6 +542,34 @@ class OrderController extends Controller
         'store_service_ids.*.exists' => 'Phương thức giao hàng cho cửa hàng không tồn tại',
         'items.*.service_id.exists' => 'Phương thức giao hàng không tồn tại trong items',
     ]);
+
+    // Validation cho mutual exclusivity của discount
+    if ($request->discount_ids && is_array($request->discount_ids)) {
+        $shopDiscountCount = 0;
+        $adminDiscountCount = 0;
+        
+        foreach ($request->discount_ids as $did) {
+            $discount = \App\Models\Discount::find($did);
+            if ($discount) {
+                if ($discount->discount_type === 'shipping_fee') {
+                    continue; // Bỏ qua shipping discount
+                }
+                
+                if ($discount->seller_id === null) {
+                    $adminDiscountCount++;
+                } else {
+                    $shopDiscountCount++;
+                }
+            }
+        }
+        
+        if ($shopDiscountCount > 0 && $adminDiscountCount > 0) {
+            return response()->json([
+                'message' => 'Không thể áp dụng cùng lúc mã giảm giá của shop và admin. Vui lòng chọn một loại.',
+                'error_type' => 'mutual_exclusivity'
+            ], 400);
+        }
+    }
 
     try {
         DB::beginTransaction();
@@ -630,10 +662,13 @@ class OrderController extends Controller
             $shopDiscount = null;
             $adminDiscount = null;
             $shippingDiscount = null;
+            
+            // Tìm tất cả discount được áp dụng
             if ($request->discount_ids && is_array($request->discount_ids)) {
                 foreach ($request->discount_ids as $did) {
                     $discount = Discount::find($did);
                     if (!$discount) continue;
+                    
                     if ($discount->discount_type === 'shipping_fee' && $discount->seller_id === null) {
                         $shippingDiscount = $discount;
                     } elseif ($discount->seller_id == $sellerId && ($discount->discount_type === 'percentage' || $discount->discount_type === 'fixed')) {
@@ -644,28 +679,63 @@ class OrderController extends Controller
                 }
             }
 
-            $usedDiscount = $shopDiscount ?: $adminDiscount;
+            // Kiểm tra mutual exclusivity: chỉ áp dụng 1 loại discount (shop hoặc admin)
+            $usedDiscount = null;
+            if ($shopDiscount && $adminDiscount) {
+                // Nếu có cả 2, ưu tiên shop discount
+                $usedDiscount = $shopDiscount;
+                Log::info("Cả shop và admin discount đều được áp dụng, ưu tiên shop discount", [
+                    'order_id' => $order->id,
+                    'shop_discount_id' => $shopDiscount->id,
+                    'admin_discount_id' => $adminDiscount->id,
+                    'selected_discount_id' => $usedDiscount->id
+                ]);
+            } elseif ($shopDiscount) {
+                $usedDiscount = $shopDiscount;
+            } elseif ($adminDiscount) {
+                $usedDiscount = $adminDiscount;
+            }
+
+            // Tính toán discount price
             if ($usedDiscount) {
-                $discountPrice = $usedDiscount->discount_type === 'percentage'
-                    ? $totalPrice * ($usedDiscount->discount_value / 100)
-                    : $usedDiscount->discount_value;
+                if ($usedDiscount->discount_type === 'percentage') {
+                    $discountPrice = $totalPrice * ($usedDiscount->discount_value / 100);
+                } else {
+                    $discountPrice = $usedDiscount->discount_value;
+                }
+                
+                // Đảm bảo discount không vượt quá total price
                 $discountPrice = min($discountPrice, $totalPrice);
+                
+                Log::info("Áp dụng discount cho order", [
+                    'order_id' => $order->id,
+                    'discount_id' => $usedDiscount->id,
+                    'discount_type' => $usedDiscount->discount_type,
+                    'discount_value' => $usedDiscount->discount_value,
+                    'total_price' => $totalPrice,
+                    'calculated_discount' => $discountPrice,
+                    'seller_id' => $usedDiscount->seller_id
+                ]);
+                
                 DiscountUser::create([
                     'discount_id' => $usedDiscount->id,
                     'user_id' => $request->user()->id,
                     'is_used' => true,
                 ]);
+                // Tăng used_count cho discount
+                if ($usedDiscount) {
+                    $usedDiscount->increment('used_count');
+                }
                 $order->discount_id = $usedDiscount->id;
             }
 
-            // --- SỬA ĐOẠN NÀY: Trừ thêm discount từ store_discounts nếu có ---
-            $extraShopDiscount = 0;
+            // Frontend đã tính và gửi discount, backend chỉ cần sử dụng
+            $shopDiscount = 0;
             if ($request->has('store_discounts') && isset($request->store_discounts[$sellerId])) {
-                $extraShopDiscount = floatval($request->store_discounts[$sellerId]);
+                $shopDiscount = floatval($request->store_discounts[$sellerId]);
             }
-            $finalPrice = $totalPrice - $discountPrice - $extraShopDiscount;
+            $finalPrice = $totalPrice - $shopDiscount;
             $finalPrice = max($finalPrice, 0);
-            // --- END SỬA ---
 
             $shopServiceId = $request->store_service_ids[$sellerId] ?? null;
             $shippingMethod = ShippingMethod::find($shopServiceId);
@@ -673,7 +743,13 @@ class OrderController extends Controller
                 throw new \Exception('Phương thức giao hàng không tồn tại: service_id ' . $shopServiceId);
             }
 
+            $shippingDiscountValue = 0;
+            if ($request->has('store_shipping_discounts') && isset($request->store_shipping_discounts[$sellerId])) {
+                $shippingDiscountValue = floatval($request->store_shipping_discounts[$sellerId]);
+            }
             $shippingFee = $request->store_shipping_fees[$sellerId] ?? 0;
+            // Trừ discount phí ship đã chia đều cho shop này
+            $shippingFee = max(0, $shippingFee - $shippingDiscountValue);
             // Bỏ kiểm tra khớp với shippingMethod->cost
             Log::info("Sử dụng phí vận chuyển từ request cho seller_id: {$sellerId}", [
                 'shipping_fee' => $shippingFee,
@@ -722,12 +798,14 @@ class OrderController extends Controller
             }
 
             if ($shippingDiscount) {
-                $shippingFee = max(0, $shippingFee - $shippingDiscount->discount_value);
+                // FE đã trừ discount rồi, BE chỉ cần ghi nhận việc sử dụng discount
                 DiscountUser::create([
                     'discount_id' => $shippingDiscount->id,
                     'user_id' => $request->user()->id,
                     'is_used' => true,
                 ]);
+                // Tăng used_count cho shipping discount
+                $shippingDiscount->increment('used_count');
             }
 
             $shipping = Shipping::create([
@@ -741,7 +819,7 @@ class OrderController extends Controller
 
             $order->update([
                 'total_price' => $totalPrice,
-                'discount_price' => $discountPrice + $extraShopDiscount,
+                'discount_price' => $shopDiscount,
                 'final_price' => $finalPrice + $shippingFee,
                 'discount_id' => $order->discount_id,
             ]);

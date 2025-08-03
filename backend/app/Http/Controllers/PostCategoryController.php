@@ -40,7 +40,7 @@ class PostCategoryController extends Controller
         try {
             $validated = $request->validate([
                 'name' => 'required|string|max:255',
-                'slug' => 'required|string|max:255|unique:post_categories',
+                'slug' => 'required|string|max:255|unique:post_categories,slug|regex:/^[a-zA-Z0-9-]+$/',
                 'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:4048'
             ], [
                 'name.required' => 'Tên danh mục là bắt buộc.',
@@ -48,6 +48,7 @@ class PostCategoryController extends Controller
                 'name.max' => 'Tên danh mục tối đa 255 ký tự.',
                 'slug.required' => 'Slug là bắt buộc.',
                 'slug.string' => 'Slug phải là chuỗi.',
+                'slug.regex' => 'Slug chỉ được chứa chữ cái, số và dấu gạch ngang.',
                 'slug.max' => 'Slug tối đa 255 ký tự.',
                 'slug.unique' => 'Slug đã tồn tại.',
                 'image.image' => 'File phải là ảnh.',
@@ -117,7 +118,7 @@ class PostCategoryController extends Controller
             $category = PostCategory::findOrFail($id);
             $validated = $request->validate([
                 'name' => 'required|string|max:255',
-                'slug' => 'required|string|max:255|unique:post_categories,slug,' . $id,
+                'slug' => 'required|string|max:255|unique:post_categories,slug,' . $id . '|regex:/^[a-zA-Z0-9-]+$/',
                 'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:4048'
             ], [
                 'name.required' => 'Tên danh mục là bắt buộc.',
@@ -126,6 +127,7 @@ class PostCategoryController extends Controller
                 'slug.required' => 'Slug là bắt buộc.',
                 'slug.string' => 'Slug phải là chuỗi.',
                 'slug.max' => 'Slug tối đa 255 ký tự.',
+                'slug.regex' => 'Slug chỉ được chứa chữ cái, số và dấu gạch ngang.',
                 'slug.unique' => 'Slug đã tồn tại.',
                 'image.image' => 'File phải là ảnh.',
                 'image.mimes' => 'Ảnh phải có định dạng: jpeg, png, jpg, gif, svg, webp.',

@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AdminSellerController;
 use App\Http\Controllers\SellerOrderController;
+use App\Http\Controllers\OrderController;
 
 Route::prefix('admin')->group(function () {
    Route::get('/sellers', [AdminSellerController::class, 'index']);
@@ -13,11 +14,12 @@ Route::prefix('admin')->group(function () {
     Route::post('/sellers/{id}/ban', [AdminSellerController::class, 'ban']);
 });
 
-Route::middleware(['auth:sanctum'])->get('/orders/seller', [SellerOrderController::class, 'index']);
+Route::middleware(['auth:sanctum', 'checkRole:seller'])->get('/orders/seller', [SellerOrderController::class, 'index']);
 
-Route::middleware(['auth:sanctum'])->group(function () {
+Route::middleware(['auth:sanctum', 'checkRole:seller'])->group(function () {
     Route::put('/orders/seller/{id}/status', [SellerOrderController::class, 'updateStatus']);
 });
-Route::middleware(['auth:sanctum'])->group(function () {
+Route::middleware(['auth:sanctum', 'checkRole:seller'])->group(function () {
    Route::get('orders/seller/{id}', [SellerOrderController::class, 'show']);
+   Route::post('orders/seller/{orderId}/sync-ghn', [OrderController::class, 'syncGhnStatus']);
 });

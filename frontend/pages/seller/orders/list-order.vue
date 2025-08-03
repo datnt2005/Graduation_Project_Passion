@@ -650,7 +650,77 @@
             </div>
             <div class="mb-4">
               <label class="block mb-1 font-medium">Tên ngân hàng</label>
-              <input v-model="withdrawBankName" class="w-full border rounded px-3 py-2" placeholder="VD: Vietcombank" />
+              <select v-model="withdrawBankName" class="w-full border rounded px-3 py-2">
+                <option value="" disabled selected>Chọn ngân hàng</option>
+                
+                <optgroup label="Ngân hàng Thương mại Nhà nước">
+                  <option value="Agribank">Ngân hàng Nông nghiệp và Phát triển Nông thôn Việt Nam (Agribank)</option>
+                </optgroup>
+              
+                <optgroup label="Ngân hàng Thương mại Cổ phần">
+                  <option value="Vietcombank">Ngân hàng TMCP Ngoại thương Việt Nam (Vietcombank)</option>
+                  <option value="VietinBank">Ngân hàng TMCP Công thương Việt Nam (VietinBank)</option>
+                  <option value="BIDV">Ngân hàng TMCP Đầu tư và Phát triển Việt Nam (BIDV)</option>
+                  <option value="ACB">Ngân hàng TMCP Á Châu (ACB)</option>
+                  <option value="ABBANK">Ngân hàng TMCP An Bình (ABBANK)</option>
+                  <option value="BVBank">Ngân hàng TMCP Bản Việt (BVBank)</option>
+                  <option value="BAOVIET Bank">Ngân hàng TMCP Bảo Việt (BAOVIET Bank)</option>
+                  <option value="Bac A Bank">Ngân hàng TMCP Bắc Á (Bac A Bank)</option>
+                  <option value="LienVietPostBank">Ngân hàng TMCP Bưu điện Liên Việt (LienVietPostBank)</option>
+                  <option value="SeABank">Ngân hàng TMCP Đông Nam Á (SeABank)</option>
+                  <option value="MSB">Ngân hàng TMCP Hàng Hải Việt Nam (MSB)</option>
+                  <option value="Techcombank">Ngân hàng TMCP Kỹ thương Việt Nam (Techcombank)</option>
+                  <option value="MB Bank">Ngân hàng TMCP Quân Đội (MB Bank)</option>
+                  <option value="OCB">Ngân hàng TMCP Phương Đông (OCB)</option>
+                  <option value="HDBank">Ngân hàng TMCP Phát triển Thành phố Hồ Chí Minh (HDBank)</option>
+                  <option value="NCB">Ngân hàng TMCP Quốc Dân (NCB)</option>
+                  <option value="VIB">Ngân hàng TMCP Quốc tế Việt Nam (VIB)</option>
+                  <option value="SCB">Ngân hàng TMCP Sài Gòn (SCB)</option>
+                  <option value="SaigonBank">Ngân hàng TMCP Sài Gòn Công Thương (SaigonBank)</option>
+                  <option value="SHB">Ngân hàng TMCP Sài Gòn – Hà Nội (SHB)</option>
+                  <option value="TPBank">Ngân hàng TMCP Tiên Phong (TPBank)</option>
+                  <option value="VPBank">Ngân hàng TMCP Việt Nam Thịnh Vượng (VPBank)</option>
+                  <option value="KienlongBank">Ngân hàng TMCP Kiên Long (KienlongBank)</option>
+                  <option value="Nam A Bank">Ngân hàng TMCP Nam Á (Nam A Bank)</option>
+                  <option value="PG Bank">Ngân hàng TMCP Petrolimex (PG Bank)</option>
+                  <option value="PVcomBank">Ngân hàng TMCP Đại chúng Việt Nam (PVcomBank)</option>
+                  <option value="VietABank">Ngân hàng TMCP Việt Á (VietABank)</option>
+                  <option value="Eximbank">Ngân hàng TMCP Xuất Nhập khẩu Việt Nam (Eximbank)</option>
+                  <option value="Vikki Bank">Ngân hàng TMCP Số Vikki (Vikki Bank)</option>
+                </optgroup>
+              
+                <optgroup label="Ngân hàng 100% vốn nước ngoài">
+                  <option value="ANZ Bank">Ngân hàng TNHH MTV ANZ Việt Nam (ANZ Bank)</option>
+                  <option value="Citibank">Ngân hàng TNHH MTV Citibank Việt Nam (Citibank)</option>
+                  <option value="Deutsche Bank">Ngân hàng TNHH MTV Deutsche Bank Việt Nam</option>
+                  <option value="Hong Leong">Ngân hàng TNHH MTV Hong Leong Việt Nam</option>
+                  <option value="HSBC">Ngân hàng TNHH MTV HSBC Việt Nam (HSBC)</option>
+                  <option value="Shinhan Bank">Ngân hàng TNHH MTV Shinhan Việt Nam (Shinhan Bank)</option>
+                  <option value="Standard Chartered">Ngân hàng TNHH MTV Standard Chartered Việt Nam</option>
+                  <option value="UOB">Ngân hàng TNHH MTV UOB Việt Nam</option>
+                  <option value="Woori Bank">Ngân hàng TNHH MTV Woori Việt Nam</option>
+                </optgroup>
+              
+                <optgroup label="Ngân hàng Liên doanh">
+                  <option value="Indovina">Ngân hàng TNHH Indovina</option>
+                  <option value="Việt - Nga">Ngân hàng TNHH MTV Việt - Nga</option>
+                </optgroup>
+              
+                <optgroup label="Ngân hàng Chính sách">
+                  <option value="VBSP">Ngân hàng Chính sách Xã hội Việt Nam (VBSP)</option>
+                  <option value="VDB">Ngân hàng Phát triển Việt Nam (VDB)</option>
+                </optgroup>
+              
+                <optgroup label="Ngân hàng Hợp tác xã">
+                  <option value="Co-op Bank">Ngân hàng Hợp tác xã Việt Nam (Co-op Bank)</option>
+                </optgroup>
+              
+                <optgroup label="Ngân hàng TNHH MTV (Chuyển giao bắt buộc)">
+                  <option value="VCBNeo">Ngân hàng TNHH MTV Ngoại thương Công nghệ số (VCBNeo)</option>
+                  <option value="MBV">Ngân hàng TNHH MTV Việt Nam Hiện Đại (MBV)</option>
+                  <option value="GPBank">Ngân hàng TNHH MTV Dầu khí Toàn cầu (GPBank)</option>
+                </optgroup>
+              </select>
             </div>
             <div class="mb-4">
               <label class="block mb-1 font-medium">Số tài khoản</label>
@@ -678,6 +748,8 @@
 <script setup>
 import { ref, onMounted, computed, nextTick, watch } from 'vue';
 import { useRuntimeConfig } from '#app';
+import { secureFetch } from '@/utils/secureFetch' 
+
 
 const config = useRuntimeConfig();
 const apiBase = config.public.apiBaseUrl;
@@ -762,12 +834,9 @@ const fetchOrders = async () => {
     if (trackingCode.value) params.append('tracking_code', trackingCode.value);
     params.append('page', orderPage.value);
     params.append('per_page', orderPageSize.value);
-    const url = `${apiBase}/orders?${params.toString()}`;
+    const url = `${apiBase}/orders/seller?${params.toString()}`;
 
-    const response = await fetch(url, {
-      headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-    });
-    const data = await response.json();
+    const data = await secureFetch(url, {},['seller']);
     orders.value = data.data || [];
   } catch (e) {
     orders.value = [];

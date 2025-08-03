@@ -161,7 +161,6 @@
                               <input
                                 v-model="formData.start_date"
                                 type="date"
-                                :min="currentDate"
                                 class="w-full md:w-60 rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                               />
                               <span v-if="errors.start_date" class="text-red-500 text-xs mt-1">{{ errors.start_date }}</span>
@@ -170,7 +169,7 @@
                               <input
                                 v-model="formData.end_date"
                                 type="date"
-                                :min="formData.start_date || currentDate"
+                                :min="formData.start_date"
                                 class="w-full md:w-60 rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                               />
                               <span v-if="errors.end_date" class="text-red-500 text-xs mt-1">{{ errors.end_date }}</span>
@@ -447,20 +446,9 @@
   const selectedCategories = ref([]);
   
   // Mock data (thay thế bằng API call sau)
-  const products = ref([
-    { id: 1, name: 'Áo len nữ dài tay cổ tròn' },
-    { id: 2, name: 'Áo len nữ dài tay cổ tròn - Đỏ' },
-    { id: 3, name: 'Áo len nữ dài tay cổ tròn - Hồng' },
-    { id: 4, name: 'Áo khoác dạ nữ hai lớp cổ bẻ dáng suông' },
-    { id: 5, name: 'Áo len polo nam cộc tay' },
-  ]);
+  const products = ref([]);
   
-  const categories = ref([
-    { id: 1, name: 'Áo len nữ' },
-    { id: 2, name: 'Áo khoác nữ' },
-    { id: 3, name: 'Áo len nam' },
-    { id: 4, name: 'Áo khoác nam' },
-  ]);
+  const categories = ref([]);
   
   // Computed properties cho filtered items với tìm kiếm không phân biệt dấu
   const removeVietnameseTones = (str) => {
@@ -590,16 +578,9 @@
     if (!formData.start_date) {
       errors.start_date = 'Vui lòng chọn ngày bắt đầu';
       isValid = false;
-    } else {
-      const startDate = new Date(formData.start_date);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-      if (startDate < today) {
-        errors.start_date = 'Ngày bắt đầu phải từ ngày hôm nay trở đi';
-        isValid = false;
-      }
     }
+    // Bỏ validation kiểm tra ngày bắt đầu phải từ hôm nay trở đi
+    // Cho phép chọn ngày trong quá khứ
   
     // Validate end_date
     if (!formData.end_date) {
@@ -665,7 +646,7 @@
         }
 
         setTimeout(() => {
-          router.push('/seller/coupons/list-coupon');
+          navigateTo('/seller/coupons/list-coupon');
         }, 1200);
       } else {
         showErrorNotification(data?.message || 'Có lỗi xảy ra khi tạo mã giảm giá');

@@ -489,6 +489,113 @@ export function useCart() {
     }
   };
 
+  // Hàm mới: chỉ xóa những sản phẩm đã được thanh toán
+  const clearOrderedItems = async (orderedItems) => {
+    const token = localStorage.getItem('access_token');
+
+    if (!token) {
+      console.warn('Không có token để xóa sản phẩm đã đặt');
+      return;
+    }
+
+    console.log('Token hiện tại:', token.substring(0, 20) + '...');
+
+    try {
+      console.log('Đang xóa những sản phẩm đã được thanh toán:', orderedItems);
+      
+      // Lấy danh sách tất cả items trong giỏ hàng hiện tại
+      const allItems = cart.value.stores.flatMap(store => store.items || []);
+      console.log('Tất cả items trong giỏ hàng hiện tại:', allItems);
+      
+      // Tìm những items cần xóa dựa trên orderedItems
+      const itemsToRemove = [];
+      
+      for (const orderedItem of orderedItems) {
+        console.log('Tìm item cho orderedItem:', orderedItem);
+        
+        const matchingItem = allItems.find(item => {
+          const productMatch = item.product?.id === orderedItem.product_id;
+          
+          // Logic matching cho variant:
+          // 1. Nếu cả hai đều có variant và ID giống nhau
+          // 2. Nếu cả hai đều không có variant (null/undefined)
+          // 3. Nếu item không có variant nhưng orderedItem có variant (trường hợp này cần xử lý đặc biệt)
+          let variantMatch = false;
+          
+          if (item.product_variant?.id === orderedItem.product_variant_id) {
+            // Cả hai đều có variant và ID giống nhau
+            variantMatch = true;
+          } else if (!item.product_variant?.id && !orderedItem.product_variant_id) {
+            // Cả hai đều không có variant
+            variantMatch = true;
+          } else if (!item.product_variant?.id && orderedItem.product_variant_id) {
+            // Item không có variant nhưng orderedItem có variant
+            // Trong trường hợp này, chúng ta vẫn match vì có thể là cùng sản phẩm
+            variantMatch = true;
+          }
+          
+          console.log('Checking item:', {
+            item_id: item.id,
+            item_product_id: item.product?.id,
+            item_variant_id: item.product_variant?.id,
+            ordered_product_id: orderedItem.product_id,
+            ordered_variant_id: orderedItem.product_variant_id,
+            productMatch,
+            variantMatch
+          });
+          
+          return productMatch && variantMatch;
+        });
+        
+        if (matchingItem) {
+          itemsToRemove.push(matchingItem);
+          console.log('Tìm thấy item khớp:', matchingItem);
+        } else {
+          console.log('Không tìm thấy item khớp cho:', orderedItem);
+        }
+      }
+
+      console.log('Items sẽ được xóa:', itemsToRemove);
+
+      // Xóa từng item đã được thanh toán
+      for (const item of itemsToRemove) {
+        console.log(`Đang xóa item ${item.id} (product_id: ${item.product?.id}, variant_id: ${item.product_variant?.id})`);
+        
+        const url = `${apiBaseUrl}/cart/items/${item.id}`;
+        console.log('Gọi API:', url);
+        
+        const res = await fetch(url, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        console.log(`Response status cho item ${item.id}:`, res.status);
+        console.log(`Response headers cho item ${item.id}:`, Object.fromEntries(res.headers.entries()));
+
+        if (!res.ok) {
+          const errorText = await res.text();
+          console.warn(`Không thể xóa item ${item.id}:`, res.status, errorText);
+        } else {
+          const responseText = await res.text();
+          console.log(`Đã xóa item ${item.id} khỏi giỏ hàng thành công. Response:`, responseText);
+          // Xóa khỏi selectedItems nếu có
+          selectedItems.value.delete(item.id);
+        }
+      }
+
+      // Cập nhật lại giỏ hàng
+      console.log('Cập nhật lại giỏ hàng sau khi xóa...');
+      await fetchCart();
+      updateSelections();
+      
+      console.log('Hoàn thành xóa sản phẩm đã thanh toán');
+      console.log('Giỏ hàng sau khi xóa:', cart.value);
+    } catch (err) {
+      console.error('Không thể xóa sản phẩm đã đặt:', err.message);
+      console.error('Error stack:', err.stack);
+    }
+  };
+
   const addItem = async (productVariantId, quantity) => {
     const token = localStorage.getItem('access_token');
     if (!token) {
@@ -638,5 +745,6 @@ export function useCart() {
     parsePrice,
     formatPrice,
     fetchSelectedItems,
+    clearOrderedItems,
   };
 }

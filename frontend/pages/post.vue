@@ -1,31 +1,32 @@
 <template>
   <main class="bg-[#F5F5FA]">
     <div class="max-w-7xl mx-auto">
-      <div class="text-sm text-gray-500 px-4 py-2 rounded">
+      <div class="text-sm text-gray-500 py-2">
         <NuxtLink to="/" class="text-gray-400">Trang chủ</NuxtLink>
         <span class="mx-1">›</span>
         <span class="text-black font-medium">Bài viết</span>
       </div>
     </div>
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 mt-4 lg:px-8 min-h-screen bg-white ">
+    <div class="max-w-7xl mx-auto px-4 md:px-8 xl:px-12 mt-2 pb-6 md:pb-12 bg-white ">
       <div class="flex flex-col lg:flex-row gap-6 py-6">
         <!-- Main Content -->
         <main class="flex-1">
           <!-- Search and Filter -->
-          <div class="mb-6 flex flex-col sm:flex-row justify-between items-stretch gap-4 rounded-2xl">
+
+          <div class="mb-6 flex flex-col sm:flex-row justify-between items-stretch gap-3">
             <!-- Search Box -->
             <div class="w-full sm:w-1/2 relative">
               <input v-model="searchQuery" @input="debouncedSearch" type="text" placeholder="Tìm kiếm bài viết..."
-                class="w-full py-3 pl-4 pr-12 rounded-xl border border-gray-200 shadow-inner bg-white text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300" />
+                class="w-full py-2.5 pl-4 pr-12 rounded-lg border border-gray-200 bg-white text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 shadow-sm hover:shadow-md text-sm" />
               <!-- Clear Button -->
               <button v-if="searchQuery" @click="searchQuery = ''; debouncedSearch()"
-                class="absolute right-10 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 transition-all">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                class="absolute right-10 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 transition-all duration-200">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
               <!-- Search Icon -->
-              <svg class="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none"
+              <svg class="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
                 fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -33,24 +34,37 @@
             </div>
 
             <!-- Filters -->
-            <div class="flex flex-col sm:flex-row gap-3 w-full sm:w-auto sm:items-center">
-              <select v-model="selectedCategory" @change="fetchPosts(1); fetchRelated()"
-                class="py-2.5 px-4 rounded-xl border border-gray-200 bg-white shadow-inner text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300">
-                <option value="">Tất cả danh mục</option>
-                <option v-for="category in categories" :key="category.id" :value="category.id">
-                  {{ category.name }}
-                </option>
-              </select>
+            <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:items-center">
+              <div class="relative w-full sm:w-40">
+                <select v-model="selectedCategory" @change="fetchPosts(1); fetchRelated()"
+                  class="appearance-none w-full py-2.5 px-3 rounded-lg border border-gray-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 shadow-sm hover:shadow-md pr-8 text-sm">
+                  <option value="">Tất cả danh mục</option>
+                  <option v-for="category in categories" :key="category.id" :value="category.id">
+                    {{ category.name }}
+                  </option>
+                </select>
+                <!-- Chevron Icon for Select -->
+                <svg class="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
+                  fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
 
-              <select v-model="sortOption" @change="fetchPosts(1)"
-                class="py-2.5 px-4 rounded-xl border border-gray-200 bg-white shadow-inner text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300">
-                <option value="created_at:desc">Mới nhất</option>
-                <option value="views:desc">Lượt xem cao</option>
-                <option value="title:asc">Tiêu đề A-Z</option>
-              </select>
+              <div class="relative w-full sm:w-40">
+                <select v-model="sortOption" @change="fetchPosts(1)"
+                  class="appearance-none w-full py-2.5 px-3 rounded-lg border border-gray-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 shadow-sm hover:shadow-md pr-8 text-sm">
+                  <option value="created_at:desc">Mới nhất</option>
+                  <option value="views:desc">Lượt xem cao</option>
+                  <option value="title:asc">Tiêu đề A-Z</option>
+                </select>
+                <!-- Chevron Icon for Select -->
+                <svg class="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
+                  fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
             </div>
           </div>
-
           <!-- Loading State -->
           <div v-if="loading" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             <div v-for="n in 6" :key="n" class="bg-white rounded-xl shadow-sm p-4 animate-pulse">
@@ -74,8 +88,9 @@
               </NuxtLink>
               <NuxtLink :to="`/posts/${post.slug}`">
                 <h3 class="text-lg font-semibold text-gray-800 mb-2 hover:text-blue-500 transition-colors duration-200">
-                  {{ post.title }}
+                  {{ truncateText(post.title, 20) }}
                 </h3>
+
               </NuxtLink>
               <p class="text-gray-600 text-sm mb-3 line-clamp-2">
                 {{ post.excerpt || post.description || 'Không có tóm tắt' }}
@@ -256,6 +271,10 @@ const fetchRelated = async () => {
     relatedLoading.value = false
   }
 }
+const truncateText = (text, max = 100) => {
+  if (!text) return ''
+  return text.length > max ? text.slice(0, max) + '…' : text
+}
 
 const debouncedSearch = debounce(() => fetchPosts(1), 300)
 
@@ -372,5 +391,76 @@ aside .font-semibold {
   .h-48 {
     height: 10rem;
   }
+}
+
+select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+/* Tùy chỉnh dropdown option */
+select option {
+  padding: 8px 12px;
+  background: #fff;
+  color: #374151;
+  /* gray-700 */
+  font-size: 0.875rem;
+  /* text-sm */
+}
+
+select option:hover {
+  background: #eff6ff;
+  /* blue-50 */
+  color: #2563eb;
+  /* blue-600 */
+}
+
+/* Custom scrollbar cho select */
+select::-webkit-scrollbar {
+  width: 6px;
+}
+
+select::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+select::-webkit-scrollbar-thumb {
+  background: #9ca3af;
+  /* gray-400 */
+  border-radius: 4px;
+}
+
+select::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+  /* gray-500 */
+}
+
+/* Hiệu ứng hover và focus */
+input:hover,
+select:hover {
+  border-color: #9ca3af;
+  /* gray-400 */
+  box-shadow: 0 0 0 3px rgba(209, 213, 219, 0.2);
+  /* gray-300 */
+}
+
+input:focus,
+select:focus {
+  border-color: transparent;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+  /* blue-500 */
+}
+
+/* Animation khi dropdown mở ra */
+select {
+  transition: all 0.3s ease;
+}
+
+/* Đảm bảo select dropdown trông đẹp trên các trình duyệt */
+select:focus+svg {
+  transform: translateY(-50%) rotate(180deg);
+  transition: transform 0.2s ease;
 }
 </style>

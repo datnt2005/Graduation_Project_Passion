@@ -1,4 +1,11 @@
 <template>
+  <h1 class="text-xl font-semibold text-gray-800 px-6 pt-6">Thêm chiết khấu</h1>
+  <div class="px-6 pb-4">
+    <nuxt-link to="/admin/coupons/list-coupon" class="text-gray-600 hover:underline text-sm">
+      Danh sách chiết khấu
+    </nuxt-link>
+    <span class="text-gray-600 text-sm"> / Chỉnh sửa chiết khấu</span>
+  </div>
   <div class="flex min-h-screen bg-gray-100">
     <!-- XÓA overlay loading toàn trang -->
     <!-- Sidebar -->
@@ -499,7 +506,7 @@
 
 <script setup>
 import { ref, reactive, onMounted, computed, onUnmounted } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
+import { useRoute } from 'vue-router';
 import { useRuntimeConfig } from '#imports'
 import { secureFetch } from '@/utils/secureFetch'
 
@@ -507,7 +514,6 @@ definePageMeta({
   layout: 'default-admin'
 });
 
-const router = useRouter();
 const route = useRoute();
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBaseUrl
@@ -779,7 +785,7 @@ const updateCoupon = async () => {
 
     showSuccessNotification('Cập nhật mã giảm giá thành công!');
     setTimeout(() => {
-      router.push('/admin/coupons/list-coupon');
+      navigateTo('/admin/coupons/list-coupon');
     }, 1200);
   } catch (error) {
     console.error('Error:', error);
@@ -844,15 +850,9 @@ const validateForm = () => {
   if (!formData.start_date) {
     errors.start_date = 'Ngày bắt đầu không được để trống';
     isValid = false;
-  } else {
-    const startDate = new Date(formData.start_date);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    if (startDate < today) {
-      errors.start_date = 'Ngày bắt đầu phải từ ngày hôm nay trở đi';
-      isValid = false;
-    }
   }
+  // Bỏ validation kiểm tra ngày bắt đầu phải từ hôm nay trở đi
+  // Cho phép chọn ngày trong quá khứ
 
   if (!formData.end_date) {
     errors.end_date = 'Ngày kết thúc không được để trống';

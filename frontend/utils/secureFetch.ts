@@ -44,7 +44,6 @@ export async function secureFetch(
   }
 
   // Gọi API chính
-  console.log('secureFetch calling API:', apiUrl);
   const response = await fetch(apiUrl, {
     ...fetchOptions,
     headers: {
@@ -54,13 +53,11 @@ export async function secureFetch(
     },
   })
 
-  console.log('secureFetch response status:', response.status, response.statusText);
   if (!response.ok) {
     console.error('secureFetch HTTP error:', response.status, response.statusText);
     throw new Error(`HTTP error! status: ${response.status}`);
   }
 
   const data = await response.json(); // Đảm bảo parse JSON
-  console.log('Raw response data from secureFetch (before return):', data); // Log trước khi return
   return data; // Trả về toàn bộ dữ liệu JSON
 }

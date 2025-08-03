@@ -2,7 +2,7 @@
   <div class="bg-gray-100 text-gray-700 font-sans min-h-screen">
     <div class="max-w-full overflow-x-auto">
       <div class="bg-white px-4 py-4 flex items-center justify-between border-b border-gray-200">
-        <h1 class="text-xl font-semibold text-gray-800">Báo cáo đánh giá sản phẩm của bạn</h1>
+        <h1 class="text-xl font-semibold text-gray-800">Quản lý báo cáo đánh giá</h1>
       </div>
 
       <!-- Bộ lọc -->
@@ -49,8 +49,7 @@
             <td class="border px-3 py-2 truncate max-w-[200px]">{{ item.review.content }}</td>
             <td class="border px-3 py-2">{{ reasonLabel(item.reason) }}</td>
             <td class="border px-3 py-2">{{ item.reporter }}</td>
-            <td class="border px-3 py-2"><span :class="badgeClass(item.status)">{{ statusText(item.status) }}</span>
-            </td>
+            <td class="border px-3 py-2"><span :class="badgeClass(item.status)">{{ statusText(item.status) }}</span></td>
             <td class="border px-3 py-2">{{ formatDate(item.reported_at) }}</td>
             <td class="border px-3 py-2 relative">
               <button @click.stop="toggleDropdown($event, item.report_id)" class="p-1">
@@ -60,11 +59,17 @@
               </button>
             </td>
           </tr>
+          <tr v-if="reports.length === 0">
+            <td colspan="9" class="text-center py-4 text-gray-500">Không có báo cáo nào</td>
+          </tr>
         </tbody>
       </table>
 
       <Teleport to="body">
-        <Transition enter-active-class="transition" leave-active-class="transition">
+        <Transition enter-active-class="transition duration-100 ease-out"
+          enter-from-class="transform scale-95 opacity-0" enter-to-class="transform scale-100 opacity-100"
+          leave-active-class="transition duration-75 ease-in"
+          leave-from-class="transform scale-100 opacity-100" leave-to-class="transform scale-95 opacity-0">
           <div v-if="activeDropdown !== null" class="fixed inset-0 z-50" @click="closeDropdown">
             <div class="absolute bg-white rounded shadow-lg ring-1 ring-black w-40 z-50" :style="dropdownPosition"
               @click.stop>
@@ -97,9 +102,10 @@ import Swal from 'sweetalert2'
 import { useRuntimeConfig } from '#app'
 import { Eye, Check, X } from 'lucide-vue-next'
 import { useToast } from '@/composables/useToast'
+
 const { toast } = useToast()
 
-definePageMeta({ layout: 'default-seller' })
+definePageMeta({ layout: 'default-admin' }) // Sử dụng layout cho admin
 
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBaseUrl
@@ -142,13 +148,29 @@ const badgeClass = (s) => {
 
 const fetchReports = async () => {
   try {
-    const res = await axios.get(`${apiBase}/seller/reports/reviews`, {
-      headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` }
+    const token = localStorage.getItem('access_token')
+    if (!token) {
+      toast('error', 'Vui lòng đăng nhập để tải báo cáo')
+      return
+    }
+    console.log('Fetching reports with token:', token) // Debug token
+    const res = await axios.get(`${apiBase}/admin/reports/reviews`, {
+      headers: { Authorization: `Bearer ${token}` }
     })
+    console.log('API response:', res.data) // Debug response
+    if (!res.data.success) {
+      throw new Error(res.data.message || 'Lỗi khi tải báo cáo')
+    }
     allReports.value = res.data.data
     applyFilters()
   } catch (err) {
-    toast('error', 'Lỗi khi tải báo cáo')
+    console.error('Lỗi chi tiết:', err.response?.data || err.message)
+    const errorMessage = err.response?.status === 404
+      ? 'Không tìm thấy endpoint. Vui lòng kiểm tra cấu hình server.'
+      : err.response?.status === 403
+        ? 'Bạn không có quyền truy cập. Vui lòng kiểm tra vai trò admin.'
+        : err.response?.data?.message || 'Lỗi khi tải báo cáo'
+    toast('error', errorMessage)
   }
 }
 
@@ -177,13 +199,14 @@ const updateStatus = async (id, status) => {
   if (!confirm.isConfirmed) return
 
   try {
-    await axios.put(`${apiBase}/seller/reports/reviews/${id}/status`, { status }, {
+    await axios.put(`${apiBase}/admin/reports/reviews/${id}/status`, { status }, {
       headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` }
     })
-    toast('success', 'Cập nhật thành công')
+    toast('success', 'Cập nhật trạng thái thành công')
     fetchReports()
   } catch (err) {
-    toast('error', 'Không thể cập nhật trạng thái')
+    console.error('Lỗi chi tiết:', err.response?.data || err.message)
+    toast('error', err.response?.data?.message || 'Không thể cập nhật trạng thái')
   }
 }
 
@@ -198,7 +221,7 @@ const toggleDropdown = (e, id) => {
 }
 
 const closeDropdown = () => (activeDropdown.value = null)
-const viewReport = id => navigateTo(`/seller/reports/reviews/view/${id}`)
+const viewReport = id => navigateTo(`/admin/reports/reviews/view/${id}`)
 
 onMounted(fetchReports)
 </script>

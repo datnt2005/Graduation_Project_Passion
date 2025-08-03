@@ -128,6 +128,12 @@
                                     class="flex items-center w-full px-4 py-2 text-sm text-yellow-700 hover:bg-yellow-50">
                                     <Pencil class="w-4 h-4 mr-2" /> Sửa
                                 </button>
+                                <button @click="reportReview(activeDropdown); closeDropdown()"
+                                    class="flex items-center w-full px-4 py-2 text-sm text-orange-600 hover:bg-orange-50">
+                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                                    </svg> Báo cáo
+                                </button>
                                 <button @click="confirmDelete(activeDropdown); closeDropdown()"
                                     class="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50">
                                     <Trash2 class="w-4 h-4 mr-2" /> Xóa
@@ -137,11 +143,22 @@
                     </div>
                 </Transition>
             </Teleport>
+
+            <!-- Report Dialog -->
+            <ReportDialog 
+                v-if="showReportDialog" 
+                :target-id="selectedReviewId" 
+                type="review" 
+                @close="showReportDialog = false" 
+                @submitted="handleReportSubmitted" 
+            />
         </div>
     </div>
 </template>
+```
 
 
+```vue
 <script setup>
 import { Eye, Pencil, Trash2 } from 'lucide-vue-next'
 import { ref, onMounted } from 'vue'
@@ -149,6 +166,7 @@ import axios from 'axios'
 import { useRuntimeConfig } from '#app'
 import { useNotification } from '~/composables/useNotification'
 import { secureAxios } from '@/utils/secureAxios'
+import ReportDialog from '~/components/shared/ReportDialog.vue'
 
 definePageMeta({ layout: 'default-seller' })
 
@@ -171,6 +189,8 @@ const countWithMedia = ref(0)
 
 const activeDropdown = ref(null)
 const dropdownPosition = ref({ top: '0px', left: '0px' })
+const showReportDialog = ref(false)
+const selectedReviewId = ref(null)
 
 // -------------------------
 // 1. Fetch reviews của seller
@@ -182,6 +202,7 @@ onMounted(async () => {
         applyFilters()
     } catch (e) {
         console.error('Lỗi khi tải đánh giá của seller:', e)
+        showNotification('Lỗi khi tải đánh giá', 'error')
     } finally {
         loading.value = false
     }
@@ -270,7 +291,19 @@ function editReview(id) {
 }
 
 // -------------------------
-// 6. Xoá đánh giá
+// 6. Báo cáo đánh giá
+function reportReview(id) {
+    selectedReviewId.value = id
+    showReportDialog.value = true
+}
+
+function handleReportSubmitted() {
+    showReportDialog.value = false
+    showNotification('Báo cáo đã được gửi thành công', 'success')
+}
+
+// -------------------------
+// 7. Xóa đánh giá
 async function confirmDelete(id) {
     await deleteReview(id)
 }
@@ -283,6 +316,9 @@ async function deleteReview(id) {
         })
 
         reviews.value = reviews.value.filter(r => r.id !== id)
+        allReviews.value = allReviews.value.filter(r => r.id !== id)
+        countFilters()
+        applyFilters()
         showNotification('Đã xóa đánh giá thành công', 'success')
     } catch (e) {
         console.error('Lỗi khi xóa đánh giá:', e)
@@ -291,7 +327,7 @@ async function deleteReview(id) {
 }
 
 // -------------------------
-// 7. Format
+// 8. Format
 function formatDate(dateStr) {
     const d = new Date(dateStr)
     return d.toLocaleString('vi-VN')
@@ -316,7 +352,7 @@ function statusClass(status) {
 }
 
 // -------------------------
-// 8. Lấy review đang chọn trong dropdown
+// 9. Lấy review đang chọn trong dropdown
 function getReviewById(id) {
     return reviews.value.find(r => r.id === id)
 }

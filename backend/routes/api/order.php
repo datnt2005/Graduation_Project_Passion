@@ -18,6 +18,10 @@ Route::prefix('orders')->middleware(['auth:sanctum'])->group(function () {
     });
 
     // User đặt đơn hàng (store)
+    Route::middleware('checkRole:user')->get('/', [OrderController::class, 'index']);
+    Route::middleware('checkRole:user')->get('/{id}', [OrderController::class, 'show']);
+
+    // User đặt đơn hàng (store)
     Route::middleware('checkRole:user')->post('/', [OrderController::class, 'store']);
 
     // Admin hoặc Seller được quyền sửa & xóa đơn
@@ -41,5 +45,3 @@ Route::prefix('orders')->middleware(['auth:sanctum'])->group(function () {
     // Đồng bộ trạng thái GHN (Seller hoặc Admin)
     Route::middleware('checkRole:admin,seller')->post('/seller/{orderId}/sync-ghn', [OrderController::class, 'syncGhnStatus']);
 });
-
-

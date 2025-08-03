@@ -86,12 +86,12 @@
       <!-- Banner nhỏ bên phải -->
       <div class="hidden sm:flex flex-col gap-4 min-w-[250px] max-w-[360px]">
         <img
-          src="https://sf-static.upanhlaylink.com/img/image_20250718176342fcca97b9ab168d67eb5c15616e.jpg"
+          :src="BannerSmallFirst"
           alt="Banner nhỏ 1"
           class="w-full h-[146px] object-cover shadow-md"
         />
         <img
-          src="https://sf-static.upanhlaylink.com/img/image_202507181fb34ba202f43ade448a5eeb1078e9d5.jpg"
+          :src="BannerSmallSecond"
           alt="Banner nhỏ 2"
           class="w-full h-[146px] object-cover shadow-md"
         />
@@ -99,32 +99,40 @@
     </div>
   </div>
 </template>
+  <script setup>
+  import { ref, onMounted, onBeforeUnmount, watch } from "vue";
+  import { useRuntimeConfig } from "#app";
+  import BannerSmallFirst from "~/images/banner-small-1.png";
+  import BannerSmallSecond from "~/images/banner-small-2.png";
 
-<script setup>
-import { ref, onMounted, onBeforeUnmount, watch } from "vue";
-import { useRuntimeConfig } from "#app";
+  const config = useRuntimeConfig();
+  const apiBase = config.public.apiBaseUrl;
 
-const config = useRuntimeConfig();
-const apiBase = config.public.apiBaseUrl;
+  const banners = ref([]);
+  const index = ref(0); // index thật
+  const realIndex = ref(1); // index thực tế trong list có clone
+  const disableTransition = ref(false);
 
-const banners = ref([]);
-const index = ref(0); // index thật
-const realIndex = ref(1); // index thực tế trong list có clone
-const disableTransition = ref(false);
+  let timer = null;
+  const sliderRef = ref(null);
 
-let timer = null;
-const sliderRef = ref(null);
+  // Lấy banner
+  async function fetchBanners() {
+    try {
+      const res = await $fetch(`${apiBase}/banners?status=active&type=banner`);
+      banners.value = res.data?.data || [];
+      index.value = 0;
+      realIndex.value = 1;
+    } catch (e) {
+      console.error("Lỗi khi lấy banner:", e);
+      banners.value = [];
+    }
+  }
 
-// Lấy banner
-async function fetchBanners() {
-  try {
-    const res = await $fetch(`${apiBase}/banners?status=active&type=banner`);
-    banners.value = res.data?.data || [];
-    index.value = 0;
-    realIndex.value = 1;
-  } catch (e) {
-    console.error("Lỗi khi lấy banner:", e);
-    banners.value = [];
+  // Slide
+  function goToSlide(i) {
+    index.value = i;
+    realIndex.value = i + 1;
   }
 }
 

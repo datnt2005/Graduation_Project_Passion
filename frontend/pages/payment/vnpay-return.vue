@@ -93,7 +93,7 @@
             </div>
           </div>
                       <div class="text-right text-lg font-bold text-blue-700 border-t pt-4 mt-4">
-            Tổng thanh toán: {{ formatPrice(orderDetail?.final_price || 0) }} đ
+            Tổng thanh toán: {{ formatPrice(orderDetail?.final_price || 0) }}
           </div>
 
         </div>
@@ -135,7 +135,7 @@ const route = useRoute()
 const router = useRouter()
 const config = useRuntimeConfig()
 const mediaBaseUrl = config.public.mediaBaseUrl.endsWith('/') ? config.public.mediaBaseUrl : config.public.mediaBaseUrl + '/'
-const { clearAllCart } = useCart()
+const { clearOrderedItems } = useCart()
 
 const loading = ref(true)
 const success = ref(false)
@@ -154,7 +154,9 @@ let countdownInterval = null
 
 const formatPrice = (price) => {
   if (!price) return '0'
-  return price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+  // Chuyển về số nguyên và format
+  const intPrice = Math.floor(parseFloat(price))
+  return intPrice.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 }
 
 const statusText = (status) => ({
@@ -277,9 +279,15 @@ onMounted(async () => {
       tracking_code.value = data.tracking_code || '-'
       
       // Xử lý order_detail từ backend
+      console.log('VNPay backend response data:', data);
+      console.log('VNPay order_detail structure:', data.order_detail);
+      
       if (data.order_detail) {
         if (Array.isArray(data.order_detail)) {
+          console.log('VNPay order_detail is array, length:', data.order_detail.length);
           for (const order of data.order_detail) {
+            console.log('VNPay order structure:', order);
+            console.log('VNPay order order_items:', order.order_items);
             for (const item of order.order_items) {
               if (!item.variant?.thumbnail && !item.product?.thumbnail) {
                 item.product.thumbnail = await fetchProductDetails(item.product.id);
@@ -288,6 +296,8 @@ onMounted(async () => {
           }
           orderDetail.value = data.order_detail
         } else {
+          console.log('VNPay order_detail is single object');
+          console.log('VNPay order_detail order_items:', data.order_detail.order_items);
           for (const item of data.order_detail.order_items) {
             if (!item.variant?.thumbnail && !item.product?.thumbnail) {
               item.product.thumbnail = await fetchProductDetails(item.product.id);
@@ -296,6 +306,7 @@ onMounted(async () => {
           orderDetail.value = [data.order_detail]
         }
       } else {
+        console.log('VNPay no order_detail in response');
         orderDetail.value = []
       }
 
@@ -304,7 +315,37 @@ onMounted(async () => {
       if (orderDetail.value && orderDetail.value.length) {
         const order = orderDetail.value[0]
         if (order) {
-          await clearAllCart()
+                // Lấy danh sách sản phẩm đã được thanh toán để xóa khỏi giỏ hàng
+      const orderedItems = [];
+      if (Array.isArray(orderDetail.value)) {
+        orderDetail.value.forEach(order => {
+          if (order.order_items && Array.isArray(order.order_items)) {
+            order.order_items.forEach(item => {
+              orderedItems.push({
+                product_id: item.product?.id,
+                product_variant_id: item.variant?.id || null,
+                quantity: item.quantity
+              });
+            });
+          }
+        });
+      }
+      
+      console.log('VNPay return - orderedItems để xóa:', orderedItems);
+      console.log('VNPay return - orderDetail.value:', orderDetail.value);
+      
+      // Chỉ xóa những sản phẩm đã được thanh toán
+      if (orderedItems.length > 0) {
+        console.log('Bắt đầu xóa items khỏi giỏ hàng...');
+        try {
+          await clearOrderedItems(orderedItems);
+          console.log('Hoàn thành xóa items khỏi giỏ hàng');
+        } catch (error) {
+          console.error('Lỗi khi xóa items khỏi giỏ hàng:', error);
+        }
+      } else {
+        console.log('Không có items nào để xóa');
+      }
         } else {
           loading.value = false
           success.value = false

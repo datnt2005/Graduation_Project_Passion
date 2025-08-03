@@ -15,6 +15,8 @@ Route::prefix('notifications')->middleware('auth:sanctum')->group(function () {
     Route::delete('/{id}', [NotificationController::class, 'destroy']);
     Route::post('/send-multiple', [NotificationController::class, 'sendMultiple']);
     Route::post('/send-all', [NotificationController::class, 'sendAll']);
+    Route::post('/delete-multiple', [NotificationController::class, 'deleteMultiple']);
+    Route::delete('/delete-all', [NotificationController::class, 'deleteAll']);
     Route::post('/destroy-multiple', [NotificationController::class, 'destroyMultiple']);
     Route::delete('/destroy-all', [NotificationController::class, 'destroyAll']);
 });
@@ -46,6 +48,7 @@ Route::prefix('admin/notifications')
         Route::post('/mark-all-read', [NotificationController::class, 'markAllAsRead']);
         Route::post('/delete-multiple', [NotificationController::class, 'deleteMultiple']);
         Route::delete('/delete-all', [NotificationController::class, 'deleteAll']);
+        Route::delete('/destroy-all', [NotificationController::class, 'destroyAll']);
 
         Route::get('/system', [NotificationController::class, 'adminIndex']);
         Route::get('/system/{id}', [NotificationController::class, 'adminShow']);

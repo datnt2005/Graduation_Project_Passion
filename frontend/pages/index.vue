@@ -1,6 +1,6 @@
 <template>
-  <main class="bg-[#f5f5f5] text-[#222222] mb-6">
-    <div class="max-w-[1300px] mx-auto px-2">
+  <main class="bg-[#f5f5f5] text-[#222222] mb-6 pt-6 py-6">
+    <div class="max-w-7xl mx-auto px-2">
       <!-- Sidebar -->
 
       <!-- Main content -->

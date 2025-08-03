@@ -1,19 +1,12 @@
 <template>
   <div class="bg-[#f5f7fa] font-sans text-[#1a1a1a] ">
-    <div class=" flex flex-col md:flex-row max-w-screen-2xl mx-auto p-4 sm:p-6">
+      <div class="max-w-7xl mx-auto md:pt-6 md:pb-6 flex flex-col md:flex-row gap-6">
       <SidebarProfile class="flex-shrink-0 border-r border-gray-200 md:w-64 mb-4 md:mb-0" />
       <main class="flex-1 p-0 md:p-4">
         <div class=" mx-auto">
           <h2 class="text-2xl text-center sm:text-3xl font-extrabold text-gray-900 mb-2 text-left">Kho Voucher</h2>
-          <div class="flex flex-col sm:flex-row sm:items-center gap-2 mb-4">
-            <div class="flex-1 flex items-center bg-white rounded border border-gray-200 px-3 py-2">
-              <span class="text-gray-500 text-sm mr-2 whitespace-nowrap">Mã Voucher</span>
-              <input v-model="voucherCode" type="text" placeholder="Nhập mã voucher tại đây" class="flex-1 outline-none border-none bg-transparent text-sm" />
-              <button @click="openAvailableModal" type="button" class="ml-2 px-3 py-1 bg-blue-500 text-white rounded text-xs font-semibold hover:bg-blue-600 transition">Sẵn mã giảm giá</button>
-            </div>
-            <button :disabled="!voucherCode || loading" @click="handleSaveVoucher" class="bg-blue-500 text-white px-4 py-2 rounded font-semibold text-sm mt-2 sm:mt-0 disabled:opacity-50 disabled:cursor-not-allowed transition">Lưu</button>
-          </div>
-          <div v-if="alertMsg" :class="['mb-2 px-4 py-2 rounded', alertType === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700']">{{ alertMsg }}</div>
+
+
           <!-- Tabs (chỉ còn Tất cả) + nút sắp xếp + tìm kiếm -->
           <div class="mb-6 flex flex-col sm:flex-row sm:items-center gap-2">
             <div class="flex flex-wrap gap-2 text-sm font-medium items-center">
@@ -142,51 +135,7 @@
             </div>
           </Transition>
         </Teleport>
-        <!-- Available discounts modal -->
-        <Teleport to="body">
-          <Transition
-            enter-active-class="transition ease-out duration-200"
-            enter-from-class="opacity-0"
-            enter-to-class="opacity-100"
-            leave-active-class="transition ease-in duration-100"
-            leave-from-class="opacity-100"
-            leave-to-class="opacity-0"
-          >
-            <div v-if="showAvailableModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-              <div class="bg-white rounded-lg shadow-lg max-w-lg w-full p-6 relative">
-                <button @click="closeAvailableModal" class="absolute top-2 right-2 text-gray-400 hover:text-red-500">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-                <h3 class="text-lg font-bold mb-4">Danh sách mã giảm giá</h3>
-                <input v-model="availableSearch" type="text" placeholder="Tìm kiếm theo tên hoặc mã..." class="w-full mb-4 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm" />
-                <div v-if="availableLoading" class="text-center text-gray-500 py-8">Đang tải...</div>
-                <div v-else>
-                  <div v-if="filteredAvailableDiscounts.length === 0" class="text-center text-gray-500 py-8">Không còn mã giảm giá nào để lưu.</div>
-                  <div v-else>
-                    <div class="space-y-4 max-h-96 overflow-y-auto">
-                      <div v-for="voucher in paginatedAvailableDiscounts" :key="voucher.id" class="border rounded p-3 flex flex-col sm:flex-row sm:items-center justify-between">
-                        <div>
-                          <div class="font-semibold text-blue-700">{{ voucher.name }}</div>
-                          <div class="text-xs text-gray-500 mb-1">Mã: <span class="font-mono">{{ voucher.code }}</span></div>
-                          <div class="text-xs text-gray-500 mb-1">Hiệu lực: {{ formatDate(voucher.start_date) }} - {{ formatDate(voucher.end_date) }}</div>
-                          <div class="text-xs text-gray-500">{{ voucher.description }}</div>
-                        </div>
-                        <button @click="handleSaveAvailableVoucher(voucher.code)" class="mt-2 sm:mt-0 px-3 py-1 bg-blue-500 text-white rounded text-xs font-semibold hover:bg-blue-600 transition">Lưu</button>
-                      </div>
-                    </div>
-                    <div v-if="availableTotalPages > 1" class="flex justify-center mt-4">
-                      <button @click="availablePage--" :disabled="availablePage === 1" class="px-3 py-1 mx-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50">&lt;</button>
-                      <button v-for="page in availableTotalPages" :key="page" @click="availablePage = page" :class="['px-3 py-1 mx-1 rounded border', availablePage === page ? 'bg-blue-500 text-white border-blue-500' : 'bg-white text-gray-700 border-gray-300']">{{ page }}</button>
-                      <button @click="availablePage++" :disabled="availablePage === availableTotalPages" class="px-3 py-1 mx-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50">&gt;</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </Transition>
-        </Teleport>
+
       </main>
     </div>
   </div>
@@ -206,7 +155,6 @@ const tabs = [
   { label: 'Tất cả', value: 'all' },
 ]
 const selectedTab = ref('all')
-const voucherCode = ref('')
 const searchKeyword = ref('')
 
 // Sắp xếp

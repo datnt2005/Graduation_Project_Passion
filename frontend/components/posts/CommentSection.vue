@@ -47,6 +47,12 @@
           <button type="button" class="absolute top-0 right-0 bg-black/60 text-white text-[10px] px-1 rounded"
             @click="removeVideo(i)">×</button>
         </div>
+        <div v-for="(media, i) in keptMedia" :key="'kept'+i" class="relative w-16 h-16 border rounded overflow-hidden group">
+          <img v-if="media.type === 'image'" :src="media.url" class="w-full h-full object-cover" />
+          <video v-else :src="media.url" class="w-full h-full object-cover" controls />
+          <button type="button" class="absolute top-0 right-0 bg-black/60 text-white text-[10px] px-1 rounded"
+            @click="removeKeptMedia(i)">×</button>
+        </div>
       </div>
 
       <textarea v-model="commentContent" rows="3" class="w-full border rounded p-2 focus:ring" required placeholder="Nhập bình luận..."></textarea>
@@ -79,9 +85,7 @@
 
     <!-- Danh sách bình luận -->
     <div v-for="c in paginatedComments" :key="c.id" class="bg-white rounded-md p-4 border text-sm text-gray-800 relative mb-4">
-      <!-- Report Dialog -->
-      <ReportDialog v-if="showReportDialog === c.id" :target-id="c.id" type="post_comment" @close="showReportDialog = null" />
-
+      <!-- Debug inline để kiểm tra -->
       <div class="flex items-start gap-3 mb-2">
         <!-- Avatar -->
         <div>
@@ -104,46 +108,25 @@
           </div>
         </div>
         <!-- Menu ba chấm -->
-        <div v-if="props.currentUserId != null" class="relative ml-auto menu-wrapper">
+        <div v-if="props.currentUserId && c.user_id && String(c.user_id) === String(props.currentUserId)" class="relative ml-auto menu-wrapper">
           <button @click="toggleMenu(c.id)" class="p-1 hover:bg-gray-100 rounded">
             <i class="fas fa-ellipsis-h text-gray-500"></i>
           </button>
           <div v-if="showMenu === c.id"
             class="absolute right-0 mt-2 bg-white border rounded shadow-md text-xs z-10 min-w-[120px] overflow-hidden">
-            <template v-if="c.user_id == props.currentUserId">
-              <button @click="edit(c)" class="block w-full text-left px-4 py-2 hover:bg-gray-100">✏️ Sửa</button>
-              <button @click="deleteComment(c.id)" class="block w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600">🗑️ Xoá</button>
-            </template>
-            <template v-else>
-              <button @click="handleReport(c.id)" class="block w-full text-left px-4 py-2 hover:bg-gray-100 text-orange-600">🚩 Báo cáo</button>
-            </template>
+            <button @click="edit(c)" class="block w-full text-left px-4 py-2 hover:bg-gray-100">✏️ Sửa</button>
+            <button @click="confirmDelete(c.id)" class="block w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600">🗑️ Xoá</button>
           </div>
         </div>
       </div>
-      <!-- Nội dung hoặc form chỉnh sửa -->
-      <div v-if="editingId === c.id" class="mt-2">
-        <textarea
-          v-model="commentContent"
-          rows="2"
-          class="w-full border rounded p-2 mb-2"
-          placeholder="Nhập nội dung bình luận..."
-          required
-        ></textarea>
-        <button
-          @click="submitComment"
-          class="bg-blue-500 text-white px-2 py-1 rounded mr-2"
-        >
-          Lưu
-        </button>
-        <button
-          @click="cancelEdit"
-          class="text-gray-500 px-2 py-1"
-        >
-          Hủy
-        </button>
-      </div>
-      <div v-else>
-        <div class="text-gray-700 whitespace-pre-line mb-2">{{ c.content }}</div>
+      <!-- Nội dung bình luận -->
+      <div class="text-gray-700 whitespace-pre-line mb-2">{{ c.content }}</div>
+      <!-- Media -->
+      <div v-if="c.media && c.media.length" class="flex gap-2 flex-wrap mt-2">
+        <template v-for="m in c.media" :key="m.id">
+          <img v-if="m.type === 'image'" :src="m.url?.startsWith('http') ? m.url : `${mediaBase}${m.url}`" class="w-20 h-20 object-cover rounded border" />
+          <video v-else-if="m.type === 'video'" :src="m.url?.startsWith('http') ? m.url : `${mediaBase}${m.url}`" controls class="w-28 h-20 rounded border" />
+        </template>
       </div>
       <!-- Interaction -->
       <div class="flex items-center gap-4 text-gray-600 text-sm">
@@ -174,7 +157,7 @@
       </transition>
       <!-- Admin Reply -->
       <div v-if="c.admin_reply"
-        class="mt-3 ml-6 border-l-4 border-[#1BA0E2] pl-4 py-2 bg-blue-50 rounded-md text-sm m-5">
+        class="mt-3 ml-6 border-l-4 border-[#1BA0E2] pl-4 py-2 bg-blue-50 rounded-md text-sm">
         <div class="flex items-center gap-2 mb-1">
           <i class="fas fa-user-shield text-[#1BA0E2]"></i>
           <span class="font-semibold text-[#1BA0E2]">Passion</span>
@@ -182,12 +165,52 @@
         </div>
         <p class="text-gray-700 leading-snug">{{ c.admin_reply }}</p>
       </div>
-      <!-- Media -->
-      <div v-if="c.media && c.media.length" class="flex gap-2 flex-wrap mt-2">
-        <template v-for="m in c.media" :key="m.id">
-          <img v-if="m.type === 'image'" :src="m.url?.startsWith('http') ? m.url : `${mediaBase}${m.url}`" class="w-20 h-20 object-cover rounded border" />
-          <video v-else-if="m.type === 'video'" :src="m.url?.startsWith('http') ? m.url : `${mediaBase}${m.url}`" controls class="w-28 h-20 rounded border" />
-        </template>
+      <!-- User Replies -->
+      <div v-if="c.replies && c.replies.length" class="mt-3 ml-6">
+        <div v-for="reply in c.replies" :key="reply.id" class="border-l-2 border-gray-300 pl-4 py-2 mb-2">
+          <!-- Debug inline cho reply -->
+          <div class="flex items-start gap-3">
+            <div>
+              <img v-if="reply.user?.avatar" :src="reply.user.avatar?.startsWith('http') ? reply.user.avatar : `${mediaBase}${reply.user.avatar}`" alt="avatar"
+                class="w-8 h-8 rounded-full object-cover border" />
+              <div v-else class="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-gray-600 font-bold">
+                {{ reply.user?.name?.charAt(0).toUpperCase() || 'U' }}
+              </div>
+            </div>
+            <div class="flex-1">
+              <p class="font-semibold text-sm">{{ reply.user?.name || 'Ẩn danh' }}</p>
+              <p class="text-gray-700 text-sm whitespace-pre-line">{{ reply.content }}</p>
+              <div class="flex items-center gap-2 text-xs text-gray-400 mt-1">
+                <span>{{ formatDate(reply.created_at) }}</span>
+              </div>
+              <!-- Reply Media -->
+              <div v-if="reply.media && reply.media.length" class="flex gap-2 flex-wrap mt-2">
+                <template v-for="m in reply.media" :key="m.id">
+                  <img v-if="m.type === 'image'" :src="m.url?.startsWith('http') ? m.url : `${mediaBase}${m.url}`" class="w-16 h-16 object-cover rounded border" />
+                  <video v-else-if="m.type === 'video'" :src="m.url?.startsWith('http') ? m.url : `${mediaBase}${m.url}`" controls class="w-20 h-16 rounded border" />
+                </template>
+              </div>
+              <!-- Like for Reply -->
+              <div class="flex items-center gap-4 text-gray-600 text-sm mt-2">
+                <button @click="likeComment(reply)" class="text-sm text-gray-500 hover:text-blue-600 flex items-center gap-1">
+                  <i :class="['fas fa-thumbs-up', commentLikes.get(reply.id)?.isLiked ? 'text-blue-600' : 'text-gray-500']"></i>
+                  <span>{{ commentLikes.get(reply.id)?.likeCount || 0 }}</span>
+                </button>
+              </div>
+            </div>
+            <!-- Menu ba chấm cho reply -->
+            <div v-if="props.currentUserId && reply.user_id && String(reply.user_id) === String(props.currentUserId)" class="relative ml-auto menu-wrapper">
+              <button @click="toggleMenu(reply.id)" class="p-1 hover:bg-gray-100 rounded">
+                <i class="fas fa-ellipsis-h text-gray-500"></i>
+              </button>
+              <div v-if="showMenu === reply.id"
+                class="absolute right-0 mt-2 bg-white border rounded shadow-md text-xs z-10 min-w-[120px] overflow-hidden">
+                <button @click="edit(reply)" class="block w-full text-left px-4 py-2 hover:bg-gray-100">✏️ Sửa</button>
+                <button @click="confirmDelete(reply.id)" class="block w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600">🗑️ Xoá</button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -207,6 +230,75 @@
         <i class="fas fa-chevron-right"></i>
       </button>
     </nav>
+
+    <!-- Dialog xác nhận xóa -->
+    <Teleport to="body">
+      <Transition
+        enter-active-class="transition ease-out duration-200"
+        enter-from-class="opacity-0"
+        enter-to-class="opacity-100"
+        leave-active-class="transition ease-in duration-100"
+        leave-from-class="opacity-100"
+        leave-to-class="opacity-0"
+      >
+        <div v-if="showConfirmDialog" class="fixed inset-0 z-50 overflow-y-auto">
+          <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="closeConfirmDialog"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true"></span>
+            <div 
+              class="relative inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full"
+            >
+              <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div class="sm:flex sm:items-start">
+                  <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                    <svg 
+                      class="h-6 w-6 text-red-600" 
+                      xmlns="http://www.w3.org/2000/svg" 
+                      fill="none" 
+                      viewBox="0 0 24 24" 
+                      stroke="currentColor"
+                    >
+                      <path 
+                        stroke-linecap="round" 
+                        stroke-linejoin="round" 
+                        stroke-width="2" 
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" 
+                      />
+                    </svg>
+                  </div>
+                  <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900">
+                      {{ confirmDialogTitle }}
+                    </h3>
+                    <div class="mt-2">
+                      <p class="text-sm text-gray-500">
+                        {{ confirmDialogMessage }}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button
+                  type="button"
+                  class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm"
+                  @click="handleConfirmAction"
+                >
+                  Xác nhận
+                </button>
+                <button
+                  type="button"
+                  class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                  @click="closeConfirmDialog"
+                >
+                  Hủy
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </section>
 </template>
 
@@ -214,7 +306,6 @@
 import { ref, onMounted, nextTick, computed, watch, onBeforeUnmount } from 'vue'
 import { useToast } from '~/composables/useToast'
 import { useRuntimeConfig } from '#app'
-import ReportDialog from '~/components/shared/ReportDialog.vue'
 
 const { toast } = useToast()
 const config = useRuntimeConfig()
@@ -222,8 +313,14 @@ const apiBase = config.public.apiBaseUrl
 const mediaBase = config.public.mediaBaseUrl
 
 const props = defineProps({
-  slug: String,
-  currentUserId: Number
+  slug: {
+    type: String,
+    required: true
+  },
+  currentUserId: {
+    type: [Number, String, null],
+    default: null
+  }
 })
 
 // State
@@ -234,25 +331,33 @@ const editingId = ref(null)
 const submitting = ref(false)
 const averageRating = ref(0)
 const showMenu = ref(null)
-const showReportDialog = ref(null)
 const showReplyForm = ref(null)
 const replyContent = ref('')
 const filterStar = ref('')
 const currentPage = ref(1)
 const itemsPerPage = 5
 const postId = ref(null)
-const commentLikes = ref(new Map()) // Lưu trạng thái Like cho mỗi bình luận
+const commentLikes = ref(new Map())
+const commentSection = ref(null)
+const showConfirmDialog = ref(false)
+const confirmDialogTitle = ref('')
+const confirmDialogMessage = ref('')
+const pendingDeleteId = ref(null)
 
 // Media
 const previewImages = ref([])
 const rawImages = ref([])
 const previewVideos = ref([])
 const rawVideos = ref([])
+const keptMedia = ref([])
+
+// Debug
+const debugInfo = ref({})
 
 // Lấy postId từ slug
 const fetchPostIdBySlug = async () => {
   if (!props.slug) {
-    console.error('Không có slug được cung cấp')
+    console.error('Không có slug được cung cấp', { time: new Date().toLocaleString('vi-VN') })
     toast('error', 'Không tìm thấy bài viết')
     return
   }
@@ -262,11 +367,12 @@ const fetchPostIdBySlug = async () => {
       cache: 'no-store'
     })
     postId.value = res.data?.id
+    debugInfo.value.postId = postId.value
     if (!postId.value) {
       throw new Error('Không tìm thấy ID bài viết')
     }
   } catch (err) {
-    console.error('Lỗi khi lấy postId từ slug:', err)
+    console.error('Lỗi khi lấy postId từ slug:', err, { time: new Date().toLocaleString('vi-VN') })
     toast('error', 'Không thể tải bài viết')
     postId.value = null
   }
@@ -289,47 +395,73 @@ const formatDate = (dateStr) => {
 // Load danh sách bình luận
 const fetchComments = async () => {
   if (!postId.value) {
-    console.warn('Không có postId để lấy bình luận')
+    console.warn('Không có postId để lấy bình luận', { time: new Date().toLocaleString('vi-VN') })
     return
   }
   try {
+    const token = localStorage.getItem('access_token')
+    debugInfo.value.token = !!token
+    debugInfo.value.currentUserId = props.currentUserId
     const res = await $fetch(`${apiBase}/posts/${postId.value}/comments`, {
-      headers: { 'Accept': 'application/json' },
+      headers: { 
+        'Accept': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
       cache: 'no-store'
     })
     comments.value = (res.data || []).map(c => ({
       ...c,
+      user_id: c.user_id ? String(c.user_id) : null,
       isLiked: c.isLiked ?? false,
-      likes_count: c.likes_count || 0
+      likes_count: c.likes_count || 0,
+      replies: (c.replies || []).map(r => ({
+        ...r,
+        user_id: r.user_id ? String(r.user_id) : null,
+        isLiked: r.isLiked ?? false,
+        likes_count: r.likes_count || 0
+      }))
     }))
-    console.log('Danh sách bình luận:', comments.value)
+    debugInfo.value.comments = comments.value.map(c => ({
+      id: c.id,
+      user_id: c.user_id,
+      isOwnComment: String(c.user_id) === String(props.currentUserId)
+    }))
 
     // Khởi tạo trạng thái Like
     commentLikes.value.clear()
-    const token = localStorage.getItem('access_token')
     if (token) {
-      await Promise.all(comments.value.map(async (c) => {
-        try {
-          const res = await $fetch(`${apiBase}/posts/${postId.value}/comments/${c.id}/liked`, {
-            headers: { Authorization: `Bearer ${token}` },
-            cache: 'no-store'
-          })
-          commentLikes.value.set(c.id, {
-            isLiked: res.liked ?? false,
-            likeCount: c.likes_count
-          })
-        } catch (err) {
-          console.error(`Lỗi khi kiểm tra trạng thái Like cho bình luận ${c.id}:`, err)
-          commentLikes.value.set(c.id, { isLiked: false, likeCount: c.likes_count })
+      const processComments = async (commentList) => {
+        for (const c of commentList) {
+          try {
+            const res = await $fetch(`${apiBase}/posts/${postId.value}/comments/${c.id}/liked`, {
+              headers: { Authorization: `Bearer ${token}` },
+              cache: 'no-store'
+            })
+            commentLikes.value.set(c.id, {
+              isLiked: res.liked ?? false,
+              likeCount: c.likes_count
+            })
+            if (c.replies && c.replies.length) {
+              await processComments(c.replies)
+            }
+          } catch (err) {
+            console.error(`Lỗi khi kiểm tra trạng thái Like cho bình luận ${c.id}:`, err, { time: new Date().toLocaleString('vi-VN') })
+            commentLikes.value.set(c.id, { isLiked: false, likeCount: c.likes_count })
+          }
         }
-      }))
+      }
+      await processComments(comments.value)
     } else {
-      comments.value.forEach(c => {
-        commentLikes.value.set(c.id, { isLiked: false, likeCount: c.likes_count })
-      })
+      const setDefaultLikes = (commentList) => {
+        commentList.forEach(c => {
+          commentLikes.value.set(c.id, { isLiked: false, likeCount: c.likes_count })
+          if (c.replies && c.replies.length) {
+            setDefaultLikes(c.replies)
+          }
+        })
+      }
+      setDefaultLikes(comments.value)
     }
-    console.log('Trạng thái Like:', Array.from(commentLikes.value.entries()))
-
     // Tính trung bình rating
     if (comments.value.length) {
       const sum = comments.value.reduce((acc, c) => acc + (c.rating || 0), 0)
@@ -338,9 +470,10 @@ const fetchComments = async () => {
       averageRating.value = 0
     }
   } catch (err) {
-    console.error('Lỗi khi lấy bình luận:', err)
+    console.error('Lỗi khi lấy bình luận:', err, { time: new Date().toLocaleString('vi-VN') })
     comments.value = []
     averageRating.value = 0
+    toast('error', 'Không thể tải bình luận')
   }
 }
 
@@ -351,11 +484,13 @@ const cancelEdit = () => {
   userRating.value = 0
   resetMedia()
 }
+
 const resetMedia = () => {
   previewImages.value = []
   rawImages.value = []
   previewVideos.value = []
   rawVideos.value = []
+  keptMedia.value = []
 }
 
 // Sửa bình luận
@@ -364,6 +499,7 @@ const edit = (c) => {
   commentContent.value = c.content
   userRating.value = c.rating || 0
   resetMedia()
+  keptMedia.value = c.media ? c.media.map(m => ({ id: m.id, type: m.type, url: m.url })) : []
 }
 
 // Submit bình luận
@@ -387,10 +523,12 @@ const submitComment = async () => {
     let url, method, body, headers
     if (editingId.value) {
       url = `${apiBase}/posts/${postId.value}/comments/${editingId.value}`
-      method = 'PUT'
+      method = 'POST'
       body = new FormData()
       body.append('content', commentContent.value)
       body.append('rating', userRating.value)
+      body.append('_method', 'PUT')
+      keptMedia.value.forEach((media, i) => body.append(`kept_images[${i}]`, media.id))
       rawImages.value.forEach((file, i) => body.append(`images[${i}]`, file))
       rawVideos.value.forEach((file, i) => body.append(`videos[${i}]`, file))
       headers = { Authorization: `Bearer ${token}` }
@@ -405,11 +543,12 @@ const submitComment = async () => {
       headers = { Authorization: `Bearer ${token}` }
     }
 
-    await $fetch(url, { method, headers, body })
+    const res = await $fetch(url, { method, headers, body })
     cancelEdit()
+    toast('success', editingId.value ? 'Đã cập nhật bình luận' : 'Đã gửi bình luận')
     await fetchComments()
-    toast('success', editingId.value ? 'Đã cập nhật' : 'Đã gửi bình luận')
   } catch (err) {
+    console.error('Lỗi khi gửi bình luận:', err, { time: new Date().toLocaleString('vi-VN') })
     toast('error', err?.data?.message || err?.message || 'Lỗi gửi bình luận')
   } finally {
     submitting.value = false
@@ -417,49 +556,66 @@ const submitComment = async () => {
 }
 
 // Xóa bình luận
-const deleteComment = async (id) => {
-  if (!postId.value) {
-    toast('error', 'Không tìm thấy bài viết')
+const confirmDelete = (id) => {
+  pendingDeleteId.value = id
+  confirmDialogTitle.value = 'Xóa bình luận'
+  confirmDialogMessage.value = 'Bạn có chắc chắn muốn xóa bình luận này? Hành động này không thể hoàn tác.'
+  showConfirmDialog.value = true
+  showMenu.value = null
+}
+
+const handleConfirmAction = async () => {
+  if (!postId.value || !pendingDeleteId.value) {
+    console.error('Invalid postId or commentId', { postId: postId.value, commentId: pendingDeleteId.value, time: new Date().toLocaleString('vi-VN') })
+    toast('error', 'Không tìm thấy bài viết hoặc bình luận')
+    closeConfirmDialog()
     return
   }
   const token = localStorage.getItem('access_token')
   if (!token) {
+    console.error('No access token found', { time: new Date().toLocaleString('vi-VN') })
     toast('error', 'Bạn cần đăng nhập để xóa bình luận')
+    closeConfirmDialog()
     return
   }
-  if (!confirm('Xóa bình luận?')) return
   try {
-    await $fetch(`${apiBase}/posts/${postId.value}/comments/${id}`, {
+    const response = await $fetch(`${apiBase}/posts/${postId.value}/comments/${pendingDeleteId.value}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },
       cache: 'no-store'
     })
     await fetchComments()
-    toast('success', 'Đã xóa')
+    toast('success', 'Đã xóa bình luận')    
   } catch (err) {
-    toast('error', err?.data?.message || err?.message || 'Không thể xóa')
+    console.error('Lỗi khi xóa bình luận:', err, { status: err.status, response: err.data, time: new Date().toLocaleString('vi-VN') })
+    if (err.status === 404) {
+      toast('error', 'Bình luận không tồn tại hoặc đã bị xóa')
+    } else if (err.status === 403) {
+      toast('error', 'Bạn không có quyền xóa bình luận này')
+    } else {
+      toast('error', err?.data?.message || err?.message || 'Không thể xóa bình luận')
+    }
+  } finally {
+    closeConfirmDialog()
   }
+}
+
+const closeConfirmDialog = () => {
+  showConfirmDialog.value = false
+  confirmDialogTitle.value = ''
+  confirmDialogMessage.value = ''
+  pendingDeleteId.value = null
 }
 
 // Toggle menu ba chấm
 const toggleMenu = (id) => {
   showMenu.value = showMenu.value === id ? null : id
 }
+
 const handleClickOutside = (event) => {
   if (!event.target.closest('.menu-wrapper')) {
     showMenu.value = null
   }
-}
-
-// Báo cáo
-const handleReport = (id) => {
-  const comment = comments.value.find(c => c.id === id)
-  if (comment && comment.user_id == props.currentUserId) {
-    toast('error', 'Bạn không thể báo cáo bình luận của chính mình')
-    return
-  }
-  showReportDialog.value = id
-  showMenu.value = null
 }
 
 // Trả lời
@@ -467,6 +623,7 @@ const toggleReplyForm = (id) => {
   showReplyForm.value = showReplyForm.value === id ? null : id
   replyContent.value = ''
 }
+
 const submitReply = async (comment) => {
   if (!postId.value) {
     toast('error', 'Không tìm thấy bài viết')
@@ -493,8 +650,8 @@ const submitReply = async (comment) => {
     replyContent.value = ''
     await fetchComments()
   } catch (err) {
-    console.error('Lỗi khi gửi trả lời:', err)
-    toast('error', err?.data?.message || err?.message || 'Chỉ tác giả hoặc quản trị viên mới được trả lời.')
+    console.error('Lỗi khi gửi trả lời:', err, { time: new Date().toLocaleString('vi-VN') })
+    toast('error', err?.data?.message || err?.message || 'Lỗi khi gửi trả lời')
   }
 }
 
@@ -511,12 +668,6 @@ const likeComment = async (comment) => {
   }
 
   try {
-    console.log('Before like/unlike:', {
-      commentId: comment.id,
-      isLiked: commentLikes.value.get(comment.id)?.isLiked,
-      likeCount: commentLikes.value.get(comment.id)?.likeCount,
-      token
-    })
     const isCurrentlyLiked = commentLikes.value.get(comment.id)?.isLiked || false
     const url = `${apiBase}/posts/${postId.value}/comments/${comment.id}/${isCurrentlyLiked ? 'unlike' : 'like'}`
     const res = await $fetch(url, {
@@ -524,7 +675,6 @@ const likeComment = async (comment) => {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       cache: 'no-store'
     })
-    console.log('API response:', res)
     if (!res || !res.hasOwnProperty('likes')) {
       throw new Error('Phản hồi API không hợp lệ hoặc thiếu trường likes')
     }
@@ -532,21 +682,19 @@ const likeComment = async (comment) => {
       isLiked: !isCurrentlyLiked,
       likeCount: res.likes
     })
-    console.log('After like/unlike:', {
-      commentId: comment.id,
-      isLiked: commentLikes.value.get(comment.id).isLiked,
-      likeCount: commentLikes.value.get(comment.id).likeCount
-    })
-    // Cập nhật likes_count trong comments để đảm bảo hiển thị đúng
-    const index = comments.value.findIndex(c => c.id === comment.id)
-    if (index !== -1) {
-      comments.value[index] = {
-        ...comments.value[index],
-        likes_count: res.likes
+    const updateCommentLikes = (commentList) => {
+      for (let c of commentList) {
+        if (c.id === comment.id) {
+          c.likes_count = res.likes
+        }
+        if (c.replies && c.replies.length) {
+          updateCommentLikes(c.replies)
+        }
       }
     }
+    updateCommentLikes(comments.value)
   } catch (err) {
-    console.error('Lỗi khi like/unlike:', err)
+    console.error('Lỗi khi like/unlike:', err, { time: new Date().toLocaleString('vi-VN') })
     toast('error', err?.data?.message || err?.message || 'Lỗi khi thích bình luận')
   }
 }
@@ -563,9 +711,7 @@ const filteredComments = computed(() => {
 const totalPages = computed(() => Math.ceil(filteredComments.value.length / itemsPerPage))
 const paginatedComments = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage
-  const result = filteredComments.value.slice(start, start + itemsPerPage)
-  console.log('Paginated comments:', result)
-  return result
+  return filteredComments.value.slice(start, start + itemsPerPage)
 })
 
 function goToPage(page) {
@@ -578,7 +724,7 @@ function goToPage(page) {
 // Media handler
 const onImageChange = (e) => {
   const files = Array.from(e.target.files).filter(f => f.type.startsWith('image/'))
-  if (files.length + rawImages.value.length > 5) {
+  if (files.length + rawImages.value.length + keptMedia.value.filter(m => m.type === 'image').length > 5) {
     toast('error', 'Tối đa 5 ảnh')
     return
   }
@@ -589,13 +735,15 @@ const onImageChange = (e) => {
     reader.readAsDataURL(img)
   })
 }
+
 const removeImage = (idx) => {
   previewImages.value.splice(idx, 1)
   rawImages.value.splice(idx, 1)
 }
+
 const onVideoChange = (e) => {
   const files = Array.from(e.target.files).filter(f => f.type.startsWith('video/'))
-  if (files.length + rawVideos.value.length > 5) {
+  if (files.length + rawVideos.value.length + keptMedia.value.filter(m => m.type === 'video').length > 5) {
     toast('error', 'Tối đa 5 video')
     return
   }
@@ -606,13 +754,17 @@ const onVideoChange = (e) => {
     reader.readAsDataURL(vid)
   })
 }
+
 const removeVideo = (idx) => {
   previewVideos.value.splice(idx, 1)
   rawVideos.value.splice(idx, 1)
 }
 
+const removeKeptMedia = (idx) => {
+  keptMedia.value.splice(idx, 1)
+}
+
 onMounted(async () => {
-  console.log('Current User ID:', props.currentUserId)
   document.addEventListener('click', handleClickOutside)
   await fetchPostIdBySlug()
   if (postId.value) {
@@ -634,7 +786,6 @@ watch(() => props.slug, async (newSlug, oldSlug) => {
 })
 
 watch(() => props.currentUserId, async (newId, oldId) => {
-  console.log('Current User ID changed:', { newId, oldId })
   if (newId !== oldId && postId.value) {
     await fetchComments()
   }
@@ -642,8 +793,12 @@ watch(() => props.currentUserId, async (newId, oldId) => {
 </script>
 
 <style scoped>
-.menu-wrapper { position: relative; }
+.menu-wrapper { 
+  position: relative; 
+  visibility: visible !important; 
+  display: block !important; 
+}
 .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
 .fade-enter, .fade-leave-to { opacity: 0; }
-textarea:focus { outline: none; box-shadow: 0 0 0 2px #3b82f6; }
+textarea:focus, input:focus { outline: none; box-shadow: 0 0 0 2px #3b82f6; }
 </style>

@@ -821,7 +821,6 @@ const fetchSellers = async () => {
         id: item.id,
         store_name: item.store_name || item.title || 'Không có tên'
       }));
-      sellers.value.unshift({ id: 'passion', store_name: 'Passion (Admin)' });
       apiErrors.sellers = null;
     } else {
       throw new Error('Unexpected response format for sellers');
