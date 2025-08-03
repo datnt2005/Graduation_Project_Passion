@@ -1,39 +1,102 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-gray-100 mt-20 mb-20 pb-10">
-    <div class="relative bg-white rounded-2xl shadow-xl p-8 max-w-2xl w-full text-center transform transition-all duration-300 hover:scale-[1.01]">
-      <div class="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-green-500/10 rounded-2xl -z-10"></div>
+  <main class="bg-[#F5F5FA] py-6">
+    <div class="flex items-center justify-center pb-10">
+      <div
+        class="relative bg-white rounded-2xl shadow-xl p-8 max-w-2xl w-full text-center transform transition-all duration-300 hover:scale-[1.01]">
+        <div class="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-green-500/10 rounded-2xl -z-10"></div>
 
-      <!-- Đang tải -->
-      <div v-if="loading" class="flex flex-col items-center py-12">
-        <div class="animate-spin rounded-full h-12 w-12 border-t-4 border-blue-600 mb-6"></div>
-        <p class="text-gray-600 text-lg font-medium animate-pulse">Đang xác minh thanh toán...</p>
-      </div>
+        <!-- Đang tải -->
+        <div v-if="loading" class="flex flex-col items-center py-12">
+          <div class="animate-spin rounded-full h-12 w-12 border-t-4 border-blue-600 mb-6"></div>
+          <p class="text-gray-600 text-lg font-medium animate-pulse">Đang xác minh thanh toán...</p>
+        </div>
 
-      <!-- Thành công -->
-      <div v-else-if="success" class="flex flex-col items-center py-6 animate-fade-in">
-        <svg width="100" height="100" viewBox="0 0 24 24" fill="green" xmlns="http://www.w3.org/2000/svg">
-          <path d="M9 12l2 2 4-4M12 2a10 10 0 100 20 10 10 0 000-20z" stroke="white" stroke-width="2" fill="green"/>
-        </svg>
-        <h2 class="text-3xl font-extrabold text-green-600 mb-2">Thanh Toán Thành Công!</h2>
-        <p class="text-gray-700 mb-6 text-lg">
-          Cảm ơn bạn đã mua hàng tại <span class="font-semibold text-primary">Passion</span>.
-        </p>
-        <!-- THÔNG TIN ĐƠN HÀNG -->
-        <div v-if="Array.isArray(orderDetail) && orderDetail.length" class="space-y-8">
-          <div v-for="order in orderDetail" :key="order.id" class="bg-gray-50 rounded-xl p-6 w-full border border-gray-200 shadow-sm space-y-5">
+        <!-- Thành công -->
+        <div v-else-if="success" class="flex flex-col items-center py-6 animate-fade-in">
+          <svg width="100" height="100" viewBox="0 0 24 24" fill="green" xmlns="http://www.w3.org/2000/svg">
+            <path d="M9 12l2 2 4-4M12 2a10 10 0 100 20 10 10 0 000-20z" stroke="white" stroke-width="2" fill="green" />
+          </svg>
+          <h2 class="text-3xl font-extrabold text-green-600 mb-2">Thanh Toán Thành Công!</h2>
+          <p class="text-gray-700 mb-6 text-lg">
+            Cảm ơn bạn đã mua hàng tại <span class="font-semibold text-primary">Passion</span>.
+          </p>
+          <!-- THÔNG TIN ĐƠN HÀNG -->
+          <div v-if="Array.isArray(orderDetail) && orderDetail.length" class="space-y-8">
+            <div v-for="order in orderDetail" :key="order.id"
+              class="bg-gray-50 rounded-xl p-6 w-full border border-gray-200 shadow-sm space-y-5">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-6 text-gray-700 text-sm">
+                <div><span class="font-medium text-gray-500">Mã vận đơn:</span> <span class="font-semibold">{{
+                  order.shipping?.tracking_code || 'Đang cập nhật' }}</span></div>
+                <div><span class="font-medium text-gray-500">Người nhận:</span> <span class="font-semibold">{{
+                  order.user?.name || 'N/A' }}</span></div>
+                <div><span class="font-medium text-gray-500">Email:</span> <span class="font-semibold">{{
+                  order.user?.email || 'N/A' }}</span></div>
+                <div><span class="font-medium text-gray-500">SĐT:</span> <span class="font-semibold">{{
+                  order.address?.phone || 'N/A' }}</span></div>
+                <div class="sm:col-span-2">
+                  <span class="font-medium text-gray-500">Địa chỉ giao hàng:</span>
+                  <div class="mt-1 font-semibold text-gray-800">
+                    {{
+                      order.address
+                        ? [order.address.detail, order.address.ward_name, order.address.district_name,
+                        order.address.province_name]
+                          .filter(v => v && v !== 'null' && v !== 'undefined')
+                          .join(', ')
+                        : 'Không có'
+                    }}
+                  </div>
+                </div>
+                <div class="sm:col-span-2 text-center mt-2">
+                  <span class="font-medium text-gray-500">Phương thức:</span>
+                  <span class="font-semibold">VNPay</span>
+                </div>
+              </div>
+              <div class="mt-4 text-left text-sm space-y-1">
+                <div class="flex justify-between">
+                  <span>Tổng tiền hàng:</span>
+                  <span>{{ formatPrice(order.total_price) }}</span>
+                </div>
+                <div class="flex justify-between" v-if="order.discount_price > 0">
+                  <span>Giảm giá sản phẩm:</span>
+                  <span class="text-green-600">- {{ formatPrice(order.discount_price) }}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span>Phí vận chuyển:</span>
+                  <span>{{ formatPrice(order.shipping?.shipping_fee) }}</span>
+                </div>
+                <div class="flex justify-between" v-if="order.shipping && order.shipping.shipping_discount > 0">
+                  <span>Giảm giá phí ship:</span>
+                  <span class="text-green-600">- {{ formatPrice(order.shipping.shipping_discount) }}</span>
+                </div>
+                <div class="flex justify-between font-bold border-t pt-2 mt-2">
+                  <span>Tổng thanh toán:</span>
+                  <span class="text-blue-700">{{ formatPrice(order.final_price || 0) }}</span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+          <!-- Hỗ trợ hiển thị cũ cho backward compatibility -->
+          <div v-else-if="orderDetail && orderDetail.user"
+            class="bg-gray-50 rounded-xl p-6 w-full border border-gray-200 shadow-sm space-y-5">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-6 text-gray-700 text-sm">
-              <div><span class="font-medium text-gray-500">Mã vận đơn:</span> <span class="font-semibold">{{ order.shipping?.tracking_code || 'Đang cập nhật' }}</span></div>
-              <div><span class="font-medium text-gray-500">Người nhận:</span> <span class="font-semibold">{{ order.user?.name || 'N/A' }}</span></div>
-              <div><span class="font-medium text-gray-500">Email:</span> <span class="font-semibold">{{ order.user?.email || 'N/A' }}</span></div>
-              <div><span class="font-medium text-gray-500">SĐT:</span> <span class="font-semibold">{{ order.address?.phone || 'N/A' }}</span></div>
+              <div><span class="font-medium text-gray-500">Mã vận đơn:</span> <span class="font-semibold">{{
+                tracking_code || 'Đang cập nhật' }}</span></div>
+              <div><span class="font-medium text-gray-500">Người nhận:</span> <span class="font-semibold">{{
+                orderDetail?.user?.name || 'N/A' }}</span></div>
+              <div><span class="font-medium text-gray-500">Email:</span> <span class="font-semibold">{{
+                orderDetail?.user?.email || 'N/A' }}</span></div>
+              <div><span class="font-medium text-gray-500">SĐT:</span> <span class="font-semibold">{{
+                orderDetail?.address?.phone || 'N/A' }}</span></div>
               <div class="sm:col-span-2">
                 <span class="font-medium text-gray-500">Địa chỉ giao hàng:</span>
                 <div class="mt-1 font-semibold text-gray-800">
                   {{
-                    order.address
-                      ? [order.address.detail, order.address.ward_name, order.address.district_name, order.address.province_name]
-                          .filter(v => v && v !== 'null' && v !== 'undefined')
-                          .join(', ')
+                    orderDetail.address
+                      ? [orderDetail.address.detail, orderDetail.address.ward_name, orderDetail.address.district_name,
+                      orderDetail.address.province_name]
+                        .filter(v => v && v !== 'null' && v !== 'undefined')
+                        .join(', ')
                       : 'Không có'
                   }}
                 </div>
@@ -43,86 +106,41 @@
                 <span class="font-semibold">VNPay</span>
               </div>
             </div>
-            <div class="mt-4 text-left text-sm space-y-1">
-              <div class="flex justify-between">
-                <span>Tổng tiền hàng:</span>
-                <span>{{ formatPrice(order.total_price) }}</span>
-              </div>
-              <div class="flex justify-between" v-if="order.discount_price > 0">
-                <span>Giảm giá sản phẩm:</span>
-                <span class="text-green-600">- {{ formatPrice(order.discount_price) }}</span>
-              </div>
-              <div class="flex justify-between">
-                <span>Phí vận chuyển:</span>
-                <span>{{ formatPrice(order.shipping?.shipping_fee) }}</span>
-              </div>
-              <div class="flex justify-between" v-if="order.shipping && order.shipping.shipping_discount > 0">
-                <span>Giảm giá phí ship:</span>
-                <span class="text-green-600">- {{ formatPrice(order.shipping.shipping_discount) }}</span>
-              </div>
-              <div class="flex justify-between font-bold border-t pt-2 mt-2">
-                <span>Tổng thanh toán:</span>
-                <span class="text-blue-700">{{ formatPrice(order.final_price || 0) }}</span>
-              </div>
+            <div class="text-right text-lg font-bold text-blue-700 border-t pt-4 mt-4">
+              Tổng thanh toán: {{ formatPrice(orderDetail?.final_price || 0) }}
             </div>
 
+          </div>
+
+          <!-- Về trang chủ -->
+          <div class="mt-6 flex gap-4 justify-center">
+            <NuxtLink to="/"
+              class="inline-block bg-gradient-to-r from-blue-600 to-blue-700 text-white px-8 py-3 rounded-full font-semibold text-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-300 shadow-md hover:shadow-lg">
+              Về Trang Chủ
+            </NuxtLink>
+            <NuxtLink v-if="orderDetail && orderDetail.length > 0" to="/users/orders"
+              class="inline-block bg-gradient-to-r from-green-600 to-green-700 text-white px-8 py-3 rounded-full font-semibold text-lg hover:from-green-700 hover:to-green-800 transition-all duration-300 shadow-md hover:shadow-lg">
+              Xem Chi Tiết Đơn Hàng
+            </NuxtLink>
           </div>
         </div>
-        <!-- Hỗ trợ hiển thị cũ cho backward compatibility -->
-        <div v-else-if="orderDetail && orderDetail.user" class="bg-gray-50 rounded-xl p-6 w-full border border-gray-200 shadow-sm space-y-5">
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-6 text-gray-700 text-sm">
-            <div><span class="font-medium text-gray-500">Mã vận đơn:</span> <span class="font-semibold">{{ tracking_code || 'Đang cập nhật' }}</span></div>
-            <div><span class="font-medium text-gray-500">Người nhận:</span> <span class="font-semibold">{{ orderDetail?.user?.name || 'N/A' }}</span></div>
-            <div><span class="font-medium text-gray-500">Email:</span> <span class="font-semibold">{{ orderDetail?.user?.email || 'N/A' }}</span></div>
-            <div><span class="font-medium text-gray-500">SĐT:</span> <span class="font-semibold">{{ orderDetail?.address?.phone || 'N/A' }}</span></div>
-            <div class="sm:col-span-2">
-              <span class="font-medium text-gray-500">Địa chỉ giao hàng:</span>
-              <div class="mt-1 font-semibold text-gray-800">
-                {{
-                  orderDetail.address
-                    ? [orderDetail.address.detail, orderDetail.address.ward_name, orderDetail.address.district_name, orderDetail.address.province_name]
-                        .filter(v => v && v !== 'null' && v !== 'undefined')
-                        .join(', ')
-                    : 'Không có'
-                }}
-              </div>
-            </div>
-            <div class="sm:col-span-2 text-center mt-2">
-              <span class="font-medium text-gray-500">Phương thức:</span>
-              <span class="font-semibold">VNPay</span>
-            </div>
-          </div>
-                      <div class="text-right text-lg font-bold text-blue-700 border-t pt-4 mt-4">
-            Tổng thanh toán: {{ formatPrice(orderDetail?.final_price || 0) }}
-          </div>
 
-        </div>
+        <!-- Thất bại -->
+        <div v-else class="flex flex-col items-center py-6 animate-fade-in">
+          <svg class="h-20 w-20 text-red-500 animate-pulse mb-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+          <h2 class="text-3xl font-extrabold text-red-600 mb-3">Thanh Toán Thất Bại!</h2>
+          <p class="text-gray-600 mb-6 text-lg">{{ message }}</p>
 
-        <!-- Về trang chủ -->
-        <div class="mt-6 flex gap-4 justify-center">
-          <NuxtLink to="/" class="inline-block bg-gradient-to-r from-blue-600 to-blue-700 text-white px-8 py-3 rounded-full font-semibold text-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-300 shadow-md hover:shadow-lg">
-            Về Trang Chủ
-          </NuxtLink>
-          <NuxtLink v-if="orderDetail && orderDetail.length > 0" to="/users/orders" class="inline-block bg-gradient-to-r from-green-600 to-green-700 text-white px-8 py-3 rounded-full font-semibold text-lg hover:from-green-700 hover:to-green-800 transition-all duration-300 shadow-md hover:shadow-lg">
-            Xem Chi Tiết Đơn Hàng
+          <NuxtLink to="/checkout"
+            class="mt-6 inline-block bg-gradient-to-r from-gray-500 to-gray-600 text-white px-8 py-3 rounded-full font-semibold text-lg hover:from-gray-600 hover:to-gray-700 transition-all duration-300 shadow-md hover:shadow-lg">
+            Thử Lại
           </NuxtLink>
         </div>
-      </div>
-
-      <!-- Thất bại -->
-      <div v-else class="flex flex-col items-center py-6 animate-fade-in">
-        <svg class="h-20 w-20 text-red-500 animate-pulse mb-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-        </svg>
-        <h2 class="text-3xl font-extrabold text-red-600 mb-3">Thanh Toán Thất Bại!</h2>
-        <p class="text-gray-600 mb-6 text-lg">{{ message }}</p>
-
-        <NuxtLink to="/checkout" class="mt-6 inline-block bg-gradient-to-r from-gray-500 to-gray-600 text-white px-8 py-3 rounded-full font-semibold text-lg hover:from-gray-600 hover:to-gray-700 transition-all duration-300 shadow-md hover:shadow-lg">
-          Thử Lại
-        </NuxtLink>
       </div>
     </div>
-  </div>
+  </main>
 </template>
 
 <script setup>
@@ -242,7 +260,7 @@ const fetchProductDetails = async (productId) => {
   } catch (error) {
     console.error('Error fetching product details:', error);
     return '/images/default-product.jpg';
-}
+  }
 };
 
 onMounted(async () => {
@@ -277,11 +295,11 @@ onMounted(async () => {
       bankCode.value = data.bank_code || '-'
       transactionId.value = data.transaction_id || '-'
       tracking_code.value = data.tracking_code || '-'
-      
+
       // Xử lý order_detail từ backend
       console.log('VNPay backend response data:', data);
       console.log('VNPay order_detail structure:', data.order_detail);
-      
+
       if (data.order_detail) {
         if (Array.isArray(data.order_detail)) {
           console.log('VNPay order_detail is array, length:', data.order_detail.length);
@@ -315,37 +333,37 @@ onMounted(async () => {
       if (orderDetail.value && orderDetail.value.length) {
         const order = orderDetail.value[0]
         if (order) {
-                // Lấy danh sách sản phẩm đã được thanh toán để xóa khỏi giỏ hàng
-      const orderedItems = [];
-      if (Array.isArray(orderDetail.value)) {
-        orderDetail.value.forEach(order => {
-          if (order.order_items && Array.isArray(order.order_items)) {
-            order.order_items.forEach(item => {
-              orderedItems.push({
-                product_id: item.product?.id,
-                product_variant_id: item.variant?.id || null,
-                quantity: item.quantity
-              });
+          // Lấy danh sách sản phẩm đã được thanh toán để xóa khỏi giỏ hàng
+          const orderedItems = [];
+          if (Array.isArray(orderDetail.value)) {
+            orderDetail.value.forEach(order => {
+              if (order.order_items && Array.isArray(order.order_items)) {
+                order.order_items.forEach(item => {
+                  orderedItems.push({
+                    product_id: item.product?.id,
+                    product_variant_id: item.variant?.id || null,
+                    quantity: item.quantity
+                  });
+                });
+              }
             });
           }
-        });
-      }
-      
-      console.log('VNPay return - orderedItems để xóa:', orderedItems);
-      console.log('VNPay return - orderDetail.value:', orderDetail.value);
-      
-      // Chỉ xóa những sản phẩm đã được thanh toán
-      if (orderedItems.length > 0) {
-        console.log('Bắt đầu xóa items khỏi giỏ hàng...');
-        try {
-          await clearOrderedItems(orderedItems);
-          console.log('Hoàn thành xóa items khỏi giỏ hàng');
-        } catch (error) {
-          console.error('Lỗi khi xóa items khỏi giỏ hàng:', error);
-        }
-      } else {
-        console.log('Không có items nào để xóa');
-      }
+
+          console.log('VNPay return - orderedItems để xóa:', orderedItems);
+          console.log('VNPay return - orderDetail.value:', orderDetail.value);
+
+          // Chỉ xóa những sản phẩm đã được thanh toán
+          if (orderedItems.length > 0) {
+            console.log('Bắt đầu xóa items khỏi giỏ hàng...');
+            try {
+              await clearOrderedItems(orderedItems);
+              console.log('Hoàn thành xóa items khỏi giỏ hàng');
+            } catch (error) {
+              console.error('Lỗi khi xóa items khỏi giỏ hàng:', error);
+            }
+          } else {
+            console.log('Không có items nào để xóa');
+          }
         } else {
           loading.value = false
           success.value = false

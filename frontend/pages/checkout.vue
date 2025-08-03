@@ -347,10 +347,14 @@
                   </p>
                 </div>
                 <div class="pt-2">
-                  <button @click="placeOrder"
-                    class="w-full bg-red-500 text-white py-3 rounded-md font-bold text-base hover:bg-red-600 transition"
-                    :disabled="!cartItems.length || loading || isAccountBanned">
-                    Đặt hàng
+                  <button @click="handlePlaceOrder"
+                    class="w-full bg-red-500 text-white py-3 rounded-md font-bold text-base hover:bg-red-600 transition flex items-center justify-center"
+                    :disabled="!cartItems.length || loading || isAccountBanned || orderLoading">
+                    <span v-if="orderLoading" class="flex items-center">
+                      <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                      Đang xử lý...
+                    </span>
+                    <span v-else>Đặt hàng</span>
                   </button>
                 </div>
               </section>
@@ -389,6 +393,7 @@ const showDiscountModal = ref(false);
 const storeNotes = ref({});
 const isOrderDetailsOpen = ref(true);
 const shippingFees = ref({});
+const orderLoading = ref(false); // New reactive variable for order button loading state
 
 const cardPromotions = ref([
   {
@@ -730,6 +735,19 @@ const toast = (icon, title) => {
       toastEl.addEventListener('mouseleave', () => Swal.resumeTimer());
     },
   });
+};
+
+// Handle place order with loading state
+const handlePlaceOrder = async () => {
+  orderLoading.value = true;
+  try {
+    await placeOrder();
+  } catch (err) {
+    console.error('Error placing order:', err);
+    toast('error', 'Lỗi khi đặt hàng');
+  } finally {
+    orderLoading.value = false;
+  }
 };
 
 watch(error, (val) => {
