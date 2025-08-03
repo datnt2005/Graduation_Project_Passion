@@ -33,6 +33,9 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
+use App\Models\Notification;
+use App\Models\NotificationRecipient;
+
 
 class OrderController extends Controller
 {
@@ -425,7 +428,7 @@ class OrderController extends Controller
         } catch (\Exception $e) {
             Log::error('Error in OrderController@index: ' . $e->getMessage());
             Log::error($e->getTraceAsString());
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Lỗi khi lấy danh sách đơn hàng: ' . $e->getMessage()
@@ -547,14 +550,14 @@ class OrderController extends Controller
     if ($request->discount_ids && is_array($request->discount_ids)) {
         $shopDiscountCount = 0;
         $adminDiscountCount = 0;
-        
+
         foreach ($request->discount_ids as $did) {
             $discount = \App\Models\Discount::find($did);
             if ($discount) {
                 if ($discount->discount_type === 'shipping_fee') {
                     continue; // Bỏ qua shipping discount
                 }
-                
+
                 if ($discount->seller_id === null) {
                     $adminDiscountCount++;
                 } else {
@@ -562,7 +565,7 @@ class OrderController extends Controller
                 }
             }
         }
-        
+
         if ($shopDiscountCount > 0 && $adminDiscountCount > 0) {
             return response()->json([
                 'message' => 'Không thể áp dụng cùng lúc mã giảm giá của shop và admin. Vui lòng chọn một loại.',
@@ -662,13 +665,13 @@ class OrderController extends Controller
             $shopDiscount = null;
             $adminDiscount = null;
             $shippingDiscount = null;
-            
+
             // Tìm tất cả discount được áp dụng
             if ($request->discount_ids && is_array($request->discount_ids)) {
                 foreach ($request->discount_ids as $did) {
                     $discount = Discount::find($did);
                     if (!$discount) continue;
-                    
+
                     if ($discount->discount_type === 'shipping_fee' && $discount->seller_id === null) {
                         $shippingDiscount = $discount;
                     } elseif ($discount->seller_id == $sellerId && ($discount->discount_type === 'percentage' || $discount->discount_type === 'fixed')) {
@@ -703,10 +706,10 @@ class OrderController extends Controller
                 } else {
                     $discountPrice = $usedDiscount->discount_value;
                 }
-                
+
                 // Đảm bảo discount không vượt quá total price
                 $discountPrice = min($discountPrice, $totalPrice);
-                
+
                 Log::info("Áp dụng discount cho order", [
                     'order_id' => $order->id,
                     'discount_id' => $usedDiscount->id,
@@ -716,7 +719,7 @@ class OrderController extends Controller
                     'calculated_discount' => $discountPrice,
                     'seller_id' => $usedDiscount->seller_id
                 ]);
-                
+
                 DiscountUser::create([
                     'discount_id' => $usedDiscount->id,
                     'user_id' => $request->user()->id,
@@ -850,6 +853,31 @@ class OrderController extends Controller
                 'shipping',
                 'payments.paymentMethod'
             ]);
+
+            $seller = Seller::find($sellerId);
+            if ($seller && $seller->user_id) {
+                $notification = Notification::create([
+                    'title' => 'Bạn có đơn hàng mới',
+                    'content' => "Bạn vừa nhận được một đơn hàng mới từ người dùng.",
+                    'type' => 'system',
+                    'link' => "seller/orders/list-order",
+                    'user_id' => $request->user()->id,
+                    'from_role' => 'customer',
+                    'channels' => json_encode(['dashboard']),
+                    'status' => 'sent',
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+
+                NotificationRecipient::create([
+                    'notification_id' => $notification->id,
+                    'user_id' => $seller->user_id,
+                    'is_read' => false,
+                    'is_hidden' => false,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+                }
 
             $orders[] = $this->formatOrderResponse($order);
         }
@@ -1375,6 +1403,32 @@ public function upsertShippingMethod(Request $request)
                 ]
             ];
 
+            $statusText = $statusMessages[$order->status] ?? 'Đơn hàng đã được cập nhật';
+
+              // Tạo bản ghi notification
+        $notification = Notification::create([
+            'title' => 'Cập nhật trạng thái đơn hàng',
+            'content' => "Đơn hàng #{$order->id} của bạn hiện đang ở trạng thái: {$statusText}.",
+            'type' => 'order',
+            'link' => "users/orders",
+            'user_id' => $order->user_id,
+            'from_role' => 'system',
+            'channels' => json_encode(['dashboard']),
+            'status' => 'sent',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // Gán người nhận
+        NotificationRecipient::create([
+            'notification_id' => $notification->id,
+            'user_id' => $order->user->id,
+            'is_read' => false,
+            'is_hidden' => false,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
             Log::info('Cập nhật đơn hàng thành công', $responseData);
             return response()->json($responseData);
         } catch (\Exception $e) {
@@ -1802,7 +1856,7 @@ public function upsertShippingMethod(Request $request)
         } catch (\Exception $e) {
             Log::error('Error in OrderController@adminList: ' . $e->getMessage());
             Log::error($e->getTraceAsString());
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Lỗi khi lấy danh sách đơn hàng: ' . $e->getMessage()
@@ -1843,7 +1897,7 @@ public function upsertShippingMethod(Request $request)
         } catch (\Exception $e) {
             \Log::error('Error in adminSellerList: ' . $e->getMessage());
             \Log::error($e->getTraceAsString());
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Lỗi khi lấy danh sách sellers: ' . $e->getMessage()
