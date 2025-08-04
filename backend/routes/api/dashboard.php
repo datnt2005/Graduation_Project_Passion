@@ -22,6 +22,8 @@ Route::middleware(['auth:sanctum', 'checkRole:admin'])
         Route::get('/orders-stats', [DashboardController::class, 'getAllOrdersStats']);
         Route::get('/users-stats', [DashboardController::class, 'getActiveUsersStats']);
         Route::get('/system-overview', [DashboardController::class, 'getSystemOverview']);
+        Route::get('/orders-chart', [DashboardController::class, 'getOrdersChart']);
+        Route::get('/revenue-chart', [DashboardController::class, 'getRevenueChart']);
     });
 
 // Admin routes

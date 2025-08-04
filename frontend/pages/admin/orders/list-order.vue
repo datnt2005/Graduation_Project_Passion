@@ -4,6 +4,13 @@
       <!-- Header -->
       <div class="bg-white px-4 py-4 flex items-center justify-between border-b border-gray-200">
         <h1 class="text-xl font-semibold text-gray-800">Quản lý đơn hàng</h1>
+        <button @click="showPaymentNoteModal = true" 
+          class="flex items-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 shadow-md hover:shadow-lg">
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+          </svg>
+          Lưu ý !
+        </button>
       </div>
 
       <!-- Cảnh báo đơn hàng bất thường -->
@@ -81,10 +88,45 @@
           </div>
         </div>
 
+        <!-- Action Bar -->
+        <div class="bg-gray-200 px-4 py-3 flex flex-wrap items-center gap-3 text-sm text-gray-700 border-t border-gray-300">
+          <select
+            v-model="selectedAction"
+            class="rounded-md border border-gray-300 py-1.5 pl-3 pr-8 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="">Hành động hàng loạt</option>
+            <option value="update_payout_status">Cập nhật trạng thái payout</option>
+            <option value="create_payout">Tạo payout</option>
+            <option value="delete">Xóa</option>
+          </select>
+          <button
+            @click="applyBulkAction"
+            :disabled="!selectedAction || selectedOrders.length === 0 || loading"
+            :class="[
+              'px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-150',
+              (!selectedAction || selectedOrders.length === 0 || loading) 
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+            ]"
+          >
+            {{ loading ? 'Đang xử lý...' : 'Áp dụng' }}
+          </button>
+          <div class="ml-auto text-sm text-gray-600">
+            {{ selectedOrders.length }} đơn hàng được chọn / {{ orders.length }} đơn hàng
+          </div>
+        </div>
+
         <!-- Table -->
         <table class="min-w-full border-collapse border border-gray-300 text-sm">
           <thead class="bg-white border-b border-gray-300">
             <tr>
+              <th class="border border-gray-300 px-3 py-2 text-left w-10">
+                <input 
+                  type="checkbox" 
+                  v-model="selectAll"
+                  @change="toggleSelectAll"
+                />
+              </th>
               <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Mã vận đơn</th>
               <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Khách hàng</th>
               <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Tổng tiền</th>
@@ -92,7 +134,7 @@
               </th>
               <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Trạng thái đơn hàng
               </th>
-              <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Trạng thái payout</th>
+              <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Trạng thái thanh toán</th>
               <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Ngày tạo</th>
               <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Thao tác</th>
             </tr>
@@ -100,6 +142,13 @@
           <tbody>
             <tr v-for="order in orders" :key="order.id" :class="{ 'bg-gray-50': order.id % 2 === 0 }"
               class="border-b border-gray-300">
+              <td class="border border-gray-300 px-3 py-2 text-left w-10">
+                <input 
+                  type="checkbox" 
+                  v-model="selectedOrders" 
+                  :value="order.id"
+                />
+              </td>
               <td class="border border-gray-300 px-3 py-2 text-left font-semibold text-blue-700">{{
                 order.shipping?.tracking_code || 'Chưa có' }}</td>
               <td class="border border-gray-300 px-3 py-2 text-left">
@@ -371,16 +420,82 @@
           <span>🏦</span> Danh sách yêu cầu rút tiền
         </h2>
         <!-- Thanh filter đặt ở trên -->
-        <div class="flex flex-wrap gap-2 mb-4 items-end">
-          <input v-model="withdrawSearch" placeholder="Tìm kiếm theo số tiền" class="border rounded px-2 py-1" />
-          <select v-model="withdrawSortDate" class="border rounded px-2 py-1">
-            <option value="desc">Mới nhất</option>
-            <option value="asc">Cũ nhất</option>
-          </select>
-          <select v-model="withdrawSortAmount" class="border rounded px-2 py-1">
-            <option value="desc">Giá cao → thấp</option>
-            <option value="asc">Giá thấp → cao</option>
-          </select>
+        <div class="bg-gray-100 p-4 rounded-lg mb-4">
+          <h3 class="text-lg font-semibold mb-3 text-gray-800">Bộ lọc tìm kiếm</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+            <!-- Tìm kiếm theo số tiền -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Số tiền</label>
+              <input v-model="withdrawSearch" placeholder="Tìm kiếm theo số tiền" 
+                class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+            </div>
+            
+            <!-- Lọc theo ngân hàng -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Ngân hàng</label>
+              <select v-model="withdrawFilters.bank_name" 
+                class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <option value="">Tất cả ngân hàng</option>
+                <option v-for="bank in uniqueBanks" :key="bank" :value="bank">{{ bank }}</option>
+              </select>
+            </div>
+            
+            <!-- Lọc theo tên cửa hàng -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Tên cửa hàng</label>
+              <select v-model="withdrawFilters.shop_name" 
+                class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <option value="">Tất cả cửa hàng</option>
+                <option v-for="shop in uniqueShops" :key="shop" :value="shop">{{ shop }}</option>
+              </select>
+            </div>
+            
+            <!-- Lọc theo trạng thái -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Trạng thái</label>
+              <select v-model="withdrawFilters.status" 
+                class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <option value="">Tất cả trạng thái</option>
+                <option value="pending">Chờ xử lý</option>
+                <option value="approved">Đã duyệt</option>
+                <option value="rejected">Đã từ chối</option>
+              </select>
+            </div>
+            
+            <!-- Lọc từ ngày -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Từ ngày</label>
+              <input type="date" v-model="withdrawFilters.from_date" 
+                class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+            </div>
+            
+            <!-- Lọc đến ngày -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Đến ngày</label>
+              <input type="date" v-model="withdrawFilters.to_date" 
+                class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+            </div>
+          </div>
+          
+          <!-- Thanh sắp xếp -->
+          <div class="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-200">
+            <select v-model="withdrawSortDate" class="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+              <option value="desc">Mới nhất</option>
+              <option value="asc">Cũ nhất</option>
+            </select>
+            <select v-model="withdrawSortAmount" class="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+              <option value="desc">Giá cao → thấp</option>
+              <option value="asc">Giá thấp → cao</option>
+            </select>
+            <button @click="resetWithdrawFilters" 
+              class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors text-sm">
+              Đặt lại
+            </button>
+            <button @click="applyWithdrawFilters" 
+              class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm">
+              Áp dụng
+            </button>
+          </div>
         </div>
         <div v-if="withdrawLoading" class="text-center text-gray-400 py-10">Đang tải dữ liệu...</div>
         <div v-else-if="withdrawError" class="text-center text-red-500 py-10">{{ withdrawError }}</div>
@@ -390,6 +505,7 @@
             <thead>
               <tr>
                 <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase whitespace-normal break-words">Số tiền</th>
+                <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase whitespace-normal break-words">Tên cửa hàng</th>
                 <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase whitespace-normal break-words">Ngân hàng</th>
                 <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase whitespace-normal break-words">Số tài khoản</th>
                 <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase whitespace-normal break-words">Tên chủ tài khoản</th>
@@ -403,6 +519,7 @@
             <tbody>
               <tr v-for="item in withdrawListFiltered" :key="item.id" class="hover:bg-blue-50 transition">
                 <td class="px-4 py-3 text-sm text-gray-900 break-words whitespace-normal">{{ formatPrice(item.amount) }}</td>
+                <td class="px-4 py-3 text-sm break-words whitespace-normal font-medium text-blue-600">{{ item.seller?.shop_name || 'N/A' }}</td>
                 <td class="px-4 py-3 text-sm break-words whitespace-normal">{{ item.bank_name }}</td>
                 <td class="px-4 py-3 text-sm break-words whitespace-normal">{{ item.bank_account }}</td>
                 <td class="px-4 py-3 text-sm break-words whitespace-normal">{{ item.bank_account_name }}</td>
@@ -707,6 +824,321 @@
           </div>
         </div>
       </Teleport>
+
+      <!-- Modal Lưu ý thanh toán -->
+      <Teleport to="body">
+        <div v-if="showPaymentNoteModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto payment-note-modal">
+            <!-- Header -->
+            <div class="sticky top-0 bg-gradient-to-r from-yellow-500 to-orange-500 text-white p-6 rounded-t-2xl">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                  </svg>
+                  <h2 class="text-2xl font-bold">Lưu ý quan trọng khi duyệt thanh toán</h2>
+                </div>
+                <button @click="showPaymentNoteModal = false" class="text-white hover:text-gray-200 transition-colors">
+                  <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Content -->
+            <div class="p-6 space-y-6">
+              <!-- Cảnh báo chung -->
+              <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg warning-box">
+                <div class="flex items-center gap-2 mb-2">
+                  <svg class="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                  </svg>
+                  <h3 class="text-lg font-semibold text-red-700">CẢNH BÁO QUAN TRỌNG</h3>
+                </div>
+                <p class="text-red-700 font-medium">
+                  Vui lòng đọc kỹ và thực hiện đầy đủ các bước dưới đây trước khi duyệt thanh toán cho seller. 
+                  Việc thanh toán sai có thể gây thiệt hại nghiêm trọng cho hệ thống!
+                </p>
+              </div>
+
+              <!-- Các bước cần thực hiện -->
+              <div class="space-y-4">
+                <h3 class="text-xl font-bold text-gray-800 border-b border-gray-200 pb-2">
+                  📋 Các bước bắt buộc cần kiểm tra:
+                </h3>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <!-- Bước 1 -->
+                  <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 step-card">
+                    <div class="flex items-center gap-2 mb-3">
+                      <div class="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold step-number">1</div>
+                      <h4 class="text-lg font-semibold text-blue-800">Kiểm tra trạng thái đơn hàng</h4>
+                    </div>
+                    <ul class="text-sm text-blue-700 space-y-1 ml-10">
+                      <li>✓ Đơn hàng phải ở trạng thái "Đã giao" (delivered)</li>
+                      <li>✓ Khách hàng đã nhận hàng và xác nhận</li>
+                      <li>✓ Không có khiếu nại hoặc trả hàng</li>
+                      <li>✓ Thời gian giao hàng hợp lý (3-7 ngày)</li>
+                    </ul>
+                  </div>
+
+                  <!-- Bước 2 -->
+                  <div class="bg-green-50 border border-green-200 rounded-lg p-4 step-card">
+                    <div class="flex items-center gap-2 mb-3">
+                      <div class="w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center font-bold step-number">2</div>
+                      <h4 class="text-lg font-semibold text-green-800">Xác minh thông tin seller</h4>
+                    </div>
+                    <ul class="text-sm text-green-700 space-y-1 ml-10">
+                      <li>✓ Thông tin ngân hàng chính xác</li>
+                      <li>✓ Số tài khoản và tên chủ tài khoản khớp</li>
+                      <li>✓ Seller đã được xác thực và hoạt động</li>
+                      <li>✓ Không có lịch sử vi phạm</li>
+                    </ul>
+                  </div>
+
+                  <!-- Bước 3 -->
+                  <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 step-card">
+                    <div class="flex items-center gap-2 mb-3">
+                      <div class="w-8 h-8 bg-yellow-500 text-white rounded-full flex items-center justify-center font-bold step-number">3</div>
+                      <h4 class="text-lg font-semibold text-yellow-800">Kiểm tra số tiền thanh toán</h4>
+                    </div>
+                    <ul class="text-sm text-yellow-700 space-y-1 ml-10">
+                      <li>✓ Số tiền khớp với giá trị đơn hàng</li>
+                      <li>✓ Đã trừ phí vận chuyển và hoa hồng</li>
+                      <li>✓ Không có khoản khấu trừ bất thường</li>
+                      <li>✓ Tính toán lại để đảm bảo chính xác</li>
+                    </ul>
+                  </div>
+
+                  <!-- Bước 4 -->
+                  <div class="bg-purple-50 border border-purple-200 rounded-lg p-4 step-card">
+                    <div class="flex items-center gap-2 mb-3">
+                      <div class="w-8 h-8 bg-purple-500 text-white rounded-full flex items-center justify-center font-bold step-number">4</div>
+                      <h4 class="text-lg font-semibold text-purple-800">Xác nhận thời gian</h4>
+                    </div>
+                    <ul class="text-sm text-purple-700 space-y-1 ml-10">
+                      <li>✓ Đã đủ thời gian chờ (tối thiểu 7 ngày)</li>
+                      <li>✓ Không có yêu cầu hoàn tiền từ khách</li>
+                      <li>✓ Không có tranh chấp đang xử lý</li>
+                      <li>✓ Đơn hàng đã ổn định</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <!-- Lưu ý đặc biệt -->
+                <div class="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                  <div class="flex items-center gap-2 mb-3">
+                    <svg class="w-6 h-6 text-orange-500" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                    </svg>
+                    <h4 class="text-lg font-semibold text-orange-800">Lưu ý đặc biệt</h4>
+                  </div>
+                  <ul class="text-sm text-orange-700 space-y-2">
+                    <li>• <strong>KHÔNG BAO GIỜ</strong> thanh toán cho đơn hàng chưa giao thành công</li>
+                    <li>• <strong>KIỂM TRA KỸ</strong> thông tin ngân hàng trước khi chuyển tiền</li>
+                    <li>• <strong>GHI CHÉP</strong> lại mọi giao dịch thanh toán</li>
+                    <li>• <strong>BÁO CÁO NGAY</strong> nếu phát hiện bất thường</li>
+                    <li>• <strong>XÁC NHẬN</strong> với seller trước khi thực hiện thanh toán</li>
+                  </ul>
+                </div>
+
+                <!-- Quy trình thanh toán -->
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                  <h4 class="text-lg font-semibold text-gray-800 mb-3">🔄 Quy trình thanh toán chuẩn:</h4>
+                  <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                    <div class="bg-white p-3 rounded border">
+                      <div class="font-semibold text-blue-600 mb-1">Bước 1: Chuẩn bị</div>
+                      <div class="text-gray-600">• Kiểm tra danh sách đơn hàng đủ điều kiện</div>
+                      <div class="text-gray-600">• Tính toán tổng số tiền cần thanh toán</div>
+                      <div class="text-gray-600">• Chuẩn bị thông tin ngân hàng</div>
+                    </div>
+                    <div class="bg-white p-3 rounded border">
+                      <div class="font-semibold text-green-600 mb-1">Bước 2: Xác nhận</div>
+                      <div class="text-gray-600">• Gọi điện xác nhận với seller</div>
+                      <div class="text-gray-600">• Kiểm tra lại thông tin tài khoản</div>
+                      <div class="text-gray-600">• Thông báo số tiền sẽ chuyển</div>
+                    </div>
+                    <div class="bg-white p-3 rounded border">
+                      <div class="font-semibold text-purple-600 mb-1">Bước 3: Thực hiện</div>
+                      <div class="text-gray-600">• Chuyển tiền qua ngân hàng</div>
+                      <div class="text-gray-600">• Lưu lại biên lai chuyển tiền</div>
+                      <div class="text-gray-600">• Cập nhật trạng thái trong hệ thống</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Footer -->
+              <div class="bg-gray-100 rounded-lg p-4">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <input type="checkbox" v-model="hasReadPaymentNote" id="readNote" class="w-4 h-4">
+                    <label for="readNote" class="text-sm font-medium text-gray-700">
+                      Tôi đã đọc và hiểu rõ các lưu ý trên
+                    </label>
+                  </div>
+                  <button @click="showPaymentNoteModal = false" 
+                    class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                    Đã hiểu
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Teleport>
+
+      <!-- Modal Thông báo cập nhật trạng thái payout -->
+      <Teleport to="body">
+        <div v-if="showPayoutStatusNoteModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto payment-note-modal">
+            <!-- Header -->
+            <div class="sticky top-0 bg-gradient-to-r from-blue-500 to-indigo-500 text-white p-6 rounded-t-2xl">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                  </svg>
+                  <h2 class="text-2xl font-bold">Lưu ý khi cập nhật trạng thái payout</h2>
+                </div>
+                <button @click="showPayoutStatusNoteModal = false" class="text-white hover:text-gray-200 transition-colors">
+                  <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Content -->
+            <div class="p-6 space-y-6">
+              <!-- Cảnh báo chung -->
+              <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-lg">
+                <div class="flex items-center gap-2 mb-2">
+                  <svg class="w-5 h-5 text-blue-500" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                  </svg>
+                  <h3 class="text-lg font-semibold text-blue-700">THÔNG BÁO QUAN TRỌNG</h3>
+                </div>
+                <p class="text-blue-700 font-medium">
+                  Vui lòng đọc kỹ các lưu ý dưới đây trước khi cập nhật trạng thái payout. 
+                  Việc cập nhật sai trạng thái có thể ảnh hưởng đến quy trình thanh toán!
+                </p>
+              </div>
+
+              <!-- Các lưu ý cần thực hiện -->
+              <div class="space-y-4">
+                <h3 class="text-xl font-bold text-gray-800 border-b border-gray-200 pb-2">
+                  📋 Các lưu ý khi cập nhật trạng thái payout:
+                </h3>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <!-- Lưu ý 1 -->
+                  <div class="bg-green-50 border border-green-200 rounded-lg p-4 step-card">
+                    <div class="flex items-center gap-2 mb-3">
+                      <div class="w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center font-bold step-number">1</div>
+                      <h4 class="text-lg font-semibold text-green-800">Trạng thái "Đã chuyển khoản"</h4>
+                    </div>
+                    <ul class="text-sm text-green-700 space-y-1 ml-10">
+                      <li>✓ Chỉ cập nhật khi đã thực sự chuyển tiền</li>
+                      <li>✓ Có biên lai chuyển tiền xác nhận</li>
+                      <li>✓ Seller đã xác nhận nhận được tiền</li>
+                      <li>✓ Không thể hoàn tác sau khi cập nhật</li>
+                    </ul>
+                  </div>
+
+                  <!-- Lưu ý 2 -->
+                  <div class="bg-red-50 border border-red-200 rounded-lg p-4 step-card">
+                    <div class="flex items-center gap-2 mb-3">
+                      <div class="w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center font-bold step-number">2</div>
+                      <h4 class="text-lg font-semibold text-red-800">Trạng thái "Thất bại"</h4>
+                    </div>
+                    <ul class="text-sm text-red-700 space-y-1 ml-10">
+                      <li>✓ Chỉ cập nhật khi chuyển tiền thất bại</li>
+                      <li>✓ Có lý do cụ thể cho việc thất bại</li>
+                      <li>✓ Cần liên hệ lại với seller</li>
+                      <li>✓ Có thể thử lại sau khi khắc phục</li>
+                    </ul>
+                  </div>
+
+                  <!-- Lưu ý 3 -->
+                  <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 step-card">
+                    <div class="flex items-center gap-2 mb-3">
+                      <div class="w-8 h-8 bg-yellow-500 text-white rounded-full flex items-center justify-center font-bold step-number">3</div>
+                      <h4 class="text-lg font-semibold text-yellow-800">Trạng thái "Chờ xử lý"</h4>
+                    </div>
+                    <ul class="text-sm text-yellow-700 space-y-1 ml-10">
+                      <li>✓ Trạng thái mặc định khi tạo payout</li>
+                      <li>✓ Có thể cập nhật thành trạng thái khác</li>
+                      <li>✓ Chưa thực hiện chuyển tiền</li>
+                      <li>✓ Cần theo dõi để xử lý tiếp</li>
+                    </ul>
+                  </div>
+
+                  <!-- Lưu ý 4 -->
+                  <div class="bg-purple-50 border border-purple-200 rounded-lg p-4 step-card">
+                    <div class="flex items-center gap-2 mb-3">
+                      <div class="w-8 h-8 bg-purple-500 text-white rounded-full flex items-center justify-center font-bold step-number">4</div>
+                      <h4 class="text-lg font-semibold text-purple-800">Quy trình cập nhật</h4>
+                    </div>
+                    <ul class="text-sm text-purple-700 space-y-1 ml-10">
+                      <li>✓ Kiểm tra kỹ trước khi cập nhật</li>
+                      <li>✓ Ghi chép lại mọi thay đổi</li>
+                      <li>✓ Thông báo cho seller khi cần</li>
+                      <li>✓ Theo dõi lịch sử thay đổi</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <!-- Lưu ý đặc biệt -->
+                <div class="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                  <div class="flex items-center gap-2 mb-3">
+                    <svg class="w-6 h-6 text-orange-500" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                    </svg>
+                    <h4 class="text-lg font-semibold text-orange-800">Lưu ý đặc biệt</h4>
+                  </div>
+                  <ul class="text-sm text-orange-700 space-y-2">
+                    <li>• <strong>KHÔNG BAO GIỜ</strong> cập nhật "Đã chuyển khoản" khi chưa thực sự chuyển tiền</li>
+                    <li>• <strong>KIỂM TRA KỸ</strong> thông tin trước khi cập nhật</li>
+                    <li>• <strong>GHI CHÉP</strong> lại mọi thay đổi trạng thái</li>
+                    <li>• <strong>BÁO CÁO NGAY</strong> nếu phát hiện bất thường</li>
+                    <li>• <strong>XÁC NHẬN</strong> với seller khi cần thiết</li>
+                  </ul>
+                </div>
+              </div>
+
+              <!-- Footer -->
+              <div class="bg-gray-100 rounded-lg p-4">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <input type="checkbox" v-model="hasReadPayoutStatusNote" id="readPayoutStatusNote" class="w-4 h-4">
+                    <label for="readPayoutStatusNote" class="text-sm font-medium text-gray-700">
+                      Tôi đã đọc và hiểu rõ các lưu ý trên
+                    </label>
+                  </div>
+                  <div class="flex gap-2">
+                    <button @click="showPayoutStatusNoteModal = false" 
+                      class="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium">
+                      Hủy
+                    </button>
+                    <button @click="confirmPayoutStatusUpdate" 
+                      :disabled="!hasReadPayoutStatusNote"
+                      :class="[
+                        'px-6 py-2 rounded-lg transition-colors font-medium',
+                        hasReadPayoutStatusNote 
+                          ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                          : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      ]">
+                      Tiếp tục
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Teleport>
     </div>
   </div>
 </template>
@@ -774,24 +1206,97 @@ const withdrawSearch = ref('');
 const withdrawSortDate = ref('desc'); // 'desc' = mới nhất, 'asc' = cũ nhất
 const withdrawSortAmount = ref('desc'); // 'desc' = cao->thấp, 'asc' = thấp->cao
 
+// Các bộ lọc mới cho withdraw
+const withdrawFilters = ref({
+  bank_name: '', // Lọc theo ngân hàng
+  shop_name: '', // Lọc theo tên cửa hàng
+  status: '', // Lọc theo trạng thái
+  from_date: '', // Lọc từ ngày
+  to_date: '' // Lọc đến ngày
+});
+
+// Modal lưu ý thanh toán
+const showPaymentNoteModal = ref(false);
+const hasReadPaymentNote = ref(false);
+
+// Checkbox và hành động hàng loạt
+const selectedOrders = ref([]);
+const selectAll = ref(false);
+const selectedAction = ref('');
+
+// Biến cho modal thông báo cập nhật payout status
+const showPayoutStatusNoteModal = ref(false);
+const hasReadPayoutStatusNote = ref(false);
+const pendingPayoutStatusUpdate = ref(null);
+
 const router = useRouter();
 const authStore = useAuthStore();
 
+// Computed properties cho withdraw filters
+const uniqueBanks = computed(() => {
+  const banks = withdrawList.value
+    .map(item => item.bank_name)
+    .filter((bank, index, arr) => bank && arr.indexOf(bank) === index)
+    .sort();
+  return banks;
+});
+
+const uniqueShops = computed(() => {
+  const shops = withdrawList.value
+    .map(item => item.seller?.shop_name)
+    .filter((shop, index, arr) => shop && arr.indexOf(shop) === index)
+    .sort();
+  return shops;
+});
+
 const withdrawListFiltered = computed(() => {
   let arr = [...withdrawList.value];
+  
+  // Lọc theo số tiền
   if (withdrawSearch.value) {
     const kw = withdrawSearch.value.replace(/\D/g, '');
     arr = arr.filter(item => String(item.amount).includes(kw));
   }
+  
+  // Lọc theo ngân hàng
+  if (withdrawFilters.value.bank_name) {
+    arr = arr.filter(item => item.bank_name === withdrawFilters.value.bank_name);
+  }
+  
+  // Lọc theo tên cửa hàng
+  if (withdrawFilters.value.shop_name) {
+    arr = arr.filter(item => item.seller?.shop_name === withdrawFilters.value.shop_name);
+  }
+  
+  // Lọc theo trạng thái
+  if (withdrawFilters.value.status) {
+    arr = arr.filter(item => item.status === withdrawFilters.value.status);
+  }
+  
+  // Lọc theo ngày từ
+  if (withdrawFilters.value.from_date) {
+    const fromDate = new Date(withdrawFilters.value.from_date);
+    arr = arr.filter(item => new Date(item.created_at) >= fromDate);
+  }
+  
+  // Lọc theo ngày đến
+  if (withdrawFilters.value.to_date) {
+    const toDate = new Date(withdrawFilters.value.to_date);
+    toDate.setHours(23, 59, 59, 999); // Đặt thời gian cuối ngày
+    arr = arr.filter(item => new Date(item.created_at) <= toDate);
+  }
+  
   // Sắp xếp theo ngày
   arr = arr.sort((a, b) => {
     const da = new Date(a.created_at), db = new Date(b.created_at);
     return withdrawSortDate.value === 'desc' ? db - da : da - db;
   });
+  
   // Sắp xếp theo số tiền
   arr = arr.sort((a, b) => {
     return withdrawSortAmount.value === 'desc' ? b.amount - a.amount : a.amount - b.amount;
   });
+  
   return arr;
 });
 
@@ -885,6 +1390,17 @@ watch([refundSearchKeyword, refundFilterStatus], () => {
   });
 });
 watch(filters, () => { currentPage.value = 1; fetchOrders(); }, { deep: true });
+
+// Watch cho checkbox
+watch(selectedOrders, (newSelected) => {
+  if (newSelected.length === 0) {
+    selectAll.value = false;
+  } else if (newSelected.length === orders.value.length) {
+    selectAll.value = true;
+  } else {
+    selectAll.value = false;
+  }
+}, { deep: true });
 
 // Methods
 const formatDate = (dateStr) => {
@@ -987,6 +1503,168 @@ const closeNotification = () => {
   notification.value.show = false;
 };
 
+// Checkbox và hành động hàng loạt
+const toggleSelectAll = () => {
+  if (selectAll.value) {
+    selectedOrders.value = orders.value.map(order => order.id);
+  } else {
+    selectedOrders.value = [];
+  }
+};
+
+const applyBulkAction = async () => {
+  if (!selectedAction.value || selectedOrders.value.length === 0) {
+    showNotification('Vui lòng chọn hành động và ít nhất một đơn hàng!', false);
+    return;
+  }
+
+  try {
+    loading.value = true;
+    const token = localStorage.getItem('access_token');
+    if (!token) throw new Error('Không tìm thấy access token. Vui lòng đăng nhập lại.');
+
+    if (selectedAction.value === 'delete') {
+      const result = await Swal.fire({
+        title: 'Xác nhận xóa hàng loạt',
+        text: `Bạn có chắc chắn muốn xóa ${selectedOrders.value.length} đơn hàng đã chọn?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Xóa',
+        cancelButtonText: 'Hủy',
+        confirmButtonColor: '#dc2626',
+        cancelButtonColor: '#6b7280'
+      });
+
+      if (!result.isConfirmed) return;
+
+      const deletePromises = selectedOrders.value.map(id => 
+        fetch(`${apiBase}/admin/orders/${id}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          }
+        })
+      );
+
+      await Promise.all(deletePromises);
+      showNotification('Xóa các đơn hàng thành công!', true);
+      selectedOrders.value = [];
+      selectAll.value = false;
+      selectedAction.value = '';
+      await fetchOrders();
+    } else if (selectedAction.value === 'create_payout') {
+      const eligibleOrders = orders.value.filter(order => 
+        selectedOrders.value.includes(order.id) && 
+        order.status === 'delivered' && 
+        !order.payout_id
+      );
+
+      if (eligibleOrders.length === 0) {
+        showNotification('Không có đơn hàng nào đủ điều kiện để tạo payout!', false);
+        return;
+      }
+
+      const result = await Swal.fire({
+        title: 'Xác nhận tạo payout hàng loạt',
+        text: `Bạn có chắc chắn muốn tạo payout cho ${eligibleOrders.length} đơn hàng đã chọn?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Tạo',
+        cancelButtonText: 'Hủy',
+        confirmButtonColor: '#2563eb',
+        cancelButtonColor: '#6b7280'
+      });
+
+      if (!result.isConfirmed) return;
+
+      const createPromises = eligibleOrders.map(order => {
+        const payoutAmount = Math.max((Number(order.final_price || 0) - Number(order.shipping?.shipping_fee || 0)) * 0.95, 0);
+        return fetch(`${apiBase}/payouts`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({
+            order_id: order.id,
+            shop_id: order.shop_id,
+            amount: payoutAmount,
+            status: 'pending',
+            note: `Payout hàng loạt cho đơn hàng ${order.shipping?.tracking_code || order.id}`
+          })
+        });
+      });
+
+      await Promise.all(createPromises);
+      showNotification('Tạo payout hàng loạt thành công!', true);
+      selectedOrders.value = [];
+      selectAll.value = false;
+      selectedAction.value = '';
+      await Promise.all([fetchOrders(), fetchPayoutData()]);
+    } else if (selectedAction.value === 'approve_payout') {
+      const eligibleOrders = orders.value.filter(order => 
+        selectedOrders.value.includes(order.id) && 
+        order.status === 'delivered' && 
+        order.payout_status === 'pending' && 
+        order.payout_id
+      );
+
+      if (eligibleOrders.length === 0) {
+        showNotification('Không có đơn hàng nào đủ điều kiện để duyệt payout!', false);
+        return;
+      }
+
+      const result = await Swal.fire({
+        title: 'Xác nhận duyệt payout hàng loạt',
+        text: `Bạn có chắc chắn muốn duyệt payout cho ${eligibleOrders.length} đơn hàng đã chọn?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Duyệt',
+        cancelButtonText: 'Hủy',
+        confirmButtonColor: '#16a34a',
+        cancelButtonColor: '#6b7280'
+      });
+
+      if (!result.isConfirmed) return;
+
+      const approvePromises = eligibleOrders.map(order => 
+        fetch(`${apiBase}/payouts/${order.payout_id}/approve`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          }
+        })
+      );
+
+      await Promise.all(approvePromises);
+      showNotification('Duyệt payout hàng loạt thành công!', true);
+      selectedOrders.value = [];
+      selectAll.value = false;
+      selectedAction.value = '';
+      await Promise.all([fetchOrders(), fetchPayoutData()]);
+    } else if (selectedAction.value === 'update_payout_status') {
+      // Hiển thị modal thông báo trước khi cập nhật
+      showPayoutStatusNoteModal.value = true;
+      hasReadPayoutStatusNote.value = false;
+      
+      // Lưu trữ thông tin cập nhật để sử dụng sau khi xác nhận
+      pendingPayoutStatusUpdate.value = {
+        action: 'bulk_update_payout_status',
+        selectedOrders: [...selectedOrders.value]
+      };
+      return;
+    }
+  } catch (error) {
+    console.error('Error applying bulk action:', error);
+    showNotification(`Lỗi khi thực hiện hành động hàng loạt: ${error.message}`, false);
+  } finally {
+    loading.value = false;
+  }
+};
+
 const toggleDropdown = (orderId) => {
   activeDropdown.value = activeDropdown.value === orderId ? null : orderId;
 };
@@ -1052,6 +1730,9 @@ const fetchOrders = async () => {
       })) : [];
       totalItems.value = data.meta?.total || 0;
       totalPages.value = data.meta?.last_page || 1;
+      // Reset checkbox khi fetch lại dữ liệu
+      selectedOrders.value = [];
+      selectAll.value = false;
     } else {
       throw new Error(data.message || `Lỗi ${response.status}: Không thể tải đơn hàng`);
     }
@@ -1696,6 +2377,86 @@ const confirmUpdatePayoutStatus = async () => {
   }
 };
 
+const confirmPayoutStatusUpdate = async () => {
+  if (!hasReadPayoutStatusNote.value) {
+    showNotification('Vui lòng đọc và xác nhận các lưu ý trước khi tiếp tục!', false);
+    return;
+  }
+
+  // Đóng modal thông báo
+  showPayoutStatusNoteModal.value = false;
+  hasReadPayoutStatusNote.value = false;
+
+  // Hiển thị dialog chọn trạng thái
+  const { value: newStatus } = await Swal.fire({
+    title: 'Cập nhật trạng thái payout',
+    text: 'Chọn trạng thái payout mới:',
+    input: 'select',
+    inputOptions: {
+      'pending': 'Chờ xử lý',
+      'completed': 'Đã chuyển khoản',
+      'failed': 'Thất bại'
+    },
+    inputPlaceholder: 'Chọn trạng thái',
+    showCancelButton: true,
+    confirmButtonText: 'Cập nhật',
+    cancelButtonText: 'Hủy',
+    confirmButtonColor: '#2563eb',
+    cancelButtonColor: '#6b7280',
+    inputValidator: (value) => {
+      if (!value) {
+        return 'Vui lòng chọn trạng thái!';
+      }
+    }
+  });
+
+  if (!newStatus) return;
+
+  try {
+    loading.value = true;
+    const token = localStorage.getItem('access_token');
+    if (!token) throw new Error('Không tìm thấy access token. Vui lòng đăng nhập lại.');
+
+    // Xử lý cập nhật hàng loạt
+    if (pendingPayoutStatusUpdate.value?.action === 'bulk_update_payout_status') {
+      const eligibleOrders = orders.value.filter(order => 
+        pendingPayoutStatusUpdate.value.selectedOrders.includes(order.id) && 
+        order.payout_id
+      );
+
+      if (eligibleOrders.length === 0) {
+        showNotification('Không có đơn hàng nào có payout để cập nhật!', false);
+        return;
+      }
+
+      const updatePromises = eligibleOrders.map(order => 
+        fetch(`${apiBase}/admin/payouts/${order.payout_id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({ status: newStatus })
+        })
+      );
+
+      await Promise.all(updatePromises);
+      showNotification('Cập nhật trạng thái payout hàng loạt thành công!', true);
+      selectedOrders.value = [];
+      selectAll.value = false;
+      selectedAction.value = '';
+      pendingPayoutStatusUpdate.value = null;
+      await Promise.all([fetchOrders(), fetchPayoutData()]);
+    }
+  } catch (error) {
+    console.error('Error updating payout status:', error);
+    showNotification(`Lỗi khi cập nhật trạng thái payout: ${error.message}`, false);
+  } finally {
+    loading.value = false;
+  }
+};
+
 const deleteOrder = async (orderId) => {
   const result = await Swal.fire({
     title: 'Xác nhận xóa đơn hàng',
@@ -1865,6 +2626,26 @@ async function submitRejectWithdraw() {
   }
 }
 
+// Hàm xử lý filters cho withdraw
+function resetWithdrawFilters() {
+  withdrawFilters.value = {
+    bank_name: '',
+    shop_name: '',
+    status: '',
+    from_date: '',
+    to_date: ''
+  };
+  withdrawSearch.value = '';
+  withdrawSortDate.value = 'desc';
+  withdrawSortAmount.value = 'desc';
+  showNotification('Đã đặt lại tất cả bộ lọc', true);
+}
+
+function applyWithdrawFilters() {
+  // Logic này sẽ được xử lý tự động bởi computed property withdrawListFiltered
+  showNotification('Đã áp dụng bộ lọc', true);
+}
+
 // Lifecycle hooks
 onMounted(async () => {
   await authStore.fetchUser?.();
@@ -1895,5 +2676,66 @@ onMounted(async () => {
 <style scoped>
 .object-cover {
   object-fit: cover;
+}
+
+/* CSS tùy chỉnh cho modal lưu ý thanh toán */
+.payment-note-modal {
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.step-card {
+  transition: all 0.3s ease;
+}
+
+.step-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.warning-box {
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+  }
+}
+
+/* Hiệu ứng cho các bước */
+.step-number {
+  transition: all 0.3s ease;
+}
+
+.step-card:hover .step-number {
+  transform: scale(1.1);
+}
+
+/* Hiệu ứng cho checkbox */
+input[type="checkbox"]:checked {
+  background-color: #3b82f6;
+  border-color: #3b82f6;
+}
+
+/* Responsive cho modal */
+@media (max-width: 768px) {
+  .modal-content {
+    margin: 1rem;
+    max-width: calc(100vw - 2rem);
+  }
 }
 </style>

@@ -945,4 +945,309 @@ class DashboardController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Lấy dữ liệu biểu đồ đơn hàng theo thời gian
+     */
+    public function getOrdersChart(Request $request)
+    {
+        try {
+            $type = $request->input('type', 'month');
+            $sellerId = $request->input('seller_id');
+            $year = $request->input('year');
+            
+            $labels = [];
+            $data = [];
+            
+            switch ($type) {
+                case 'day':
+                    // Lấy dữ liệu 30 ngày gần nhất
+                    for ($i = 29; $i >= 0; $i--) {
+                        $date = Carbon::now()->subDays($i);
+                        $labels[] = $date->format('d/m');
+                        
+                        if ($sellerId) {
+                            // Lọc theo seller - join qua order_items và products
+                            $count = Order::whereHas('orderItems.product', function($q) use ($sellerId) {
+                                $q->where('seller_id', $sellerId);
+                            })->whereDate('created_at', $date)->count();
+                        } else {
+                            // Tất cả đơn hàng
+                            $count = Order::whereDate('created_at', $date)->count();
+                        }
+                        $data[] = $count;
+                    }
+                    break;
+                    
+                case 'month':
+                    // Tính toán dữ liệu theo tháng một cách nhất quán
+                    if ($year) {
+                        // Nếu có year parameter, lấy dữ liệu cho năm cụ thể
+                        for ($month = 1; $month <= 12; $month++) {
+                            $labels[] = 'T' . str_pad($month, 2, '0', STR_PAD_LEFT);
+                            
+                            if ($sellerId) {
+                                // Lọc theo seller - join qua order_items và products
+                                $count = Order::whereHas('orderItems.product', function($q) use ($sellerId) {
+                                    $q->where('seller_id', $sellerId);
+                                })->whereYear('created_at', $year)
+                                  ->whereMonth('created_at', $month)
+                                  ->count();
+                            } else {
+                                // Tất cả đơn hàng theo tháng
+                                $count = Order::whereYear('created_at', $year)
+                                             ->whereMonth('created_at', $month)
+                                             ->count();
+                            }
+                            $data[] = $count;
+                        }
+                    } else {
+                        // Mặc định lấy 12 tháng gần nhất
+                        for ($i = 11; $i >= 0; $i--) {
+                            $date = Carbon::now()->subMonths($i);
+                            $labels[] = 'T' . str_pad($date->month, 2, '0', STR_PAD_LEFT);
+                            
+                            if ($sellerId) {
+                                // Lọc theo seller - join qua order_items và products
+                                $count = Order::whereHas('orderItems.product', function($q) use ($sellerId) {
+                                    $q->where('seller_id', $sellerId);
+                                })->whereYear('created_at', $date->year)
+                                  ->whereMonth('created_at', $date->month)
+                                  ->count();
+                            } else {
+                                // Tất cả đơn hàng theo tháng
+                                $count = Order::whereYear('created_at', $date->year)
+                                             ->whereMonth('created_at', $date->month)
+                                             ->count();
+                            }
+                            $data[] = $count;
+                        }
+                    }
+                    
+                    // Debug: Kiểm tra chi tiết từng tháng
+                    $monthDetails = [];
+                    for ($i = 11; $i >= 0; $i--) {
+                        $date = Carbon::now()->subMonths($i);
+                        $monthDetails[] = [
+                            'index' => $i,
+                            'date' => $date->format('Y-m'),
+                            'label' => 'T' . str_pad($date->month, 2, '0', STR_PAD_LEFT),
+                            'count' => $data[11 - $i] ?? 0
+                        ];
+                    }
+                    
+                    \Log::info("Monthly breakdown:", [
+                        'labels' => $labels,
+                        'data' => $data,
+                        'total_sum' => array_sum($data),
+                        'month_details' => $monthDetails
+                    ]);
+                    break;
+                    
+                case 'year':
+                    // Lấy dữ liệu 5 năm gần nhất
+                    for ($i = 4; $i >= 0; $i--) {
+                        $year = Carbon::now()->subYears($i)->year;
+                        $labels[] = $year;
+                        
+                        if ($sellerId) {
+                            // Lọc theo seller - join qua order_items và products
+                            $count = Order::whereHas('orderItems.product', function($q) use ($sellerId) {
+                                $q->where('seller_id', $sellerId);
+                            })->whereYear('created_at', $year)->count();
+                        } else {
+                            // Tất cả đơn hàng
+                            $count = Order::whereYear('created_at', $year)->count();
+                        }
+                        $data[] = $count;
+                    }
+                    break;
+            }
+            
+            // Debug: Kiểm tra tổng số đơn hàng
+            $totalOrders = Order::count();
+            $ordersInLast12Months = Order::where('created_at', '>=', Carbon::now()->subMonths(12))->count();
+            $ordersOlderThan12Months = $totalOrders - $ordersInLast12Months;
+            
+            // Debug: Kiểm tra đơn hàng theo tháng cụ thể
+            $monthlyBreakdown = [];
+            for ($i = 11; $i >= 0; $i--) {
+                $date = Carbon::now()->subMonths($i);
+                $monthKey = $date->format('Y-m');
+                $monthlyBreakdown[$monthKey] = Order::whereYear('created_at', $date->year)
+                                                    ->whereMonth('created_at', $date->month)
+                                                    ->count();
+            }
+            
+            // Debug: Kiểm tra tất cả đơn hàng và tháng tạo
+            $allOrders = Order::select('id', 'created_at')
+                             ->orderBy('created_at', 'desc')
+                             ->limit(10)
+                             ->get();
+            
+            $orderDetails = $allOrders->map(function($order) {
+                return [
+                    'id' => $order->id,
+                    'created_at' => $order->created_at->format('Y-m-d H:i:s'),
+                    'month' => $order->created_at->format('Y-m')
+                ];
+            });
+            
+            \Log::info("Debug Orders Chart:", [
+                'total_orders' => $totalOrders,
+                'orders_in_last_12_months' => $ordersInLast12Months,
+                'orders_older_than_12_months' => $ordersOlderThan12Months,
+                'chart_data_sum' => array_sum($data),
+                'monthly_breakdown' => $monthlyBreakdown,
+                'recent_orders' => $orderDetails
+            ]);
+            
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'labels' => $labels,
+                    'data' => $data
+                ],
+                'debug' => [
+                    'total_orders' => $totalOrders,
+                    'orders_in_last_12_months' => $ordersInLast12Months,
+                    'orders_older_than_12_months' => $ordersOlderThan12Months,
+                    'chart_data_sum' => array_sum($data),
+                    'monthly_breakdown' => $monthlyBreakdown,
+                    'recent_orders' => $orderDetails
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không thể lấy dữ liệu biểu đồ đơn hàng: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Lấy dữ liệu biểu đồ doanh thu theo tháng
+     */
+    public function getRevenueChart(Request $request)
+    {
+        try {
+            $type = $request->input('type', 'month');
+            $sellerId = $request->input('seller_id');
+            $year = $request->input('year');
+            
+            $labels = [];
+            $data = [];
+            
+            switch ($type) {
+                case 'day':
+                    // Lấy dữ liệu 30 ngày gần nhất
+                    for ($i = 29; $i >= 0; $i--) {
+                        $date = Carbon::now()->subDays($i);
+                        $labels[] = $date->format('d/m');
+                        
+                        if ($sellerId) {
+                            // Lọc theo seller - join qua order_items và products
+                            $revenue = Order::whereHas('orderItems.product', function($q) use ($sellerId) {
+                                $q->where('seller_id', $sellerId);
+                            })->whereDate('created_at', $date)
+                              ->where('status', 'delivered')
+                              ->sum('final_price');
+                        } else {
+                            // Tất cả đơn hàng
+                            $revenue = Order::whereDate('created_at', $date)
+                                          ->where('status', 'delivered')
+                                          ->sum('final_price');
+                        }
+                        $data[] = $revenue;
+                    }
+                    break;
+                    
+                case 'month':
+                    // Tính toán doanh thu theo tháng
+                    if ($year) {
+                        // Nếu có year parameter, lấy dữ liệu cho năm cụ thể
+                        for ($month = 1; $month <= 12; $month++) {
+                            $labels[] = 'T' . str_pad($month, 2, '0', STR_PAD_LEFT);
+                            
+                            if ($sellerId) {
+                                // Lọc theo seller - join qua order_items và products
+                                $revenue = Order::whereHas('orderItems.product', function($q) use ($sellerId) {
+                                    $q->where('seller_id', $sellerId);
+                                })->whereYear('created_at', $year)
+                                  ->whereMonth('created_at', $month)
+                                  ->where('status', 'delivered')
+                                  ->sum('final_price');
+                            } else {
+                                // Tất cả đơn hàng theo tháng
+                                $revenue = Order::whereYear('created_at', $year)
+                                              ->whereMonth('created_at', $month)
+                                              ->where('status', 'delivered')
+                                              ->sum('final_price');
+                            }
+                            $data[] = $revenue;
+                        }
+                    } else {
+                        // Mặc định lấy 12 tháng gần nhất
+                        for ($i = 11; $i >= 0; $i--) {
+                            $date = Carbon::now()->subMonths($i);
+                            $labels[] = 'T' . str_pad($date->month, 2, '0', STR_PAD_LEFT);
+                            
+                            if ($sellerId) {
+                                // Lọc theo seller - join qua order_items và products
+                                $revenue = Order::whereHas('orderItems.product', function($q) use ($sellerId) {
+                                    $q->where('seller_id', $sellerId);
+                                })->whereYear('created_at', $date->year)
+                                  ->whereMonth('created_at', $date->month)
+                                  ->where('status', 'delivered')
+                                  ->sum('final_price');
+                            } else {
+                                // Tất cả đơn hàng theo tháng
+                                $revenue = Order::whereYear('created_at', $date->year)
+                                              ->whereMonth('created_at', $date->month)
+                                              ->where('status', 'delivered')
+                                              ->sum('final_price');
+                            }
+                            $data[] = $revenue;
+                        }
+                    }
+                    break;
+                    
+                case 'year':
+                    // Lấy dữ liệu 5 năm gần nhất
+                    for ($i = 4; $i >= 0; $i--) {
+                        $year = Carbon::now()->subYears($i)->year;
+                        $labels[] = $year;
+                        
+                        if ($sellerId) {
+                            // Lọc theo seller - join qua order_items và products
+                            $revenue = Order::whereHas('orderItems.product', function($q) use ($sellerId) {
+                                $q->where('seller_id', $sellerId);
+                            })->whereYear('created_at', $year)
+                              ->where('status', 'delivered')
+                              ->sum('final_price');
+                        } else {
+                            // Tất cả đơn hàng
+                            $revenue = Order::whereYear('created_at', $year)
+                                          ->where('status', 'delivered')
+                                          ->sum('final_price');
+                        }
+                        $data[] = $revenue;
+                    }
+                    break;
+            }
+            
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'labels' => $labels,
+                    'data' => $data
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không thể lấy dữ liệu biểu đồ doanh thu: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }
