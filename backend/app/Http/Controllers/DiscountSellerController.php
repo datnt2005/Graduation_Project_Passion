@@ -94,28 +94,28 @@ class DiscountSellerController extends Controller
            $followers = $seller->followers; // Lấy danh sách người theo dõi seller
 
          foreach ($followers as $follower) {
-    $notification = Notification::create([
-        'title' => 'Mã giảm giá mới từ người bán bạn đang theo dõi',
-        'content' => "Người bán {$seller->name} vừa tạo mã giảm giá mới: {$discount->code}",
-        'type' => 'promotion',
-        'link' => "/seller/{$seller->slug}",
-        'user_id' => $seller->user_id,
-        'from_role' => 'seller',
-        'channels' => json_encode(['dashboard']),
-        'status' => 'sent',
-        'created_at' => now(),
-        'updated_at' => now(),
-    ]);
+            $notification = Notification::create([
+                'title' => 'Mã giảm giá mới từ người bán bạn đang theo dõi',
+                'content' => "Người bán {$seller->name} vừa tạo mã giảm giá mới: {$discount->code}",
+                'type' => 'promotion',
+                'link' => "users/mynotifications",
+                'user_id' => $seller->user_id,
+                'from_role' => 'seller',
+                'channels' => json_encode(['dashboard']),
+                'status' => 'sent',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
 
 
-    NotificationRecipient::create([
-        'notification_id' => $notification->id,
-        'user_id' => $follower->id,
-        'is_read' => false,
-        'is_hidden' => false,
-        'created_at' => now(),
-        'updated_at' => now(),
-    ]);
+            NotificationRecipient::create([
+                'notification_id' => $notification->id,
+                'user_id' => $follower->id,
+                'is_read' => false,
+                'is_hidden' => false,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
 }
 
 
@@ -139,10 +139,10 @@ class DiscountSellerController extends Controller
             \Log::info('show method called with id:', ['id' => $id]);
             $user = Auth::user();
             \Log::info('User in show:', ['user' => $user]);
-            
+
             $seller = $user->seller;
             \Log::info('Seller in show:', ['seller' => $seller]);
-            
+
             if (!$seller) {
                 \Log::error('No seller found in show method');
                 return response()->json([
@@ -150,13 +150,13 @@ class DiscountSellerController extends Controller
                     'message' => 'Không tìm thấy seller'
                 ], 403);
             }
-            
+
             $discount = Discount::with(['products', 'categories', 'users', 'flashSales'])
                 ->where('seller_id', $seller->id)
                 ->findOrFail($id);
-            
+
             \Log::info('Discount found:', ['discount' => $discount]);
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Lấy thông tin mã giảm giá thành công',
@@ -542,10 +542,10 @@ class DiscountSellerController extends Controller
             \Log::info('sellerProducts method called');
             $user = Auth::user();
             \Log::info('User:', ['user' => $user]);
-            
+
             $seller = $user->seller;
             \Log::info('Seller:', ['seller' => $seller]);
-            
+
             if (!$seller) {
                 \Log::error('No seller found for user');
                 return response()->json([
@@ -553,14 +553,14 @@ class DiscountSellerController extends Controller
                     'message' => 'Không tìm thấy seller'
                 ], 403);
             }
-            
+
             $perPage = $request->get('per_page', 1000);
             $discountId = $request->get('discount_id'); // Thêm parameter để lấy discount_id
             \Log::info('Per page:', ['per_page' => $perPage, 'discount_id' => $discountId]);
-            
+
             // Base query cho tất cả sản phẩm của seller
             $query = \App\Models\Product::where('seller_id', $seller->id);
-            
+
             // Nếu có discount_id, bao gồm cả sản phẩm đã được gán cho discount đó
             if ($discountId) {
                 $discount = Discount::find($discountId);
@@ -580,14 +580,14 @@ class DiscountSellerController extends Controller
                 $query->where('status', 'active')
                       ->where('admin_status', 'approved');
             }
-            
+
             \Log::info('Query built for seller_id:', ['seller_id' => $seller->id, 'discount_id' => $discountId]);
-            
+
             // Luôn trả về array để frontend dễ xử lý
             $products = $query->paginate($perPage);
             \Log::info('Products found:', ['count' => $products->count()]);
             \Log::info('Products details:', ['products' => $products->items()]);
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Lấy danh sách sản phẩm thành công',
@@ -622,7 +622,7 @@ class DiscountSellerController extends Controller
         }
 
         $discount = Discount::findOrFail($request->discount_id);
-        
+
         // Kiểm tra discount có thuộc về seller không
         if ($discount->seller_id != $request->seller_id) {
             return response()->json([
@@ -660,11 +660,11 @@ class DiscountSellerController extends Controller
         }
 
         $productIds = $request->product_ids;
-        
+
         // Kiểm tra xem discount có áp dụng được cho các sản phẩm cụ thể không
         if ($discount->products()->count() > 0) {
             $applicableProducts = $discount->products()->whereIn('products.id', $productIds)->pluck('products.id')->toArray();
-            
+
             if (empty($applicableProducts)) {
                 return response()->json([
                     'success' => false,
@@ -673,7 +673,7 @@ class DiscountSellerController extends Controller
                 ], 400);
             }
         }
-        
+
         // Kiểm tra categories
         if ($discount->categories()->count() > 0) {
             $applicableCategories = $discount->categories()
@@ -682,7 +682,7 @@ class DiscountSellerController extends Controller
                 })
                 ->pluck('categories.id')
                 ->toArray();
-            
+
             if (empty($applicableCategories)) {
                 return response()->json([
                     'success' => false,

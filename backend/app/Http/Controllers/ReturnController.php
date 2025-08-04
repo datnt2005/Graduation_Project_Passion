@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
 use App\Mail\ReturnRequestStatusUpdatedMail;
 use Illuminate\Support\Facades\Mail;
+use App\Models\Notification;
+use App\Models\NotificationRecipient;
 
 class ReturnController extends Controller
 {
@@ -79,64 +81,149 @@ class ReturnController extends Controller
             }
         }
 
+        $seller = optional($item->product)->seller;
+if ($seller && $seller->user_id) {
+    try {
+        $notification = \App\Models\Notification::create([
+            'title' => 'Yêu cầu đổi/trả mới',
+            'content' => "Người dùng đã gửi yêu cầu {$return->type} cho sản phẩm trong đơn hàng #{$item->order_id}.",
+            'type' => 'system',
+            'link' => 'seller/return/list-return',
+            'user_id' => $seller->user_id,
+            'from_role' => 'customer',
+            'channels' => json_encode(['dashboard']),
+            'status' => 'sent',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        \App\Models\NotificationRecipient::create([
+            'notification_id' => $notification->id,
+            'user_id' => $seller->user_id,
+            'is_read' => false,
+            'is_hidden' => false,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    } catch (\Exception $e) {
+        \Log::warning('Lỗi tạo thông báo yêu cầu đổi/trả cho seller', [
+            'seller_user_id' => $seller->user_id ?? null,
+            'return_request_id' => $return->id,
+            'error' => $e->getMessage(),
+        ]);
+    }
+}
+
         return response()->json(['message' => 'Yêu cầu đổi/trả đã được gửi thành công!']);
     }
 
     // ADMIN duyệt hoặc từ chối
-    public function update(Request $request, ReturnRequest $returnRequest)
-    {
-        $user = $request->user();
+   public function update(Request $request, ReturnRequest $returnRequest)
+{
+    $user = $request->user();
 
-        if (!$user->is_admin) {
-            if (
-                $user->role !== 'seller' ||
-                $returnRequest->orderItem->product->seller_id !== $user->id
-            ) {
-                return response()->json(['message' => 'Không có quyền duyệt yêu cầu này'], 403);
-            }
+    // Nếu không phải admin thì kiểm tra seller quyền xử lý yêu cầu
+    if (!$user->is_admin) {
+        if ($user->role !== 'seller') {
+            return response()->json(['message' => 'Không có quyền duyệt yêu cầu này'], 403);
         }
 
-        $request->validate([
-            'status' => 'required|in:approved,rejected',
-            'admin_note' => 'nullable|string',
-            'refund_amount' => 'nullable|numeric'
-        ]);
+        // Lấy seller_id thực tế từ bảng sellers
+        $sellerId = $user->seller->id ?? null;
 
-        $returnRequest->status = $request->status;
-        $returnRequest->admin_note = $request->admin_note;
-        if ($request->has('refund_amount')) {
-            $returnRequest->refund_amount = $request->refund_amount;
+        if (
+            !$sellerId ||
+            $returnRequest->orderItem->product->seller_id !== $sellerId
+        ) {
+            return response()->json(['message' => 'Không có quyền duyệt yêu cầu này'], 403);
         }
-
-        $returnRequest->save();
-
-        // Gửi email thông báo
-        Mail::to($returnRequest->user->email)->send(new ReturnRequestStatusUpdatedMail($returnRequest));
-
-        return response()->json(['message' => 'Cập nhật thành công và đã gửi email thông báo']);
     }
 
+    // Validate dữ liệu cập nhật
+    $request->validate([
+        'status' => 'required|in:approved,rejected',
+        'admin_note' => 'nullable|string',
+        'refund_amount' => 'nullable|numeric'
+    ]);
 
-    // ADMIN: danh sách yêu cầu
-    public function index(Request $request)
-    {
-        $user = $request->user();
-        $status = $request->query('status');
-        $query = ReturnRequest::with(['orderItem.product', 'user', 'images']);
-        if (!$user->is_admin) {
-            if ($user->role !== 'seller') {
-                return response()->json(['message' => 'Không có quyền truy cập'], 403);
-            }
-            $query->whereHas('orderItem.product', function ($q) use ($user) {
-                $q->where('seller_id', $user->id);
-            });
-        }
-        if ($status && in_array($status, ['pending', 'approved', 'rejected'])) {
-            $query->where('status', $status);
-        }
-        $returns = $query->latest()->paginate(20);
-        return response()->json($returns);
+    // Cập nhật yêu cầu
+    $returnRequest->status = $request->status;
+    $returnRequest->admin_note = $request->admin_note;
+    if ($request->has('refund_amount')) {
+        $returnRequest->refund_amount = $request->refund_amount;
     }
+
+    $returnRequest->save();
+
+    // Soạn nội dung thông báo
+    $statusText = $request->status === 'approved' ? 'được duyệt' : 'bị từ chối';
+
+    $notification = Notification::create([
+        'title' => 'Cập nhật yêu cầu đổi/trả',
+        'content' => "Yêu cầu đổi/trả sản phẩm \"{$returnRequest->orderItem->product->name}\" của bạn đã {$statusText}.",
+        'type' => 'system',
+        'link' => 'users/orders',
+        'user_id' => $returnRequest->user_id,
+        'from_role' => 'system',
+        'channels' => json_encode(['dashboard']),
+        'status' => 'sent',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    NotificationRecipient::create([
+        'notification_id' => $notification->id,
+        'user_id' => $returnRequest->user_id,
+        'is_read' => false,
+        'is_hidden' => false,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    // Gửi email
+    Mail::to($returnRequest->user->email)->send(new ReturnRequestStatusUpdatedMail($returnRequest));
+
+    return response()->json(['message' => 'Cập nhật thành công và đã gửi email thông báo']);
+}
+
+
+public function index(Request $request)
+{
+    $user = $request->user();
+    $status = $request->query('status');
+
+    $query = ReturnRequest::with(['orderItem.product', 'user', 'images']);
+
+    // Nếu không phải admin thì kiểm tra seller
+    if (!$user->is_admin) {
+        if ($user->role !== 'seller') {
+            return response()->json(['message' => 'Không có quyền truy cập'], 403);
+        }
+
+        // Lấy seller_id từ quan hệ user → seller
+        $sellerId = $user->seller->id ?? null;
+
+        if (!$sellerId) {
+            return response()->json(['message' => 'Không tìm thấy seller tương ứng với user'], 403);
+        }
+
+        // Lọc theo seller_id trong bảng products
+        $query->whereHas('orderItem.product', function ($q) use ($sellerId) {
+            $q->where('seller_id', $sellerId);
+        });
+    }
+
+    // Lọc theo status nếu có
+    if ($status && in_array($status, ['pending', 'approved', 'rejected'])) {
+        $query->where('status', $status);
+    }
+
+    $returns = $query->latest()->paginate(20);
+
+    return response()->json($returns);
+}
+
+
 
 
 

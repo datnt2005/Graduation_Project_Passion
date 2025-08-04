@@ -2298,7 +2298,7 @@ const createPayout = async (order) => {
 const approvePayout = async (order) => {
   try {
     const token = localStorage.getItem('access_token');
-    const res = await fetch(`${apiBase}/payouts/${order.payout_id}/approve`, {
+    const res = await fetch(`${apiBase}/seller/payouts/${order.payout_id}/approve`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${token}` }
     });

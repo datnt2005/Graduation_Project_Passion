@@ -1,4 +1,3 @@
-```bash
 # Graduation_Project_Passion
 Dự án tốt nghiệp, xây dựng sàn thương mại điện tử Passion
 
@@ -19,6 +18,10 @@ php artisan queue:work
 php artisan search:cleanup-db
 # dữ liệu mẫu setting
 php artisan db:seed --class=SettingSeeder
+# dữ liệu mẫu shipping
+INSERT INTO shipping_methods (id, name, carrier, estimated_days, cost, status, created_at, updated_at) VALUES
+(53321, 'GHN Tiêu chuẩn', 'GHN', 3, 20500.00, 'active', '2025-07-24 02:25:51', '2025-07-24 02:25:51'),
+(53322, 'GHN Nhanh', 'GHN', 1, 35000.00, 'active', '2025-07-24 02:25:51', '2025-07-24 02:25:51');
 
 ---everyone--- 
 1: Trước khi bắt đầu "LUÔN LUÔN CHECK GIT XEM CÓ CODE MỚI KHÔNG. LUÔN LUÔN PULL CODE MỚI TRƯỚC KHI BẮT ĐẦU CODE".

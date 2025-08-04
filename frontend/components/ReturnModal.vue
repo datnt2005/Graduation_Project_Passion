@@ -171,10 +171,9 @@ const remainingDays = computed(() => {
   return Math.max(0, Math.floor(diff))
 })
 
-const isReturnExpired = computed(() => remainingDays.value <= 0)
 
 onMounted(() => {
-  checkIfAlreadySubmitted()
+  checkIfAlreadySubmitted()  
 })
 
 async function checkIfAlreadySubmitted() {

@@ -468,6 +468,7 @@ const showDiscountModal = ref(false);
 const storeNotes = ref({});
 const isOrderDetailsOpen = ref(true);
 const shippingFees = ref({});
+const orderLoading = ref(false); // New reactive variable for order button loading state
 
 const cardPromotions = ref([
   {
@@ -812,6 +813,19 @@ const toast = (icon, title) => {
   });
 };
 
+// Handle place order with loading state
+const handlePlaceOrder = async () => {
+  orderLoading.value = true;
+  try {
+    await placeOrder();
+  } catch (err) {
+    console.error('Error placing order:', err);
+    toast('error', 'Lỗi khi đặt hàng');
+  } finally {
+    orderLoading.value = false;
+  }
+};
+
 watch(error, (val) => {
   if (val) toast('error', val);
 });
@@ -916,7 +930,6 @@ onMounted(async () => {
 .form-radio {
   @apply text-blue-600 focus:ring-blue-500;
 }
-
 /* Custom animations for loading overlay */
 @keyframes float {
   0%, 100% { transform: translateY(0px); }

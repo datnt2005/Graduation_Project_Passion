@@ -150,12 +150,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, reactive, watchEffect } from 'vue'
-import { useHead, useRuntimeConfig } from '#app'
-import axios from 'axios'
-import Swal from 'sweetalert2'
-import { useAuthHeaders } from '~/composables/useAuthHeaders'
-import { useToast } from '~/composables/useToast'
+import { ref, onMounted, computed, reactive, watch } from 'vue';
+import { useHead, useRuntimeConfig } from '#app';
+import axios from 'axios';
+import Swal from 'sweetalert2';
+import { useAuthHeaders } from '~/composables/useAuthHeaders';
+import { useToast } from '~/composables/useToast';
 
 useHead({
   title: 'Địa chỉ giao hàng | Thanh toán',
@@ -165,20 +165,21 @@ useHead({
     { property: 'og:title', content: 'Địa chỉ giao hàng - Thanh toán' },
     { property: 'og:description', content: 'Quản lý địa chỉ giao hàng để nhận hàng nhanh chóng.' }
   ]
-})
+});
 
-const { showSuccess, showError } = useToast()
-const config = useRuntimeConfig()
-const apiBase = config.public.apiBaseUrl
+const { showSuccess, showError } = useToast();
+const config = useRuntimeConfig();
+const apiBase = config.public.apiBaseUrl;
 
-const showNewAddressForm = ref(false)
-const shippingFee = ref(0)
-const provinces = ref([])
-const districts = ref([])
-const wards = ref([])
-const addresses = ref([])
-const editAddress = ref(null)
-const loading = ref(true)
+const showNewAddressForm = ref(false);
+const shippingFee = ref(0);
+const provinces = ref([]);
+const districts = ref([]);
+const wards = ref([]);
+const addresses = ref([]);
+const editAddress = ref(null);
+const loading = ref(true);
+const loadingEdit = ref(false);
 
 const form = reactive({
   name: '',
@@ -189,20 +190,11 @@ const form = reactive({
   detail: '',
   address_type: 'home',
   is_default: false
-})
+});
 
-const provinceMap = computed(() => {
-  console.log('Province data:', provinces.value)
-  return new Map(provinces.value.map(p => [p.ProvinceID, p.ProvinceName]))
-})
-const districtMap = computed(() => {
-  console.log('District data:', districts.value)
-  return new Map(districts.value.map(d => [d.DistrictID, d.DistrictName]))
-})
-const wardMap = computed(() => {
-  console.log('Ward data:', wards.value)
-  return new Map(wards.value.map(w => [`${w.WardCode}-${w.DistrictID}`, w.WardName]))
-})
+const provinceMap = computed(() => new Map(provinces.value.map(p => [p.ProvinceID, p.ProvinceName])));
+const districtMap = computed(() => new Map(districts.value.map(d => [d.DistrictID, d.DistrictName])));
+const wardMap = computed(() => new Map(wards.value.map(w => [`${w.WardCode}-${w.DistrictID}`, w.WardName])));
 
 const isFormValid = computed(() => {
   return (
@@ -212,127 +204,142 @@ const isFormValid = computed(() => {
     form.district_id &&
     form.ward_code &&
     form.detail.trim()
-  )
-})
+  );
+});
 
-const formatPrice = (price) => {
-  const number = typeof price === 'string' ? parseFloat(price) : price
-  if (isNaN(number)) return '0 ₫'
-  return new Intl.NumberFormat('vi-VN', {
-    style: 'currency',
-    currency: 'VND',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(number)
-}
+const getProvinceName = (id) => {
+  if (!id || !provinces.value.length) return '';
+  return provinceMap.value.get(id) || 'Đang tải...';
+};
 
-const getProvinceName = (id) => id ? provinceMap.value.get(id) || 'Đang tải...' : ''
-const getDistrictName = (id) => id ? districtMap.value.get(id) || 'Đang tải...' : ''
-const getWardName = (code, did) => (code && did) ? wardMap.value.get(`${code}-${did}`) || 'Đang tải...' : ''
+const getDistrictName = (id) => {
+  if (!id || !districts.value.length) return '';
+  return districtMap.value.get(id) || 'Đang tải...';
+};
+
+const getWardName = (code, did) => {
+  if (!code || !did || !wards.value.length) return '';
+  return wardMap.value.get(`${code}-${did}`) || 'Đang tải...';
+};
+
+const isCacheValid = (key, ttl = 24 * 60 * 60 * 1000) => {
+  const cached = localStorage.getItem(key);
+  if (!cached) return false;
+  const { data, timestamp } = JSON.parse(cached);
+  return Date.now() - timestamp < ttl;
+};
 
 const loadProvinces = async () => {
-  const cacheKey = 'ghn_provinces'
-  const cache = localStorage.getItem(cacheKey)
-  if (cache) {
-    provinces.value = JSON.parse(cache)
-    return
+  const cacheKey = 'ghn_provinces';
+  if (isCacheValid(cacheKey)) {
+    provinces.value = JSON.parse(localStorage.getItem(cacheKey)).data;
+    return;
   }
   try {
-    const res = await axios.get(`${apiBase}/ghn/provinces`)
-    provinces.value = res.data.data || []
-    if (provinces.value.length === 0) {
-      console.warn('Danh sách tỉnh từ API rỗng, kiểm tra cấu hình API GHN.')
-    }
-    localStorage.setItem(cacheKey, JSON.stringify(provinces.value))
+    const res = await axios.get(`${apiBase}/ghn/provinces`);
+    provinces.value = res.data.data || [];
+    localStorage.setItem(cacheKey, JSON.stringify({ data: provinces.value, timestamp: Date.now() }));
   } catch (error) {
-    showError('Không tải được danh sách tỉnh.')
-    console.error('Error loading provinces:', error.response ? error.response.data : error)
-    provinces.value = []
+    showError('Không tải được danh sách tỉnh.');
+    console.error('Error loading provinces:', error);
   }
-}
+};
 
 const loadDistricts = async (provinceId) => {
-  districts.value = districts.value.filter(d => d.ProvinceID !== provinceId)
-  if (!provinceId) return
-  const cacheKey = `ghn_districts_${provinceId}`
-  const cache = localStorage.getItem(cacheKey)
-  if (cache) {
-    districts.value = [...districts.value, ...JSON.parse(cache)]
-    return
+  if (!provinceId) return;
+  const cacheKey = `ghn_districts_${provinceId}`;
+  if (isCacheValid(cacheKey)) {
+    districts.value = [...districts.value, ...JSON.parse(localStorage.getItem(cacheKey)).data];
+    return;
   }
   try {
-    const res = await axios.post(`${apiBase}/ghn/districts`, { province_id: provinceId })
-    districts.value = [...districts.value, ...(res.data.data || [])]
-    if (districts.value.length === 0) {
-      console.warn(`Danh sách quận cho province_id ${provinceId} rỗng, kiểm tra API GHN.`)
-    }
-    localStorage.setItem(cacheKey, JSON.stringify(res.data.data || []))
+    const res = await axios.post(`${apiBase}/ghn/districts`, { province_id: provinceId });
+    const newDistricts = res.data.data || [];
+    districts.value = [...districts.value, ...newDistricts];
+    localStorage.setItem(cacheKey, JSON.stringify({ data: newDistricts, timestamp: Date.now() }));
   } catch (error) {
-    showError('Không tải được danh sách quận.')
-    console.error('Error loading districts for province_id', provinceId, ':', error.response ? error.response.data : error)
-    districts.value = districts.value.filter(d => d.ProvinceID !== provinceId)
+    showError('Không tải được danh sách quận.');
+    console.error('Error loading districts:', error);
   }
-}
+};
 
 const loadWards = async (districtId) => {
-  wards.value = wards.value.filter(w => w.DistrictID !== districtId)
-  if (!districtId) return
-  const cacheKey = `ghn_wards_${districtId}`
-  const cache = localStorage.getItem(cacheKey)
-  if (cache) {
-    wards.value = [...wards.value, ...JSON.parse(cache)]
-    return
+  if (!districtId) return;
+  const cacheKey = `ghn_wards_${districtId}`;
+  if (isCacheValid(cacheKey)) {
+    wards.value = [...wards.value, ...JSON.parse(localStorage.getItem(cacheKey)).data];
+    return;
   }
   try {
-    const res = await axios.post(`${apiBase}/ghn/wards`, { district_id: districtId })
-    wards.value = [...wards.value, ...(res.data.data || [])]
-    if (wards.value.length === 0) {
-      console.warn(`Danh sách phường cho district_id ${districtId} rỗng, kiểm tra API GHN.`)
-    }
-    localStorage.setItem(cacheKey, JSON.stringify(res.data.data || []))
+    const res = await axios.post(`${apiBase}/ghn/wards`, { district_id: districtId });
+    const newWards = res.data.data || [];
+    wards.value = [...wards.value, ...newWards];
+    localStorage.setItem(cacheKey, JSON.stringify({ data: newWards, timestamp: Date.now() }));
   } catch (error) {
-    showError('Không tải được danh sách phường.')
-    console.error('Error loading wards for district_id', districtId, ':', error.response ? error.response.data : error)
-    wards.value = wards.value.filter(w => w.DistrictID !== districtId)
+    showError('Không tải được danh sách phường.');
+    console.error('Error loading wards:', error);
   }
-}
+};
 
 const loadAddresses = async () => {
-  loading.value = true
+  loading.value = true;
   try {
-    const res = await axios.get(`${apiBase}/address`, useAuthHeaders())
-    console.log('Loaded addresses data:', res.data.data)
-    addresses.value = res.data.data || []
-    if (addresses.value.length === 0) {
-      console.warn('Danh sách địa chỉ từ API rỗng, kiểm tra API /address.')
-    }
-    const uniqueProvinceIds = [...new Set(addresses.value.map(addr => addr.province_id))]
-    const uniqueDistrictIds = [...new Set(addresses.value.map(addr => addr.district_id))]
-    await Promise.all(uniqueProvinceIds.map(pid => loadDistricts(pid)))
-    await Promise.all(uniqueDistrictIds.map(did => loadWards(did)))
+    const res = await axios.get(`${apiBase}/address`, useAuthHeaders());
+    addresses.value = res.data.data || [];
+    const uniqueProvinceIds = [...new Set(addresses.value.map(addr => addr.province_id))].filter(Boolean);
+    const uniqueDistrictIds = [...new Set(addresses.value.map(addr => addr.district_id))].filter(Boolean);
+    await Promise.allSettled([
+      ...uniqueProvinceIds.map(pid => loadDistricts(pid)),
+      ...uniqueDistrictIds.map(did => loadWards(did))
+    ]);
   } catch (error) {
-    showError('Không thể tải địa chỉ.')
-    console.error('Error loading addresses:', error.response ? error.response.data : error)
+    showError('Không thể tải địa chỉ.');
+    console.error('Error loading addresses:', error);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
+};
 
 const calculateShippingFee = async () => {
-  const { province_id, district_id, ward_code } = form
+  const { province_id, district_id, ward_code } = form;
   if (!province_id || !district_id || !ward_code) {
-    shippingFee.value = 0
-    return
+    shippingFee.value = 0;
+    return;
   }
+
+};
+
+const startEditAddress = async (addr) => {
+  console.time('startEditAddress');
+  loadingEdit.value = true;
+  editAddress.value = addr;
+  Object.assign(form, {
+    name: addr.name,
+    phone: addr.phone,
+    province_id: addr.province_id,
+    district_id: addr.district_id,
+    ward_code: addr.ward_code,
+    detail: addr.detail,
+    address_type: addr.address_type,
+    is_default: addr.is_default === 1
+  });
+  showNewAddressForm.value = true;
+
   try {
-    const res = await axios.post(`${apiBase}/shipping/calculate-fee`, { province_id, district_id, ward_code })
-    shippingFee.value = res.data.fee || 0
-  } catch (error) {
-    shippingFee.value = 0
-    showError('Không thể tính phí giao hàng.')
-    console.error('Error calculating shipping fee:', error.response ? error.response.data : error)
+    if (!provinces.value.length) {
+      await loadProvinces();
+    }
+    if (addr.province_id) {
+      await loadDistricts(addr.province_id);
+    }
+    if (addr.district_id) {
+      await loadWards(addr.district_id);
+    }
+  } finally {
+    loadingEdit.value = false;
+    console.timeEnd('startEditAddress');
   }
-}
+};
 
 const submitForm = async () => {
   if (!isFormValid.value) {
@@ -407,22 +414,7 @@ const deleteAddress = async (id) => {
   }
 }
 
-const startEditAddress = async (addr) => {
-  editAddress.value = addr
-  Object.assign(form, {
-    name: addr.name,
-    phone: addr.phone,
-    province_id: addr.province_id,
-    district_id: addr.district_id,
-    ward_code: addr.ward_code,
-    detail: addr.detail,
-    address_type: addr.address_type,
-    is_default: addr.is_default === 1
-  })
-  showNewAddressForm.value = true
-  await loadDistricts(addr.province_id)
-  await loadWards(addr.district_id)
-}
+
 
 const toggleNewAddressForm = () => {
   showNewAddressForm.value = !showNewAddressForm.value
@@ -472,6 +464,14 @@ onMounted(async () => {
     loadAddresses()
   ])
 })
+
+watch([() => form.province_id, () => form.district_id, () => form.ward_code], async ([province_id, district_id, ward_code]) => {
+  if (province_id && district_id && ward_code) {
+    await calculateShippingFee();
+  } else {
+    shippingFee.value = 0;
+  }
+});
 
 watchEffect(() => {
   if (form.ward_code) calculateShippingFee()

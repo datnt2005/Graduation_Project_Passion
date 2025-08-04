@@ -213,7 +213,7 @@ class Order extends Model
             'pending' => ['processing', 'shipping', 'cancelled'],
             'confirmed' => ['processing', 'cancelled', 'shipping'],
             'processing' => ['shipped', 'cancelled', 'shipping'],
-            'shipping' => ['shipped', 'failed', 'failed_delivery', 'rejected_by_customer'],
+            'shipping' => ['shipped', 'failed', 'failed_delivery', 'rejected_by_customer', 'delivered'],
             'shipped' => ['delivered', 'failed', 'failed_delivery', 'rejected_by_customer'],
             'failed' => ['rejected_by_customer', 'failed_delivery', 'cancelled'],
             'failed_delivery' => ['rejected_by_customer', 'cancelled'],

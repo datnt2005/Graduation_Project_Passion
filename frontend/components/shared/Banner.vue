@@ -1,6 +1,8 @@
 <template>
   <div class="bg-white w-full select-none">
-    <div class="flex flex-wrap justify-center md:justify-between gap-4 mb-6 px-2">
+    <div
+      class="flex flex-wrap justify-center md:justify-between gap-4 mb-6 px-2"
+    >
       <!-- Slide bên trái -->
       <div
         class="flex-1 min-w-[280px] max-w-full relative overflow-hidden shadow-md"
@@ -22,9 +24,13 @@
           <!-- Clone ảnh cuối -->
           <div
             v-if="banners.length"
-            class="w-full h-[200px] flex-shrink-0 bg-white flex items-center justify-center"
+            class="w-full h-[120px] md:h-[300px] flex-shrink-0 bg-white flex items-center justify-center"
           >
-            <a :href="banners[banners.length - 1].link" target="_blank" class="w-full h-full">
+            <a
+              :href="banners[banners.length - 1].link"
+              target="_blank"
+              class="w-full h-full"
+            >
               <img
                 :src="banners[banners.length - 1].image_url"
                 alt="Clone cuối"
@@ -37,7 +43,7 @@
           <div
             v-for="(img, i) in banners"
             :key="i"
-            class="w-full h-[300px] flex-shrink-0 bg-white flex items-center justify-center"
+            class="w-full h-[120px] md:h-[300px] flex-shrink-0 bg-white flex items-center justify-center"
           >
             <a :href="img.link" target="_blank" class="w-full h-full">
               <img
@@ -51,7 +57,7 @@
           <!-- Clone ảnh đầu -->
           <div
             v-if="banners.length"
-            class="w-full h-[300px] flex-shrink-0 bg-white flex items-center justify-center"
+            class="w-full h-[120px] md:h-[300px] flex-shrink-0 bg-white flex items-center justify-center"
           >
             <a :href="banners[0].link" target="_blank" class="w-full h-full">
               <img
@@ -64,7 +70,9 @@
         </div>
 
         <!-- Dots -->
-        <div class="absolute bottom-3 left-1/2 transform -translate-x-1/2 flex gap-2 z-10">
+        <div
+          class="absolute bottom-3 left-1/2 transform -translate-x-1/2 flex gap-2 z-10"
+        >
           <button
             v-for="(img, i) in banners"
             :key="i"
@@ -91,7 +99,6 @@
     </div>
   </div>
 </template>
-
   <script setup>
   import { ref, onMounted, onBeforeUnmount, watch } from "vue";
   import { useRuntimeConfig } from "#app";
@@ -122,114 +129,116 @@
     }
   }
 
-  // Slide
-  function goToSlide(i) {
-    index.value = i;
-    realIndex.value = i + 1;
-  }
-  function nextSlide() {
-    if (!banners.value.length) return;
-    index.value = (index.value + 1) % banners.value.length;
-    realIndex.value += 1;
-  }
-  function prevSlide() {
-    if (!banners.value.length) return;
-    index.value = (index.value - 1 + banners.value.length) % banners.value.length;
-    realIndex.value -= 1;
-  }
+// Slide
+function goToSlide(i) {
+  index.value = i;
+  realIndex.value = i + 1;
+}
+function nextSlide() {
+  if (!banners.value.length) return;
+  index.value = (index.value + 1) % banners.value.length;
+  realIndex.value += 1;
+}
+function prevSlide() {
+  if (!banners.value.length) return;
+  index.value = (index.value - 1 + banners.value.length) % banners.value.length;
+  realIndex.value -= 1;
+}
 
-  // Auto reset clone chuyển mượt
-  watch(realIndex, (val) => {
-    if (val === 0) {
-      setTimeout(() => {
-        disableTransition.value = true;
-        realIndex.value = banners.value.length;
-        index.value = banners.value.length - 1;
-        setTimeout(() => (disableTransition.value = false), 50);
-      }, 500);
+// Auto reset clone chuyển mượt
+watch(realIndex, (val) => {
+  if (val === 0) {
+    setTimeout(() => {
+      disableTransition.value = true;
+      realIndex.value = banners.value.length;
+      index.value = banners.value.length - 1;
+      setTimeout(() => (disableTransition.value = false), 50);
+    }, 500);
+  }
+  if (val === banners.value.length + 1) {
+    setTimeout(() => {
+      disableTransition.value = true;
+      realIndex.value = 1;
+      index.value = 0;
+      setTimeout(() => (disableTransition.value = false), 50);
+    }, 500);
+  }
+});
+
+// Kéo chuột
+let isDragging = false;
+let startX = 0;
+let currentX = 0;
+
+function startDrag(e) {
+  if (sliderRef.value) {
+    isDragging = true;
+    startX = e.type === "touchstart" ? e.touches[0].clientX : e.clientX;
+    sliderRef.value.style.cursor = "grabbing"; // Thay đổi thành nắm tay khi kéo
+    sliderRef.value.style.userSelect = "none"; // Ngăn chọn text
+    clearInterval(timer); // Tạm dừng auto slide khi kéo
+  }
+}
+
+function onDrag(e) {
+  if (isDragging && sliderRef.value) {
+    currentX = e.type === "touchmove" ? e.touches[0].clientX : e.clientX;
+    const diff = startX - currentX;
+    sliderRef.value.style.transition = "none"; // Tắt transition khi kéo
+    sliderRef.value.style.transform = `translateX(-${
+      realIndex.value * 100 + (diff / sliderRef.value.offsetWidth) * 100
+    }%)`;
+  }
+}
+
+function endDrag() {
+  if (isDragging && sliderRef.value) {
+    isDragging = false;
+    const diff = currentX - startX;
+    if (diff > 50) {
+      prevSlide();
+    } else if (diff < -50) {
+      nextSlide();
     }
-    if (val === banners.value.length + 1) {
-      setTimeout(() => {
-        disableTransition.value = true;
-        realIndex.value = 1;
-        index.value = 0;
-        setTimeout(() => (disableTransition.value = false), 50);
-      }, 500);
-    }
-  });
-
-  // Kéo chuột
-  let isDragging = false;
-  let startX = 0;
-  let currentX = 0;
-
-  function startDrag(e) {
-    if (sliderRef.value) {
-      isDragging = true;
-      startX = e.type === "touchstart" ? e.touches[0].clientX : e.clientX;
-      sliderRef.value.style.cursor = "grabbing"; // Thay đổi thành nắm tay khi kéo
-      sliderRef.value.style.userSelect = "none"; // Ngăn chọn text
-      clearInterval(timer); // Tạm dừng auto slide khi kéo
-    }
+    sliderRef.value.style.transition = "transform 0.5s ease-in-out"; // Khôi phục transition
+    sliderRef.value.style.cursor = "grab"; // Khôi phục con trỏ grab
+    sliderRef.value.style.userSelect = ""; // Khôi phục select
+    timer = setInterval(nextSlide, 6000); // Khởi động lại auto slide
   }
+}
 
-  function onDrag(e) {
-    if (isDragging && sliderRef.value) {
-      currentX = e.type === "touchmove" ? e.touches[0].clientX : e.clientX;
-      const diff = startX - currentX;
-      sliderRef.value.style.transition = "none"; // Tắt transition khi kéo
-      sliderRef.value.style.transform = `translateX(-${(realIndex.value * 100 + (diff / sliderRef.value.offsetWidth) * 100)}%)`;
-    }
+function cancelDrag() {
+  if (isDragging && sliderRef.value) {
+    isDragging = false;
+    sliderRef.value.style.transition = "transform 0.5s ease-in-out"; // Khôi phục transition
+    sliderRef.value.style.cursor = "grab"; // Khôi phục con trỏ grab
+    sliderRef.value.style.userSelect = ""; // Khôi phục select
+    timer = setInterval(nextSlide, 6000); // Khởi động lại auto slide
   }
+}
 
-  function endDrag() {
-    if (isDragging && sliderRef.value) {
-      isDragging = false;
-      const diff = currentX - startX;
-      if (diff > 50) {
-        prevSlide();
-      } else if (diff < -50) {
-        nextSlide();
-      }
-      sliderRef.value.style.transition = "transform 0.5s ease-in-out"; // Khôi phục transition
-      sliderRef.value.style.cursor = "grab"; // Khôi phục con trỏ grab
-      sliderRef.value.style.userSelect = ""; // Khôi phục select
-      timer = setInterval(nextSlide, 6000); // Khởi động lại auto slide
-    }
-  }
+// Lifecycle
+onMounted(() => {
+  fetchBanners();
+  timer = setInterval(nextSlide, 6000);
+});
+onBeforeUnmount(() => {
+  if (timer) clearInterval(timer);
+});
+</script>
 
-  function cancelDrag() {
-    if (isDragging && sliderRef.value) {
-      isDragging = false;
-      sliderRef.value.style.transition = "transform 0.5s ease-in-out"; // Khôi phục transition
-      sliderRef.value.style.cursor = "grab"; // Khôi phục con trỏ grab
-      sliderRef.value.style.userSelect = ""; // Khôi phục select
-      timer = setInterval(nextSlide, 6000); // Khởi động lại auto slide
-    }
-  }
+<style scoped>
+.transition-none {
+  transition: none !important;
+}
 
-  // Lifecycle
-  onMounted(() => {
-    fetchBanners();
-    timer = setInterval(nextSlide, 6000);
-  });
-  onBeforeUnmount(() => {
-    if (timer) clearInterval(timer);
-  });
-  </script>
+img {
+  user-select: none;
+  -webkit-user-drag: none;
+}
 
-  <style scoped>
-  .transition-none {
-    transition: none !important;
-  }
-
-  img {
-    user-select: none;
-    -webkit-user-drag: none;
-  }
-
-  /* Con trỏ mặc định khi hover */
-  #bannerSlides {
-    cursor: grab;
-  }
-  </style>
+/* Con trỏ mặc định khi hover */
+#bannerSlides {
+  cursor: grab;
+}
+</style>
