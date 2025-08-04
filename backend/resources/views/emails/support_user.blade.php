@@ -24,8 +24,20 @@
             overflow: hidden;
             box-shadow: 0 4px 16px rgba(26, 115, 232, 0.10);
         }
+        .logo-container {
+            background-color: #1a73e8;
+            text-align: center;
+            padding: 10px 15px;
+        }
+        .logo-container img {
+            max-width: 120px;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+            filter: brightness(0) invert(1);
+        }
         .header {
-            background: linear-gradient(90deg, #1a73e8 0%, #4285f4 100%);
+            background: #1a73e8;
             color: #ffffff;
             text-align: center;
             padding: 32px 20px 24px 20px;
@@ -96,10 +108,17 @@
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <img src="https://www.passionjewelry.co.id/uploads/logo-passion-360x145.png" alt="Logo Passion">
-            <h1>Phản hồi hỗ trợ</h1>
-        </div>
+        <!-- Logo section -->
+    <div class="logo-container">
+        <img src="https://pub-3fc809b4396849cba1c342a5b9f50be9.r2.dev/logo_passion_white.png"
+             alt="Logo Passion"
+             style="max-width: 120px; height: auto; filter: brightness(0) invert(1);">
+    </div>
+
+    <!-- Header section -->
+    <div class="header">
+        <h1>Phản hồi hỗ trợ</h1>
+    </div>
 
         <div class="content">
             <div class="greeting">

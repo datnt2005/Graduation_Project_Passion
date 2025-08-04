@@ -1,7 +1,7 @@
 <template>
   <div class="bg-white w-full select-none">
     <div
-      class="flex flex-wrap justify-center md:justify-between gap-4 mb-6 px-2"
+      class="flex flex-wrap justify-center md:justify-between gap-4 mb-6"
     >
       <!-- Slide bên trái -->
       <div
@@ -88,12 +88,12 @@
         <img
           :src="BannerSmallFirst"
           alt="Banner nhỏ 1"
-          class="w-full h-[146px] object-cover shadow-md"
+          class="w-full h-[142px] object-cover shadow-md"
         />
         <img
           :src="BannerSmallSecond"
           alt="Banner nhỏ 2"
-          class="w-full h-[146px] object-cover shadow-md"
+          class="w-full h-[142px] object-cover shadow-md"
         />
       </div>
     </div>

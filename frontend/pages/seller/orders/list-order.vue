@@ -218,6 +218,10 @@
                     <span class="min-w-[90px]">Mã giảm giá đã dùng:</span>
                     <span>{{ formatPrice(selectedOrder.discount_price) }}</span>
                   </p>
+                  <p v-if="selectedOrder.note" class="flex gap-1 pb-2">
+                    <span class="min-w-[90px] text-gray-500">Ghi chú:</span>
+                    <span class="text-black">{{ selectedOrder.note }}</span>
+                  </p>
                 </div>
                 <!-- Box 2: Thông tin khách hàng -->
                 <div class="flex-1 border border-gray-200 rounded-lg p-4 flex flex-col space-y-2 text-sm text-gray-700">
@@ -245,6 +249,7 @@
                       {{ selectedOrder.address?.province_name || '-' }}
                     </span>
                   </div>
+                  
                 </div>
               </div>
               <!-- Danh sách sản phẩm -->
@@ -281,19 +286,6 @@
                 <div v-for="payment in selectedOrder.payments" :key="payment.created_at" class="px-4 py-3 text-sm text-gray-700 space-y-1">
                   <p>Phương thức: <span class="text-black">{{ payment.method || '-' }}</span></p>
                   <p>Số tiền: <span class="text-black">{{ formatPrice(payment.amount) }}</span></p>
-                  <p>
-                    Trạng thái:
-                    <span
-                      :class="{
-                        'text-green-600 font-semibold': payment.status === 'completed',
-                        'text-yellow-600 font-semibold': ['pending','waiting'].includes(payment.status),
-                        'text-red-600 font-semibold': ['failed','cancelled'].includes(payment.status),
-                        'text-gray-500': !['completed','pending','waiting','failed','cancelled'].includes(payment.status)
-                      }"
-                    >
-                      {{ statusText(payment.status) }}
-                    </span>
-                  </p>
                 </div>
               </div>
               <!-- Thông tin payout -->
@@ -302,45 +294,45 @@
                 <div class="px-4 py-3 text-sm text-gray-700">
                   <p>
                     <b>Trạng thái thanh toán:</b>
-                    <span v-if="selectedOrder.payout_status === 'completed'" class="text-green-600 font-semibold">Đã chuyển khoản</span>
-                    <span v-else-if="selectedOrder.payout_status === 'pending'" class="text-yellow-600 font-semibold">Chưa thanh toán</span>
-                    <span v-else-if="selectedOrder.payout_status === 'failed'" class="text-red-600 font-semibold">Thanh toán thất bại</span>
-                    <span v-else class="text-gray-500">Chưa thanh toán</span>
+                    <span v-if="selectedOrder.payout_status === 'completed'" class="text-green-600 font-semibold ml-2">Đã chuyển khoản</span>
+                    <span v-else-if="selectedOrder.payout_status === 'pending'" class="text-yellow-600 font-semibold ml-2">Chưa thanh toán</span>
+                    <span v-else-if="selectedOrder.payout_status === 'failed'" class="text-red-600 font-semibold ml-2">Thanh toán thất bại</span>
+                    <span v-else class="text-gray-500 font-semibold ml-2">Chưa thanh toán</span>
                   </p>
                   <p>
                     <b>Tổng tiền hàng:</b>
-                    <span>{{ formatPrice(selectedOrder.total_price) }}</span>
+                    <span class="ml-2">{{ formatPrice(selectedOrder.total_price) }}</span>
                   </p>
                   <p v-if="selectedOrder.shipping && selectedOrder.shipping.shipping_fee > 0">
                     <b>Phí vận chuyển:</b>
-                    <span>{{ formatPrice(selectedOrder.shipping.shipping_fee) }}</span>
+                    <span class="ml-2">{{ formatPrice(selectedOrder.shipping.shipping_fee) }}</span>
                   </p>
                   <p v-if="selectedOrder.discount_price > 0">
                     <b>Giảm giá:</b>
-                    <span>{{ formatPrice(selectedOrder.discount_price) }}</span>
+                    <span class="ml-2">{{ formatPrice(selectedOrder.discount_price) }}</span>
                   </p>
                   <p>
                     <b>Chiết khấu admin (5%):</b>
-                    <span>
+                    <span class="ml-2">
                       {{ formatPrice(Math.max((Number(selectedOrder.total_price || 0) - Number(selectedOrder.discount_price || 0)) * 0.05, 0)) }}
                     </span>
                   </p>
                   <p>
                     <b>Ước tính số tiền nhận được:</b>
-                    <span>
+                    <span class="ml-2">
                       {{ formatPrice(Math.max((Number(selectedOrder.total_price || 0) - Number(selectedOrder.discount_price || 0)) * 0.95, 0)) }}
                     </span>
                   </p>
                   <p>
                     <b>Số tiền nhận được:</b>
-                    <span v-if="selectedOrder.payout_amount && selectedOrder.payout_status === 'completed'">
+                    <span class="ml-2" v-if="selectedOrder.payout_amount && selectedOrder.payout_status === 'completed'">
                       {{ formatPrice(selectedOrder.payout_amount) }}
                     </span>
-                    <span v-else class="text-gray-500">---</span>
+                    <span v-else class="text-gray-500 ml-2">---</span>
                   </p>
                   <p>
                     <b>Thời gian chuyển khoản:</b>
-                    <span v-if="selectedOrder.transferred_at && selectedOrder.payout_status === 'completed'">
+                    <span v-if="selectedOrder.transferred_at && selectedOrder.payout_status === 'completed'" class="ml-2">
                       {{ formatDate(selectedOrder.transferred_at) }}
                     </span>
                     <span v-else class="text-gray-500">---</span>

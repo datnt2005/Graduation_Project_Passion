@@ -37,6 +37,20 @@
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
+        .logo-container {
+            background-color: #1a73e8;
+            text-align: center;
+            padding: 10px 15px;
+        }
+
+        .logo-container img {
+            max-width: 120px;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+            filter: brightness(0) invert(1);
+        }
+
         .header {
             background-color: #e53935;
             /* đỏ nhẹ nhàng */
@@ -83,8 +97,15 @@
 
 <body>
     <div class="container">
+        <!-- Logo section -->
+        <div class="logo-container">
+            <img src="https://pub-3fc809b4396849cba1c342a5b9f50be9.r2.dev/logo_passion_white.png"
+                alt="Logo Passion"
+                style="max-width: 120px; height: auto; filter: brightness(0) invert(1);">
+        </div>
+
+        <!-- Header section -->
         <div class="header">
-            <img src="https://www.passionjewelry.co.id/uploads/logo-passion-360x145.png" alt="Logo">
             <h1>Thông báo từ chối cửa hàng</h1>
         </div>
         <div class="content">

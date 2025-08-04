@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,20 +12,37 @@
             padding: 0;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
         }
+
         .container {
             max-width: 500px;
             margin: 32px auto;
             background: #fff;
             border-radius: 12px 12px 0 0;
             overflow: hidden;
-            box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
         }
+
+        .logo-container {
+            background-color: #1a73e8;
+            text-align: center;
+            padding: 10px 15px;
+        }
+
+        .logo-container img {
+            max-width: 120px;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+            filter: brightness(0) invert(1);
+        }
+
         .header {
             background: #1a73e8;
             padding: 32px 24px 18px 24px;
             text-align: center;
             border-radius: 12px 12px 0 0;
         }
+
         .header img {
             max-width: 60px;
             margin-bottom: 10px;
@@ -32,6 +50,7 @@
             margin-left: auto;
             margin-right: auto;
         }
+
         .header-title {
             color: #fff;
             font-size: 2.1rem;
@@ -39,20 +58,24 @@
             margin: 0;
             letter-spacing: 1px;
         }
+
         .content {
             padding: 32px 24px 16px 24px;
             text-align: center;
         }
+
         .greeting {
             font-size: 1.25rem;
             font-weight: bold;
             margin-bottom: 8px;
         }
+
         .desc {
             color: #222;
             font-size: 1rem;
             margin-bottom: 22px;
         }
+
         .tracking-box {
             background: #f1f3f4;
             border-radius: 10px;
@@ -60,6 +83,7 @@
             padding: 22px 38px;
             margin-bottom: 24px;
         }
+
         .tracking-code {
             font-size: 2.3rem;
             font-weight: bold;
@@ -67,20 +91,24 @@
             letter-spacing: 8px;
             font-family: 'Segoe UI Mono', 'Consolas', monospace;
         }
+
         .order-info {
             margin: 0 auto 18px auto;
             font-size: 1.08rem;
             color: #222;
             text-align: center;
         }
+
         .order-info strong {
             font-weight: 600;
         }
+
         .note {
             color: #444;
             margin-bottom: 22px;
             font-size: 1rem;
         }
+
         .button {
             display: inline-block;
             padding: 15px 38px;
@@ -91,12 +119,14 @@
             font-weight: bold;
             font-size: 1.1rem;
             margin: 18px 0 0 0;
-            box-shadow: 0 2px 8px rgba(26,115,232,0.08);
+            box-shadow: 0 2px 8px rgba(26, 115, 232, 0.08);
             transition: background 0.2s;
         }
+
         .button:hover {
             background: #1761c6;
         }
+
         .footer {
             background: #f4f6fa;
             padding: 28px 18px 10px 18px;
@@ -105,27 +135,51 @@
             color: #555;
             border-radius: 0 0 12px 12px;
         }
+
         .footer a {
             color: #1a73e8;
             text-decoration: none;
         }
+
         .footer a:hover {
             text-decoration: underline;
         }
+
         @media only screen and (max-width: 600px) {
-            .container { width: 100%; border-radius: 0; }
-            .content { padding: 18px 5px 10px 5px; }
-            .tracking-box { padding: 16px 0; width: 100%; }
-            .tracking-code { font-size: 1.3rem; letter-spacing: 4px; }
+            .container {
+                width: 100%;
+                border-radius: 0;
+            }
+
+            .content {
+                padding: 18px 5px 10px 5px;
+            }
+
+            .tracking-box {
+                padding: 16px 0;
+                width: 100%;
+            }
+
+            .tracking-code {
+                font-size: 1.3rem;
+                letter-spacing: 4px;
+            }
         }
     </style>
 </head>
+
 <body>
     <div class="container">
-        <div class="header">
-            <img src="https://www.passionjewelry.co.id/uploads/logo-passion-360x145.png" alt="Logo Passion">
-            <div class="header-title">Cập nhật trạng thái đơn hàng</div>
+        <!-- Logo section -->
+        <div class="logo-container">
+            <img src="https://pub-3fc809b4396849cba1c342a5b9f50be9.r2.dev/logo_passion_white.png"
+                alt="Logo Passion"
+                style="max-width: 120px; height: auto; filter: brightness(0) invert(1);">
         </div>
+
+        <!-- Header section -->
+        <div class="header-title">Cập nhật trạng thái đơn hàng</div>
+
         <div class="content">
             <div class="greeting">Xin chào {{ $order->user->name ?? 'Quý khách' }},</div>
             <div class="desc">
@@ -134,21 +188,21 @@
             <div class="tracking-box">
                 <div><strong>Trạng thái cũ:</strong>
                     @php
-                        $statusMap = [
-                            'pending' => 'Chờ xác nhận',
-                            'processing' => 'Đang xử lý',
-                            'shipped' => 'Đang giao',
-                            'delivered' => 'Đã giao',
-                            'cancelled' => 'Đã hủy',
-                            'completed' => 'Hoàn thành',
-                        ];
-                        echo $statusMap[$oldStatus] ?? ucfirst($oldStatus);
+                    $statusMap = [
+                    'pending' => 'Chờ xác nhận',
+                    'processing' => 'Đang xử lý',
+                    'shipped' => 'Đang giao',
+                    'delivered' => 'Đã giao',
+                    'cancelled' => 'Đã hủy',
+                    'completed' => 'Hoàn thành',
+                    ];
+                    echo $statusMap[$oldStatus] ?? ucfirst($oldStatus);
                     @endphp
                 </div>
                 <div><strong>Trạng thái mới:</strong>
                     @php
-                        $status = $order->status;
-                        echo $statusMap[$status] ?? ucfirst($status);
+                    $status = $order->status;
+                    echo $statusMap[$status] ?? ucfirst($status);
                     @endphp
                 </div>
             </div>
@@ -169,4 +223,5 @@
         </div>
     </div>
 </body>
+
 </html>

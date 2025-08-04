@@ -1,6 +1,7 @@
 ```blade
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
     <meta charset="UTF-8">
     <title>Cảnh báo: Đơn hàng {{ $order->id }} bị từ chối nhận</title>
@@ -22,8 +23,22 @@
             overflow: hidden;
         }
 
+        .logo-container {
+            background-color: #1a73e8;
+            text-align: center;
+            padding: 10px 15px;
+        }
+
+        .logo-container img {
+            max-width: 120px;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+            filter: brightness(0) invert(1);
+        }
+
         .header {
-            background-color: #2563eb;
+            background-color: #1a73e8;
             color: white;
             padding: 20px;
             text-align: center;
@@ -95,11 +110,21 @@
         }
     </style>
 </head>
+
 <body>
     <div class="container">
+        <!-- Logo section -->
+        <div class="logo-container">
+            <img src="https://pub-3fc809b4396849cba1c342a5b9f50be9.r2.dev/logo_passion_white.png"
+                alt="Logo Passion"
+                style="max-width: 120px; height: auto; filter: brightness(0) invert(1);">
+        </div>
+
+        <!-- Header section -->
         <div class="header">
             <h2>Cảnh báo: Đơn hàng của bạn đã bị từ chối nhận</h2>
         </div>
+
         <div class="body">
             <div class="info">
                 Xin chào {{ $user->name }},
@@ -126,5 +151,6 @@
         </div>
     </div>
 </body>
+
 </html>
 ```

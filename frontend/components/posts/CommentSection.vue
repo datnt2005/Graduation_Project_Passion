@@ -366,7 +366,7 @@ const fetchPostIdBySlug = async () => {
       headers: { 'Accept': 'application/json' },
       cache: 'no-store'
     })
-    postId.value = res.data?.id
+    postId.value = res.data?.idz
     debugInfo.value.postId = postId.value
     if (!postId.value) {
       throw new Error('Không tìm thấy ID bài viết')

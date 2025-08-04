@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="vi">
 
@@ -22,8 +21,22 @@
       overflow: hidden;
     }
 
+    .logo-container {
+      background-color: #1a73e8;
+      text-align: center;
+      padding: 10px 15px;
+    }
+
+    .logo-container img {
+      max-width: 120px;
+      height: auto;
+      display: block;
+      margin: 0 auto;
+      filter: brightness(0) invert(1);
+    }
+
     .header {
-      background-color: #2563eb;
+      background-color: #1a73e8;
       color: white;
       padding: 20px;
       text-align: center;
@@ -86,6 +99,11 @@
 
 <body>
   <div class="container">
+    <div class="logo-container">
+      <img src="https://pub-3fc809b4396849cba1c342a5b9f50be9.r2.dev/logo_passion_white.png"
+        alt="Logo Passion"
+        style="max-width: 120px; height: auto; filter: brightness(0) invert(1);">
+    </div>
     <div class="header">
       <h1>{{ $notification->title }}</h1>
     </div>
@@ -112,8 +130,12 @@
     </div>
 
     <div class="footer">
-      Đây là email tự động từ hệ thống. Vui lòng không trả lời.<br>
-      © {{ date('Y') }} Passion. Mọi quyền được bảo lưu.
+      <p>Trân trọng,<br>Đội ngũ <strong>Passion</strong></p>
+      <p>
+        <a href="https://passion.com">Website</a> |
+        <a href="mailto:support@passion.com">Liên hệ hỗ trợ</a>
+      </p>
+      <p style="margin-top: 10px;">&copy; {{ date('Y') }} <strong>Passion</strong>. Mọi quyền được bảo lưu.</p>
     </div>
   </div>
 </body>
