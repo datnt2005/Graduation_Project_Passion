@@ -982,7 +982,7 @@ onUnmounted(() => {
 
 onMounted(() => {
   fetchSessions();
-  setInterval(fetchSessions, 5000); // 5s refresh
+  setInterval(fetchSessions, 5000);
 });
 
 defineExpose({
