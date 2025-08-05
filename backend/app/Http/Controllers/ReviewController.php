@@ -366,7 +366,7 @@ class ReviewController extends Controller
         $hasPurchased = DB::table('orders')
             ->join('order_items', 'orders.id', '=', 'order_items.order_id')
             ->where('orders.user_id', $user->id)
-            ->where('orders.status', 'completed')
+            ->where('orders.status', 'delivered')
             ->where('order_items.product_id', $review->product_id)
             ->exists();
 
@@ -574,13 +574,19 @@ class ReviewController extends Controller
 }
 
 
-    // 1. Controller chỉnh lại cho seller
     public function sellerIndex(Request $request)
     {
         try {
             $userId = auth()->id();
+            $perPage = $request->query('per_page', 10);
+            $page = $request->query('page', 1);
+            $rating = $request->query('rating');
+            $status = $request->query('status');
+            $hasMedia = filter_var($request->query('has_media', false), FILTER_VALIDATE_BOOLEAN);
+            $sortOrder = $request->query('sort_order', 'desc');
 
-            $reviews = Review::with([
+            // Query chính
+            $query = Review::with([
                 'product:id,name,seller_id',
                 'product.pics:id,product_id,imagePath',
                 'media',
@@ -591,37 +597,97 @@ class ReviewController extends Controller
                         $sub->where('user_id', $userId);
                     });
                 })
-                ->whereNull('parent_id') // chỉ lấy đánh giá gốc
-                ->withCount('likes')
-                ->latest()
-                ->get()
-                ->map(function ($review) {
-                    $productImage = optional($review->product?->pics->first())->imagePath;
+                ->whereNull('parent_id')
+                ->withCount('likes');
 
-                    return [
-                        'id' => $review->id,
-                        'product_name' => optional($review->product)->name,
-                        'product_image' => $productImage ? Storage::disk('r2')->url($productImage) : null,
-                        'content' => $review->content,
-                        'rating' => $review->rating,
-                        'status' => $review->status,
-                        'created_at' => $review->created_at,
-                        'likes_count' => $review->likes_count,
-                        'images' => $review->media
-                            ->where('media_type', 'image')
-                            ->map(fn($m) => Storage::disk('r2')->url($m->media_url))
-                            ->values(),
-                        'reply' => $review->reply ? [
-                            'id' => $review->reply->id,
-                            'content' => $review->reply->content,
-                        ] : null,
-                    ];
+            // Lọc theo rating
+            if ($rating !== null && is_numeric($rating)) {
+                $query->where('rating', $rating);
+            }
+
+            // Lọc theo status
+            if ($status && in_array($status, ['approved', 'pending', 'rejected'])) {
+                $query->where('status', $status);
+            }
+
+            // Lọc theo has_media
+            if ($hasMedia) {
+                $query->whereHas('media', function ($q) {
+                    $q->where('media_type', 'image');
                 });
+            }
 
-            return response()->json(['data' => $reviews]);
+            // Sắp xếp
+            $query->orderBy('created_at', $sortOrder);
+
+            // Phân trang
+            $reviews = $query->paginate($perPage, ['*'], 'page', $page);
+
+            // Tính số lượng cho bộ lọc
+            $baseQuery = Review::whereHas('product', function ($q) use ($userId) {
+                $q->whereHas('seller', function ($sub) use ($userId) {
+                    $sub->where('user_id', $userId);
+                });
+            })->whereNull('parent_id');
+
+            $countByRating = ['all' => $baseQuery->count()];
+            $countByStatus = ['all' => $countByRating['all']];
+            $countWithMedia = $baseQuery->whereHas('media', function ($q) {
+                $q->where('media_type', 'image');
+            })->count();
+
+            // Đếm theo rating
+            foreach ([1, 2, 3, 4, 5] as $r) {
+                $countByRating[$r] = $baseQuery->where('rating', $r)->count();
+            }
+
+            // Đếm theo status
+            foreach (['approved', 'pending', 'rejected'] as $s) {
+                $countByStatus[$s] = $baseQuery->where('status', $s)->count();
+            }
+
+            // Định dạng dữ liệu
+            $reviews->getCollection()->transform(function ($review) {
+                $productImage = optional($review->product?->pics->first())->imagePath;
+
+                return [
+                    'id' => $review->id,
+                    'product_name' => optional($review->product)->name,
+                    'product_image' => $productImage ? Storage::disk('r2')->url($productImage) : null,
+                    'content' => $review->content,
+                    'rating' => $review->rating,
+                    'status' => $review->status,
+                    'created_at' => $review->created_at,
+                    'likes_count' => $review->likes_count,
+                    'images' => $review->media
+                        ->where('media_type', 'image')
+                        ->map(fn($m) => Storage::disk('r2')->url($m->media_url))
+                        ->values(),
+                    'reply' => $review->reply ? [
+                        'id' => $review->reply->id,
+                        'content' => $review->reply->content,
+                    ] : null,
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Lấy danh sách đánh giá thành công.',
+                'data' => $reviews->items(),
+                'last_page' => $reviews->lastPage(),
+                'total' => $reviews->total(),
+                'current_page' => $reviews->currentPage(),
+                'count_by_rating' => $countByRating,
+                'count_by_status' => $countByStatus,
+                'count_with_media' => $countWithMedia,
+            ]);
         } catch (\Exception $e) {
             Log::error('Review fetch failed: ' . $e->getMessage());
-            return response()->json(['error' => $e->getMessage()], 500);
+            return response()->json([
+                'success' => false,
+                'message' => 'Đã xảy ra lỗi khi lấy danh sách đánh giá.',
+                'error' => env('APP_DEBUG') ? $e->getMessage() : null
+            ], 500);
         }
     }
 

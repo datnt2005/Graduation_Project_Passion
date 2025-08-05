@@ -10,7 +10,7 @@
             <div class="bg-gray-200 px-4 py-3 flex flex-wrap items-center gap-3 text-sm text-gray-700">
                 <div class="flex items-center gap-2 flex-wrap">
                     <button v-for="n in [null, 5, 4, 3, 2, 1]" :key="'star-' + n"
-                        @click="filterRating = n; applyFilters()" :class="[
+                        @click="filterRating = n; fetchReviews(1)" :class="[
                             'px-3 py-1 rounded border',
                             filterRating === n ? 'bg-blue-500 text-white border-blue-500' : 'bg-white text-gray-700 border-gray-300'
                         ]">
@@ -18,7 +18,7 @@
                     </button>
                 </div>
 
-                <button @click="filterHasMedia = !filterHasMedia; applyFilters()" :class="[
+                <button @click="filterHasMedia = !filterHasMedia; fetchReviews(1)" :class="[
                     'px-3 py-1 rounded border',
                     filterHasMedia ? 'bg-blue-500 text-white border-blue-500' : 'bg-white text-gray-700 border-gray-300'
                 ]">
@@ -26,8 +26,8 @@
                 </button>
 
                 <div class="flex items-center gap-2 flex-wrap">
-                    <button v-for="status in ['approved', 'pending', 'rejected']" :key="'status-' + status"
-                        @click="filterStatus = status; applyFilters()" :class="[
+                    <button v-for="status in ['all', 'approved', 'pending', 'rejected']" :key="'status-' + status"
+                        @click="filterStatus = status; fetchReviews(1)" :class="[
                             'px-3 py-1 rounded border',
                             filterStatus === status ? 'bg-blue-500 text-white border-blue-500' : 'bg-white text-gray-700 border-gray-300'
                         ]">
@@ -37,7 +37,7 @@
 
                 <div class="flex items-center space-x-2">
                     <label class="text-sm font-medium text-gray-600">Sắp xếp:</label>
-                    <select v-model="sortOrder" @change="applyFilters"
+                    <select v-model="sortOrder" @change="fetchReviews(1)"
                         class="rounded-md border border-gray-300 py-1.5 pl-3 pr-8 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
                         <option value="desc">Mới nhất</option>
                         <option value="asc">Cũ nhất</option>
@@ -45,8 +45,16 @@
                 </div>
             </div>
 
+            <!-- Loading indicator -->
+            <div v-if="loading" class="text-center py-4">
+                <svg class="animate-spin h-8 w-8 text-blue-500 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+                </svg>
+            </div>
+
             <!-- Bảng đánh giá -->
-            <table class="min-w-full border-collapse border border-gray-300 text-sm">
+            <table v-else class="min-w-full border-collapse border border-gray-300 text-sm">
                 <thead class="bg-white border-b border-gray-300">
                     <tr>
                         <th class="border px-3 py-2 font-semibold text-left">ID</th>
@@ -111,6 +119,10 @@
                 </tbody>
             </table>
 
+            <!-- Phân trang -->
+            <Pagination v-if="!loading" :currentPage="currentPage" :lastPage="lastPage" @change="fetchReviews" />
+
+            <!-- Dropdown -->
             <Teleport to="body">
                 <Transition enter-active-class="transition duration-100 ease-out"
                     enter-from-class="transform scale-95 opacity-0" enter-to-class="transform scale-100 opacity-100"
@@ -144,6 +156,25 @@
                 </Transition>
             </Teleport>
 
+            <!-- Dialog xác nhận xóa -->
+            <Teleport to="body">
+                <Transition v-if="showConfirmDelete" enter-active-class="transition ease-out duration-200"
+                    enter-from-class="transform opacity-0 scale-95" enter-to-class="transform opacity-100 scale-100"
+                    leave-active-class="transition ease-in duration-100" leave-from-class="transform opacity-100 scale-100"
+                    leave-to-class="transform opacity-0 scale-95">
+                    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                        <div class="bg-white rounded-lg p-6 w-96">
+                            <h3 class="text-lg font-semibold">Xác nhận xóa</h3>
+                            <p class="mt-2 text-sm text-gray-600">Bạn có chắc muốn xóa đánh giá này?</p>
+                            <div class="mt-4 flex justify-end gap-2">
+                                <button @click="showConfirmDelete = false" class="px-4 py-2 text-gray-600">Hủy</button>
+                                <button @click="deleteReview(selectedReviewId); showConfirmDelete = false" class="px-4 py-2 bg-red-600 text-white rounded">Xóa</button>
+                            </div>
+                        </div>
+                    </div>
+                </Transition>
+            </Teleport>
+
             <!-- Report Dialog -->
             <ReportDialog 
                 v-if="showReportDialog" 
@@ -155,205 +186,217 @@
         </div>
     </div>
 </template>
-```
 
-
-```vue
 <script setup>
-import { Eye, Pencil, Trash2 } from 'lucide-vue-next'
-import { ref, onMounted } from 'vue'
-import axios from 'axios'
-import { useRuntimeConfig } from '#app'
-import { useNotification } from '~/composables/useNotification'
-import { secureAxios } from '@/utils/secureAxios'
-import ReportDialog from '~/components/shared/ReportDialog.vue'
+import { Eye, Pencil, Trash2 } from 'lucide-vue-next';
+import { ref, onMounted, onUnmounted } from 'vue';
+import { useRouter, useRuntimeConfig } from '#app';
+import { useNotification } from '~/composables/useNotification';
+import { secureAxios } from '@/utils/secureAxios';
+import Pagination from '~/components/Pagination.vue';
+import ReportDialog from '~/components/shared/ReportDialog.vue';
 
-definePageMeta({ layout: 'default-seller' })
+definePageMeta({ layout: 'default-seller' });
 
-const config = useRuntimeConfig()
-const apiBase = config.public.apiBaseUrl
-const reviews = ref([])
-const allReviews = ref([])
-const loading = ref(true)
+const config = useRuntimeConfig();
+const apiBase = config.public.apiBaseUrl || 'http://localhost:8000/api';
+const router = useRouter();
+const { showNotification } = useNotification();
 
-const { showNotification } = useNotification()
+const reviews = ref([]);
+const loading = ref(true);
+const currentPage = ref(1);
+const lastPage = ref(1);
+const perPage = ref(10);
+const total = ref(0);
+const sortOrder = ref('desc');
+const filterRating = ref(null);
+const filterStatus = ref('all');
+const filterHasMedia = ref(false);
+const countByRating = ref({ all: 0 });
+const countByStatus = ref({ all: 0 });
+const countWithMedia = ref(0);
+const activeDropdown = ref(null);
+const dropdownPosition = ref({ top: '0px', left: '0px' });
+const showReportDialog = ref(false);
+const showConfirmDelete = ref(false);
+const selectedReviewId = ref(null);
 
-const sortOrder = ref('desc')
-const filterRating = ref(null)
-const filterStatus = ref('all')
-const filterHasMedia = ref(false)
-
-const countByRating = ref({})
-const countByStatus = ref({})
-const countWithMedia = ref(0)
-
-const activeDropdown = ref(null)
-const dropdownPosition = ref({ top: '0px', left: '0px' })
-const showReportDialog = ref(false)
-const selectedReviewId = ref(null)
-
-// -------------------------
-// 1. Fetch reviews của seller
-onMounted(async () => {
+// Fetch reviews
+const fetchReviews = async (page = 1) => {
     try {
-        const res = await secureAxios(`${apiBase}/seller/reviews`, {}, ['seller'])
-        allReviews.value = res.data.data
-        countFilters()
-        applyFilters()
+        loading.value = true;
+        currentPage.value = page;
+
+        const queryParams = new URLSearchParams({
+            page: page.toString(),
+            per_page: perPage.value.toString(),
+            sort_order: sortOrder.value,
+            ...(filterRating.value !== null && { rating: filterRating.value }),
+            ...(filterStatus.value !== 'all' && { status: filterStatus.value }),
+            ...(filterHasMedia.value && { has_media: true }),
+        });
+
+        const response = await secureAxios(`${apiBase}/seller/reviews?${queryParams.toString()}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${localStorage.getItem('access_token')}`,
+            },
+            cache: 'no-store',
+        }, ['seller']);
+
+        if (!response.data.success || !Array.isArray(response.data.data)) {
+            throw new Error(response.data.message || 'Dữ liệu đánh giá không hợp lệ');
+        }
+
+        reviews.value = response.data.data;
+        lastPage.value = response.data.last_page || 1;
+        total.value = response.data.total || response.data.data.length;
+        currentPage.value = response.data.current_page || page;
+        countByRating.value = response.data.count_by_rating || { all: 0 };
+        countByStatus.value = response.data.count_by_status || { all: 0 };
+        countWithMedia.value = response.data.count_with_media || 0;
+
+        if (!reviews.value.length) {
+            showNotification('Không có đánh giá nào', 'info');
+        }
     } catch (e) {
-        console.error('Lỗi khi tải đánh giá của seller:', e)
-        showNotification('Lỗi khi tải đánh giá', 'error')
+        console.error('Lỗi khi tải đánh giá:', e);
+        showNotification('Lỗi khi tải đánh giá: ' + e.message, 'error');
+        reviews.value = [];
+        lastPage.value = 1;
+        total.value = 0;
     } finally {
-        loading.value = false
+        loading.value = false;
     }
-})
+};
 
-// -------------------------
-// 2. Lọc theo trạng thái, sao, ảnh
-function countFilters() {
-    const ratingCount = { all: allReviews.value.length }
-    const statusCount = { all: allReviews.value.length }
-    let withMedia = 0
-
-    allReviews.value.forEach(r => {
-        // Rating
-        if (ratingCount[r.rating]) ratingCount[r.rating]++
-        else ratingCount[r.rating] = 1
-
-        // Status
-        if (statusCount[r.status]) statusCount[r.status]++
-        else statusCount[r.status] = 1
-
-        // Media
-        if (r.images?.length) withMedia++
-    })
-
-    countByRating.value = ratingCount
-    countByStatus.value = statusCount
-    countWithMedia.value = withMedia
-}
-
-// -------------------------
-// 3. Áp dụng lọc
-function applyFilters() {
-    let filtered = [...allReviews.value]
-
-    if (filterRating.value) {
-        filtered = filtered.filter(r => r.rating === filterRating.value)
-    }
-
-    if (filterStatus.value !== 'all') {
-        filtered = filtered.filter(r => r.status === filterStatus.value)
-    }
-
-    if (filterHasMedia.value) {
-        filtered = filtered.filter(r => r.images?.length > 0)
-    }
-
-    filtered.sort((a, b) => {
-        const dateA = new Date(a.created_at)
-        const dateB = new Date(b.created_at)
-        return sortOrder.value === 'asc' ? dateA - dateB : dateB - dateA
-    })
-
-    reviews.value = filtered
-}
-
-// -------------------------
-// 4. Dropdown thao tác
-function toggleDropdown(event, id) {
+// Toggle dropdown
+const toggleDropdown = (event, id) => {
     if (activeDropdown.value === id) {
-        activeDropdown.value = null
-        return
+        activeDropdown.value = null;
+        return;
     }
 
-    const rect = event.currentTarget.getBoundingClientRect()
+    const rect = event.currentTarget.getBoundingClientRect();
     dropdownPosition.value = {
         top: `${rect.bottom + window.scrollY}px`,
-        left: `${rect.left + window.scrollX - 160}px`
-    }
+        left: `${rect.left + window.scrollX - 160}px`,
+    };
+    activeDropdown.value = id;
+};
 
-    activeDropdown.value = id
-}
+const closeDropdown = () => {
+    activeDropdown.value = null;
+};
 
-function closeDropdown() {
-    activeDropdown.value = null
-}
+// Navigation
+const viewReview = (id) => {
+    router.push(`/seller/reviews/view/${id}`);
+};
 
-// -------------------------
-// 5. Chuyển trang view/sửa
-function viewReview(id) {
-    navigateTo(`/seller/reviews/view/${id}`)
-}
+const editReview = (id) => {
+    router.push(`/seller/reviews/edit-reviews/${id}`);
+};
 
-function editReview(id) {
-    navigateTo(`/seller/reviews/edit-reviews/${id}`)
-}
+// Report review
+const reportReview = (id) => {
+    selectedReviewId.value = id;
+    showReportDialog.value = true;
+};
 
-// -------------------------
-// 6. Báo cáo đánh giá
-function reportReview(id) {
-    selectedReviewId.value = id
-    showReportDialog.value = true
-}
+const handleReportSubmitted = () => {
+    showReportDialog.value = false;
+    showNotification('Báo cáo đã được gửi thành công', 'success');
+};
 
-function handleReportSubmitted() {
-    showReportDialog.value = false
-    showNotification('Báo cáo đã được gửi thành công', 'success')
-}
+// Delete review
+const confirmDelete = (id) => {
+    selectedReviewId.value = id;
+    showConfirmDelete.value = true;
+};
 
-// -------------------------
-// 7. Xóa đánh giá
-async function confirmDelete(id) {
-    await deleteReview(id)
-}
-
-async function deleteReview(id) {
+const deleteReview = async (id) => {
     try {
-        const token = localStorage.getItem('access_token')
-        await axios.delete(`${apiBase}/seller/reviews/${id}`, {
-            headers: { Authorization: `Bearer ${token}` }
-        })
+        await secureAxios(`${apiBase}/seller/reviews/${id}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` },
+        }, ['seller']);
 
-        reviews.value = reviews.value.filter(r => r.id !== id)
-        allReviews.value = allReviews.value.filter(r => r.id !== id)
-        countFilters()
-        applyFilters()
-        showNotification('Đã xóa đánh giá thành công', 'success')
+        reviews.value = reviews.value.filter(r => r.id !== id);
+        showNotification('Đã xóa đánh giá thành công', 'success');
+        await fetchReviews(currentPage.value);
     } catch (e) {
-        console.error('Lỗi khi xóa đánh giá:', e)
-        showNotification('Lỗi khi xóa đánh giá', 'error')
+        console.error('Lỗi khi xóa đánh giá:', e);
+        showNotification('Lỗi khi xóa đánh giá: ' + e.message, 'error');
     }
-}
+};
 
-// -------------------------
-// 8. Format
-function formatDate(dateStr) {
-    const d = new Date(dateStr)
-    return d.toLocaleString('vi-VN')
-}
+// Format
+const formatDate = (dateStr) => {
+    const d = new Date(dateStr);
+    return d.toLocaleString('vi-VN');
+};
 
-function statusText(status) {
+const statusText = (status) => {
     switch (status) {
-        case 'approved': return 'Đã duyệt'
-        case 'pending': return 'Chờ duyệt'
-        case 'rejected': return 'Từ chối'
-        default: return 'Không rõ'
+        case 'approved': return 'Đã duyệt';
+        case 'pending': return 'Chờ duyệt';
+        case 'rejected': return 'Từ chối';
+        case 'all': return 'Tất cả';
+        default: return 'Không rõ';
     }
-}
+};
 
-function statusClass(status) {
+const statusClass = (status) => {
     switch (status) {
-        case 'approved': return 'bg-green-100 text-green-800'
-        case 'pending': return 'bg-yellow-100 text-yellow-800'
-        case 'rejected': return 'bg-red-100 text-red-800'
-        default: return 'bg-gray-100 text-gray-800'
+        case 'approved': return 'bg-green-100 text-green-800';
+        case 'pending': return 'bg-yellow-100 text-yellow-800';
+        case 'rejected': return 'bg-red-100 text-red-800';
+        default: return 'bg-gray-100 text-gray-800';
     }
-}
+};
 
-// -------------------------
-// 9. Lấy review đang chọn trong dropdown
-function getReviewById(id) {
-    return reviews.value.find(r => r.id === id)
-}
+// Mounted
+onMounted(() => {
+    fetchReviews();
+    document.addEventListener('click', closeDropdown);
+});
+
+// Unmounted
+onUnmounted(() => {
+    document.removeEventListener('click', closeDropdown);
+});
 </script>
+
+<style scoped>
+button {
+    position: relative;
+    overflow: hidden;
+}
+button::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    background-image: radial-gradient(circle, #000 10%, transparent 10.01%);
+    background-repeat: no-repeat;
+    background-position: 50%;
+    transform: scale(10, 10);
+    opacity: 0;
+    transition: transform .5s, opacity 1s;
+}
+button:active::after {
+    transform: scale(0, 0);
+    opacity: .2;
+    transition: 0s;
+}
+
+.bg-gray-100 {
+    overflow: visible !important;
+}
+</style>
