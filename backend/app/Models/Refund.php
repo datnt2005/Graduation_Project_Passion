@@ -7,13 +7,15 @@ use Illuminate\Database\Eloquent\Model;
 class Refund extends Model
 {
     protected $fillable = [
-        'order_item_id', // Thay 'order_id' bằng 'order_item_id'
+        'order_id', // Thay 'order_id' bằng 'order_item_id'
         'user_id',
         'reason',
         'status',
         'amount',
         'images',
         'admin_note',
+        'bank_account_number',
+        'bank_name',
     ];
 
     public function order()

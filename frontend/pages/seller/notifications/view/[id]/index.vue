@@ -91,45 +91,9 @@
             </div>
 
             <!-- Người nhận -->
-            <div v-if="notification.recipients?.length > 0" class="mt-8">
-              <p class="font-semibold mb-2 text-gray-800">Danh sách người nhận ({{ notification.recipients.length }}):
-              </p>
-              <div class="overflow-x-auto">
-                <table class="min-w-full text-sm border border-gray-300 bg-white">
-                  <thead class="bg-gray-50">
-                    <tr>
-                      <th class="border px-3 py-2 text-left">Tên</th>
-                      <th class="border px-3 py-2 text-left">Email</th>
-                      <th class="border px-3 py-2 text-left">Trạng thái đọc</th>
-                      <th class="border px-3 py-2 text-left">Ngày đọc</th>
-                      <th class="border px-3 py-2 text-left">Trạng thái hiển thị</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="r in notification.recipients" :key="r.id" class="border-t">
-                      <td class="px-3 py-2">{{ r.user?.name || 'Không xác định' }}</td>
-                      <td class="px-3 py-2">{{ r.user?.email || '-' }}</td>
-                      <td class="px-3 py-2">
-                        <span :class="r.is_read ? 'text-green-600 font-medium' : 'text-yellow-600 font-medium'">
-                          {{ r.is_read ? 'Đã đọc' : 'Chưa đọc' }}
-                        </span>
-                      </td>
-                      <td class="px-3 py-2">
-                        {{ r.read_at ? formatDate(r.read_at) : '-' }}
-                      </td>
-                      <td class="px-3 py-2">
-                        <span :class="r.is_hidden ? 'text-red-600' : 'text-green-700'">
-                          {{ r.is_hidden ? 'Đã ẩn' : 'Hiển thị' }}
-                        </span>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
+           
 
-            <!-- Không có người nhận -->
-            <div v-else class="mt-4 text-sm text-gray-500 italic">Không có người nhận nào.</div>
+    
 
             <!-- Quay lại -->
             <div class="pt-6 border-t">

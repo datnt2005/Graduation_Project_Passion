@@ -1,13 +1,11 @@
 <template>
   <section ref="reviewSection" class="w-full mb-12 py-6 bg-gray-50">
     <h1 class="text-sm font-semibold mb-4">Khách hàng đánh giá</h1>
-    <!-- Gộp tổng quan và form đánh giá vào cùng một khối -->
     <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-4 mb-6">
       <div class="flex flex-col sm:flex-row gap-6">
         <!-- Tổng quan -->
         <div class="flex-1">
           <p class="text-sm font-semibold mb-3 text-gray-800">Tổng quan đánh giá</p>
-          <!-- Tổng điểm sao -->
           <div v-memo="[reviews.summary.rating, reviews.summary.count]" class="flex items-center gap-2 mb-2">
             <span class="text-yellow-500 font-bold text-3xl">{{ reviews.summary.rating.toFixed(1) }}</span>
             <div class="flex items-center text-yellow-400 text-lg">
@@ -19,7 +17,6 @@
             </div>
           </div>
           <p class="text-xs text-gray-500 mb-4">({{ reviews.summary.count }} đánh giá)</p>
-          <!-- Biểu đồ đánh giá -->
           <div v-memo="[fullRatings]" class="space-y-2 text-xs">
             <div v-for="rating in fullRatings" :key="rating.stars" class="flex items-center gap-2">
               <span class="w-10 flex items-center gap-1 text-gray-700">
@@ -33,70 +30,74 @@
           </div>
         </div>
         <!-- Form đánh giá -->
-        <form @submit.prevent="submitReview" class="flex-1 space-y-4">
-          <div class="flex justify-between items-center">
-            <h2 class="font-semibold text-sm text-gray-800">
-              {{ editingReviewId ? 'Chỉnh sửa đánh giá của bạn' : 'Gửi đánh giá sản phẩm' }}
-            </h2>
-            <button v-if="editingReviewId" type="button" class="text-xs text-gray-500 hover:text-red-500" @click="cancelEdit">
-              Hủy
-            </button>
-          </div>
-          <!-- Rating -->
-          <div class="space-y-1">
-            <label class="block text-xs text-gray-600 font-medium">Chọn số sao</label>
-            <div class="flex items-center gap-1">
-              <span v-for="star in 5" :key="star" class="cursor-pointer text-xl" @click="newReviewRating = star">
-                <span :class="newReviewRating >= star ? 'text-yellow-500' : 'text-gray-300'">★</span>
-              </span>
-              <span class="text-xs ml-2 text-gray-500">({{ newReviewRating }} / 5)</span>
+        <div v-if="token" class="flex-1 space-y-4">
+          <form @submit.prevent="submitReview">
+            <div class="flex justify-between items-center">
+              <h2 class="font-semibold text-sm text-gray-800">
+                {{ editingReviewId ? 'Chỉnh sửa đánh giá của bạn' : 'Gửi đánh giá sản phẩm' }}
+              </h2>
+              <button v-if="editingReviewId" type="button" class="text-xs text-gray-500 hover:text-red-500" @click="cancelEdit">
+                Hủy
+              </button>
             </div>
-          </div>
-          <!-- Upload hình ảnh & video -->
-          <div class="flex flex-col gap-2">
-            <div class="flex gap-2 flex-wrap">
-              <label for="review-upload" class="inline-flex items-center gap-2 px-3 py-1.5 border border-gray-300 rounded bg-white cursor-pointer hover:bg-gray-50 text-xs">
-                <i class="fas fa-camera text-gray-500"></i>
-                <span>Chọn ảnh</span>
-                <input id="review-upload" type="file" accept="image/*" multiple class="hidden" @change="handleImageUpload" />
-              </label>
-              <label for="review-video-upload" class="inline-flex items-center gap-2 px-3 py-1.5 border border-gray-300 rounded bg-white cursor-pointer hover:bg-gray-50 text-xs">
-                <i class="fas fa-video text-gray-500"></i>
-                <span>Chọn video</span>
-                <input id="review-video-upload" type="file" accept="video/*" multiple class="hidden" @change="handleVideoUpload" />
-              </label>
-            </div>
-            <!-- Preview ảnh -->
-            <div v-if="uploadedImages.length" class="flex gap-2 flex-wrap">
-              <div v-for="(file, i) in uploadedImages" :key="i" class="relative w-16 h-16 border rounded overflow-hidden group">
-                <img :src="getImagePreview(file)" :alt="'Ảnh đánh giá ' + i" class="w-full h-full object-cover" loading="lazy" />
-                <button type="button" class="absolute top-0 right-0 bg-black/60 text-white text-[10px] px-1 rounded hidden group-hover:block" @click="removeImage(i)">
-                  ×
-                </button>
+            <!-- Rating -->
+            <div class="space-y-1">
+              <label class="block text-xs text-gray-600 font-medium">Chọn số sao</label>
+              <div class="flex items-center gap-1">
+                <span v-for="star in 5" :key="star" class="cursor-pointer text-xl" @click="newReviewRating = star">
+                  <span :class="newReviewRating >= star ? 'text-yellow-500' : 'text-gray-300'">★</span>
+                </span>
+                <span class="text-xs ml-2 text-gray-500">({{ newReviewRating }} / 5)</span>
               </div>
             </div>
-            <!-- Preview video -->
-            <div v-if="uploadedVideos.length" class="flex gap-2 flex-wrap">
-              <div v-for="(video, i) in uploadedVideos" :key="'video-' + i" class="relative w-28 h-20 border rounded overflow-hidden group">
-                <video :src="getVideoPreview(video)" class="w-full h-full object-cover" controls loading="lazy"></video>
-                <button type="button" class="absolute top-0 right-0 bg-black/60 text-white text-[10px] px-1 rounded hidden group-hover:block" @click="removeVideo(i)">
-                  ×
-                </button>
+            <!-- Upload hình ảnh & video -->
+            <div class="flex flex-col gap-2">
+              <div class="flex gap-2 flex-wrap">
+                <label for="review-upload" class="inline-flex items-center gap-2 px-3 py-1.5 border border-gray-300 rounded bg-white cursor-pointer hover:bg-gray-50 text-xs">
+                  <i class="fas fa-camera text-gray-500"></i>
+                  <span>Chọn ảnh</span>
+                  <input id="review-upload" type="file" accept="image/*" multiple class="hidden" @change="handleImageUpload" />
+                </label>
+                <label for="review-video-upload" class="inline-flex items-center gap-2 px-3 py-1.5 border border-gray-300 rounded bg-white cursor-pointer hover:bg-gray-50 text-xs">
+                  <i class="fas fa-video text-gray-500"></i>
+                  <span>Chọn video</span>
+                  <input id="review-video-upload" type="file" accept="video/*" multiple class="hidden" @change="handleVideoUpload" />
+                </label>
+              </div>
+              <div v-if="uploadedImages.length" class="flex gap-2 flex-wrap">
+                <div v-for="(file, i) in uploadedImages" :key="i" class="relative w-16 h-16 border rounded overflow-hidden group">
+                  <img :src="getImagePreview(file)" :alt="'Ảnh đánh giá ' + i" class="w-full h-full object-cover" loading="lazy" />
+                  <button type="button" class="absolute top-0 right-0 bg-black/60 text-white text-[10px] px-1 rounded hidden group-hover:block" @click="removeImage(i)">
+                    ×
+                  </button>
+                </div>
+              </div>
+              <div v-if="uploadedVideos.length" class="flex gap-2 flex-wrap">
+                <div v-for="(video, i) in uploadedVideos" :key="'video-' + i" class="relative w-28 h-20 border rounded overflow-hidden group">
+                  <video :src="getVideoPreview(video)" class="w-full h-full object-cover" controls loading="lazy"></video>
+                  <button type="button" class="absolute top-0 right-0 bg-black/60 text-white text-[10px] px-1 rounded hidden group-hover:block" @click="removeVideo(i)">
+                    ×
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-          <!-- Nội dung -->
-          <div class="space-y-1">
-            <label class="block text-xs text-gray-600 font-medium">Nội dung đánh giá</label>
-            <textarea v-model="newReviewComment" rows="5" class="w-full border border-gray-300 rounded p-2 text-sm resize-none focus:outline-none focus:ring focus:ring-blue-100" placeholder="Viết cảm nhận của bạn về sản phẩm..." aria-label="Nội dung đánh giá"></textarea>
-          </div>
-          <!-- Submit -->
-          <div class="flex justify-end">
-            <button type="submit" class="px-4 py-2 text-sm bg-[#1BA0E2] hover:bg-[#1790cc] text-white rounded transition" :disabled="!isReviewFormValid">
-              {{ editingReviewId ? 'Cập nhật đánh giá' : 'Gửi đánh giá' }}
-            </button>
-          </div>
-        </form>
+            <!-- Nội dung -->
+            <div class="space-y-1">
+              <label class="block text-xs text-gray-600 font-medium">Nội dung đánh giá</label>
+              <textarea v-model="newReviewComment" rows="5" class="w-full border border-gray-300 rounded p-2 text-sm resize-none focus:outline-none focus:ring focus:ring-blue-100" placeholder="Viết cảm nhận của bạn về sản phẩm..." aria-label="Nội dung đánh giá"></textarea>
+            </div>
+            <!-- Submit -->
+            <div class="flex justify-end">
+              <button type="submit" class="px-4 py-2 text-sm bg-[#1BA0E2] hover:bg-[#1790cc] text-white rounded transition" :disabled="!isReviewFormValid">
+                {{ editingReviewId ? 'Cập nhật đánh giá' : 'Gửi đánh giá' }}
+              </button>
+            </div>
+          </form>
+        </div>
+        <div v-else class="flex-1 space-y-4">
+          <p class="text-sm text-gray-600">Bạn cần đăng nhập để gửi đánh giá.</p>
+          <button @click="openLoginModal" class="text-blue-500 hover:underline">Đăng nhập ngay</button>
+        </div>
       </div>
     </div>
     <!-- Bộ lọc -->
@@ -136,8 +137,7 @@
       </button>
     </nav>
   </section>
-  <AuthModal :show="showModal" :initial-mode="modalMode" @close="showModal = false"
-    @login-success="handleLoginSuccess" />
+  <AuthModal :show="showModal" :initial-mode="modalMode" @close="showModal = false" @login-success="handleLoginSuccess" />
 </template>
 
 <script setup>
@@ -146,18 +146,18 @@ import { useHead } from '#app'
 import { useRuntimeConfig } from '#app'
 import { useToast } from '~/composables/useToast'
 import ReviewItem from './ReviewItem.vue'
-import AuthModal from "~/components/shared/AuthModal.vue";
+import AuthModal from '~/components/shared/AuthModal.vue'
 
 const { toast, showError, showConfirm } = useToast()
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBaseUrl
 const mediaBase = config.public.mediaBaseUrl
-const modalMode = ref("login");
-const showModal = ref(false);
+const modalMode = ref('login')
+const showModal = ref(false)
 
 const props = defineProps({
   productId: { type: Number, required: true },
-  productName: { type: String, default: 'Sản phẩm' } // Thêm prop để tối ưu SEO
+  productName: { type: String, default: 'Sản phẩm' }
 })
 
 const reviewSection = ref(null)
@@ -178,7 +178,7 @@ const filterByMedia = ref(false)
 const currentPage = ref(1)
 const itemsPerPage = 3
 const refreshKey = ref(0)
-const urlObjects = ref([]) // Lưu các URL.createObjectURL để giải phóng
+const urlObjects = ref([])
 
 // SEO metadata
 useHead({
@@ -216,12 +216,11 @@ useHead({
 })
 
 function openLoginModal() {
-  console.log("openLoginModal called");
-  modalMode.value = "login";
-  showModal.value = true;
+  console.log('openLoginModal called')
+  modalMode.value = 'login'
+  showModal.value = true
 }
 
-// Computed properties
 const currentUserId = computed(() => userId.value || null)
 const isReviewFormValid = computed(() => newReviewRating.value > 0 && newReviewComment.value.trim().length > 0)
 const fullRatings = computed(() => {
@@ -250,7 +249,6 @@ const hasUserReviewed = computed(() => reviews.value.list.some(r => r.user_id ==
 const getStarCount = (star) => reviews.value.list.filter(r => r.rating === star).length
 const getMediaCount = () => reviews.value.list.filter(r => (r.images?.length || 0) > 0 || (r.videos?.length || 0) > 0).length
 
-// Methods
 const getImagePreview = (file) => {
   if (file.isExisting) return file.url
   if (file.file instanceof File) {
@@ -345,34 +343,60 @@ const fetchReviews = async () => {
   }
 }
 const submitReview = async () => {
-  if (!token.value){
+  if (!token.value) {
     openLoginModal()
-    return;
+    return
   }
-  if (!isReviewFormValid.value) return toast('warning', 'Vui lòng chọn số sao và nhập nội dung đánh giá')
-  if (!editingReviewId.value && hasUserReviewed.value) return toast('info', 'Bạn đã đánh giá sản phẩm này rồi!')
+  if (!isReviewFormValid.value) {
+    return toast('warning', 'Vui lòng chọn số sao và nhập nội dung đánh giá')
+  }
+  if (!editingReviewId.value && hasUserReviewed.value) {
+    return toast('info', 'Bạn đã đánh giá sản phẩm này rồi!')
+  }
+
   const formData = new FormData()
+  formData.append('product_id', props.productId)
   formData.append('rating', newReviewRating.value)
   formData.append('content', newReviewComment.value)
-  uploadedImages.value.forEach(file => { if (!file.isExisting) formData.append('images[]', file.file) })
-  uploadedVideos.value.forEach(video => { if (!video.isExisting) formData.append('videos[]', video.file) })
+  uploadedImages.value.forEach(file => {
+    if (!file.isExisting) formData.append('images[]', file.file)
+  })
+  uploadedVideos.value.forEach(video => {
+    if (!video.isExisting) formData.append('videos[]', video.file)
+  })
   if (editingReviewId.value) {
     formData.append('_method', 'PUT')
-    const keptImageIds = uploadedImages.value.filter(img => img.isExisting && img.original?.id).map(img => img.original.id)
+    const keptImageIds = uploadedImages.value
+      .filter(img => img.isExisting && img.original?.id)
+      .map(img => img.original.id)
     keptImageIds.forEach(id => formData.append('kept_images[]', id))
-    const keptVideoIds = uploadedVideos.value.filter(vid => vid.isExisting && vid.original?.id).map(vid => vid.original.id)
+    const keptVideoIds = uploadedVideos.value
+      .filter(vid => vid.isExisting && vid.original?.id)
+      .map(vid => vid.original.id)
     keptVideoIds.forEach(id => formData.append('kept_videos[]', id))
     deletedImages.value.forEach(id => formData.append('deleted_images[]', id))
     deletedVideos.value.forEach(id => formData.append('deleted_videos[]', id))
   }
-  const url = editingReviewId.value ? `${apiBase}/reviews/${editingReviewId.value}` : `${apiBase}/reviews?product_id=${props.productId}`
+
+  const url = editingReviewId.value
+    ? `${apiBase}/reviews/${editingReviewId.value}`
+    : `${apiBase}/reviews`
+
   try {
-    const res = await fetch(url, { method: 'POST', headers: { Authorization: `Bearer ${token.value}` }, body: formData })
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token.value}` },
+      body: formData
+    })
     const data = await res.json()
     if (!res.ok) {
-      const firstError = Object.values(data.errors || {})[0]?.[0]
-      return showError('', firstError || data.message || 'Có lỗi xảy ra')
+      const errorMessage =
+        Object.values(data.errors || {})[0]?.[0] ||
+        data.message ||
+        'Có lỗi xảy ra khi gửi đánh giá'
+      return toast('error', errorMessage)
     }
+
     toast('success', editingReviewId.value ? 'Cập nhật thành công' : 'Đã gửi đánh giá')
     newReviewRating.value = 0
     newReviewComment.value = ''
@@ -395,7 +419,10 @@ const deleteReview = async (id) => {
   const confirmResult = await showConfirm('Bạn có chắc chắn?', 'Đánh giá sẽ bị xóa và không thể khôi phục', 'Xóa')
   if (!confirmResult.isConfirmed) return
   try {
-    const res = await fetch(`${apiBase}/reviews/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token.value}` } })
+    const res = await fetch(`${apiBase}/reviews/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token.value}` }
+    })
     if (!res.ok) throw new Error('Xóa không thành công')
     toast('success', 'Đã xóa đánh giá')
     localStorage.removeItem(`reviews_${props.productId}`)
@@ -425,24 +452,26 @@ const cancelEdit = () => {
 const goToPage = (page) => {
   if (page >= 1 && page <= totalPages.value) {
     currentPage.value = page
-    fetchReviews() // Tải lại dữ liệu cho trang mới
+    fetchReviews()
     reviewSection.value?.scrollIntoView({ behavior: 'smooth' })
   }
 }
+const handleLoginSuccess = async () => {
+  token.value = localStorage.getItem('access_token')
+  await fetchUser()
+  showModal.value = false
+}
 
-// Cleanup
 onUnmounted(() => {
   urlObjects.value.forEach(url => URL.revokeObjectURL(url))
   urlObjects.value = []
 })
 
-// Watchers
 watch([sortBy, filterStar, filterByMedia], () => {
   currentPage.value = 1
   fetchReviews()
 })
 
-// Initial fetch
 onMounted(async () => {
   if (token.value) await fetchUser()
   await fetchReviews()
