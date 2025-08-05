@@ -1,6 +1,5 @@
 <template>
   <main class="bg-[#f5f5f5] text-[#222222] mb-6 pt-4 py-6">
-    Test deploy
     <div class="max-w-7xl mx-auto px-2">
       <!-- Sidebar -->
 
