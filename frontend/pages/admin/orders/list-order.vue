@@ -358,6 +358,8 @@
                 <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">Mã đơn hàng</th>
                 <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">Mã vận đơn</th>
                 <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">Số tiền</th>
+                <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">Ngân hàng</th>
+                <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">Số tài khoản</th>
                 <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">Trạng thái</th>
                 <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">Lý do</th>
                 <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">Ngày tạo</th>
@@ -371,6 +373,8 @@
                 <td class="px-4 py-3 whitespace-nowrap text-sm font-semibold text-blue-700">{{
                   refund.order?.shipping?.tracking_code || 'Chưa có' }}</td>
                 <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ formatPrice(refund.amount) }}</td>
+                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ refund.bank_name || 'Chưa có' }}</td>
+                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ refund.bank_account_number || 'Chưa có' }}</td>
                 <td class="px-4 py-3 whitespace-nowrap text-sm">
                   <span :class="refundStatusClass(refund.status)">{{ refundStatusText(refund.status) }}</span>
                 </td>

@@ -276,6 +276,21 @@
             Đơn hàng
           </NuxtLink>
         </li>
+        <!-- Thông báo -->
+        <li class="pt-2 border-t border-gray-800">
+          <NuxtLink to="/seller/notifications/list-notifications"
+            class="flex items-center w-full px-4 py-2 hover:bg-gray-800 focus:outline-none rounded"
+            :class="route.path === '/admin/notifications/list-notifications' ? 'bg-gray-800 text-green-400 font-bold' : 'text-gray-300'">
+
+            <svg class="w-4 h-4 mr-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+              stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V4a2 2 0 00-4 0v1.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            </svg>
+
+            Thông báo
+          </NuxtLink>
+        </li>
 
         <!-- đổi trả -->
         <li class="pt-2 border-t border-gray-800">

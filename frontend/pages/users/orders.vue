@@ -204,8 +204,6 @@
                       </div>
                     </div>
                   </td>
-
-
                 </tr>
               </tbody>
             </table>
@@ -216,8 +214,7 @@
             <article v-for="(order, index) in paginatedOrders" :key="order.id"
               class="bg-white rounded-lg shadow border border-gray-200 p-4">
               <div class="flex justify-between items-center mb-2">
-                <span class="text-sm text-gray-500 font-medium">Mã vận đơn: {{ order.shipping?.tracking_code || '-'
-                  }}</span>
+                <span class="text-sm text-gray-500 font-medium">Mã vận đơn: {{ order.shipping?.tracking_code || '-' }}</span>
                 <span :class="statusClass(order.status)"
                   class="px-2 py-1 text-xs rounded-full font-medium whitespace-nowrap">
                   {{ statusText(order.status) }}
@@ -428,21 +425,28 @@
                   </div>
                 </div>
                 <!-- Xử lý hoàn tiền -->
-                <div v-if="['failed', 'cancelled', 'returned', 'failed_delivery', 'rejected_by_customer'].includes(selectedOrder.status) && !effectiveRefund && selectedOrder.payments?.length > 0 && selectedOrder.payments.every(payment => payment.method?.toLowerCase() !== 'cod')"
+                <div v-if="['pending', 'failed', 'cancelled', 'returned', 'failed_delivery', 'rejected_by_customer'].includes(selectedOrder.status) && !effectiveRefund && !selectedOrder.payments?.some(payment => payment.method?.toLowerCase() === 'cod')"
                   class="border border-gray-200 rounded-lg mb-6">
                   <div class="border-b px-4 py-2 font-medium text-sm bg-gray-50 text-gray-800">Xử lý hoàn tiền</div>
                   <div class="px-4 py-3 text-sm text-gray-700">
                     <p><b>Lý do hiện tại:</b> {{ selectedOrder.failure_reason || selectedOrder.note || 'Chưa có ghi chú' }}</p>
                     <div class="mt-2">
                       <label class="block mb-1" for="refund-amount">Số tiền hoàn (VND):</label>
-                      <input v-model.number="refundAmount" id="refund-amount" type="number" min="0"
-                        :max="maxRefundAmount" class="w-full border rounded px-3 py-2 bg-gray-100 cursor-not-allowed"
+                      <input v-model="formattedRefundAmount" id="refund-amount" type="text"
+                        class="w-full border rounded px-3 py-2 bg-gray-100 cursor-not-allowed"
                         :disabled="true" :placeholder="`Số tiền hoàn tự động: ${formatPrice(maxRefundAmount * 1000)}`"
                         aria-label="Số tiền hoàn tự động" aria-required="true">
                       <label class="block mb-1 mt-2" for="refund-reason">Lý do hoàn tiền:</label>
                       <textarea v-model="refundReason" id="refund-reason" class="w-full border rounded px-3 py-2"
-                        placeholder="Nhập lý do hoàn tiền" aria-label="Nhập lý do hoàn tiền"
-                        aria-required="true"></textarea>
+                        placeholder="Nhập lý do hoàn tiền" aria-label="Nhập lý do hoàn tiền" aria-required="true"></textarea>
+                      <label class="block mb-1 mt-2" for="bank-account-number">Số tài khoản ngân hàng (tùy chọn):</label>
+                      <input v-model="bankAccountNumber" id="bank-account-number" type="text"
+                        class="w-full border rounded px-3 py-2" placeholder="Nhập số tài khoản ngân hàng"
+                        aria-label="Số tài khoản ngân hàng">
+                      <label class="block mb-1 mt-2" for="bank-name">Tên ngân hàng (tùy chọn):</label>
+                      <input v-model="bankName" id="bank-name" type="text"
+                        class="w-full border rounded px-3 py-2" placeholder="Nhập tên ngân hàng"
+                        aria-label="Tên ngân hàng">
                       <button @click="requestRefund(selectedOrder)"
                         class="mt-2 px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700"
                         :disabled="!refundReason" aria-label="Gửi yêu cầu hoàn tiền">Gửi yêu cầu hoàn tiền</button>
@@ -450,23 +454,25 @@
                   </div>
                 </div>
                 <!-- Thông báo cho đơn hàng COD -->
-                <div v-else-if="['failed', 'cancelled', 'returned', 'failed_delivery', 'rejected_by_customer'].includes(selectedOrder.status) && !effectiveRefund && selectedOrder.payments?.some(payment => payment.method?.toLowerCase() === 'cod')"
+                <div v-else-if="['pending', 'failed', 'cancelled', 'returned', 'failed_delivery', 'rejected_by_customer'].includes(selectedOrder.status) && !effectiveRefund && selectedOrder.payments?.some(payment => payment.method?.toLowerCase() === 'cod')"
                   class="border border-gray-200 rounded-lg mb-6">
                   <div class="border-b px-4 py-2 font-medium text-sm bg-gray-50 text-gray-800">Xử lý hoàn tiền</div>
                   <div class="px-4 py-3 text-sm text-gray-700">
                     <p>Đơn hàng sử dụng thanh toán COD, không thể yêu cầu hoàn tiền trực tuyến. Vui lòng liên hệ hỗ trợ để được xử lý.</p>
                   </div>
                 </div>
+                <!-- Thông tin hoàn tiền hiện có -->
                 <div v-if="effectiveRefund" class="border border-gray-200 rounded-lg mb-6">
                   <div class="border-b px-4 py-2 font-medium text-sm bg-gray-50 text-gray-800">Thông tin hoàn tiền</div>
                   <div class="px-4 py-3 text-sm text-gray-700">
                     <p><b>Mã hoàn tiền:</b> {{ effectiveRefund.id || '-' }}</p>
-                    <p><b>Số tiền hoàn:</b> {{ formatPrice(effectiveRefund.amount * 1000) }}</p>
+                    <p><b>Số tiền hoàn:</b> {{ formatPrice(effectiveRefund.amount) }}</p>
                     <p><b>Trạng thái:</b>
-                      <span :class="refundStatusClass(effectiveRefund.status)">{{
-                        refundStatusText(effectiveRefund.status) }}</span>
+                      <span :class="refundStatusClass(effectiveRefund.status)">{{ refundStatusText(effectiveRefund.status) }}</span>
                     </p>
                     <p><b>Lý do:</b> {{ effectiveRefund.reason || '-' }}</p>
+                    <p><b>Số tài khoản ngân hàng:</b> {{ effectiveRefund.bank_account_number || '-' }}</p>
+                    <p><b>Tên ngân hàng:</b> {{ effectiveRefund.bank_name || '-' }}</p>
                     <p><b>Thời gian tạo:</b> {{ formatDate(effectiveRefund.created_at) }}</p>
                   </div>
                 </div>
@@ -479,7 +485,6 @@
   </section>
 
   <ReturnModal v-if="isReturnModalOpen" :order="selectedReturnOrder" @close="isReturnModalOpen = false" />
-
 </template>
 
 <script setup>
@@ -491,8 +496,7 @@ import 'sweetalert2/dist/sweetalert2.min.css';
 import { useCartStore } from '~/stores/cart';
 import { useRouter, useHead } from '#app';
 import { debounce } from 'lodash';
-import { secureFetch } from '@/utils/secureFetch' 
-
+import { secureFetch } from '@/utils/secureFetch';
 
 // State
 const orders = ref([]);
@@ -516,25 +520,22 @@ const isLoadingRefunds = ref(false);
 const refundError = ref('');
 const refundAmount = ref(0);
 const refundReason = ref('');
+const bankAccountNumber = ref('');
+const bankName = ref('');
 const showPayments = ref(false);
 const page = ref(1);
 const perPage = 10;
-const isReturnModalOpen = ref(false)
-const selectedReturnOrder = ref(null)
-//  dropdown
-const openDropdownId = ref(null)
+const isReturnModalOpen = ref(false);
+const selectedReturnOrder = ref(null);
+const openDropdownId = ref(null);
 
 function toggleDropdown(id) {
-  openDropdownId.value = openDropdownId.value === id ? null : id
+  openDropdownId.value = openDropdownId.value === id ? null : id;
 }
 
-
-
-const returnReason = ref('')
-
 function returnOrder(order) {
-  selectedReturnOrder.value = order
-  isReturnModalOpen.value = true
+  selectedReturnOrder.value = order;
+  isReturnModalOpen.value = true;
 }
 
 // Tabs configuration
@@ -652,12 +653,10 @@ const getProductImage = (thumbnail) => {
   if (thumbnail.startsWith('http://') || thumbnail.startsWith('https://')) return `${thumbnail}?w=100&q=80`;
   return `${mediaBaseUrl}${thumbnail}?w=100&q=80`;
 };
-
 const maxRefundAmount = computed(() => {
   if (!selectedOrder.value) return 0;
-  const finalPrice = parseFloat(selectedOrder.value.final_price || 0) / 1000; // Chia cho 1000 để khớp đơn vị
-  const shippingFee = parseFloat(selectedOrder.value.shipping?.shipping_fee || 0) / 1000;
-  return Math.max(finalPrice - shippingFee, 0);
+  const finalPrice = parseFloat(selectedOrder.value.final_price || 0) / 1000;
+  return Math.max(finalPrice, 0);
 });
 
 const effectiveRefund = computed(() => {
@@ -665,75 +664,84 @@ const effectiveRefund = computed(() => {
   return refunds.value.find(refund => refund.order_id === selectedOrder.value?.id) || null;
 });
 
+const formattedRefundAmount = computed({
+  get() {
+    return formatPrice(refundAmount.value * 1000);
+  },
+  set(value) {
+    const cleanedValue = value.replace(/[^0-9]/g, '');
+    refundAmount.value = cleanedValue ? parseFloat(cleanedValue) / 1000 : 0;
+  }
+});
+
 const debouncedSearch = debounce((value) => {
   searchTracking.value = value;
-  page.value = 1; // Reset về trang 1 khi tìm kiếm
+  page.value = 1;
 }, 300);
 
 // API calls
 const fetchOrders = async (forceRefresh = false) => {
-    const cacheKey = `user_orders_page_${page.value}`;
-    if (!forceRefresh) {
-        const cache = localStorage.getItem(cacheKey);
-        if (cache) {
-            const cachedData = JSON.parse(cache);
-            if (cachedData.expiry > Date.now()) {
-                orders.value = cachedData.orders;
-                user.value = cachedData.user || null;
-                updateTabCounts();
-                isLoading.value = false;
-                return;
-            }
-        }
-    }
-    isLoading.value = true;
-    try {
-        const token = localStorage.getItem('access_token');
-        if (!token) throw new Error('Chưa đăng nhập');
-
-        const [userRes, ordersRes] = await Promise.all([
-            axios.get(`${apiBase}/me`, { headers: { Authorization: `Bearer ${token}` } }),
-            axios.get(`${apiBase}/user/orders?page=${page.value}&per_page=${perPage}`, { headers: { Authorization: `Bearer ${token}` } })
-        ]);
-
-        console.log('fetchOrders API response:', { user: userRes.data, orders: ordersRes.data });
-
-        user.value = {
-            ...userRes.data,
-            is_cod_blocked: userRes.data.is_cod_blocked || false,
-            is_blocked: userRes.data.is_blocked || false
-        };
-
-        orders.value = Array.isArray(ordersRes.data.data) ? ordersRes.data.data.map(order => ({
-            ...order,
-            refund: order.refund || null,
-            shipping: order.shipping || null,
-            failure_reason: order.failure_reason || null
-        })) : [];
-
-        if (user.value.is_blocked) {
-            toast('error', 'Tài khoản của bạn đã bị khóa do vi phạm chính sách!');
-            router.push('/login');
-            return;
-        }
-
-        // Xóa logic gửi email cảnh báo vì đã được xử lý trong backend
-        localStorage.setItem(cacheKey, JSON.stringify({
-            orders: orders.value,
-            user: user.value,
-            expiry: Date.now() + 1000 * 60 * 5 // Cache 5 phút
-        }));
+  const cacheKey = `user_orders_page_${page.value}`;
+  if (!forceRefresh) {
+    const cache = localStorage.getItem(cacheKey);
+    if (cache) {
+      const cachedData = JSON.parse(cache);
+      if (cachedData.expiry > Date.now()) {
+        orders.value = cachedData.orders;
+        user.value = cachedData.user || null;
         updateTabCounts();
-    } catch (err) {
-        console.error('fetchOrders error:', err);
-        toast('error', 'Không thể tải đơn hàng!');
-        if (err.response?.status === 401) {
-            localStorage.removeItem('access_token');
-            router.push('/login');
-        }
-    } finally {
         isLoading.value = false;
+        return;
+      }
     }
+  }
+  isLoading.value = true;
+  try {
+    const token = localStorage.getItem('access_token');
+    if (!token) throw new Error('Chưa đăng nhập');
+
+    const [userRes, ordersRes] = await Promise.all([
+      axios.get(`${apiBase}/me`, { headers: { Authorization: `Bearer ${token}` } }),
+      axios.get(`${apiBase}/user/orders?page=${page.value}&per_page=${perPage}`, { headers: { Authorization: `Bearer ${token}` } })
+    ]);
+
+    console.log('fetchOrders API response:', { user: userRes.data, orders: ordersRes.data });
+
+    user.value = {
+      ...userRes.data,
+      is_cod_blocked: userRes.data.is_cod_blocked || false,
+      is_blocked: userRes.data.is_blocked || false
+    };
+
+    orders.value = Array.isArray(ordersRes.data.data) ? ordersRes.data.data.map(order => ({
+      ...order,
+      refund: order.refund || null,
+      shipping: order.shipping || null,
+      failure_reason: order.failure_reason || null
+    })) : [];
+
+    if (user.value.is_blocked) {
+      toast('error', 'Tài khoản của bạn đã bị khóa do vi phạm chính sách!');
+      router.push('/login');
+      return;
+    }
+
+    localStorage.setItem(cacheKey, JSON.stringify({
+      orders: orders.value,
+      user: user.value,
+      expiry: Date.now() + 1000 * 60 * 5 // Cache 5 phút
+    }));
+    updateTabCounts();
+  } catch (err) {
+    console.error('fetchOrders error:', err);
+    toast('error', 'Không thể tải đơn hàng!');
+    if (err.response?.status === 401) {
+      localStorage.removeItem('access_token');
+      router.push('/login');
+    }
+  } finally {
+    isLoading.value = false;
+  }
 };
 
 const fetchRefunds = async (forceRefresh = false) => {
@@ -828,15 +836,26 @@ const viewOrder = async (id) => {
       failure_reason: orderData.failure_reason || null
     };
 
-    console.log('selectedOrder.value:', selectedOrder.value);
-    console.log('Payments for order:', selectedOrder.value.payments);
-    console.log('Is COD:', selectedOrder.value.payments?.some(payment => payment.method?.toLowerCase() === 'cod'));
+    console.log('selectedOrder.value:', {
+      id: selectedOrder.value.id,
+      total_price: selectedOrder.value.total_price,
+      final_price: selectedOrder.value.final_price,
+      final_total: selectedOrder.value.final_total || 'Không có final_total',
+      shipping_fee: selectedOrder.value.shipping?.shipping_fee || 0,
+      status: selectedOrder.value.status,
+      payment_method: selectedOrder.value.payments?.map(p => p.method).join(', ') || 'Không có thanh toán',
+      maxRefundAmount: maxRefundAmount.value,
+      maxRefundAmount_VND: maxRefundAmount.value * 1000,
+      refundAmount: refundAmount.value,
+      refundAmount_VND: refundAmount.value * 1000
+    });
 
-    if (!selectedOrder.value.refund && ['failed', 'cancelled', 'returned', 'failed_delivery', 'rejected_by_customer'].includes(selectedOrder.value.status)) {
+    if (!selectedOrder.value.refund && ['pending', 'failed', 'cancelled', 'returned', 'failed_delivery', 'rejected_by_customer'].includes(selectedOrder.value.status) && !selectedOrder.value.payments?.some(payment => payment.method?.toLowerCase() === 'cod')) {
       refundAmount.value = maxRefundAmount.value;
       toast('info', `Số tiền hoàn đã được tự động điền: ${formatPrice(refundAmount.value * 1000)}`);
     } else {
       refundAmount.value = 0;
+      toast('info', 'Không thể tự động điền số tiền hoàn do trạng thái đơn hàng hoặc phương thức thanh toán.');
     }
 
     isDetailOpen.value = true;
@@ -853,30 +872,9 @@ const viewOrder = async (id) => {
       district_name: district?.DistrictName || '',
       ward_name: ward?.WardName || ''
     };
-
-    const cacheKey = `user_orders_page_${page.value}`;
-    localStorage.removeItem(cacheKey);
-    localStorage.setItem(cacheKey, JSON.stringify({
-      orders: orders.value.map(o => o.id === id ? selectedOrder.value : o),
-      user: user.value,
-      expiry: Date.now() + 1000 * 60 * 5 // Cache 5 phút
-    }));
   } catch (err) {
-    console.error('viewOrder error:', err, {
-      status: err.response?.status,
-      data: err.response?.data
-    });
-    let message = err.message || 'Không thể tải thông tin đơn hàng!';
-    if (err.response?.status === 401) {
-      localStorage.removeItem('access_token');
-      router.push('/login');
-      message = 'Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!';
-    } else if (err.response?.status === 404) {
-      message = 'Không tìm thấy đơn hàng!';
-    } else if (err.response?.data?.message) {
-      message = err.response.data.message;
-    }
-    toast('error', message);
+    console.error('viewOrder error:', err);
+    toast('error', err.response?.data?.message || 'Không thể tải thông tin đơn hàng!');
   }
 };
 
@@ -911,9 +909,14 @@ const requestRefund = async (order) => {
     console.log('Sending refund request:', {
       order_id: order.id,
       final_price: selectedOrder.value.final_price,
+      total_price: selectedOrder.value.total_price,
       shipping_fee: selectedOrder.value.shipping?.shipping_fee || 0,
       maxRefundAmount: maxRefundAmount.value,
-      refundAmount: refundAmount.value
+      refundAmount: refundAmount.value,
+      amount_sent: Number(refundAmount.value) * 1000, // Chuyển sang VND
+      bank_account_number: bankAccountNumber.value,
+      bank_name: bankName.value,
+      payment_method: selectedOrder.value.payments?.map(p => p.method).join(', ')
     });
 
     const cacheKey = `user_orders_page_${page.value}`;
@@ -922,7 +925,9 @@ const requestRefund = async (order) => {
 
     const response = await axios.post(`${apiBase}/orders/${order.id}/refund`, {
       reason: refundReason.value,
-      amount: Number(refundAmount.value),
+      amount: Number(refundAmount.value) * 1000, // Gửi số tiền bằng VND
+      bank_account_number: bankAccountNumber.value || null,
+      bank_name: bankName.value || null,
       status: 'pending'
     }, {
       headers: { Authorization: `Bearer ${token}` }
@@ -936,21 +941,22 @@ const requestRefund = async (order) => {
       }
       refundAmount.value = 0;
       refundReason.value = '';
+      bankAccountNumber.value = '';
+      bankName.value = '';
       isDetailOpen.value = true;
     } else {
       throw new Error(response.data.message || 'Lỗi khi gửi yêu cầu hoàn tiền');
     }
   } catch (error) {
-    console.error('requestRefund error:', error);
+    console.error('requestRefund error:', error, {
+      status: error.response?.status,
+      data: error.response?.data
+    });
     let message = error.response?.data?.message || error.message;
     if (message.includes('Đơn hàng này đã có yêu cầu hoàn tiền')) {
       message = 'Đơn hàng này đã có yêu cầu hoàn tiền đang chờ xử lý!';
-      await Promise.all([fetchOrders(true), fetchRefunds(true)]);
-      if (selectedOrder.value?.id === order.id) {
-        await viewOrder(order.id);
-      }
-    } else if (message.includes('Số tiền hoàn không được vượt quá')) {
-      message = `Số tiền hoàn không được vượt quá ${formatPrice(maxRefundAmount.value * 1000)}!`;
+    } else if (error.response?.status === 422) {
+      message = error.response.data.message || `Số tiền hoàn không hợp lệ! Tối đa: ${formatPrice(maxRefundAmount.value * 1000)}`;
     } else if (error.response?.status === 404) {
       message = 'Không tìm thấy đơn hàng hoặc dịch vụ hoàn tiền!';
     } else if (error.response?.status === 403) {
@@ -959,6 +965,41 @@ const requestRefund = async (order) => {
       router.push('/login');
     }
     toast('error', message);
+    await Promise.all([fetchOrders(true), fetchRefunds(true)]);
+    if (selectedOrder.value?.id === order.id) {
+      await viewOrder(order.id);
+    }
+  }
+};
+
+const cancelOrder = async (id) => {
+  try {
+    const token = localStorage.getItem('access_token');
+    if (!token) throw new Error('Chưa đăng nhập');
+
+    const order = orders.value.find(o => o.id === id);
+    if (!order) throw new Error('Không tìm thấy đơn hàng!');
+
+    await axios.post(`${apiBase}/user/orders/${id}/cancel`, {}, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    toast('success', 'Đơn hàng đã được hủy!');
+
+    const cacheKey = `user_orders_page_${page.value}`;
+    localStorage.removeItem(cacheKey);
+    localStorage.removeItem('user_refunds');
+
+    await fetchOrders(true);
+
+    // Nếu đơn hàng sử dụng VNPay hoặc Momo, mở modal chi tiết để hiển thị form hoàn tiền
+    if (!order.payments?.some(payment => payment.method?.toLowerCase() === 'cod')) {
+      await viewOrder(id);
+      toast('info', 'Vui lòng gửi yêu cầu hoàn tiền cho đơn hàng vừa hủy.');
+    }
+  } catch (err) {
+    console.error('cancelOrder error:', err);
+    toast('error', err.response?.data?.message || 'Không thể hủy đơn hàng!');
   }
 };
 
@@ -986,7 +1027,7 @@ const reorderToCart = async (order) => {
       product_id: item.product.id,
       product_variant_id: item.variant?.id || undefined,
       quantity: item.quantity,
-      payment_method: user.value?.is_cod_blocked ? 'online' : undefined // Ngăn COD nếu bị cấm
+      payment_method: user.value?.is_cod_blocked ? 'online' : undefined
     }, {
       headers: { Authorization: `Bearer ${token}` }
     });
@@ -1068,23 +1109,6 @@ const confirmCancel = (orderId) => {
       cancelOrder(orderId);
     }
   });
-};
-
-const cancelOrder = async (id) => {
-  try {
-    const token = localStorage.getItem('access_token');
-    await axios.post(`${apiBase}/user/orders/${id}/cancel`, {}, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    toast('success', 'Đơn hàng đã được hủy!');
-    const cacheKey = `user_orders_page_${page.value}`;
-    localStorage.removeItem(cacheKey);
-    localStorage.removeItem('user_refunds');
-    await fetchOrders(true);
-  } catch (err) {
-    console.error('cancelOrder error:', err);
-    toast('error', 'Không thể hủy đơn hàng!');
-  }
 };
 
 const refreshData = async () => {
@@ -1188,7 +1212,6 @@ onMounted(async () => {
     ]
   });
   await Promise.all([fetchOrders(true), fetchRefunds(true)]);
-
 });
 
 watch(selectedTab, async () => {
