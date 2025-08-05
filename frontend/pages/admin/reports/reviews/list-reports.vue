@@ -9,7 +9,8 @@
       <div class="bg-gray-200 px-4 py-3 flex flex-wrap items-center gap-3 text-sm text-gray-700 mb-4 rounded">
         <div class="flex items-center space-x-2">
           <label class="text-sm font-medium text-gray-600">Sắp xếp:</label>
-          <select v-model="sortOrder" @change="applyFilters" class="rounded-md border border-gray-300 py-1.5 pl-3 pr-8">
+          <select v-model="sortOrder" @change="applyFilters"
+            class="rounded-md border border-gray-300 py-1.5 pl-3 pr-8 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
             <option value="desc">Mới nhất</option>
             <option value="asc">Cũ nhất</option>
           </select>
@@ -17,7 +18,7 @@
         <div class="flex items-center space-x-2">
           <label class="text-sm font-medium text-gray-600">Trạng thái:</label>
           <select v-model="filterStatus" @change="applyFilters"
-            class="rounded-md border border-gray-300 py-1.5 pl-3 pr-8">
+            class="rounded-md border border-gray-300 py-1.5 pl-3 pr-8 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
             <option value="">Tất cả</option>
             <option value="pending">Chờ xử lý</option>
             <option value="resolved">Đã ẩn</option>
@@ -42,8 +43,8 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(item, index) in reports" :key="item.report_id" :class="{ 'bg-gray-50': index % 2 === 0 }">
-            <td class="border px-3 py-2">{{ index + 1 }}</td>
+          <tr v-for="(item, index) in paginatedReports" :key="item.report_id" :class="{ 'bg-gray-50': index % 2 === 0 }">
+            <td class="border px-3 py-2">{{ (currentPage - 1) * perPage + index + 1 }}</td>
             <td class="border px-3 py-2">{{ item.review.product_name }}</td>
             <td class="border px-3 py-2">{{ item.review.user_name }}</td>
             <td class="border px-3 py-2 truncate max-w-[200px]">{{ item.review.content }}</td>
@@ -59,12 +60,16 @@
               </button>
             </td>
           </tr>
-          <tr v-if="reports.length === 0">
+          <tr v-if="paginatedReports.length === 0">
             <td colspan="9" class="text-center py-4 text-gray-500">Không có báo cáo nào</td>
           </tr>
         </tbody>
       </table>
 
+      <!-- Phân trang -->
+      <Pagination :currentPage="currentPage" :lastPage="lastPage" @change="fetchReports" />
+
+      <!-- Dropdown Menu -->
       <Teleport to="body">
         <Transition enter-active-class="transition duration-100 ease-out"
           enter-from-class="transform scale-95 opacity-0" enter-to-class="transform scale-100 opacity-100"
@@ -96,29 +101,36 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import axios from 'axios'
-import Swal from 'sweetalert2'
-import { useRuntimeConfig } from '#app'
-import { Eye, Check, X } from 'lucide-vue-next'
-import { useToast } from '@/composables/useToast'
+import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue';
+import axios from 'axios';
+import Swal from 'sweetalert2';
+import { useRuntimeConfig } from '#app';
+import { useRouter } from 'vue-router';
+import { Eye, Check, X } from 'lucide-vue-next';
+import { useToast } from '@/composables/useToast';
+import Pagination from '~/components/Pagination.vue';
 
-const { toast } = useToast()
+const { toast } = useToast();
+const router = useRouter();
 
-definePageMeta({ layout: 'default-admin' }) // Sử dụng layout cho admin
+definePageMeta({ layout: 'default-admin' });
 
-const config = useRuntimeConfig()
-const apiBase = config.public.apiBaseUrl
+const config = useRuntimeConfig();
+const apiBase = config.public.apiBaseUrl;
 
-const reports = ref([])
-const allReports = ref([])
-const sortOrder = ref('desc')
-const filterStatus = ref('')
+const reports = ref([]);
+const allReports = ref([]);
+const sortOrder = ref('desc');
+const filterStatus = ref('');
+const currentPage = ref(1);
+const perPage = 10;
+const lastPage = ref(1);
+const totalReports = ref(0);
+const activeDropdown = ref(null);
+const dropdownPosition = ref({ top: '0px', left: '0px' });
+const loading = ref(false);
 
-const activeDropdown = ref(null)
-const dropdownPosition = ref({ top: '0px', left: '0px' })
-
-const reasons = [
+const reasons = ref([
   { value: 'offensive', label: 'Thô tục' },
   { value: 'image', label: 'Hình ảnh phản cảm' },
   { value: 'duplicate', label: 'Trùng lặp' },
@@ -126,104 +138,183 @@ const reasons = [
   { value: 'ads', label: 'Quảng cáo' },
   { value: 'wrong', label: 'Thông tin sai lệch' },
   { value: 'other', label: 'Khác' },
-]
+]);
 
-const reasonLabel = code => reasons.find(r => r.value === code)?.label || code
+const reasonLabel = (code) => reasons.value.find(r => r.value === code)?.label || code;
 
-function formatDate(d) {
-  return new Date(d).toLocaleString('vi-VN')
-}
+const formatDate = (d) => {
+  if (!d) return '–';
+  return new Date(d).toLocaleString('vi-VN', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  });
+};
 
 const statusText = (s) => {
-  return s === 'pending' ? 'Chờ xử lý' : s === 'resolved' ? 'Đã ẩn' : 'Đã bỏ qua'
-}
+  return s === 'pending' ? 'Chờ xử lý' : s === 'resolved' ? 'Đã ẩn' : 'Đã bỏ qua';
+};
 
 const badgeClass = (s) => {
   return s === 'pending'
     ? 'px-2 py-1 text-xs font-semibold text-yellow-700 bg-yellow-100 rounded'
     : s === 'resolved'
       ? 'px-2 py-1 text-xs font-semibold text-green-700 bg-green-100 rounded'
-      : 'px-2 py-1 text-xs font-semibold text-red-700 bg-red-100 rounded'
-}
+      : 'px-2 py-1 text-xs font-semibold text-red-700 bg-red-100 rounded';
+};
 
-const fetchReports = async () => {
+const fetchReports = async (page = 1) => {
   try {
-    const token = localStorage.getItem('access_token')
+    loading.value = true;
+    currentPage.value = page;
+    const token = localStorage.getItem('access_token');
     if (!token) {
-      toast('error', 'Vui lòng đăng nhập để tải báo cáo')
-      return
+      toast('error', 'Vui lòng đăng nhập để tải báo cáo');
+      return;
     }
-    console.log('Fetching reports with token:', token) // Debug token
-    const res = await axios.get(`${apiBase}/admin/reports/reviews`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-    console.log('API response:', res.data) // Debug response
-    if (!res.data.success) {
-      throw new Error(res.data.message || 'Lỗi khi tải báo cáo')
+
+    const queryParams = new URLSearchParams({
+      page: page.toString(),
+      per_page: perPage.toString(),
+      ...(filterStatus.value && { status: filterStatus.value }),
+      ...(sortOrder.value && { sort_order: sortOrder.value }),
+    });
+
+    const res = await axios.get(`${apiBase}/admin/reports/reviews?${queryParams}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    console.log('API response:', res.data); // Debug response
+
+    if (!res.data.success || !Array.isArray(res.data.data)) {
+      throw new Error(res.data.message || 'Dữ liệu báo cáo không hợp lệ');
     }
-    allReports.value = res.data.data
-    applyFilters()
+
+    allReports.value = res.data.data;
+    lastPage.value = res.data.last_page || 1;
+    totalReports.value = res.data.total || res.data.data.length;
+
+    await nextTick();
+    applyFilters();
   } catch (err) {
-    console.error('Lỗi chi tiết:', err.response?.data || err.message)
-    const errorMessage = err.response?.status === 404
-      ? 'Không tìm thấy endpoint. Vui lòng kiểm tra cấu hình server.'
-      : err.response?.status === 403
-        ? 'Bạn không có quyền truy cập. Vui lòng kiểm tra vai trò admin.'
-        : err.response?.data?.message || 'Lỗi khi tải báo cáo'
-    toast('error', errorMessage)
+    console.error('Lỗi chi tiết:', err.response?.data || err.message);
+    const errorMessage =
+      err.response?.status === 404
+        ? 'Không tìm thấy endpoint. Vui lòng kiểm tra cấu hình server.'
+        : err.response?.status === 403
+          ? 'Bạn không có quyền truy cập. Vui lòng kiểm tra vai trò admin.'
+          : err.response?.data?.message || 'Lỗi khi tải báo cáo';
+    toast('error', errorMessage);
+    allReports.value = [];
+    reports.value = [];
+    lastPage.value = 1;
+    totalReports.value = 0;
+  } finally {
+    loading.value = false;
   }
-}
+};
 
 const applyFilters = () => {
-  let filtered = [...allReports.value]
+  let filtered = [...allReports.value];
   if (filterStatus.value) {
-    filtered = filtered.filter(r => r.status === filterStatus.value)
+    filtered = filtered.filter(r => r.status === filterStatus.value);
   }
   filtered.sort((a, b) => {
-    const da = new Date(a.reported_at)
-    const db = new Date(b.reported_at)
-    return sortOrder.value === 'asc' ? da - db : db - da
-  })
-  reports.value = filtered
-}
+    const da = new Date(a.reported_at);
+    const db = new Date(b.reported_at);
+    return sortOrder.value === 'asc' ? da - db : db - da;
+  });
+  reports.value = filtered;
+};
+
+const paginatedReports = computed(() => {
+  const start = (currentPage.value - 1) * perPage;
+  const end = start + perPage;
+  return reports.value.slice(start, end);
+});
 
 const updateStatus = async (id, status) => {
-  const label = status === 'resolved' ? 'ẩn đánh giá' : 'bỏ qua báo cáo'
+  if (!['resolved', 'dismissed'].includes(status)) {
+    toast('error', 'Trạng thái không hợp lệ. Chỉ chấp nhận "resolved" hoặc "dismissed".');
+    return;
+  }
+
+  const label = status === 'resolved' ? 'ẩn đánh giá' : 'bỏ qua báo cáo';
   const confirm = await Swal.fire({
     title: `Xác nhận ${label}?`,
     icon: 'warning',
     showCancelButton: true,
     confirmButtonText: 'Xác nhận',
-    cancelButtonText: 'Hủy'
-  })
-  if (!confirm.isConfirmed) return
+    cancelButtonText: 'Hủy',
+    reverseButtons: true,
+  });
+
+  if (!confirm.isConfirmed) return;
 
   try {
-    await axios.put(`${apiBase}/admin/reports/reviews/${id}/status`, { status }, {
-      headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` }
-    })
-    toast('success', 'Cập nhật trạng thái thành công')
-    fetchReports()
+    loading.value = true;
+    const res = await axios.put(
+      `${apiBase}/admin/reports/reviews/${id}/status`,
+      { status },
+      {
+        headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` },
+      }
+    );
+
+    if (!res.data.success) {
+      throw new Error(res.data.message || 'Không thể cập nhật trạng thái');
+    }
+
+    toast('success', `Đã ${label} thành công`);
+    await fetchReports(currentPage.value);
   } catch (err) {
-    console.error('Lỗi chi tiết:', err.response?.data || err.message)
-    toast('error', err.response?.data?.message || 'Không thể cập nhật trạng thái')
+    console.error('Lỗi chi tiết:', err.response?.data || err.message);
+    toast('error', err.response?.data?.message || `Không thể ${label}`);
+  } finally {
+    loading.value = false;
   }
-}
+};
 
 const toggleDropdown = (e, id) => {
-  if (activeDropdown.value === id) return activeDropdown.value = null
-  const rect = e.currentTarget.getBoundingClientRect()
-  dropdownPosition.value = {
-    top: `${rect.bottom + window.scrollY}px`,
-    left: `${rect.left + window.scrollX - 160}px`
+  if (activeDropdown.value === id) {
+    activeDropdown.value = null;
+  } else {
+    activeDropdown.value = id;
+    nextTick(() => {
+      const button = e.target.closest('button');
+      if (button) {
+        const rect = button.getBoundingClientRect();
+        dropdownPosition.value = {
+          top: `${rect.bottom + window.scrollY + 8}px`,
+          left: `${rect.right + window.scrollX - 160}px`,
+          width: '160px',
+        };
+      }
+    });
   }
-  activeDropdown.value = id
-}
+};
 
-const closeDropdown = () => (activeDropdown.value = null)
-const viewReport = id => navigateTo(`/admin/reports/reviews/view/${id}`)
+const closeDropdown = (event) => {
+  if (!event || !event.target.closest('.relative') && !event.target.closest('.absolute')) {
+    activeDropdown.value = null;
+  }
+};
 
-onMounted(fetchReports)
+const viewReport = (id) => {
+  if (!id) {
+    toast('error', 'ID báo cáo không hợp lệ');
+    return;
+  }
+  router.push(`/admin/reports/reviews/view/${id}`);
+};
+
+onMounted(() => {
+  fetchReports();
+  document.addEventListener('click', closeDropdown);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('click', closeDropdown);
+});
 </script>
 
 <style scoped>
@@ -231,5 +322,32 @@ onMounted(fetchReports)
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+button {
+  position: relative;
+  overflow: hidden;
+}
+
+button::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  background-image: radial-gradient(circle, #000 10%, transparent 10.01%);
+  background-repeat: no-repeat;
+  background-position: 50%;
+  transform: scale(10, 10);
+  opacity: 0;
+  transition: transform 0.5s, opacity 1s;
+}
+
+button:active::after {
+  transform: scale(0, 0);
+  opacity: 0.2;
+  transition: 0s;
 }
 </style>
