@@ -3,10 +3,24 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-05-15',
 
   app: {
-    // ✅ Tắt hiệu ứng loading mặc định (Nuxt logo đen)
     pageTransition: false,
     layoutTransition: false,
-   
+    head: {
+      title: 'Passion – Đam mê kết nối, giá tốt không thôi. Mua bán tiện lợi, mỗi ngày thêm vui!',
+      titleTemplate: '%s - Passion',
+      meta: [
+        { name: 'description', content: 'Passion là sàn thương mại điện tử kết nối đam mê mua sắm – giá tốt, giao nhanh, sản phẩm đa dạng, dịch vụ tận tâm.' },
+        { name: 'viewport', content: 'width=device-width, initial-scale=1' }
+      ],
+      link: [
+        {
+          rel: 'icon',
+          type: 'image/png',
+          sizes: '512x512',
+          href: '/logo.png'
+        }
+      ]
+    }
   },
 
   css: [
@@ -17,12 +31,12 @@ export default defineNuxtConfig({
 
   modules: [
     '@pinia/nuxt',
-    '@nuxt/devtools' 
+    '@nuxt/devtools'
   ],
 
-  plugins: ['~/plugins/fontawesome'],
+  plugins: ['~/plugins/fontawesome', '~/plugins/router-loading'],
 
-  devtools: { enabled: false }, // ✅ bật devtools tại đây
+  devtools: { enabled: false },
 
   postcss: {
     plugins: {
@@ -37,14 +51,17 @@ export default defineNuxtConfig({
       mediaBaseUrl: process.env.MEDIA_BASE_URL,
     }
   },
+
   vue: {
     compilerOptions: {
       isCustomElement: (tag) => tag === 'emoji-picker',
     },
   },
+
   vite: {
     server: {
-      hmr: false, // Tắt HMR
+      hmr: false,
     },
   },
+  
 });

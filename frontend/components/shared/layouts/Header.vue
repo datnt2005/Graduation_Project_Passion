@@ -144,7 +144,7 @@
         <!-- Logo + Danh mục -->
         <div class="flex items-center gap-3 w-[250px]">
           <NuxtLink to="/" class="flex-shrink-0">
-            <img :src="getLogoUrl()" alt="Logo" class="h-12 w-12 object-contain" />
+            <img :src="getLogoUrl()" alt="Logo" class="h-[70px] object-contain" />
           </NuxtLink>
           <!-- Danh mục (ẩn dropdown trên mobile) -->
           <div class="relative group hidden sm:block mx-5">
@@ -607,7 +607,7 @@ const { settings } = useSettings();
 
 const getLogoUrl = () => {
   const logoPath = settings.value?.general?.find((s) => s.key === "site_logo")?.value;
-  return logoPath ? `${config.public.mediaBaseUrl}${logoPath}` : "/default-logo.png";
+  return logoPath ? `${config.public.mediaBaseUrl}${logoPath}` : "logo_passion.png";
 };
 
 const contactHotline = computed(() => {

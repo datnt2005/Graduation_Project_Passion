@@ -12,8 +12,6 @@
         <Tags />
         <!-- Categories -->
         <categories />
-        <!-- // giảm giá -->
-        <Sale />
         <!-- Product Search -->
         <ProductSearch />
         <!-- Products -->

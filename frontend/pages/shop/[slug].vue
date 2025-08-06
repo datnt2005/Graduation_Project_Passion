@@ -269,7 +269,6 @@ import { useRoute, useRouter } from 'vue-router';
 import { useSearchStore } from '~/stores/search';
 import { debounce } from 'lodash';
 import ProductCard from '~/components/shared/products/ProductCard.vue';
-import fontawesome from '~/plugins/fontawesome';
 
 const route = useRoute();
 const router = useRouter();
