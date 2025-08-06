@@ -25,26 +25,30 @@
           </tr>
         </thead>
         <tbody>
-    <tr v-for="item in paginatedMovements" :key="item.id">          
+          <tr v-for="item in paginatedMovements" :key="item.id">
             <td class="border px-3 py-2">{{ item.product_variant.product.name }}</td>
             <td class="border px-3 py-2">{{ item.product_variant.sku }}</td>
             <td class="border px-3 py-2">{{ translateType(item.action_type) }}</td>
             <td class="border px-3 py-2">
-              <span :class="{
-                'text-green-600': isPositive(item.action_type),
-                'text-red-600': !isPositive(item.action_type)
-              }">
+              <span
+                :class="{
+                  'text-green-600': isPositive(item.action_type),
+                  'text-red-600': !isPositive(item.action_type),
+                }"
+              >
                 {{ isPositive(item.action_type) ? '+' : '-' }}{{ item.quantity }}
               </span>
             </td>
             <td class="border px-3 py-2">
-              {{ item.created_by_type }}:
-              {{ item.creator?.name || 'Không rõ' }}
+              {{ item.created_by_type }}: {{ item.creator?.name || 'Không rõ' }}
             </td>
             <td class="border px-3 py-2">{{ formatDate(item.created_at) }}</td>
-            <td class="border px-3 py-2">{{ item.note }}</td>
+            <td class="border px-3 py-2">{{ item.note || '-' }}</td>
             <td class="border px-3 py-2">
-              <button @click="selectedItem = item; showDetail = true" class="text-blue-600 hover:underline text-sm">
+              <button
+                @click="selectedItem = item; showDetail = true"
+                class="text-blue-600 hover:underline text-sm"
+              >
                 Xem chi tiết
               </button>
             </td>
@@ -52,8 +56,10 @@
         </tbody>
       </table>
       <!-- Pagination -->
-      <div class="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6"
-        v-if="!isLoading">
+      <div
+        class="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6"
+        v-if="!isLoading"
+      >
         <div class="text-sm text-gray-700">
           Hiển thị
           <span class="font-medium">{{ (currentPage - 1) * itemsPerPage + 1 }}</span>
@@ -64,34 +70,49 @@
           kết quả
         </div>
         <nav class="inline-flex -space-x-px text-sm">
-          <button @click="prevPage" :disabled="currentPage === 1"
+          <button
+            @click="prevPage"
+            :disabled="currentPage === 1"
             class="px-3 py-1 border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-50"
-            aria-label="Trước">&laquo;</button>
-          <button v-for="page in visiblePages" :key="page" @click="goToPage(page)" :class="['px-3 py-1 border',
-            currentPage === page
-              ? 'bg-blue-500 text-white'
-              : 'bg-white hover:bg-gray-100']">
+            aria-label="Trước"
+          >
+            &laquo;
+          </button>
+          <button
+            v-for="page in visiblePages"
+            :key="page"
+            @click="goToPage(page)"
+            :class="[
+              'px-3 py-1 border',
+              currentPage === page ? 'bg-blue-500 text-white' : 'bg-white hover:bg-gray-100',
+            ]"
+          >
             {{ page }}
           </button>
-          <button @click="nextPage" :disabled="currentPage === totalPages"
+          <button
+            @click="nextPage"
+            :disabled="currentPage === totalPages"
             class="px-3 py-1 border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-50"
-            aria-label="Sau">&raquo;</button>
+            aria-label="Sau"
+          >
+            &raquo;
+          </button>
         </nav>
       </div>
-
     </div>
+
     <!-- Modal xem chi tiết -->
     <div v-if="showDetail" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
       <div class="bg-white rounded-xl shadow-xl w-full max-w-3xl p-6 space-y-6">
-
         <!-- Header -->
         <div class="flex justify-between items-start">
           <div>
             <h2 class="text-xl font-bold text-gray-800">Chi tiết phiếu kho</h2>
             <p class="text-sm text-gray-500">Thông tin chi tiết giao dịch</p>
           </div>
-          <span class="bg-black text-white text-xs font-medium px-3 py-1 rounded-full"> {{
-            translateType(selectedItem.action_type) }}</span>
+          <span class="bg-black text-white text-xs font-medium px-3 py-1 rounded-full">
+            {{ translateType(selectedItem.action_type) }}
+          </span>
         </div>
 
         <!-- Thông tin sản phẩm -->
@@ -105,8 +126,11 @@
               </span>
             </div>
             <div class="mt-3 flex items-center space-x-3">
-              <span class="bg-green-100 text-green-700 font-semibold text-lg px-3 py-1 rounded">
-                +{{ selectedItem.quantity }}
+              <span
+                class="bg-green-100 text-green-700 font-semibold text-lg px-3 py-1 rounded"
+                :class="{ 'bg-red-100 text-red-700': !isPositive(selectedItem.action_type) }"
+              >
+                {{ isPositive(selectedItem.action_type) ? '+' : '-' }}{{ selectedItem.quantity }}
               </span>
               <span class="text-sm text-gray-500">Số lượng</span>
             </div>
@@ -118,8 +142,9 @@
           <div class="bg-gray-50 p-4 rounded border">
             <p class="text-sm font-medium text-gray-600 mb-1">Người thực hiện</p>
             <div class="flex items-center space-x-2">
-              <span class="bg-gray-800 text-white text-xs font-semibold px-2 py-0.5 rounded"> {{
-                selectedItem.created_by_type }}</span>
+              <span class="bg-gray-800 text-white text-xs font-semibold px-2 py-0.5 rounded">
+                {{ selectedItem.created_by_type }}
+              </span>
               <span class="text-gray-900 font-medium">{{ selectedItem.creator?.name || 'Không rõ' }}</span>
             </div>
             <p class="text-sm text-gray-500 break-all mt-1">{{ selectedItem.creator?.email || '' }}</p>
@@ -140,42 +165,47 @@
 
         <!-- Nút đóng -->
         <div class="text-right mt-4">
-          <button @click="showDetail = false"
-            class="px-5 py-2 rounded-md text-sm bg-gray-100 hover:bg-gray-200 text-gray-700">
+          <button
+            @click="showDetail = false"
+            class="px-5 py-2 rounded-md text-sm bg-gray-100 hover:bg-gray-200 text-gray-700"
+          >
             Đóng
           </button>
         </div>
-
       </div>
     </div>
-
-
-
   </div>
 </template>
 
-
 <script setup>
-import { ref, onMounted } from 'vue';
-import axios from 'axios';
+import { ref, computed, watch } from 'vue';
 import dayjs from 'dayjs';
-import { secureAxios } from '@/utils/secureAxios'
+import { secureAxios } from '@/utils/secureAxios';
+import { useNotification } from '@/composables/useNotification';
 
-const movements = ref([]);
-const isLoading = ref(true);
+const props = defineProps({
+  productVariantId: {
+    type: [Number, String, null],
+    default: null,
+  },
+  refreshKey: {
+    type: Number,
+    default: 0,
+  },
+});
 
+const { setNotification } = useNotification();
 const config = useRuntimeConfig();
 const apiBase = config.public.apiBaseUrl;
 
+const movements = ref([]);
+const isLoading = ref(true);
 const showDetail = ref(false);
 const selectedItem = ref(null);
-
 const currentPage = ref(1);
 const itemsPerPage = 5;
 
-const totalPages = computed(() =>
-  Math.ceil(movements.value.length / itemsPerPage)
-);
+const totalPages = computed(() => Math.ceil(movements.value.length / itemsPerPage));
 
 const paginatedMovements = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage;
@@ -204,15 +234,37 @@ const prevPage = () => {
 };
 
 const fetchStockMovements = async () => {
+  isLoading.value = true;
   try {
-    const { data } = await secureAxios(`${apiBase}/stock-movements`, {}, ['admin', 'seller']);
-    movements.value = data.data || data;
+    const url = props.productVariantId
+      ? `${apiBase}/stock-movements?product_variant_id=${props.productVariantId}&t=${Date.now()}`
+      : `${apiBase}/stock-movements?t=${Date.now()}`;
+    const { data } = await secureAxios(url, {}, ['admin', 'seller']);
+    movements.value = [...(data.data || data)]; // Ensure reactivity
+    console.log('Lịch sử biến động:', movements.value); // Debug
   } catch (err) {
-    console.error('Fetch failed:', err);
+    console.error('Lỗi khi lấy lịch sử biến động:', err);
+    setNotification('Không thể tải lịch sử biến động kho. Vui lòng thử lại.', 'error');
   } finally {
     isLoading.value = false;
   }
 };
+
+watch(
+  () => props.refreshKey,
+  () => {
+    console.log('refreshKey thay đổi, làm mới lịch sử biến động:', props.refreshKey);
+    fetchStockMovements();
+  }
+);
+
+watch(
+  () => props.productVariantId,
+  () => {
+    console.log('productVariantId thay đổi, làm mới lịch sử biến động:', props.productVariantId);
+    fetchStockMovements();
+  }
+);
 
 onMounted(() => {
   fetchStockMovements();
@@ -222,12 +274,18 @@ const formatDate = (d) => dayjs(d).format('DD/MM/YYYY HH:mm');
 
 const translateType = (type) => {
   switch (type) {
-    case 'import': return 'Nhập kho';
-    case 'export': return 'Xuất kho';
-    case 'damage': return 'Hàng hỏng';
-    case 'adjust': return 'Chỉnh sửa';
-    case 'return': return 'Hoàn trả';
-    default: return type;
+    case 'import':
+      return 'Nhập kho';
+    case 'export':
+      return 'Xuất kho';
+    case 'damage':
+      return 'Hàng hỏng';
+    case 'adjust':
+      return 'Chỉnh sửa';
+    case 'return':
+      return 'Hoàn trả';
+    default:
+      return type;
   }
 };
 

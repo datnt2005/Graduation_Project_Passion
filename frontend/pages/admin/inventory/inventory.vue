@@ -15,7 +15,7 @@
 
       <!-- Bộ lọc tìm kiếm -->
       <div class="bg-gray-200 px-4 py-3 flex flex-wrap items-center gap-3 text-sm">
-        <div class="font-bold">Tất cả sản phẩm ({{ totalInventories }})</div>
+        <div class="font-bold">Tất cả ({{ totalInventories }})</div>
         <div class="ml-auto relative">
 
           <input v-model="searchQuery" type="text" placeholder="Tìm kiếm..." class="pl-8 pr-3 py-1.5 rounded-md border border-gray-300 focus:ring-blue-500 w-64" />

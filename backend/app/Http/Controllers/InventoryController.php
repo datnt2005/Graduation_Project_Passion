@@ -29,7 +29,7 @@ class InventoryController extends Controller
             // Lấy người thực hiện
             $user = auth()->user();
             $createdBy = $user?->id ?? 'system';
-            $createdByType = $user && $user->hasRole('seller') ? 'seller' : 'admin';
+            $createdByType = $user && $user->role === 'seller' ? 'seller' : 'admin';
 
             // Ghi lại biến động tồn kho
             $service = new InventoryService();

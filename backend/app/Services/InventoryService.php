@@ -20,7 +20,12 @@ class InventoryService
         string $createdByType = 'system'
     ): bool {
         return DB::transaction(function () use (
-            $productVariantId, $quantity, $actionType, $note, $createdBy, $createdByType
+            $productVariantId,
+            $quantity,
+            $actionType,
+            $note,
+            $createdBy,
+            $createdByType
         ) {
             // Lấy kho hợp lệ
             $inventory = Inventory::where('product_variant_id', $productVariantId)
@@ -46,9 +51,14 @@ class InventoryService
             $inventory->save();
 
             // Cập nhật tổng tồn kho cho biến thể
-            $inventory->variant->update([
-                'quantity' => $inventory->variant->inventories()->sum('quantity')
-            ]);
+            $variant = $inventory->productVariant;
+
+            if ($variant) {
+                $variant->update([
+                    'quantity' => $variant->inventories()->sum('quantity')
+                ]);
+            }
+
 
             // Ghi lại lịch sử
             StockMovement::create([

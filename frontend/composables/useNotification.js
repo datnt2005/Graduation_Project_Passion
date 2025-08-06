@@ -5,7 +5,7 @@ export function useNotification() {
   const notificationMessage = ref('');
   const notificationType = ref('success');
 
-  const setNotification = (message, type = 'success') => {
+  const setNotification = (message, type = 'success' ) => {
     notificationMessage.value = message;
     notificationType.value = type;
     showNotification.value = true;

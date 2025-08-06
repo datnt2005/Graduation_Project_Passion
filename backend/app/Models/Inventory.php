@@ -45,15 +45,11 @@ class Inventory extends Model
      */
     public function syncVariantQuantity()
     {
-        // $variant = $this->productVariant;
-        $variant = $this->variant;
+        $variant = $this->productVariant; 
+
         if ($variant) {
             $totalQuantity = $variant->inventories()->sum('quantity');
             $variant->update(['quantity' => $totalQuantity]);
         }
     }
-
-
-
-
 }

@@ -111,8 +111,6 @@
                         <p><strong>Giá:</strong> <span class="text-green-600 font-semibold">{{
                             formatPrice(currentDetail.order_item?.price) }}</span></p>
                         <p><strong>Số lượng:</strong> {{ currentDetail.order_item?.quantity || '-' }}</p>
-                        <p><strong>Mô tả:</strong> {{ currentDetail.order_item?.product?.description || 'Không có mô tả'
-                            }}</p>
                     </div>
 
                     <!-- THÔNG TIN NGƯỜI MUA -->

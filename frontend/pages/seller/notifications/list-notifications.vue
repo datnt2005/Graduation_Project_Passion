@@ -13,14 +13,16 @@
         </div>
         <div class="flex flex-wrap gap-2 items-center">
           <select
-            v-model="sortBy"
+            v-model="sortOrder"
+            @change="fetchNotifications(1)"
             class="rounded-md border border-gray-300 py-1.5 pl-3 pr-8 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
           >
-            <option value="newest">Mới nhất</option>
-            <option value="oldest">Cũ nhất</option>
+            <option value="desc">Mới nhất</option>
+            <option value="asc">Cũ nhất</option>
           </select>
           <select
             v-model="filterType"
+            @change="fetchNotifications(1)"
             class="rounded-md border border-gray-300 py-1.5 pl-3 pr-8 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="">Tất cả loại</option>
@@ -34,6 +36,7 @@
           <div class="relative">
             <input
               v-model="searchQuery"
+              @input="debounceFetchNotifications"
               type="text"
               placeholder="Tìm kiếm thông báo..."
               class="pl-8 pr-3 py-1.5 rounded-md border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 w-64"
@@ -74,7 +77,7 @@
             <td class="px-3 py-2">
               <img
                 v-if="item.image_url"
-                :src="item.image_url.startsWith('http') ? item.image_url : `${mediaBase}${item.image_url}`"
+                :src="item.image_url"
                 alt="Ảnh"
                 class="w-14 h-14 object-cover rounded"
               />
@@ -212,225 +215,205 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
-import { useRouter, useRuntimeConfig, useCookie } from '#app'
-import { Eye } from 'lucide-vue-next'
-import { secureFetch } from '@/utils/secureFetch'
-import Pagination from '~/components/Pagination.vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
+import { useRouter, useRuntimeConfig } from '#app';
+import { Eye } from 'lucide-vue-next';
+import { secureFetch } from '@/utils/secureFetch';
+import Pagination from '~/components/Pagination.vue';
 
-definePageMeta({ layout: 'default-seller' })
+definePageMeta({ layout: 'default-seller' });
 
-const config = useRuntimeConfig()
-const apiBase = config.public.apiBaseUrl || 'http://localhost:8000/api'
-const mediaBase = config.public.mediaBaseUrl || ''
-const router = useRouter()
+const config = useRuntimeConfig();
+const apiBase = config.public.apiBaseUrl || 'http://localhost:8000/api';
+const mediaBase = config.public.mediaBaseUrl || '';
+const router = useRouter();
 
-const notifications = ref([])
-const activeDropdown = ref(null)
-const dropdownPosition = ref({ top: '0px', left: '0px', width: '192px' })
-const showNotification = ref(false)
-const notificationMessage = ref('')
-const notificationType = ref('success')
-const currentPage = ref(1)
-const lastPage = ref(1)
-const perPage = ref(10)
-const sortBy = ref('newest')
-const filterType = ref('')
-const searchQuery = ref('')
-const totalNotifications = ref(0)
-const userId = ref(null)
-const loading = ref(false)
+const notifications = ref([]);
+const activeDropdown = ref(null);
+const dropdownPosition = ref({ top: '0px', left: '0px', width: '192px' });
+const showNotification = ref(false);
+const notificationMessage = ref('');
+const notificationType = ref('success');
+const currentPage = ref(1);
+const lastPage = ref(1);
+const perPage = ref(10);
+const sortOrder = ref('desc');
+const filterType = ref('');
+const searchQuery = ref('');
+const totalNotifications = ref(0);
+const userId = ref(null);
+const loading = ref(false);
+
+// Debounce for search
+let debounceTimeout = null;
+const debounceFetchNotifications = () => {
+  clearTimeout(debounceTimeout);
+  debounceTimeout = setTimeout(() => {
+    fetchNotifications(1);
+  }, 300);
+};
 
 // Quản lý timeout cho toast
-let notificationTimeout = null
+let notificationTimeout = null;
 
 // Hiển thị thông báo toast
 const showNotificationMessage = (message, type = 'success') => {
-  clearTimeout(notificationTimeout)
-  notificationMessage.value = message
-  notificationType.value = type
-  showNotification.value = true
+  clearTimeout(notificationTimeout);
+  notificationMessage.value = message;
+  notificationType.value = type;
+  showNotification.value = true;
   notificationTimeout = setTimeout(() => {
-    showNotification.value = false
-  }, 3000)
-}
+    showNotification.value = false;
+  }, 3000);
+};
 
 // Toggle dropdown
 const toggleDropdown = (id, event) => {
   if (activeDropdown.value === id) {
-    activeDropdown.value = null
-    return
+    activeDropdown.value = null;
+    return;
   }
-  activeDropdown.value = id
+  activeDropdown.value = id;
   nextTick(() => {
-    const button = event.target.closest('button')
+    const button = event.target.closest('button');
     if (button) {
-      const rect = button.getBoundingClientRect()
+      const rect = button.getBoundingClientRect();
       dropdownPosition.value = {
         top: `${rect.bottom + window.scrollY + 8}px`,
         left: `${rect.right + window.scrollX - 192}px`,
-        width: '192px'
-      }
+        width: '192px',
+      };
     }
-  })
-}
+  });
+};
 
 const closeDropdown = (event = null) => {
   if (event && (!event.target.closest('.relative') && !event.target.closest('.absolute'))) {
-    activeDropdown.value = null
+    activeDropdown.value = null;
   } else if (!event) {
-    activeDropdown.value = null
+    activeDropdown.value = null;
   }
-}
+};
 
 const viewNotification = (id) => {
-  router.push(`/seller/notifications/view/${id}`)
-}
+  router.push(`/seller/notifications/view/${id}`);
+};
 
 const typeLabel = (type) => ({
   order: 'Đơn hàng',
   promotion: 'Khuyến mãi',
   message: 'Tin nhắn',
-  system: 'Hệ thống'
-})[type] || 'Không xác định'
+  system: 'Hệ thống',
+})[type] || 'Không xác định';
 
 const formatDate = (dateStr) => {
-  if (!dateStr) return '–'
-  const d = new Date(dateStr)
+  if (!dateStr) return '–';
+  const d = new Date(dateStr);
   return d.toLocaleDateString('vi-VN', {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
-    timeZone: 'Asia/Ho_Chi_Minh'
-  })
-}
+    timeZone: 'Asia/Ho_Chi_Minh',
+  });
+};
 
 const truncateText = (text, maxLength) => {
-  if (!text) return ''
-  return text.length > maxLength ? text.slice(0, maxLength) + '…' : text
-}
+  if (!text) return '';
+  return text.length > maxLength ? text.slice(0, maxLength) + '…' : text;
+};
 
 // Lấy user_id từ token hoặc API
 const fetchUserId = async () => {
   try {
-    const token = localStorage.getItem('access_token') || useCookie('access_token')?.value
-    if (!token) throw new Error('Không tìm thấy token')
+    const token = localStorage.getItem('access_token');
+    if (!token) throw new Error('Không tìm thấy token');
     const response = await secureFetch(`${apiBase}/me`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
+        Authorization: `Bearer ${token}`,
       },
-      cache: 'no-store'
-    }, ['seller'])
-    userId.value = response.data?.id
+      cache: 'no-store',
+    }, ['seller']);
+    userId.value = response.data?.id;
+    console.log('User ID:', userId.value); // Debug
   } catch (error) {
-    console.error('Lỗi khi lấy user_id:', error)
-    showNotificationMessage('Không thể xác định người dùng. Vui lòng đăng nhập lại.', 'error')
-    router.push('/login')
+    console.error('Lỗi khi lấy user_id:', error);
+    showNotificationMessage('Không thể xác định người dùng. Vui lòng đăng nhập lại.', 'error');
+    router.push('/login');
   }
-}
-
-// Lấy số lượng thông báo
-const fetchNotificationCounts = async () => {
-  try {
-    const queryParams = new URLSearchParams({
-      to_roles: 'seller',
-      user_id: userId.value
-    })
-    const response = await secureFetch(`${apiBase}/notifications?${queryParams.toString()}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('access_token') || useCookie('access_token')?.value}`
-      },
-      cache: 'no-store'
-    }, ['seller'])
-    const allNotifications = response.data?.data || response.data || []
-    totalNotifications.value = response.data?.total || allNotifications.length
-  } catch (error) {
-    console.error('Lỗi khi lấy số lượng thông báo:', error)
-    showNotificationMessage('Có lỗi khi tải số lượng thông báo', 'error')
-  }
-}
+};
 
 // Lấy danh sách thông báo
 const fetchNotifications = async (page = 1) => {
-  if (!userId.value) await fetchUserId()
-  if (!userId.value) return
+  if (!userId.value) await fetchUserId();
+  if (!userId.value) return;
 
   try {
-    loading.value = true
-    currentPage.value = page
+    loading.value = true;
+    currentPage.value = page;
     const queryParams = new URLSearchParams({
       page: page.toString(),
       per_page: perPage.value.toString(),
       to_roles: 'seller',
       user_id: userId.value,
       ...(filterType.value && { type: filterType.value }),
-      ...(searchQuery.value && { search: searchQuery.value })
-    })
-    const endpoint = `${apiBase}/notifications?${queryParams.toString()}`
+      ...(searchQuery.value && { search: searchQuery.value }),
+      sort_order: sortOrder.value,
+    });
+    const endpoint = `${apiBase}/notifications?${queryParams.toString()}`;
     const data = await secureFetch(endpoint, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('access_token') || useCookie('access_token')?.value}`
+        Authorization: `Bearer ${localStorage.getItem('access_token')}`,
       },
-      cache: 'no-store'
-    }, ['seller'])
-    notifications.value = data.data?.data || data.data || []
-    lastPage.value = Math.ceil((data.data?.total || notifications.value.length) / perPage.value)
-    currentPage.value = data.data?.current_page || page
-    if (!notifications.value.length) {
-      showNotificationMessage('Không có thông báo nào', 'info')
+      cache: 'no-store',
+    }, ['seller']);
+
+    if (!data.success || !Array.isArray(data.data)) {
+      throw new Error(data.message || 'Dữ liệu thông báo không hợp lệ');
     }
-    await fetchNotificationCounts()
+
+    // Lọc thêm ở frontend để đảm bảo chỉ hiển thị thông báo có to_roles chứa 'seller'
+    notifications.value = data.data.filter(n => n.to_roles && n.to_roles.includes('seller'));
+    console.log('Notifications:', notifications.value); // Debug
+
+    lastPage.value = data.last_page || 1;
+    totalNotifications.value = data.total || data.data.length;
+    currentPage.value = data.current_page || page;
+
+    if (!notifications.value.length) {
+      showNotificationMessage('Không có thông báo nào', 'info');
+    }
   } catch (error) {
-    console.error('Lỗi khi lấy thông báo:', error)
-    showNotificationMessage(`Có lỗi khi tải thông báo: ${error.message}`, 'error')
-    notifications.value = []
+    console.error('Lỗi khi lấy thông báo:', error);
+    showNotificationMessage(`Có lỗi khi tải thông báo: ${error.message}`, 'error');
+    notifications.value = [];
+    lastPage.value = 1;
+    totalNotifications.value = 0;
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
+};
 
 // Lọc và phân trang thông báo
-const filteredNotifications = computed(() => {
-  let result = [...notifications.value]
-  if (filterType.value) {
-    result = result.filter(n => n.type === filterType.value)
-  }
-  if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase()
-    result = result.filter(n =>
-      n.title?.toLowerCase().includes(query) ||
-      n.content?.toLowerCase().includes(query)
-    )
-  }
-  if (sortBy.value === 'newest') {
-    result.sort((a, b) => new Date(b.sent_at || 0) - new Date(a.sent_at || 0))
-  } else if (sortBy.value === 'oldest') {
-    result.sort((a, b) => new Date(a.sent_at || 0) - new Date(b.sent_at || 0))
-  }
-  return result
-})
-
 const paginatedNotifications = computed(() => {
-  const start = (currentPage.value - 1) * perPage.value
-  const end = start + perPage.value
-  return filteredNotifications.value.slice(start, end)
-})
+  const start = (currentPage.value - 1) * perPage.value;
+  const end = start + perPage.value;
+  return notifications.value.slice(start, end);
+});
 
 onMounted(() => {
-  fetchNotifications()
-  document.addEventListener('click', closeDropdown)
-})
+  fetchNotifications();
+  document.addEventListener('click', closeDropdown);
+});
 
 onUnmounted(() => {
-  document.removeEventListener('click', closeDropdown)
-  clearTimeout(notificationTimeout)
-})
+  document.removeEventListener('click', closeDropdown);
+  clearTimeout(notificationTimeout);
+  clearTimeout(debounceTimeout);
+});
 </script>
 
 <style scoped>

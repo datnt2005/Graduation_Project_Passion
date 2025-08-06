@@ -51,12 +51,12 @@ class ProductVariantController extends Controller
 
         $variantIds = $variants->pluck('id');
 
-        $attributesMap = DB::table('attribute_value_product_variant')
-            ->join('attribute_values', 'attribute_values.id', '=', 'attribute_value_product_variant.attribute_value_id')
+        $attributesMap = DB::table('variant_attributes')
+            ->join('attribute_values', 'attribute_values.id', '=', 'variant_attributes.value_id')
             ->join('attributes', 'attributes.id', '=', 'attribute_values.attribute_id')
-            ->whereIn('attribute_value_product_variant.product_variant_id', $variantIds)
+            ->whereIn('variant_attributes.product_variant_id', $variantIds)
             ->select(
-                'attribute_value_product_variant.product_variant_id',
+                'variant_attributes.product_variant_id',
                 'attributes.name as attribute_name',
                 'attribute_values.value as attribute_value'
             )

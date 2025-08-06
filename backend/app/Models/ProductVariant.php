@@ -23,9 +23,9 @@ class ProductVariant extends Model
     public function attributes()
     {
         return $this->belongsToMany(Attribute::class, 'variant_attributes')
-                    ->using(AttributeValueProductVariant::class)
-                    ->withPivot('value_id')
-                    ->withTimestamps();
+            ->using(AttributeValueProductVariant::class)
+            ->withPivot('value_id')
+            ->withTimestamps();
     }
 
     public function product()
@@ -33,9 +33,9 @@ class ProductVariant extends Model
         return $this->belongsTo(Product::class);
     }
     public function inventories()
-        {
-            return $this->hasMany(Inventory::class, 'product_variant_id')->from('inventory');
-        }
+    {
+        return $this->hasMany(Inventory::class, 'product_variant_id')->from('inventory');
+    }
 
     public function orderItems()
     {
@@ -43,11 +43,10 @@ class ProductVariant extends Model
     }
 
     public function attributeValues()
-{
-    return $this->belongsToMany(AttributeValue::class, 'attribute_value_product_variant');
-}
-
-
-
-
+    {
+        return $this->belongsToMany(AttributeValue::class, 'variant_attributes', 'product_variant_id', 'value_id')
+            ->using(AttributeValueProductVariant::class)
+            ->withPivot('attribute_id')
+            ->withTimestamps();
+    }
 }
