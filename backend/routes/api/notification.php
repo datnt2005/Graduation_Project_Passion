@@ -28,6 +28,8 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::prefix('seller/notifications')
     ->middleware(['auth:sanctum', 'checkRole:seller'])
     ->group(function () {
+        Route::get('/', [NotificationController::class, 'sellerIndex']); 
+        Route::get('/{id}', [NotificationController::class, 'sellerShow']);
         Route::get('/my', [NotificationController::class, 'getMyNotifications']);
         Route::post('/{id}/read', [NotificationController::class, 'markAsRead']);
         Route::post('/mark-multiple-read', [NotificationController::class, 'markMultipleAsRead']);

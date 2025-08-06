@@ -30,21 +30,11 @@
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Trạng thái</label>
-            <select v-model="form.status"
-              class="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:ring-1 focus:ring-blue-500">
-              <option value="approved">Đã duyệt</option>
-              <option value="pending">Chờ duyệt</option>
-              <option value="rejected">Từ chối</option>
-            </select>
-            <p v-if="errors.status" class="text-xs text-red-500 mt-1">{{ errors.status }}</p>
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Phản hồi từ quản trị viên</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Phản hồi từ người bán</label>
             <textarea v-model="form.reply" rows="3"
               class="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:ring-1 focus:ring-blue-500 focus:outline-none placeholder-gray-400"
               placeholder="Nhập nội dung phản hồi nếu cần" />
+            <p v-if="errors.reply" class="text-xs text-red-500 mt-1">{{ errors.reply }}</p>
           </div>
 
           <div>
@@ -56,6 +46,9 @@
                   <source :src="item.url" type="video/mp4" />
                   Trình duyệt không hỗ trợ video.
                 </video>
+              </div>
+              <div v-if="previewImages.length === 0" class="text-sm text-gray-500 italic">
+                Không có ảnh hoặc video đính kèm.
               </div>
             </div>
           </div>
@@ -71,6 +64,7 @@
               <p class="text-xs text-gray-500">ID: {{ product.id }}</p>
             </div>
           </div>
+          <div v-else class="text-sm text-gray-500 italic">Không có thông tin sản phẩm.</div>
 
           <div class="pt-6 border-t">
             <button type="submit"
@@ -81,13 +75,80 @@
           </div>
         </aside>
       </form>
+
+      <!-- Notification Popup -->
+      <Teleport to="body">
+        <Transition
+          enter-active-class="transition ease-out duration-200"
+          enter-from-class="transform opacity-0 scale-95"
+          enter-to-class="transform opacity-100 scale-100"
+          leave-active-class="transition ease-in duration-100"
+          leave-from-class="transform opacity-100 scale-100"
+          leave-to-class="transform opacity-0 scale-95"
+        >
+          <div
+            v-if="showNotification"
+            class="fixed bottom-4 right-4 bg-white rounded-lg shadow-xl border border-gray-200 p-4 flex items-center space-x-3 z-[1000]"
+          >
+            <div class="flex-shrink-0">
+              <svg
+                class="h-6 w-6"
+                :class="notificationType === 'success' ? 'text-green-600' : 'text-red-600'"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  v-if="notificationType === 'success'"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+                <path
+                  v-if="notificationType === 'error'"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                />
+              </svg>
+            </div>
+            <div class="flex-1">
+              <p class="text-sm text-gray-900">{{ notificationMessage }}</p>
+            </div>
+            <div class="flex-shrink-0">
+              <button
+                @click="showNotification = false"
+                class="p-1 text-gray-500 hover:text-gray-700 focus:outline-none"
+              >
+                <svg
+                  class="h-4 w-4"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </Transition>
+      </Teleport>
     </main>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useRoute, useRouter, useRuntimeConfig } from '#app'
+import { useRoute, useRouter, useRuntimeConfig, useCookie } from '#app'
 import axios from 'axios'
 import { useNotification } from '~/composables/useNotification'
 
@@ -97,13 +158,12 @@ const route = useRoute()
 const router = useRouter()
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBaseUrl
-const { showNotification } = useNotification()
+const { showNotification, notificationMessage, notificationType, setNotification } = useNotification()
 
 const id = route.params.id
 const form = ref({
   content: '',
   rating: '',
-  status: '',
   reply: ''
 })
 const previewImages = ref([])
@@ -113,15 +173,16 @@ const errors = ref({})
 
 onMounted(async () => {
   try {
-    const token = localStorage.getItem('access_token')
+    const token = localStorage.getItem('access_token') || useCookie('access_token')?.value
+    console.log('Fetching review with token:', token) // Debug
     const res = await axios.get(`${apiBase}/seller/reviews/${id}`, {
       headers: { Authorization: `Bearer ${token}` }
     })
 
+    console.log('Review data:', res.data) // Debug
     const data = res.data
     form.value.content = data.content
     form.value.rating = data.rating
-    form.value.status = data.status
     form.value.reply = data.reply?.content || ''
 
     product.value = {
@@ -136,7 +197,7 @@ onMounted(async () => {
     ]
   } catch (error) {
     console.error('Lỗi khi tải đánh giá:', error)
-    showNotification('Không thể tải đánh giá.', 'error')
+    setNotification('Không thể tải đánh giá.', 'error')
   }
 })
 
@@ -145,9 +206,9 @@ const submit = async () => {
   errors.value = {}
 
   try {
-    const token = localStorage.getItem('access_token')
-    await axios.put(`${apiBase}/seller/reviews/${id}`, {
-      status: form.value.status,
+    const token = localStorage.getItem('access_token') || useCookie('access_token')?.value
+    console.log('Submitting reply:', form.value.reply, 'with token:', token) // Debug
+    const response = await axios.put(`${apiBase}/seller/reviews/${id}`, {
       reply: form.value.reply
     }, {
       headers: {
@@ -155,16 +216,26 @@ const submit = async () => {
       }
     })
 
-    showNotification('Cập nhật đánh giá thành công!', 'success')
+    console.log('Update response:', response.data) // Debug
+    setNotification('Cập nhật phản hồi thành công!', 'success')
     router.push('/seller/reviews/list-reviews')
   } catch (err) {
+    console.error('Error updating review:', err.response?.data || err.message) // Debug
     if (err.response?.status === 422) {
       errors.value = err.response.data.errors
+      setNotification('Dữ liệu không hợp lệ, vui lòng kiểm tra lại.', 'error')
     } else {
-      showNotification('Có lỗi khi cập nhật đánh giá.', 'error')
+      setNotification('Có lỗi khi cập nhật phản hồi.', 'error')
     }
   } finally {
     loading.value = false
   }
 }
 </script>
+
+<style scoped>
+/* Đảm bảo container không ẩn toast */
+.bg-gray-100 {
+  overflow: visible !important;
+}
+</style>

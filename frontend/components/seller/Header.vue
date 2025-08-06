@@ -90,7 +90,7 @@ const fetchMe = async () => {
 
 const fetchNotifications = async () => {
   try {
-    const response = await secureFetch(`${apiBase}/seller/notifications/notiseller`, {}, ['seller'])
+    const response = await secureFetch(`${apiBase}/seller/notifications`, {}, ['seller'])
     const serverNotifications = response?.data || []
     
     notifications.value = mergeNotificationsWithLocalStorage(serverNotifications)
