@@ -743,47 +743,54 @@ class ReviewController extends Controller
 
     public function sellerUpdate(Request $request, $id)
     {
-        $userId = auth()->id();
+        try {
+            $userId = auth()->id();
 
-        $review = Review::with('reply')->whereHas('product', function ($q) use ($userId) {
-            $q->whereHas('seller', function ($s) use ($userId) {
-                $s->where('user_id', $userId);
-            });
-        })->findOrFail($id);
+            $review = Review::with('reply')->whereHas('product', function ($q) use ($userId) {
+                $q->whereHas('seller', function ($s) use ($userId) {
+                    $s->where('user_id', $userId);
+                });
+            })->findOrFail($id);
 
-        $validator = Validator::make($request->all(), [
-            'status' => 'required|in:approved,pending,rejected',
-            'reply' => 'nullable|string|max:1000',
-        ]);
+            $validator = Validator::make($request->all(), [
+                'reply' => 'nullable|string|max:1000',
+            ]);
 
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
-
-        $review->update([
-            'status' => $request->status,
-        ]);
-
-        if ($request->filled('reply')) {
-            if ($review->reply) {
-                $review->reply->update([
-                    'content' => $request->input('reply'),
-                ]);
-            } else {
-                $review->reply()->create([
-                    'content' => $request->input('reply'),
-                    'user_id' => $userId,
-                    'status' => 'approved',
-                    'product_id' => $review->product_id,
-                    'parent_id' => $review->id,
-                    'rating' => 0,
-                ]);
+            if ($validator->fails()) {
+                return response()->json(['errors' => $validator->errors()], 422);
             }
+
+            if ($request->filled('reply')) {
+                if ($review->reply) {
+                    $review->reply->update([
+                        'content' => $request->input('reply'),
+                        'updated_at' => now(),
+                    ]);
+                } else {
+                    $review->reply()->create([
+                        'content' => $request->input('reply'),
+                        'user_id' => $userId,
+                        'status' => 'approved',
+                        'product_id' => $review->product_id,
+                        'parent_id' => $review->id,
+                        'rating' => 0,
+                    ]);
+                }
+            } else {
+                if ($review->reply) {
+                    $review->reply->delete();
+                }
+            }
+
+            return response()->json(['message' => 'Phản hồi đánh giá đã được cập nhật.']);
+        } catch (\Exception $e) {
+            Log::error('Lỗi khi cập nhật phản hồi đánh giá: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Có lỗi khi cập nhật phản hồi.',
+                'error' => env('APP_DEBUG') ? $e->getMessage() : null
+            ], 500);
         }
-
-        return response()->json(['message' => 'Phản hồi đánh giá và trạng thái đã được cập nhật.']);
     }
-
 
     public function sellerDestroy($id)
     {
