@@ -5,6 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\Refund;
 use App\Models\Order;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Response;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 
@@ -185,81 +189,101 @@ class RefundController extends Controller
 
 
 
-  public function store(Request $request)
+ public function store(Request $request)
     {
-        $data = $request->validate([
-            'order_id' => 'required|exists:orders,id',
-            'user_id' => 'required|exists:users,id',
-            'reason' => 'required|string|min:10|max:1000',
-            'amount' => 'required|numeric|min:0',
-            'bank_account_number' => 'required|string|max:50',
-            'bank_name' => 'required|string|max:255',
-            'status' => 'nullable|in:pending,approved,rejected'
-        ], [
-            'order_id.required' => 'Vui lòng chọn đơn hàng.',
-            'order_id.exists' => 'Đơn hàng không tồn tại.',
-            'user_id.required' => 'Vui lòng chọn người dùng.',
-            'user_id.exists' => 'Người dùng không tồn tại.',
-            'reason.required' => 'Vui lòng nhập lý do hoàn tiền.',
-            'reason.string' => 'Lý do hoàn tiền phải là chuỗi ký tự.',
-            'reason.min' => 'Lý do hoàn tiền phải có ít nhất :min ký tự.',
-            'reason.max' => 'Lý do hoàn tiền không được vượt quá :max ký tự.',
-            'amount.required' => 'Vui lòng nhập số tiền hoàn.',
-            'amount.numeric' => 'Số tiền hoàn phải là số.',
-            'amount.min' => 'Số tiền hoàn phải lớn hơn hoặc bằng 0.',
-            'bank_account_number.required' => 'Vui lòng nhập số tài khoản ngân hàng.',
-            'bank_account_number.string' => 'Số tài khoản ngân hàng phải là chuỗi ký tự.',
-            'bank_account_number.max' => 'Số tài khoản ngân hàng không được vượt quá :max ký tự.',
-            'bank_name.required' => 'Vui lòng nhập tên ngân hàng.',
-            'bank_name.string' => 'Tên ngân hàng phải là chuỗi ký tự.',
-            'bank_name.max' => 'Tên ngân hàng không được vượt quá :max ký tự.',
-            'status.in' => 'Trạng thái không hợp lệ (chỉ chấp nhận: pending, approved, rejected).',
-        ]);
+        try {
+            $validator = Validator::make($request->all(), [
+                'order_id' => 'required|exists:orders,id',
+                'user_id' => 'required|exists:users,id',
+                'reason' => 'required|string|min:10|max:1000',
+                'amount' => 'required|numeric|min:0',
+                'bank_account_number' => 'required|string|max:50',
+                'bank_name' => 'required|string|max:255',
+                'status' => 'nullable|in:pending,approved,rejected'
+            ], [
+                'order_id.required' => 'Vui lòng chọn đơn hàng.',
+                'order_id.exists' => 'Đơn hàng không tồn tại.',
+                'user_id.required' => 'Vui lòng chọn người dùng.',
+                'user_id.exists' => 'Người dùng không tồn tại.',
+                'reason.required' => 'Vui lòng nhập lý do hoàn tiền.',
+                'reason.string' => 'Lý do hoàn tiền phải là chuỗi ký tự.',
+                'reason.min' => 'Lý do hoàn tiền phải có ít nhất :min ký tự.',
+                'reason.max' => 'Lý do hoàn tiền không được vượt quá :max ký tự.',
+                'amount.required' => 'Vui lòng nhập số tiền hoàn.',
+                'amount.numeric' => 'Số tiền hoàn phải là số.',
+                'amount.min' => 'Số tiền hoàn phải lớn hơn hoặc bằng 0.',
+                'bank_account_number.required' => 'Vui lòng nhập số tài khoản ngân hàng.',
+                'bank_account_number.string' => 'Số tài khoản ngân hàng phải là chuỗi ký tự.',
+                'bank_account_number.max' => 'Số tài khoản ngân hàng không được vượt quá :max ký tự.',
+                'bank_name.required' => 'Vui lòng nhập tên ngân hàng.',
+                'bank_name.string' => 'Tên ngân hàng phải là chuỗi ký tự.',
+                'bank_name.max' => 'Tên ngân hàng không được vượt quá :max ký tự.',
+                'status.in' => 'Trạng thái không hợp lệ (chỉ chấp nhận: pending, approved, rejected).',
+            ]);
 
-        // Kiểm tra số tiền hoàn
-        $order = Order::findOrFail($data['order_id']);
-        $maxRefundAmount = max(floatval($order->final_price ?? 0), 0) / 1000;
-        if ($data['amount'] > $maxRefundAmount) {
+            if ($validator->fails()) {
+                // Chỉ trả về lỗi đầu tiên, ưu tiên bank_account_number
+                $errorMessage = $validator->errors()->first('bank_account_number') 
+                    ?: $validator->errors()->first();
+                return response()->json([
+                    'success' => false,
+                    'message' => $errorMessage,
+                ], 422);
+            }
+
+            $data = $validator->validated();
+
+            // Kiểm tra số tiền hoàn
+            $order = Order::findOrFail($data['order_id']);
+            $maxRefundAmount = max(floatval($order->final_price ?? 0), 0) / 1000;
+            if ($data['amount'] > $maxRefundAmount) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Số tiền hoàn không được vượt quá " . number_format($maxRefundAmount * 1000, 0, ',', '.') . " VND"
+                ], 422);
+            }
+
+            // Kiểm tra xem đơn hàng đã có yêu cầu hoàn tiền chưa
+            if (Refund::where('order_id', $data['order_id'])->exists()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Đơn hàng này đã có yêu cầu hoàn tiền.'
+                ], 422);
+            }
+
+            // Đặt status mặc định là 'pending'
+            $data['status'] = $data['status'] ?? 'pending';
+
+            // Tạo yêu cầu hoàn tiền
+            $refund = Refund::create($data);
+
+            // Cập nhật trạng thái đơn hàng nếu status là approved
+            if ($data['status'] === 'approved') {
+                $order->update(['status' => 'refunded', 'note' => $data['reason']]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Yêu cầu hoàn tiền đã được gửi',
+                'data' => [
+                    'id' => $refund->id,
+                    'order_id' => $refund->order_id,
+                    'user_id' => $refund->user_id,
+                    'amount' => (float)$refund->amount,
+                    'bank_account_number' => $refund->bank_account_number,
+                    'bank_name' => $refund->bank_name,
+                    'status' => $refund->status,
+                    'reason' => $refund->reason,
+                    'created_at' => $refund->created_at ? $refund->created_at->toISOString() : null
+                ]
+            ], 201);
+        } catch (\Exception $e) {
+            Log::error('Lỗi khi tạo yêu cầu hoàn tiền: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => "Số tiền hoàn không được vượt quá " . number_format($maxRefundAmount * 1000, 0, ',', '.') . " VND"
-            ], 422);
+                'message' => 'Lỗi server khi tạo yêu cầu hoàn tiền.',
+            ], 500);
         }
-
-        // Kiểm tra xem đơn hàng đã có yêu cầu hoàn tiền chưa
-        if (Refund::where('order_id', $data['order_id'])->exists()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Đơn hàng này đã có yêu cầu hoàn tiền.'
-            ], 422);
-        }
-
-        // Đặt status mặc định là 'pending'
-        $data['status'] = $data['status'] ?? 'pending';
-
-        // Tạo yêu cầu hoàn tiền
-        $refund = Refund::create($data);
-
-        // Cập nhật trạng thái đơn hàng nếu status là approved
-        if ($data['status'] === 'approved') {
-            $order->update(['status' => 'refunded', 'note' => $data['reason']]);
-        }
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Yêu cầu hoàn tiền đã được gửi',
-            'data' => [
-                'id' => $refund->id,
-                'order_id' => $refund->order_id,
-                'user_id' => $refund->user_id,
-                'amount' => (float)$refund->amount,
-                'bank_account_number' => $refund->bank_account_number,
-                'bank_name' => $refund->bank_name,
-                'status' => $refund->status,
-                'reason' => $refund->reason,
-                'created_at' => $refund->created_at ? $refund->created_at->toISOString() : null
-            ]
-        ], 201);
     }
 
     public function update(Request $request, $id)
@@ -471,8 +495,10 @@ class RefundController extends Controller
 }
 
   public function process(Request $request, $orderId)
-    {
-        $data = $request->validate([
+{
+    try {
+        // Sử dụng Validator::make để kiểm soát lỗi
+        $validator = Validator::make($request->all(), [
             'reason' => 'required|string|min:10|max:1000',
             'amount' => 'required|numeric|min:0',
             'bank_account_number' => 'required|string|max:50',
@@ -495,9 +521,21 @@ class RefundController extends Controller
             'status.in' => 'Trạng thái không hợp lệ (chỉ chấp nhận: pending, approved, rejected).',
         ]);
 
+        // Chỉ trả về lỗi đầu tiên, ưu tiên bank_account_number
+        if ($validator->fails()) {
+            $errorMessage = $validator->errors()->first('bank_account_number') 
+                ?: $validator->errors()->first();
+            return response()->json([
+                'success' => false,
+                'message' => $errorMessage,
+            ], 422);
+        }
+
+        $data = $validator->validated();
+
         // Kiểm tra đơn hàng
         $order = Order::where('id', $orderId)->where('user_id', Auth::id())->firstOrFail();
-        $maxRefundAmount = max((float) ($order->final_price ?? 0), 0) / 1000;
+        $maxRefundAmount = max((float) ($order->final_price ?? 0), 0); // Đơn vị VND
 
         Log::info('Processing refund request', [
             'order_id' => $orderId,
@@ -508,11 +546,11 @@ class RefundController extends Controller
             'requested_amount' => $data['amount']
         ]);
 
-        // Sử dụng >= thay vì > để cho phép amount bằng maxRefundAmount
-        if ($data['amount'] > ($maxRefundAmount * 1000)) {
+        // Kiểm tra số tiền hoàn (frontend gửi amount ở đơn vị VND)
+        if ($data['amount'] > $maxRefundAmount) {
             return response()->json([
                 'success' => false,
-                'message' => "Số tiền hoàn không được vượt quá " . number_format($maxRefundAmount * 1000, 0, ',', '.') . " VND"
+                'message' => "Số tiền hoàn không được vượt quá " . number_format($maxRefundAmount, 0, ',', '.') . " VND"
             ], 422);
         }
 
@@ -538,7 +576,7 @@ class RefundController extends Controller
             'order_id' => $orderId,
             'user_id' => Auth::id(),
             'reason' => $data['reason'],
-            'amount' => $data['amount'],
+            'amount' => $data['amount'], // Không nhân 1000 vì frontend đã gửi đúng đơn vị VND
             'bank_account_number' => $data['bank_account_number'],
             'bank_name' => $data['bank_name'],
             'status' => $data['status'] ?? 'pending'
@@ -567,5 +605,16 @@ class RefundController extends Controller
                 'created_at' => $refund->created_at ? $refund->created_at->toISOString() : null
             ]
         ], 201);
+    } catch (\Exception $e) {
+        Log::error('Error processing refund: ' . $e->getMessage(), [
+            'order_id' => $orderId,
+            'user_id' => Auth::id(),
+            'trace' => $e->getTraceAsString()
+        ]);
+        return response()->json([
+            'success' => false,
+            'message' => 'Lỗi server khi xử lý yêu cầu hoàn tiền.'
+        ], 500);
     }
+}
 }

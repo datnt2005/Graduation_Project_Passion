@@ -22,6 +22,7 @@ Route::prefix('seller/reviews')
     ->middleware(['auth:sanctum', 'checkRole:seller'])
     ->group(function () {
         Route::get('/', [ReviewController::class, 'sellerIndex']);
+        Route::get('/counts', [ReviewController::class, 'sellerReviewCounts']); // Đặt trước
         Route::get('/{id}', [ReviewController::class, 'sellerShow']);
         Route::put('/{id}', [ReviewController::class, 'sellerUpdate']);
         Route::delete('/{id}', [ReviewController::class, 'sellerDestroy']);
