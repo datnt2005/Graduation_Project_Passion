@@ -80,6 +80,14 @@
                 </span>
                 <span v-else class="text-gray-500 italic">Không có</span>
               </div>
+              <div v-if="notification.status === 'sent' && notification.recipients?.length > 0">
+                <strong>Tóm tắt trạng thái đọc:</strong>
+                <span class="font-semibold">
+                  {{ notification.recipients.filter(r => r.is_read).length }}/{{
+                    notification.recipients.length
+                  }} đã đọc
+                </span>
+              </div>
             </div>
 
             <!-- Nội dung -->
@@ -91,10 +99,14 @@
             </div>
 
             <!-- Người nhận -->
-            <div v-if="notification.recipients?.length > 0" class="mt-8">
-              <p class="font-semibold mb-2 text-gray-800">Danh sách người nhận ({{ notification.recipients.length }}):
+            <div class="mt-8">
+              <p class="font-semibold mb-2 text-gray-800">
+                Danh sách người nhận
+                <span v-if="notification.status === 'sent'">({{ notification.recipients?.length || 0 }}):</span>
+                <span v-else class="text-gray-500 italic">(Chưa gửi đến người nhận)</span>
               </p>
-              <div class="overflow-x-auto">
+              <div v-if="notification.status === 'sent' && notification.recipients?.length > 0"
+                class="overflow-x-auto">
                 <table class="min-w-full text-sm border border-gray-300 bg-white">
                   <thead class="bg-gray-50">
                     <tr>
@@ -110,7 +122,8 @@
                       <td class="px-3 py-2">{{ r.user?.name || 'Không xác định' }}</td>
                       <td class="px-3 py-2">{{ r.user?.email || '-' }}</td>
                       <td class="px-3 py-2">
-                        <span :class="r.is_read ? 'text-green-600 font-medium' : 'text-yellow-600 font-medium'">
+                        <span :class="r.is_read ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'"
+                          class="inline-block px-2 py-1 rounded text-xs font-semibold">
                           {{ r.is_read ? 'Đã đọc' : 'Chưa đọc' }}
                         </span>
                       </td>
@@ -126,10 +139,10 @@
                   </tbody>
                 </table>
               </div>
+              <div v-else-if="notification.status === 'sent'" class="mt-4 text-sm text-gray-500 italic">
+                Chưa gửi đến người dùng.
+              </div>
             </div>
-
-            <!-- Không có người nhận -->
-            <div v-else class="mt-4 text-sm text-gray-500 italic">Không có người nhận nào.</div>
 
             <!-- Quay lại -->
             <div class="pt-6 border-t">
@@ -143,7 +156,6 @@
           <div v-else class="text-red-600">Không tìm thấy thông báo.</div>
         </div>
       </main>
-
     </div>
   </div>
 </template>

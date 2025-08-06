@@ -396,75 +396,67 @@ class ReportController extends Controller
         }
     }
 
-    public function sellerIndex(Request $request)
-    {
-        try {
-            $userId = auth()->id();
-            $perPage = $request->query('per_page', 10);
-            $page = $request->query('page', 1);
-            $status = $request->query('status');
-            $sortOrder = $request->query('sort_order', 'desc');
+   public function sellerIndex(Request $request)
+{
+    $userId = auth()->id();
 
-            // Query chính
-            $query = Report::with([
-                'review' => function ($q) {
-                    $q->select('id', 'product_id', 'content', 'user_id')
-                        ->with(['user:id,name', 'product:id,name,seller_id']);
-                }
-            ])
-                ->where('type', 'review')
-                ->whereHas('review.product.seller', function ($q) use ($userId) {
-                    $q->where('user_id', $userId);
-                });
+    // Lấy các tham số từ request
+    $perPage = $request->input('per_page', 10); // Mặc định 10 bản ghi mỗi trang
+    $sortOrder = $request->input('sort_order', 'desc'); // Mặc định sắp xếp mới nhất
+    $status = $request->input('status'); // Lọc theo trạng thái (nếu có)
 
-            // Áp dụng bộ lọc
-            if ($status && in_array($status, ['pending', 'resolved', 'dismissed'])) {
-                $query->where('status', $status);
-            }
+    // Xây dựng query
+    $query = Report::with([
+            'review.product.seller',
+            'review.user',
+            'reporter'
+        ])
+        ->where('type', 'review')
+        ->whereHas('review.product.seller', function ($q) use ($userId) {
+            $q->where('user_id', $userId);
+        });
 
-            // Sắp xếp
-            $query->orderBy('reported_at', $sortOrder);
-
-            // Phân trang
-            $reports = $query->paginate($perPage, ['*'], 'page', $page);
-
-            // Định dạng dữ liệu
-            $reports->getCollection()->transform(function ($report) {
-                if (!$report->review || !$report->review->product || !$report->review->user) {
-                    return null;
-                }
-                return [
-                    'report_id' => $report->id,
-                    'reason' => $report->reason,
-                    'status' => $report->status,
-                    'reported_at' => $report->created_at,
-                    'review' => [
-                        'id' => $report->review->id,
-                        'content' => $report->review->content,
-                        'product_name' => $report->review->product->name,
-                        'user_name' => $report->review->user->name,
-                    ],
-                    'reporter' => $report->reporter ? $report->reporter->name : 'Ẩn danh',
-                ];
-            })->filter();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Lấy danh sách báo cáo thành công.',
-                'data' => $reports->items(),
-                'last_page' => $reports->lastPage(),
-                'total' => $reports->total(),
-                'current_page' => $reports->currentPage(),
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Lấy danh sách báo cáo thất bại: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Đã xảy ra lỗi khi lấy danh sách báo cáo.',
-                'error' => env('APP_DEBUG') ? $e->getMessage() : null
-            ], 500);
-        }
+    // Lọc theo trạng thái nếu có
+    if ($status) {
+        $query->where('status', $status);
     }
+
+    // Sắp xếp theo created_at
+    $query->orderBy('created_at', $sortOrder);
+
+    // Phân trang
+    $reports = $query->paginate($perPage);
+
+    // Chuyển đổi dữ liệu
+    $formattedReports = $reports->getCollection()->map(function ($report) {
+        return [
+            'report_id' => $report->id,
+            'reason' => $report->reason,
+            'status' => $report->status,
+            'reported_at' => $report->created_at,
+            'review' => [
+                'id' => optional($report->review)->id,
+                'content' => optional($report->review)->content,
+                'product_name' => optional($report->review->product)->name,
+                'user_name' => optional($report->review->user)->name,
+            ],
+            'reporter' => optional($report->reporter)->name ?? 'Ẩn danh',
+        ];
+    })->filter(fn($report) => $report['review']['id']); // Lọc các báo cáo có review hợp lệ
+
+    // Cập nhật collection trong kết quả phân trang
+    $reports->setCollection($formattedReports);
+
+    // Trả về dữ liệu phân trang
+    return response()->json([
+        'success' => true,
+        'data' => $reports->items(),
+        'current_page' => $reports->currentPage(),
+        'last_page' => $reports->lastPage(),
+        'total' => $reports->total(),
+        'per_page' => $reports->perPage(),
+    ]);
+}
 
     public function sellerShow($id)
     {

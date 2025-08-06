@@ -52,11 +52,11 @@
         <tbody>
           <tr v-for="(item, index) in reports" :key="item.report_id" :class="{ 'bg-gray-50': index % 2 === 0 }">
             <td class="border px-3 py-2">{{ (currentPage - 1) * perPage + index + 1 }}</td>
-            <td class="border px-3 py-2">{{ item.review.product_name }}</td>
-            <td class="border px-3 py-2">{{ item.review.user_name }}</td>
-            <td class="border px-3 py-2 truncate max-w-[200px]">{{ item.review.content }}</td>
+            <td class="border px-3 py-2">{{ item.review?.product_name ?? 'N/A' }}</td>
+            <td class="border px-3 py-2">{{ item.review?.user_name ?? 'N/A' }}</td>
+            <td class="border px-3 py-2 truncate max-w-[200px]">{{ item.review?.content ?? 'N/A' }}</td>
             <td class="border px-3 py-2">{{ reasonLabel(item.reason) }}</td>
-            <td class="border px-3 py-2">{{ item.reporter }}</td>
+            <td class="border px-3 py-2">{{ item.reporter ?? 'N/A' }}</td>
             <td class="border px-3 py-2">
               <span :class="badgeClass(item.status)">{{ statusText(item.status) }}</span>
             </td>
@@ -113,24 +113,31 @@ const reasons = [
   { value: 'other', label: 'Khác' },
 ];
 
-const reasonLabel = code => reasons.find(r => r.value === code)?.label || code;
+const reasonLabel = (code) => reasons.find(r => r.value === code)?.label || code;
 
-const formatDate = d => new Date(d).toLocaleString('vi-VN');
+const formatDate = (d) => (d ? new Date(d).toLocaleString('vi-VN') : 'N/A');
 
-const statusText = s =>
-  s === 'pending' ? 'Chờ xử lý' : s === 'resolved' ? 'Đã ẩn' : 'Đã bỏ qua';
+const statusText = (s) =>
+  s === 'pending' ? 'Chờ xử lý' : s === 'resolved' ? 'Đã ẩn' : s === 'dismissed' ? 'Đã bỏ qua' : 'N/A';
 
-const badgeClass = s =>
+const badgeClass = (s) =>
   s === 'pending'
     ? 'px-2 py-1 text-xs font-semibold text-yellow-700 bg-yellow-100 rounded'
     : s === 'resolved'
       ? 'px-2 py-1 text-xs font-semibold text-green-700 bg-green-100 rounded'
-      : 'px-2 py-1 text-xs font-semibold text-red-700 bg-red-100 rounded';
+      : s === 'dismissed'
+        ? 'px-2 py-1 text-xs font-semibold text-red-700 bg-red-100 rounded'
+        : 'px-2 py-1 text-xs font-semibold text-gray-700 bg-gray-100 rounded';
 
 const fetchReports = async (page = 1) => {
   try {
     loading.value = true;
     currentPage.value = page;
+
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      throw new Error('Không tìm thấy token. Vui lòng đăng nhập lại.');
+    }
 
     const queryParams = new URLSearchParams({
       page: page.toString(),
@@ -140,14 +147,19 @@ const fetchReports = async (page = 1) => {
     });
 
     const res = await axios.get(`${apiBase}/seller/reports/reviews?${queryParams.toString()}`, {
-      headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` },
+      headers: { Authorization: `Bearer ${token}` },
     });
+
+    console.log('API Response:', res.data); // Log response để debug
 
     if (!res.data.success || !Array.isArray(res.data.data)) {
       throw new Error(res.data.message || 'Dữ liệu báo cáo không hợp lệ');
     }
 
-    reports.value = res.data.data;
+    reports.value = res.data.data.map(item => ({
+      ...item,
+      review: item.review || {}, // Đảm bảo review không undefined
+    }));
     lastPage.value = res.data.last_page || 1;
     total.value = res.data.total || res.data.data.length;
     currentPage.value = res.data.current_page || page;
@@ -157,7 +169,22 @@ const fetchReports = async (page = 1) => {
     }
   } catch (err) {
     console.error('Lỗi khi tải báo cáo:', err);
-    toast('error', 'Lỗi khi tải báo cáo: ' + err.message);
+    let errorMessage = 'Lỗi khi tải báo cáo';
+    if (err.response) {
+      if (err.response.status === 401) {
+        errorMessage = 'Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.';
+        router.push('/login');
+      } else if (err.response.status === 403) {
+        errorMessage = 'Bạn không có quyền truy cập báo cáo này.';
+      } else if (err.response.status === 500) {
+        errorMessage = 'Lỗi server. Vui lòng thử lại sau hoặc liên hệ quản trị viên.';
+      } else {
+        errorMessage = err.response.data.message || err.message;
+      }
+    } else {
+      errorMessage = err.message || 'Không thể kết nối đến server';
+    }
+    toast('error', errorMessage);
     reports.value = [];
     lastPage.value = 1;
     total.value = 0;
@@ -166,7 +193,7 @@ const fetchReports = async (page = 1) => {
   }
 };
 
-const viewReport = id => router.push(`/seller/reports/reviews/view/${id}`);
+const viewReport = (id) => router.push(`/seller/reports/reviews/view/${id}`);
 
 onMounted(() => fetchReports());
 </script>
