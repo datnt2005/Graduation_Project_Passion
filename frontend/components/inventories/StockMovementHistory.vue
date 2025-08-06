@@ -241,7 +241,6 @@ const fetchStockMovements = async () => {
       : `${apiBase}/stock-movements?t=${Date.now()}`;
     const { data } = await secureAxios(url, {}, ['admin', 'seller']);
     movements.value = [...(data.data || data)]; // Ensure reactivity
-    console.log('Lịch sử biến động:', movements.value); // Debug
   } catch (err) {
     console.error('Lỗi khi lấy lịch sử biến động:', err);
     setNotification('Không thể tải lịch sử biến động kho. Vui lòng thử lại.', 'error');
@@ -253,7 +252,6 @@ const fetchStockMovements = async () => {
 watch(
   () => props.refreshKey,
   () => {
-    console.log('refreshKey thay đổi, làm mới lịch sử biến động:', props.refreshKey);
     fetchStockMovements();
   }
 );
@@ -261,7 +259,6 @@ watch(
 watch(
   () => props.productVariantId,
   () => {
-    console.log('productVariantId thay đổi, làm mới lịch sử biến động:', props.productVariantId);
     fetchStockMovements();
   }
 );
