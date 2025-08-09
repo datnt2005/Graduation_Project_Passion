@@ -151,7 +151,7 @@ class ReviewController extends Controller
                     'user_id' => $review->user_id,
                     'user' => [
                         'name' => $review->user->name ?? 'Ẩn danh',
-                        'avatar' => $review->user->avatar ? Storage::disk('r2')->url($review->user->avatar) : null,
+                        'avatar' => $review->user->avatar ?? 'avatars/default.jpg',
                     ],
                     'joined' => $review->user->created_at ? $review->user->created_at->format('F, Y') : 'Tháng 1, 2024',
                     'totalReviews' => Review::where('user_id', $review->user_id)->count(),

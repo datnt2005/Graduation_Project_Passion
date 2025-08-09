@@ -98,10 +98,7 @@ useHead({
   title: 'Sổ địa chỉ | Tài khoản của bạn',
   meta: [
     { name: 'description', content: 'Trang quản lý địa chỉ giao hàng của bạn trên hệ thống.' },
-    { name: 'robots', content: 'index, follow' }, 
-    { property: 'og:title', content: 'Sổ địa chỉ giao hàng' },
-    { property: 'og:description', content: 'Xem và chỉnh sửa địa chỉ giao hàng của bạn.' }
-  ]
+]
 })
 
 

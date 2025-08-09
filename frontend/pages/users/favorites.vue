@@ -99,7 +99,6 @@ useHead({
   title: 'Sản phẩm yêu thích | Quản lý danh sách yêu thích',
   meta: [
     { name: 'description', content: 'Xem và quản lý danh sách sản phẩm yêu thích của bạn.' },
-    { name: 'robots', content: 'noindex, nofollow' }
   ]
 })
 

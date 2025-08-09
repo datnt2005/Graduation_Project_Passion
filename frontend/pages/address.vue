@@ -168,14 +168,11 @@ import { useAuthHeaders } from '~/composables/useAuthHeaders';
 import { useToast } from '~/composables/useToast';
 
 useHead({
-  title: 'Địa chỉ giao hàng | Thanh toán',
+  title: 'Địa chỉ giao hàng',
   meta: [
-    { name: 'description', content: 'Chọn hoặc thêm địa chỉ giao hàng để hoàn tất đơn hàng của bạn.' },
-    { name: 'robots', content: 'noindex, nofollow' },
-    { property: 'og:title', content: 'Địa chỉ giao hàng - Thanh toán' },
-    { property: 'og:description', content: 'Quản lý địa chỉ giao hàng để nhận hàng nhanh chóng.' }
+    { name: 'description', content: 'Liên hệ với chúng tôi để được hỗ trợ nhanh chóng và hiệu quả. Passion luôn sẵn sàng giúp đỡ bạn.' }
   ]
-});
+})
 
 const { showSuccess, showError } = useToast();
 const config = useRuntimeConfig();

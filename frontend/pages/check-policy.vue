@@ -59,6 +59,14 @@
 </template>
 
 <script setup>
+import { useHead } from '#imports'
+
+useHead({
+  title: 'Chính sách kiểm hàng',
+  meta: [
+    { name: 'description', content: 'Liên hệ với chúng tôi để được hỗ trợ nhanh chóng và hiệu quả. Passion luôn sẵn sàng giúp đỡ bạn.' }
+  ]
+})
 </script>
 
 <style scoped>

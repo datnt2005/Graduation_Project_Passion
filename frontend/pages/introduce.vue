@@ -113,7 +113,14 @@
 </template>
 
 <script setup>
-// Không cần gì nếu chỉ hiển thị, bạn có thể dùng asyncData hoặc definePageMeta nếu dùng làm page chính.
+import { useHead } from '#imports'
+
+useHead({
+  title: 'Giới thiệu Passion',
+  meta: [
+    { name: 'description', content: 'Liên hệ với chúng tôi để được hỗ trợ nhanh chóng và hiệu quả. Passion luôn sẵn sàng giúp đỡ bạn.' }
+  ]
+})
 </script>
 
 <style scoped>

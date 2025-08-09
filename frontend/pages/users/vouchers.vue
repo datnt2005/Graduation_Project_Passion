@@ -149,7 +149,14 @@ import { useRouter } from 'vue-router'
 import { useNotification } from '~/composables/useNotification'
 import { useToast } from '~/composables/useToast'
 import imageVoucher from '~/images/voucher.png'
+import { useHead } from '#imports'
 
+useHead({
+  title: 'Kho Voucher | Quản lý mã giảm giá',
+  meta: [
+    { name: 'description', content: 'Liên hệ với chúng tôi để được hỗ trợ nhanh chóng và hiệu quả. Passion luôn sẵn sàng giúp đỡ bạn.' }
+  ]
+})
 // Chỉ giữ lại tab 'Tất cả'
 const tabs = [
   { label: 'Tất cả', value: 'all' },

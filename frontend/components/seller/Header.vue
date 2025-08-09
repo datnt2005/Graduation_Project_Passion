@@ -3,7 +3,14 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { secureFetch } from '@/utils/secureFetch'
+import { useHead } from '#imports'
 
+useHead({
+  title: 'Quản lý cửa hàng',
+  meta: [
+    { name: 'description', content: 'Quản lý cửa hàng' }
+  ]
+})
 const emit = defineEmits(['toggle-sidebar'])
 const hasNewNotifications = ref(false)
 const notifications = ref([])

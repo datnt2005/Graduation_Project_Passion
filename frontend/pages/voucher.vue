@@ -230,7 +230,14 @@ import { useRouter } from 'vue-router'
 import { useNotification } from '~/composables/useNotification'
 import { useToast } from '~/composables/useToast'
 import imageVoucher from '~/images/voucher.png'
+import { useHead } from '#imports'
 
+useHead({
+  title: 'Kho Voucher',
+  meta: [
+    { name: 'description', content: 'Kho Voucher, tràn ngập mã giảm giá, miễn phí vận chuyển. Nhận ngay!' }
+  ]
+})
 // Chỉ giữ lại tab 'Tất cả'
 const tabs = [
   { label: 'Tất cả', value: 'all' },

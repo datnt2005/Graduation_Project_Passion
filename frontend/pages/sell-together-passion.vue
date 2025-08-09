@@ -69,7 +69,14 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useToast } from '~/composables/useToast';
+import { useHead } from '#imports'
 
+useHead({
+  title: 'Bán hàng cùng Passion',
+  meta: [
+    { name: 'description', content: 'Liên hệ với chúng tôi để được hỗ trợ nhanh chóng và hiệu quả. Passion luôn sẵn sàng giúp đỡ bạn.' }
+  ]
+})
 const router = useRouter();
 const { toast } = useToast();
 const checkingAuth = ref(false);

@@ -40,7 +40,14 @@ import Header from '~/components/shared/layouts/Header.vue'
 import Footer from '~/components/shared/layouts/Footer.vue'
 import { useRouter } from 'vue-router'
 const router = useRouter()
+import { useHead } from '#imports'
 
+useHead({
+  title: 'Không có quyền truy cập',
+  meta: [
+    { name: 'description', content: 'Liên hệ với chúng tôi để được hỗ trợ nhanh chóng và hiệu quả. Passion luôn sẵn sàng giúp đỡ bạn.' }
+  ]
+})
 const goBack = () => {
     router.push('/')
   }

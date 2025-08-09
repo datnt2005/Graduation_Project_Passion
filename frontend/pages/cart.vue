@@ -78,7 +78,6 @@
                 class="w-4 h-4 border border-[#d9d9d9] rounded-sm checked:bg-[#F97316] cursor-pointer" />
             </label>
             <span class="text-[16px]">Tất cả ({{ totalItems }} sản phẩm)</span>
-            <div></div>
             <div class="text-right text-[16px]">Đơn giá</div>
             <div class="text-center text-[16px]">Số lượng</div>
             <div class="text-right text-[16px]">Thành tiền</div>
@@ -127,7 +126,7 @@
                         .join(" - ")
                     }}
                   </div>
-                  
+
                   <div class="flex items-center justify-between mt-2">
                     <div class="text-red-500 font-semibold text-[15px]">
                       {{ formatPrice(item.sale_price || item.price) }}
@@ -141,9 +140,10 @@
                         " class="w-7 h-7 text-lg font-semibold border-r" :disabled="item.quantity <= 1 || loading">
                         −
                       </button>
-                      <input type="number" v-model.number="item.quantity" @change="
-                        updateQuantityWithValidation(item.id, item.quantity)
-                        " class="w-10 text-center text-sm font-semibold" />
+                      <input type="number" v-model.number="item.quantity"
+                        @input="debouncedUpdateQuantity(item.id, $event.target.value)"
+                        @change="updateQuantityWithValidation(item.id, item.quantity)"
+                        class="w-10 h-6 border-t border-b text-center text-sm font-semibold" :disabled="loading" />
                       <button @click="
                         updateQuantityWithValidation(
                           item.id,
@@ -315,7 +315,14 @@
 import { ref } from "vue";
 import { useCart } from "~/composables/useCart";
 import { useToast } from "~/composables/useToast";
+import { useHead } from '#imports'
 
+useHead({
+  title: 'Giỏ hàng',
+  meta: [
+    { name: 'description', content: 'Liên hệ với chúng tôi để được hỗ trợ nhanh chóng và hiệu quả. Passion luôn sẵn sàng giúp đỡ bạn.' }
+  ]
+})
 const { toast } = useToast();
 const {
   cart,

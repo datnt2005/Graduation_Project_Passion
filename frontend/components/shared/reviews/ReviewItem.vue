@@ -6,7 +6,7 @@
     <div class="flex items-start gap-3 mb-3">
       <!-- Avatar -->
       <div>
-        <img v-if="review.user?.avatar" :src="review.user.avatar" alt="avatar"
+        <img v-if="review.user?.avatar" :src="review.user.avatar?.startsWith('http') ? review.user.avatar : `${apiBase}/${review.user.avatar}`" alt="avatar"
           class="w-10 h-10 rounded-full object-cover border" />
         <div v-else class="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-gray-600 font-bold">
           {{ review.user?.name?.charAt(0).toUpperCase() || 'U' }}

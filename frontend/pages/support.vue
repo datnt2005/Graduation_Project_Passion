@@ -96,7 +96,14 @@ import '@fortawesome/fontawesome-svg-core/styles.css'
 import { ref } from 'vue'
 import { useRuntimeConfig } from '#app'
 import { useToast } from '~/composables/useToast'
+import { useHead } from '#imports'
 
+useHead({
+  title: 'Hỗ trợ khách hàng',
+  meta: [
+    { name: 'description', content: 'Liên hệ với chúng tôi để được hỗ trợ nhanh chóng và hiệu quả. Passion luôn sẵn sàng giúp đỡ bạn.' }
+  ]
+})
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBaseUrl
 const { toast } = useToast()

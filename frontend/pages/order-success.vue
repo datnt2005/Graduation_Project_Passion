@@ -78,7 +78,7 @@
                 <div v-for="item in order.order_items" :key="item.product?.id + '-' + (item.variant?.id || '')" class="flex items-center gap-4 border-b py-2 last:border-0">
                   <div class="flex gap-2 items-center">
                     <img
-                      :src="item.variant?.thumbnail ? mediaBaseUrl + item.variant.thumbnail : '/images/default-product.jpg'"
+                      :src="item.product?.thumbnail ? mediaBaseUrl + item.product.thumbnail : 'products/default.png'"
                       :alt="item.product?.name || 'Ảnh sản phẩm'"
                       class="w-12 h-12 object-cover rounded-md border"
                       @error="e => e.target.src = '/images/default-product.jpg'"
@@ -128,7 +128,14 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useRuntimeConfig } from '#imports'
 import { useCart } from '~/composables/useCart'
+import { useHead } from '#imports'
 
+useHead({
+  title: 'Đặt hàng thành công',
+  meta: [
+    { name: 'description', content: 'Liên hệ với chúng tôi để được hỗ trợ nhanh chóng và hiệu quả. Passion luôn sẵn sàng giúp đỡ bạn.' }
+  ]
+})
 const route = useRoute()
 const config = useRuntimeConfig()
 const { clearOrderedItems } = useCart()

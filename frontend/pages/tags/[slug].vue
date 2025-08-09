@@ -206,6 +206,14 @@ import { ref, onMounted, computed } from 'vue';
 import { useRuntimeConfig } from '#imports';
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
 import BannerTag from '~/images/image-tag.png';
+import { useHead } from '#imports'
+
+useHead({
+  title: 'Tag',
+  meta: [
+    { name: 'description', content: 'Liên hệ với chúng tôi để được hỗ trợ nhanh chóng và hiệu quả. Passion luôn sẵn sàng giúp đỡ bạn.' }
+  ]
+})
 
 const route = useRoute();
 const slug = route.params.slug;

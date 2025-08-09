@@ -855,7 +855,7 @@ const viewOrder = async (id) => {
       toast('info', `Số tiền hoàn đã được tự động điền: ${formatPrice(refundAmount.value * 1000)}`);
     } else {
       refundAmount.value = 0;
-      toast('info', 'Không thể tự động điền số tiền hoàn do trạng thái đơn hàng hoặc phương thức thanh toán.');
+      // toast('info', 'Không thể tự động điền số tiền hoàn do trạng thái đơn hàng hoặc phương thức thanh toán.');
     }
 
     isDetailOpen.value = true;

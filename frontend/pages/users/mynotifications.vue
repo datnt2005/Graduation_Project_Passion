@@ -250,9 +250,6 @@ useHead({
   title: 'Thông báo của tôi | Quản lý thông báo',
   meta: [
     { name: 'description', content: 'Xem và quản lý thông báo về đơn hàng, khuyến mãi và hoạt động tài khoản của bạn.' },
-    { name: 'robots', content: 'noindex, nofollow' }, // Trang thông báo không cần lập chỉ mục
-    { property: 'og:title', content: 'Thông báo của tôi - Quản lý thông báo' },
-    { property: 'og:description', content: 'Quản lý thông báo về đơn hàng, khuyến mãi và hoạt động tài khoản.' }
   ]
 })
 

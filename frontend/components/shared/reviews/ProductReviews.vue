@@ -182,15 +182,7 @@ const urlObjects = ref([])
 
 // SEO metadata
 useHead({
-  title: `Đánh giá ${props.productName}`,
-  meta: [
-    { name: 'description', content: `Xem và gửi đánh giá cho ${props.productName}. Đọc ý kiến từ khách hàng và chia sẻ trải nghiệm của bạn.` },
-    { name: 'keywords', content: `${props.productName}, đánh giá sản phẩm, nhận xét khách hàng` },
-    { name: 'robots', content: 'index, follow' },
-    { property: 'og:title', content: `Đánh giá ${props.productName}` },
-    { property: 'og:description', content: `Xem và gửi đánh giá cho ${props.productName}. Đọc ý kiến từ khách hàng và chia sẻ trải nghiệm của bạn.` },
-    { property: 'og:type', content: 'product' }
-  ],
+
   script: [
     {
       type: 'application/ld+json',

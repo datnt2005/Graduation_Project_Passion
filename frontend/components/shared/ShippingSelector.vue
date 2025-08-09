@@ -14,8 +14,11 @@
     </div>
 
     <div class="space-y-8">
-      <div v-for="shop in localCartItems" :key="shop.seller_id"
-        class="border border-gray-300 rounded p-4 bg-white shadow">
+      <div
+        v-for="shop in localCartItems"
+        :key="shop.seller_id + '-' + (shop.service_id || 'x')"
+        class="border border-gray-300 rounded p-4 bg-white shadow"
+      >
         <div class="flex justify-between items-center mb-4">
           <NuxtLink :to="`${shop.store_url}`" class="text-sm font-semibold text-blue-600">
             <i class="fa-solid fa-shop"></i> {{ shop.store_name || 'Cửa hàng' }}
@@ -35,7 +38,7 @@
             <div class="flex-1">
               <div class="font-medium text-sm">{{ item.product?.name || 'Sản phẩm' }}</div>
               <div class="text-gray-500 text-xs">
-                {{ item.productVariant?.attributes?.map(attr => attr.value).join(' - ') || 'Không có thuộc tính' }}
+                {{ item.productVariant?.attributes?.map(attr => attr.value).join(' - ') || '' }}
               </div>
               <div class="text-gray-500 text-xs">Số lượng: x{{ item.quantity }}</div>
             </div>
@@ -48,7 +51,7 @@
         <div class="flex items-start justify-between gap-4 mt-4">
           <div class="flex-1">
             <label class="block text-xs text-gray-600 mb-1">Ghi chú cho cửa hàng</label>
-            <textarea v-model="shop.note" rows="1"
+            <textarea v-model="shop.note" rows="3"
               class="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
               placeholder="Nhập ghi chú cho cửa hàng này..."></textarea>
           </div>
@@ -160,93 +163,107 @@
 import { ref, computed, watch, onMounted } from 'vue';
 import { useCheckout } from '~/composables/useCheckout';
 import { useToast } from '~/composables/useToast';
+import { useRuntimeConfig } from '#imports';
 
 const props = defineProps({
-  cartItems: {
-    type: Array,
-    required: true
-  },
-  address: {
-    type: Object,
-    required: true
-  },
-  totalShippingFee: {
-    type: Number,
-    default: 0
-  }
+  cartItems: { type: Array, required: false, default: () => [] },
+  address: { type: Object, required: true },
+  totalShippingFee: { type: Number, default: 0 },
+  isBuyNow: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(['update:shippingFee', 'update:totalShippingFee']);
+const emit = defineEmits([
+  'update:shippingFee',
+  'update:totalShippingFee',
+  'update:shopDiscount',
+  'update:shippingDiscount',
+]);
 
-const { isCheckoutCalculatingShipping, selectedDiscounts, getShopDiscountId } = useCheckout();
 const { toast } = useToast();
-
 const config = useRuntimeConfig();
 const apiBase = config.public.apiBaseUrl;
 const mediaBaseUrl = config.public.mediaBaseUrl;
 
-// Reactive data
+// ====== THAM SỐ CHO useCheckout() ======
+const shippingRef = ref(null);
+const selectedShippingMethod = ref(null);
+const storeNotes = ref({});
+
+// selectedAddress phải là ref/computed để composable dùng .value
+const selectedAddress = computed(() => props.address || null);
+
+// ====== LẤY LOGIC SHIP/DISCOUNT TỪ composable ======
+const {
+  cartItems: cartItemsComputed,
+  buyNowItems: buyNowItemsComputed,
+  selectedDiscounts,
+  getShopDiscountId,
+  updateShopDiscount,
+  removeShopDiscount: removeShopDiscountCore,
+  recalculateAllShopDiscounts,
+  isCheckoutCalculatingShipping,
+  loadShippingFees,
+  formatPrice,
+} = useCheckout(shippingRef, selectedShippingMethod, selectedAddress, storeNotes);
+
+// ==================== LOCAL STATE ====================
 const localCartItems = ref([]);
 const loadingShipping = ref(false);
 const errorMessage = ref('');
-
-// Initialize localCartItems from props
-watch(() => props.cartItems, (newItems) => {
-  localCartItems.value = JSON.parse(JSON.stringify(newItems));
-}, { immediate: true });
-
-// Watch for changes in cart items and address to trigger shipping fee updates
-watch([() => props.cartItems, () => props.address], () => {
-  localCartItems.value = JSON.parse(JSON.stringify(props.cartItems));
-}, { deep: true });
-
-// Computed properties
-const calculateStoreTotal = (shop) => {
-  return shop.items.reduce((total, item) => {
-    return total + (item.sale_price * item.quantity);
-  }, 0);
-};
-
-const formatPrice = (price) => {
-  return new Intl.NumberFormat('vi-VN').format(price);
-};
-
-// Discount functionality
 const userVouchers = ref([]);
 const loadingCoupons = ref(false);
 const showDiscountPopup = ref(false);
 const selectedSellerId = ref(null);
 const searchCoupon = ref('');
 
+// Nguồn hiển thị: ưu tiên Buy Now nếu isBuyNow=true
+const itemsSource = computed(() => {
+  if (props.isBuyNow) {
+    const fromComposable = buyNowItemsComputed?.value || [];
+    return fromComposable.length ? fromComposable : (props.cartItems || []);
+  } else {
+    const fromComposable = cartItemsComputed?.value || [];
+    return (props.cartItems?.length || 0) > 0 ? props.cartItems : fromComposable;
+  }
+});
+
+// ====== HELPERS ======
+const calculateStoreTotal = (shop) => {
+  return (shop.items || []).reduce((total, item) => {
+    const unit = Number(item.sale_price || 0);
+    return total + unit * (item.quantity || 1);
+  }, 0);
+};
+
+// clone lại local từ nguồn (để UI thấy shipping_fee mới)
+const syncLocalFromSource = () => {
+  localCartItems.value = JSON.parse(JSON.stringify(itemsSource.value || []));
+};
+
+// ====== VOUCHERS ======
 const fetchUserVouchers = async () => {
   loadingCoupons.value = true;
   try {
     const token = localStorage.getItem('access_token');
-    
     if (!token) {
-      console.error('No access token found');
       userVouchers.value = [];
       return;
     }
-
     const res = await fetch(`${apiBase}/discounts/my-vouchers`, {
-      headers: { 
-        'Authorization': `Bearer ${token}`,
+      headers: {
+        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      }
+        Accept: 'application/json',
+      },
     });
-    
     if (res.ok) {
       const data = await res.json();
       userVouchers.value = data.data || [];
-      console.log('Vouchers fetched successfully:', userVouchers.value.length);
     } else {
-      console.error('Failed to fetch vouchers:', res.status, res.statusText);
       userVouchers.value = [];
     }
-  } catch (error) {
-    console.error('Error fetching vouchers:', error);
+  } catch (err) {
+    console.error('Error fetching vouchers:', err);
     userVouchers.value = [];
   } finally {
     loadingCoupons.value = false;
@@ -255,130 +272,220 @@ const fetchUserVouchers = async () => {
 
 const filteredVouchers = computed(() => {
   if (!selectedSellerId.value) return [];
-  return userVouchers.value.filter(v => String(v.seller_id) === String(selectedSellerId.value));
+  return userVouchers.value.filter(
+    (v) => String(v.seller_id) === String(selectedSellerId.value)
+  );
 });
 
 const filteredVouchersSearched = computed(() => {
   let arr = filteredVouchers.value;
   if (searchCoupon.value) {
     const keyword = searchCoupon.value.toLowerCase();
-    arr = arr.filter(v =>
-      (v.code && v.code.toLowerCase().includes(keyword)) ||
-      (v.description && v.description.toLowerCase().includes(keyword))
+    arr = arr.filter(
+      (v) =>
+        (v.code && v.code.toLowerCase().includes(keyword)) ||
+        (v.description && v.description.toLowerCase().includes(keyword))
     );
   }
   const seen = new Set();
-  return arr.filter(v => {
+  return arr.filter((v) => {
     if (seen.has(v.id)) return false;
     seen.add(v.id);
     return true;
   });
 });
 
+// ====== DISCOUNT FLOW ======
 const selectShopDiscount = async (sellerId) => {
   selectedSellerId.value = sellerId;
   showDiscountPopup.value = true;
-  
-  if (userVouchers.value.length === 0) {
-    await fetchUserVouchers();
-  }
+  if (userVouchers.value.length === 0) await fetchUserVouchers();
 };
 
-const applyDiscount = (voucher) => {
+const applyDiscount = async (voucher) => {
   if (!selectedSellerId.value) return;
-  
-  const shop = localCartItems.value.find(s => s.seller_id === selectedSellerId.value);
-  if (!shop) return;
-  
+
+  const shopIndex = localCartItems.value.findIndex(
+    (s) => String(s.seller_id) === String(selectedSellerId.value)
+  );
+  if (shopIndex === -1) return;
+
+  const shop = localCartItems.value[shopIndex];
   const storeTotal = calculateStoreTotal(shop);
-  
-  // Validate minimum order value
+
+  // Validate min order
   if (voucher.min_order_value && storeTotal < voucher.min_order_value) {
-    toast('error', `Đơn hàng tối thiểu ${formatPrice(voucher.min_order_value)} để sử dụng mã này`);
+    toast('error', `Đơn tối thiểu ${formatPrice(voucher.min_order_value)} để dùng mã này`);
     return;
   }
-  
-  // Calculate discount
+
+  // Tính discount
   let discountAmount = 0;
   if (voucher.discount_type === 'percentage') {
-    discountAmount = Math.floor(storeTotal * (voucher.discount_value / 100));
+    discountAmount = Math.floor(storeTotal * (Number(voucher.discount_value) / 100));
   } else {
-    discountAmount = Math.min(voucher.discount_value, storeTotal);
+    discountAmount = Math.min(Number(voucher.discount_value), storeTotal);
   }
-  
-  // Apply discount
-  const shopIndex = localCartItems.value.findIndex(s => s.seller_id === selectedSellerId.value);
-  if (shopIndex !== -1) {
-    localCartItems.value[shopIndex].discount = discountAmount;
-    localCartItems.value[shopIndex].discount_code = voucher.code;
-    localCartItems.value[shopIndex].discount_id = voucher.id;
-  }
-  
+
+  // Gọi core để validate + đồng bộ
+  const ok = await updateShopDiscount(selectedSellerId.value, discountAmount, voucher.id);
+  if (!ok) return;
+
+  // Lưu local để UI phản hồi ngay
+  localCartItems.value[shopIndex].discount = discountAmount;
+  localCartItems.value[shopIndex].discount_code = voucher.code;
+  localCartItems.value[shopIndex].discount_id = voucher.id;
+
+  emit('update:shopDiscount', {
+    sellerId: selectedSellerId.value,
+    discount: discountAmount,
+    discountId: voucher.id,
+    action: 'apply',
+  });
+
   showDiscountPopup.value = false;
-  toast('success', `Đã áp dụng mã giảm giá ${voucher.code}`);
+  toast('success', `Đã áp dụng mã ${voucher.code}`);
 };
 
-const removeDiscount = (shop) => {
-  const shopIndex = localCartItems.value.findIndex(s => s.seller_id === shop.seller_id);
-  if (shopIndex !== -1) {
-    localCartItems.value[shopIndex].discount = 0;
-    localCartItems.value[shopIndex].discount_code = null;
-    localCartItems.value[shopIndex].discount_id = null;
-    
-    // Emit event để checkout.vue có thể cập nhật lại
+const removeDiscount = async (shop) => {
+  const idx = localCartItems.value.findIndex((s) => s.seller_id === shop.seller_id);
+  if (idx !== -1) {
+    await removeShopDiscountCore(shop.seller_id);
+    localCartItems.value[idx].discount = 0;
+    localCartItems.value[idx].discount_code = null;
+    localCartItems.value[idx].discount_id = null;
+
     emit('update:shopDiscount', {
       sellerId: shop.seller_id,
       discount: 0,
       discountId: null,
-      action: 'remove'
+      action: 'remove',
     });
   }
   toast('success', 'Đã huỷ mã giảm giá');
 };
 
 const removeShippingDiscount = (shop) => {
-  const shopIndex = localCartItems.value.findIndex(s => s.seller_id === shop.seller_id);
-  if (shopIndex !== -1) {
-    localCartItems.value[shopIndex].shipping_discount = 0;
-    localCartItems.value[shopIndex].shipping_discount_code = null;
+  const idx = localCartItems.value.findIndex((s) => s.seller_id === shop.seller_id);
+  if (idx !== -1) {
+    localCartItems.value[idx].shipping_discount = 0;
+    localCartItems.value[idx].shipping_discount_code = null;
   }
+  emit('update:shippingDiscount', { sellerId: shop.seller_id, shippingDiscount: 0 });
   toast('success', 'Đã huỷ giảm giá phí ship');
 };
 
-// Kiểm tra xem discount của shop có phải từ admin không
+// discount của shop có phải từ admin không?
 const isShopDiscountFromAdmin = (shop) => {
   if (!shop.discount || shop.discount <= 0) return false;
-  
-  // Lấy discount ID của shop
   const shopDiscountId = getShopDiscountId(shop.seller_id);
-  
-  // Kiểm tra xem discount ID này có tương ứng với admin discount không
-  const adminDiscount = selectedDiscounts.value?.find(d => 
-    d.id === shopDiscountId && !d.seller_id && (d.discount_type === 'percentage' || d.discount_type === 'fixed')
+  const adminDiscount = selectedDiscounts.value?.find(
+    (d) =>
+      d.id === shopDiscountId &&
+      !d.seller_id &&
+      (d.discount_type === 'percentage' || d.discount_type === 'fixed')
   );
-  
   return !!adminDiscount;
 };
 
+// ====== SHIPPING ======
 const retryCalculateFees = async () => {
   errorMessage.value = '';
-  const { loadShippingFees } = useCheckout();
-  await loadShippingFees();
+  try {
+    if (!selectedAddress.value?.district_id || !selectedAddress.value?.ward_code) {
+      errorMessage.value = 'Thiếu địa chỉ nhận (district/ward).';
+      return;
+    }
+    loadingShipping.value = true;
+    await loadShippingFees();
+    // Đồng bộ lại sau khi tính xong
+    syncLocalFromSource();
+  } catch (e) {
+    console.error(e);
+    errorMessage.value = 'Không thể tính phí vận chuyển. Vui lòng thử lại.';
+  } finally {
+    loadingShipping.value = false;
+  }
 };
 
-// Update total shipping fee when local cart items change
-watch(localCartItems, () => {
-  const totalShippingFeeValue = localCartItems.value.reduce((sum, shop) => {
-    const shippingFee = shop.shipping_fee || 0;
-    const shippingDiscount = shop.shipping_discount || 0;
+// ====== SYNC LOCAL & EMIT TOTAL SHIPPING ======
+const recomputeAndEmitTotalShipping = () => {
+  const totalShippingFeeValue = (localCartItems.value || []).reduce((sum, shop) => {
+    const shippingFee = Number(shop.shipping_fee || 0);
+    const shippingDiscount = Number(shop.shipping_discount || 0);
     return sum + Math.max(0, shippingFee - shippingDiscount);
   }, 0);
-  
   emit('update:totalShippingFee', totalShippingFeeValue);
-}, { deep: true });
+};
 
-onMounted(() => {
-  localCartItems.value = JSON.parse(JSON.stringify(props.cartItems));
+// Debounce nhẹ cho load ship khi thay đổi
+let shipTimer;
+const scheduleReloadShipping = () => {
+  clearTimeout(shipTimer);
+  shipTimer = setTimeout(async () => {
+    try {
+      if (!selectedAddress.value?.district_id || !selectedAddress.value?.ward_code) {
+        // Chưa đủ địa chỉ → không gọi ship
+        return;
+      }
+      loadingShipping.value = true;
+      await loadShippingFees();
+      // Đồng bộ lại dữ liệu có shipping_fee mới
+      syncLocalFromSource();
+    } catch (e) {
+      console.error(e);
+      errorMessage.value = 'Không thể tính phí vận chuyển. Vui lòng thử lại.';
+    } finally {
+      loadingShipping.value = false;
+    }
+  }, 300);
+};
+
+// ====== WATCHERS ======
+watch(
+  itemsSource,
+  () => {
+    syncLocalFromSource();
+    scheduleReloadShipping();
+  },
+  { immediate: true, deep: true }
+);
+
+// (tuỳ chọn) nếu muốn sync từ props.cartItems, chỉ khi KHÔNG phải Buy Now
+watch(
+  () => props.cartItems,
+  (newItems) => {
+    if (!props.isBuyNow) {
+      localCartItems.value = JSON.parse(JSON.stringify(newItems || []));
+    }
+  },
+  { deep: true }
+);
+
+// Cập nhật tổng phí ship mỗi khi local thay đổi
+watch(localCartItems, recomputeAndEmitTotalShipping, { deep: true });
+
+// Khi state đang tính → xong, clone lại để UI thấy ship ngay
+watch(isCheckoutCalculatingShipping, (now, prev) => {
+  if (prev === true && now === false) {
+    syncLocalFromSource();
+  }
+});
+
+onMounted(async () => {
+  syncLocalFromSource();
+  try {
+    if (!selectedAddress.value?.district_id || !selectedAddress.value?.ward_code) return;
+    loadingShipping.value = true;
+    await loadShippingFees();
+    // clone lại sau khi tính ship
+    syncLocalFromSource();
+  } catch (e) {
+    console.error(e);
+    errorMessage.value = 'Không thể tính phí vận chuyển. Vui lòng thử lại.';
+  } finally {
+    loadingShipping.value = false;
+  }
 });
 </script>
 

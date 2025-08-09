@@ -27,7 +27,14 @@ import { useToast } from '~/composables/useToast'
 import PostDetail from '~/components/posts/PostDetail.vue'
 import CommentSection from '~/components/posts/CommentSection.vue'
 import PostSidebar from '~/components/posts/PostSidebar.vue'
+import { useHead } from '#imports'
 
+useHead({
+  title: 'Chi tiết bài viết',
+  meta: [
+    { name: 'description', content: 'Liên hệ với chúng tôi để được hỗ trợ nhanh chóng và hiệu quả. Passion luôn sẵn sàng giúp đỡ bạn.' }
+  ]
+})
 const route = useRoute()
 const authStore = useAuthStore()
 const { toast } = useToast()

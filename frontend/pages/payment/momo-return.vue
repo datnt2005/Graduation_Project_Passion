@@ -152,7 +152,14 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useRuntimeConfig } from '#imports'
 import { useCart } from '~/composables/useCart'
+import { useHead } from '#imports'
 
+useHead({
+  title: 'Thanh Toán MoMo',
+  meta: [
+    { name: 'description', content: 'Liên hệ với chúng tôi để được hỗ trợ nhanh chóng và hiệu quả. Passion luôn sẵn sàng giúp đỡ bạn.' }
+  ]
+})
 const route = useRoute()
 const router = useRouter()
 const config = useRuntimeConfig()

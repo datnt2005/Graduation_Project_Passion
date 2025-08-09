@@ -531,14 +531,14 @@ class OrderController extends Controller
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.price' => 'required|numeric|min:0',
             'items.*.seller_id' => 'required|exists:sellers,id',
-            'items.*.service_id' => 'required|exists:shipping_methods,id', // Thêm validation cho service_id trong items
+            'items.*.service_id' => 'required|integer',
             'items.*.shipping_fee' => 'required|numeric|min:0', // Thêm validation cho shipping_fee trong items
             'payment_method' => 'required|string|in:COD,VNPAY,MOMO',
             'address_id' => 'required|exists:addresses,id',
             'store_shipping_fees' => 'required|array',
             'store_shipping_fees.*' => 'required|numeric|min:0',
             'store_service_ids' => 'required|array',
-            'store_service_ids.*' => 'required|exists:shipping_methods,id',
+            'store_service_ids.*' => 'required|integer',
         ], [
             'store_shipping_fees.*.numeric' => 'Phí vận chuyển phải là số',
             'store_shipping_fees.*.min' => 'Phí vận chuyển phải lớn hơn hoặc bằng 0',
@@ -616,10 +616,13 @@ class OrderController extends Controller
             $itemsBySeller = [];
             $isBuyNow = $request->is_buy_now ?? false;
             if ($isBuyNow) {
-                $itemsBySeller[0] = $items;
+                $firstSellerId = $items[0]['seller_id'] ?? null;
+                if (!$firstSellerId) {
+                    throw new \Exception('Thiếu seller_id trong items khi mua ngay');
+                }
+                $itemsBySeller[$firstSellerId] = $items;
             } else {
                 foreach ($items as $item) {
-                    $product = $products[$item['product_id']];
                     $sellerId = $item['seller_id'];
                     $itemsBySeller[$sellerId][] = $item;
                 }
@@ -740,10 +743,25 @@ class OrderController extends Controller
                 $finalPrice = $totalPrice - $shopDiscount;
                 $finalPrice = max($finalPrice, 0);
 
-                $shopServiceId = $request->store_service_ids[$sellerId] ?? null;
-                $shippingMethod = ShippingMethod::find($shopServiceId);
+                $shopServiceId = (int) ($request->store_service_ids[$sellerId] ?? 0);
+
+                $shippingMethod = ShippingMethod::where('carrier', 'GHN')
+                    ->where('id', $shopServiceId)
+                    ->first();
+
                 if (!$shippingMethod) {
-                    throw new \Exception('Phương thức giao hàng không tồn tại: service_id ' . $shopServiceId);
+                    $shippingMethod = ShippingMethod::create([
+                        'carrier'            => 'GHN',
+                        'id' => $shopServiceId,
+                        'name'               => match ($shopServiceId) {
+                            53321 => 'GHN Tiêu chuẩn',
+                            53322 => 'GHN Nhanh',
+                            100039 => 'GHN Hàng Nặng',
+                            default => 'GHN Service ' . $shopServiceId,
+                        },
+                        'estimated_days'     => 3,
+                        'status'             => 'active',
+                    ]);
                 }
 
                 $shippingDiscountValue = 0;
