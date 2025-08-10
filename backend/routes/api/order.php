@@ -21,6 +21,10 @@ Route::prefix('orders')->middleware(['auth:sanctum'])->group(function () {
     Route::middleware('checkRole:user')->get('/', [OrderController::class, 'index']);
     Route::middleware('checkRole:user')->get('/{id}', [OrderController::class, 'show']);
 
+     
+Route::get('/orders/{id}/reorder-detail', [OrderController::class, 'reorderDetail'])
+    ->middleware(['auth:sanctum', 'checkRole:user']);
+
     // User đặt đơn hàng (store)
     Route::middleware('checkRole:user')->post('/', [OrderController::class, 'store']);
 
@@ -32,8 +36,8 @@ Route::prefix('orders')->middleware(['auth:sanctum'])->group(function () {
        Route::put('/seller/{id}/status', [OrderController::class, 'update']);
     });
 
-    
-    
+
+
     // Áp dụng / gỡ mã giảm giá – chỉ cho admin và seller
     Route::middleware('checkRole:admin,seller')->group(function () {
         Route::post('/{id}/apply-discount', [OrderController::class, 'applyDiscount']);

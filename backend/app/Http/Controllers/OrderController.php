@@ -1926,4 +1926,72 @@ class OrderController extends Controller
             ], 500);
         }
     }
+
+
+ public function reorderDetail($id)
+{
+    try {
+        $user = auth()->user();
+
+        $order = Order::with([
+            'orderItems.product:id,name,slug',
+            'orderItems.productVariant:id,product_id,thumbnail,quantity,sku,price,sale_price'
+        ])
+        ->where('id', $id)
+        ->where('user_id', $user->id)
+        ->firstOrFail();
+
+        $item = $order->orderItems->first();
+
+        if (!$item) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không tìm thấy sản phẩm trong đơn hàng!'
+            ], 404);
+        }
+
+        $product = optional($item->product);
+        $variant = optional($item->productVariant);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'product_id'         => $product->id,
+                'product_name'       => $product->name,
+                'product_slug'       => $product->slug,
+                'product_thumbnail'  => $product->thumbnail,
+                'variant_id'         => $variant->id,
+                'variant_name'       => $variant->name,
+                'variant_thumbnail'  => $variant->thumbnail,
+                'variant_stock'      => (int) $variant->quantity,
+                'variant_sku'        => $variant->sku,
+                'variant_price'      => $variant->price,
+                'variant_sale_price' => $variant->sale_price,
+                'quantity'           => $item->quantity
+            ]
+        ], 200);
+
+    } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Không tìm thấy đơn hàng!'
+        ], 404);
+
+    } catch (\Exception $e) {
+        \Log::error('Reorder detail error', [
+            'order_id' => $id,
+            'user_id' => auth()->id(),
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ]);
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
+
+
 }

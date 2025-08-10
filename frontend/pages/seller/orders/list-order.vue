@@ -102,7 +102,7 @@
           </tbody>
         </table>
 
-        <!-- Dropdown Portal -->
+   <!-- Dropdown Portal -->
         <Teleport to="body">
           <Transition enter-active-class="transition duration-100 ease-out" enter-from-class="transform scale-95 opacity-0"
             enter-to-class="transform scale-100 opacity-100" leave-active-class="transition duration-75 ease-in"
@@ -116,11 +116,20 @@
                     class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Xem chi tiết</button>
                   <button @click="openUpdateStatusModal(order); activeDropdown = null"
                     class="w-full text-left px-4 py-2 text-sm text-blue-700 hover:bg-blue-50">Cập nhật trạng thái</button>
+                    <button
+                        v-if="isDelivered(order.status)"
+                        @click.prevent="printInvoice(order)"
+                         class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        title="In hoá đơn"
+                      >
+                        In hóa đơn
+                      </button>
                 </div>
               </div>
             </div>
           </Transition>
-        </Teleport>
+        </Teleport>  
+      
 
         <!-- Modal xem chi tiết đơn hàng -->
         <Teleport to="body">
@@ -1535,6 +1544,80 @@ const receivePayout = async (order) => {
     showNotification('Lỗi kết nối server', false);
   }
 };
+
+
+const isDelivered = (status) => {
+  if (!status && status !== 0) return false;
+  const s = String(status).toLowerCase();
+  return s === 'delivered' || s === 'đã giao' || s.includes('delivered') || s.includes('đã giao');
+};
+
+//  in hoa don
+const printInvoice = (order) => {
+  const formatCurrency = (v) =>
+    new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(v || 0));
+
+  const itemsHtml = (order.items || []).map(it => `
+    <tr>
+      <td>${it.product?.name || it.name || '-'}</td>
+      <td style="text-align:right">${it.quantity || it.qty || 0}</td>
+      <td style="text-align:right">${formatCurrency(it.price || it.unit_price || 0)}</td>
+      <td style="text-align:right">${formatCurrency((it.price || it.unit_price || 0) * (it.quantity || it.qty || 0))}</td>
+    </tr>
+  `).join('');
+
+  const html = `
+    <!doctype html>
+    <html>
+      <head>
+        <meta charset="utf-8"/>
+        <title>Hoá đơn #${order.id}</title>
+        <style>
+          body{font-family:Arial,sans-serif;padding:20px}
+          table{width:100%;border-collapse:collapse}
+          td,th{border:1px solid #ddd;padding:6px;font-size:13px}
+          .right{text-align:right}
+          @media print { .no-print{display:none} }
+        </style>
+      </head>
+      <body>
+        <h2>Hoá đơn giao hàng — #${order.id}</h2>
+        <div>Khách: ${order.user?.name || order.customer_name || '-'}</div>
+        <div>Địa chỉ: ${order.address?.full || order.address || '-'}</div>
+
+        <table>
+          <thead>
+            <tr><th>Sản phẩm</th><th>Số lượng</th><th>Đơn giá</th><th>Thành tiền</th></tr>
+          </thead>
+          <tbody>
+            ${itemsHtml}
+          </tbody>
+        </table>
+
+        <div style="margin-top:10px;text-align:right;font-weight:bold">
+          Tổng: ${formatCurrency(order.final_price || order.total || ((order.items||[]).reduce((s,it)=>(s + (it.quantity||it.qty||0)*(it.price||it.unit_price||0)),0)))}
+        </div>
+
+        <div class="no-print" style="margin-top:12px">
+          <button onclick="window.print()">In (nếu in không tự bật)</button>
+        </div>
+      </body>
+    </html>
+  `;
+
+  const w = window.open('', '_blank');
+  if (!w) {
+    alert('Trình duyệt có thể chặn pop-up. Bật pop-up hoặc in từ chi tiết đơn.');
+    return;
+  }
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  setTimeout(() => { try { w.print(); } catch (e) { console.error(e); } }, 300);
+};
+
+
 </script>
 
 <style scoped>
