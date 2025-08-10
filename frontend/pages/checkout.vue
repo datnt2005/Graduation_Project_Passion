@@ -214,7 +214,7 @@
                   <div class="flex-1">
                     <div class="flex items-center mb-2">
                       <span class="text-gray-800 font-semibold text-base">Khuyến mãi</span>
-                      <span class="text-[13px] text-gray-600 ml-2">(Đã chọn {{ selectedDiscounts.length }}/2)</span>
+                      <span class="text-[13px] text-gray-600 ml-2">(Đã chọn {{ selectedDiscounts.length }})</span>
                     </div>
                     <div v-if="selectedDiscounts.length"
                       class="bg-gray-50 border border-dashed border-gray-300 rounded-md p-3 space-y-2">
@@ -241,7 +241,6 @@
                       </div>
                     </div>
                   </div>
-                  <span class="text-[14px] text-gray-500 ml-4 self-start whitespace-nowrap">Có thể chọn 2</span>
                 </div>
                 <button @click="showDiscountModal = true"
                   class="flex items-center gap-2 text-[#2A7FDF] text-[14px] hover:underline" type="button">
@@ -473,7 +472,7 @@ const wards = ref([]);
 const manualCode = ref('');
 const showDiscountModal = ref(false);
 const storeNotes = ref({});
-const isOrderDetailsOpen = ref(true);
+const isOrderDetailsOpen = ref(false);
 const orderLoading = ref(false);
 
 const {
