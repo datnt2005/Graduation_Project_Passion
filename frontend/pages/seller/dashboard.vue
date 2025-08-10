@@ -169,7 +169,7 @@
       <div v-else-if="!filteredData.length" class="text-center text-gray-400 py-10">Không tìm thấy sản phẩm nào</div>
       <!-- Bảng dữ liệu -->
       <div v-else class="overflow-x-auto mt-4">
-        <table class="min-w-[1200px] divide-y divide-gray-200">
+        <table class="w-full divide-y divide-gray-200">
           <thead>
             <tr>
               <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Tên sản phẩm</th>

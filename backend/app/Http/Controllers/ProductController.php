@@ -1152,12 +1152,14 @@ class ProductController extends Controller
             // Fetch product with relationships
             $product = Product::where('slug', $slug)
                 ->where('status', 'active')
+                ->where('admin_status', 'approved')
                 ->with([
                     'seller.user',
                     'categories:id,name,slug',
                     'productVariants.inventories:id,product_variant_id,quantity',
                     'productVariants.attributes.values:id,attribute_id,value',
                     'productVariants.orderItems:id,product_variant_id,quantity',
+                    'orderItems.order:id,status',
                     'productPic:id,product_id,imagePath',
                     'tags:id,name,slug',
                     'reviews:id,product_id,rating',
@@ -1174,11 +1176,12 @@ class ProductController extends Controller
 
             // Calculate rating and sold count
             $rating = round($product->reviews->avg('rating') ?: 0, 2);
-            $sold = $product->productVariants->flatMap(function ($variant) {
-                return $variant->orderItems;
-            })->sum('quantity');
+            $sold = OrderItem::where('product_id', $product->id)
+                ->whereHas('order', function ($query) {
+                    $query->whereIn('status', ['completed', 'delivered']);
+                })
+                ->sum('quantity');
 
-            // Seller information
             $seller = $product->seller;
             $sellerProductsCount = $seller ? Product::where('seller_id', $seller->id)->where('status', 'active')->where('admin_status', 'approved')->count() : 0;
             $sellerRating = $seller ? round(
@@ -1414,7 +1417,6 @@ class ProductController extends Controller
         ], 200);
     }
 
-    //hiện sản phẩm ra trang chủ, (có rating, sold, price, sale_price, thumbnail, categories, tags)
     public function getAllProducts(Request $request)
     {
         try {
@@ -1532,7 +1534,9 @@ class ProductController extends Controller
                 $stars = str_repeat('★', $rating) . str_repeat('☆', 5 - $rating);
 
                 // Total sold
-                $sold = $variant?->orderItems->sum('quantity') ?? 0;
+                $sold = $product->productVariants->sum(function ($variant) {
+                    return $variant->orderItems->whereIn('order.status', ['completed', 'delivered'])->sum('quantity');
+                });
                 $percent = ($discount && $price > 0)
                     ? round((($price - $discount) / $price) * 100)
                     : 0;

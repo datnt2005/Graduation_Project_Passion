@@ -6,6 +6,8 @@ use Illuminate\Http\Request;
 use App\Models\Seller;
 use App\Models\User;
 use App\Models\Discount;
+use App\Models\ProductVariant;
+use App\Models\OrderItem;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
@@ -339,14 +341,14 @@ class SellerController extends Controller
 
             // Total active products
             $productsCount = $seller->products()->where('status', 'active')->where('admin_status', 'approved')->count();
-
-            // Total sold items
             $totalSold = $seller->products->flatMap(function ($product) {
                 return $product->productVariants->flatMap(function ($variant) {
-                    return $variant->orderItems ?? collect();
+                    return $variant->orderItems
+                        ->filter(function ($orderItem) {
+                            return $orderItem->order && in_array($orderItem->order->status, ['delivered', 'completed']);
+                        }) ?? collect();
                 });
             })->sum('quantity') ?? 0;
-
             // Mask phone number
             $phone = $seller->phone_number
                 ? substr($seller->phone_number, 0, 4) . str_repeat('*', max(0, strlen($seller->phone_number) - 7)) . substr($seller->phone_number, -5)
@@ -444,7 +446,10 @@ class SellerController extends Controller
                     'percent' => $defaultPercent,
                     'rating' => str_repeat('★', (int) round($rating)) . str_repeat('☆', 5 - (int) round($rating)),
                     'sold' => (int) ($product->productVariants->flatMap(function ($variant) {
-                        return $variant->orderItems ?? collect();
+                        return $variant->orderItems
+                            ->filter(function ($orderItem) {
+                                return $orderItem->order && in_array($orderItem->order->status, ['delivered', 'completed']);
+                            }) ?? collect();
                     })->sum('quantity') ?? 0),
                     'image' => $product->productPic->first()->imagePath ?? 'products/default.png',
                     'categories' => $product->categories->pluck('name')->toArray(),

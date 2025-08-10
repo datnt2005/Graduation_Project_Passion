@@ -463,7 +463,7 @@
           </div>
 
           <!-- Hỗ trợ -->
-          <NuxtLink to="/support " class="flex items-center gap-2 hover:text-blue-600 transition-colors duration-200"
+          <NuxtLink to="/support" class="flex items-center gap-2 hover:text-blue-600 transition-colors duration-200"
             @click="isMobileMenuOpen = false">
             <font-awesome-icon :icon="['fas', 'info']" class="w-5 h-5" />
             Hỗ trợ
@@ -475,19 +475,19 @@
               <font-awesome-icon :icon="['fas', 'user']" class="w-5 h-5" />
               <span>Xin chào, <strong>{{ userName }}</strong></span>
             </div>
-            <button @click="logout; isMobileMenuOpen = false"
+            <button @click.prevent="() => { logout(); isMobileMenuOpen = false }"
               class="flex items-center gap-2 hover:text-blue-600 transition-colors duration-200 w-full text-left">
               <font-awesome-icon :icon="['fas', 'arrow-right-from-bracket']" class="w-5 h-5" />
               Đăng xuất
             </button>
           </template>
           <template v-else>
-            <a href="#" @click.prevent="openLogin; isMobileMenuOpen = false"
+            <a href="#" @click.prevent="() => { openLogin(); isMobileMenuOpen = false }"
               class="flex items-center gap-2 hover:text-blue-600 transition-colors duration-200">
               <font-awesome-icon :icon="['fas', 'right-to-bracket']" class="w-5 h-5" />
               Đăng nhập
             </a>
-            <a href="#" @click.prevent="openRegister; isMobileMenuOpen = false"
+            <a href="#" @click.prevent="() => { openRegister(); isMobileMenuOpen = false }"
               class="flex items-center gap-2 hover:text-blue-600 transition-colors duration-200">
               <font-awesome-icon :icon="['fas', 'plus']" class="w-5 h-5" />
               Đăng ký
