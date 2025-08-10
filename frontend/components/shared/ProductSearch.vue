@@ -49,39 +49,47 @@
       </div>
     </div>
 
-    <!-- Nút điều hướng -->
+    <!-- Nút điều hướng trái -->
     <button
       v-if="canNavigate"
       @click="scrollLeft"
-      aria-label="Previous"
-      class="absolute left-2 top-1/2 -translate-y-1/2 bg-white border border-gray-300 rounded-full w-8 h-8 flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition"
+      class="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white z-10 p-1 shadow rounded-full hover:bg-gray-100 transition"
+      aria-label="Scroll left"
     >
-      <i class="fas fa-chevron-left"></i>
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        class="h-4 w-4 text-gray-600"
+        viewBox="0 0 20 20"
+        fill="currentColor"
+      >
+        <path
+          fill-rule="evenodd"
+          d="M12.707 15.707a1 1 0 01-1.414 0L6.586 11l4.707-4.707a1 1 0 111.414 1.414L9.414 11l3.293 3.293a1 1 0 010 1.414z"
+          clip-rule="evenodd"
+        />
+      </svg>
     </button>
+
+    <!-- Nút điều hướng phải -->
     <button
       v-if="canNavigate"
       @click="scrollRight"
-      aria-label="Next"
-      class="absolute right-2 top-1/2 -translate-y-1/2 bg-white border border-gray-300 rounded-full w-8 h-8 flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition"
+      class="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white z-10 p-1 shadow rounded-full hover:bg-gray-100 transition"
+      aria-label="Scroll right"
     >
-      <i class="fas fa-chevron-right"></i>
-    </button>
-
-    <!-- Biểu tượng < và > khi có thể kéo -->
-    <div
-      v-if="canNavigate"
-      class="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xl font-bold"
-      style="pointer-events: none;"
-    >
-      <
-    </div>
-    <div
-      v-if="canNavigate"
-      class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 text-xl font-bold"
-      style="pointer-events: none;"
-    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        class="h-4 w-4 text-gray-600"
+        viewBox="0 0 20 20"
+        fill="currentColor"
       >
-    </div>
+        <path
+          fill-rule="evenodd"
+          d="M7.293 4.293a1 1 0 011.414 0L13.414 9l-4.707 4.707a1 1 0 01-1.414-1.414L10.586 9 7.293 5.707a1 1 0 010-1.414z"
+          clip-rule="evenodd"
+        />
+      </svg>
+    </button>
   </div>
 </template>
 

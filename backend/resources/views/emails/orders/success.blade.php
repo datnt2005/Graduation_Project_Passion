@@ -91,6 +91,9 @@
             display: flex;
             gap: 20px;
             margin-bottom: 15px;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            align-items: center;
         }
 
         .address-box {
@@ -99,6 +102,7 @@
             border: 1px solid #e0e0e0;
             border-radius: 6px;
             background: #fafafa;
+            margin: 0 10px;
         }
 
         .address-label {
@@ -288,22 +292,20 @@
 
         <!-- Sender/Recipient Section -->
         <div class="address-section">
-            <div class="address-row">
-                <div class="address-box">
-                    <div class="address-label">Từ:</div>
+            <div class="address-row justify-content-between">
+                <div class="address-box mx-3">
+                    <div class="address-label">Người bán:</div>
                     <div class="address-content">
-                        <strong>PASSION - Thế giới trang sức</strong><br>
-                        {{ $order->shipping->sender_address ?? 'Địa chỉ gửi hàng' }}<br>
-                        SĐT: {{ $order->shipping->sender_phone ?? 'Liên hệ' }}
+                        <strong>{{ $order->orderItems->first()->product->seller->store_name ?? 'PASSION' }}</strong><br>
+                        SĐT: {{ $order->orderItems->first()->product->seller->phone_number ?? 'Liên hệ' }}
                     </div>
                 </div>
                 <div class="address-box">
-                    <div class="address-label">Đến:</div>
+                    <div class="address-label">Người mua:</div>
                     <div class="address-content">
-                        <div class="delivery-note">(Chỉ giao giờ hành chính)</div>
-                        <strong>{{ $order->shipping->recipient_name }}</strong><br>
-                        {{ $order->shipping->recipient_address }}<br>
-                        SĐT: {{ $order->shipping->recipient_phone }}
+                        <strong>{{ $order->address->name }}</strong><br>
+                        {{ $order->address->detail }}<br>
+                        SĐT: {{ $order->address->phone }}<br>
                     </div>
                 </div>
             </div>
@@ -326,8 +328,7 @@
         <!-- Payment Section -->
         <div class="payment-section">
             <div class="payment-row">
-                <div class="payment-label">Tổng tiền:</div>
-                <div class="payment-amount">{{ number_format($order->final_price, 0, '', ',') }} đ</div>
+               <p class="payment-label">Tổng tiền: {{ number_format($order->final_price, 0, ',', '.') }} đ</p>
             </div>
         </div>
 
