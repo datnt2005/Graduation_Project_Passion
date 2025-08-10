@@ -822,4 +822,66 @@ class ReviewController extends Controller
             return response()->json(['error' => 'Không thể xóa đánh giá'], 500);
         }
     }
+
+public function sellerReviewCounts(Request $request)
+{
+    try {
+        $sellerId = auth('sanctum')->user()->id;
+
+        // Query cơ bản để lấy đánh giá của sản phẩm thuộc về người bán
+        $baseQuery = Review::whereHas('product', function ($q) use ($sellerId) {
+            $q->whereHas('seller', function ($sub) use ($sellerId) {
+                $sub->where('user_id', $sellerId);
+            });
+        })->whereNull('parent_id');
+
+        // Clone query để tránh thay đổi trạng thái
+        $allReviews = $baseQuery->get();
+
+        // Đếm số lượng đánh giá theo số sao
+        $countByRating = [
+            'all' => $allReviews->count(),
+            1 => $allReviews->where('rating', 1)->count(),
+            2 => $allReviews->where('rating', 2)->count(),
+            3 => $allReviews->where('rating', 3)->count(),
+            4 => $allReviews->where('rating', 4)->count(),
+            5 => $allReviews->where('rating', 5)->count(),
+        ];
+
+        // Đếm số lượng đánh giá theo trạng thái
+        $countByStatus = [
+            'all' => $allReviews->count(),
+            'approved' => $allReviews->where('status', 'approved')->count(),
+            'pending' => $allReviews->where('status', 'pending')->count(),
+            'rejected' => $allReviews->where('status', 'rejected')->count(),
+        ];
+
+        // Đếm số lượng đánh giá có ảnh/video
+        $countWithMedia = $baseQuery->whereHas('media', function ($query) {
+            $query->whereIn('media_type', ['image', 'video'])->whereNotNull('media_url');
+        })->count();
+
+        // Debug log
+        \Log::info('sellerReviewCounts data', [
+            'seller_id' => $sellerId,
+            'reviews' => $allReviews->toArray(),
+            'count_by_rating' => $countByRating,
+            'count_by_status' => $countByStatus,
+            'count_with_media' => $countWithMedia,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'count_by_rating' => $countByRating,
+            'count_by_status' => $countByStatus,
+            'count_with_media' => $countWithMedia,
+        ], 200);
+    } catch (\Exception $e) {
+        \Log::error('Lỗi khi lấy số lượng đánh giá: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Lỗi khi lấy số lượng đánh giá: ' . $e->getMessage(),
+        ], 500);
+    }
+}
 }

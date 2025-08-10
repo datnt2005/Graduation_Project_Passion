@@ -199,36 +199,87 @@ class ReportController extends Controller
         ]);
     }
 
-     public function adminIndex(Request $request)
-    {
-        $reports = Report::with([
+    public function adminIndex(Request $request)
+{
+    try {
+        $perPage = $request->query('per_page', 10); // Mặc định 10 bản ghi mỗi trang
+        $page = $request->query('page', 1); // Mặc định trang 1
+        $sortOrder = $request->query('sort_order', 'desc'); // Mặc định sắp xếp mới nhất
+        $status = $request->query('status'); // Lọc theo trạng thái
+        $search = $request->query('search'); // Tìm kiếm theo nội dung, sản phẩm, hoặc người báo cáo
+
+        // Xây dựng query
+        $query = Report::with([
             'review.product.seller',
             'review.user',
             'reporter'
         ])
             ->where('type', 'review')
-            ->latest()
-            ->get()
-            ->filter(fn($report) => $report->review && $report->review->product && $report->review->user)
-            ->map(function ($report) {
-                return [
-                    'report_id' => $report->id,
-                    'reason' => $report->reason,
-                    'status' => $report->status,
-                    'reported_at' => $report->created_at,
-                    'review' => [
-                        'id' => $report->review->id,
-                        'content' => $report->review->content,
-                        'product_name' => $report->review->product->name,
-                        'user_name' => $report->review->user->name,
-                    ],
-                    'reporter' => $report->reporter->name ?? 'Ẩn danh',
-                ];
-            })
-            ->values();
+            ->whereHas('review', function ($q) {
+                $q->whereHas('product')->whereHas('user');
+            });
 
-        return response()->json(['success' => true, 'data' => $reports]);
+        // Lọc theo trạng thái
+        if ($status) {
+            $query->where('status', $status);
+        }
+
+        // Lọc theo tìm kiếm
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->whereHas('review', function ($sub) use ($search) {
+                    $sub->where('content', 'like', '%' . $search . '%')
+                        ->orWhereHas('product', function ($p) use ($search) {
+                            $p->where('name', 'like', '%' . $search . '%');
+                        });
+                })->orWhereHas('reporter', function ($r) use ($search) {
+                    $r->where('name', 'like', '%' . $search . '%');
+                });
+            });
+        }
+
+        // Sắp xếp
+        $query->orderBy('created_at', $sortOrder);
+
+        // Phân trang
+        $reports = $query->paginate($perPage, ['*'], 'page', $page);
+
+        // Chuyển đổi dữ liệu
+        $formattedReports = $reports->getCollection()->map(function ($report) {
+            return [
+                'report_id' => $report->id,
+                'reason' => $report->reason,
+                'status' => $report->status,
+                'reported_at' => $report->created_at,
+                'review' => [
+                    'id' => $report->review->id,
+                    'content' => $report->review->content,
+                    'product_name' => $report->review->product->name,
+                    'user_name' => $report->review->user->name,
+                ],
+                'reporter' => $report->reporter->name ?? 'Ẩn danh',
+            ];
+        });
+
+        // Cập nhật collection trong kết quả phân trang
+        $reports->setCollection($formattedReports);
+
+        return response()->json([
+            'success' => true,
+            'data' => $reports->items(),
+            'current_page' => $reports->currentPage(),
+            'last_page' => $reports->lastPage(),
+            'total' => $reports->total(),
+            'per_page' => $reports->perPage(),
+        ], 200);
+    } catch (\Exception $e) {
+        \Log::error('Lỗi khi tải báo cáo admin: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Lỗi khi tải báo cáo: ' . $e->getMessage(),
+        ], 500);
     }
+}
 
     // Phương thức cho admin: Xem chi tiết báo cáo
     public function adminShow($id)
@@ -306,6 +357,37 @@ class ReportController extends Controller
 
         return response()->json(['message' => 'Cập nhật trạng thái thành công']);
     }
+
+    public function adminReportCounts(Request $request)
+{
+    try {
+        $baseQuery = Report::where('type', 'review');
+
+        $allReports = $baseQuery->get();
+        $countByStatus = [
+            'all' => $allReports->count(),
+            'pending' => $allReports->where('status', 'pending')->count(),
+            'resolved' => $allReports->where('status', 'resolved')->count(),
+            'dismissed' => $allReports->where('status', 'dismissed')->count(),
+        ];
+
+        Log::info('adminReportCounts data', [
+            'reports' => $allReports->toArray(),
+            'count_by_status' => $countByStatus,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'count_by_status' => $countByStatus,
+        ], 200);
+    } catch (\Exception $e) {
+        Log::error('Lỗi khi lấy số lượng Durand báo cáo admin: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Lỗi khi lấy số lượng báo cáo: ' . $e->getMessage(),
+        ], 500);
+    }
+}
 
     
     public function getReportProduct(Request $request)
@@ -508,5 +590,45 @@ class ReportController extends Controller
             ]
         ]);
     }
+
+    public function sellerReportCounts(Request $request)
+{
+    try {
+        $userId = auth('sanctum')->user()->id;
+        $baseQuery = Report::where('type', 'review')
+            ->whereHas('review', function ($q) use ($userId) {
+                $q->whereHas('product', function ($sub) use ($userId) {
+                    $sub->whereHas('seller', function ($subSub) use ($userId) {
+                        $subSub->where('user_id', $userId);
+                    });
+                })->whereNull('parent_id');
+            });
+
+        $allReports = $baseQuery->get();
+        $countByStatus = [
+            'all' => $allReports->count(),
+            'pending' => $allReports->where('status', 'pending')->count(),
+            'resolved' => $allReports->where('status', 'resolved')->count(),
+            'dismissed' => $allReports->where('status', 'dismissed')->count(),
+        ];
+
+        \Log::info('sellerReportCounts data', [
+            'seller_id' => $userId,
+            'reports' => $allReports->toArray(),
+            'count_by_status' => $countByStatus,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'count_by_status' => $countByStatus,
+        ], 200);
+    } catch (\Exception $e) {
+        \Log::error('Lỗi khi lấy số lượng báo cáo: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Lỗi khi lấy số lượng báo cáo: ' . $e->getMessage(),
+        ], 500);
+    }
+}
 
 }

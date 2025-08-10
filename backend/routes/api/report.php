@@ -12,6 +12,7 @@ Route::prefix('admin/reports')
     ->group(function () {
         Route::get('/', [ReportController::class, 'index']); // Lấy danh sách
         Route::get('/reviews', [ReportController::class, 'adminIndex']);
+        Route::get('/reviews/counts', [ReportController::class, 'adminReportCounts']);
         Route::get('/reviews/{id}', [ReportController::class, 'adminShow']);
         Route::put('/reviews/{id}/status', [ReportController::class, 'adminUpdateStatus']);
         Route::get('/products', [ReportController::class, 'getReportProduct']); // Lấy danh sách sản phẩm
@@ -21,13 +22,12 @@ Route::prefix('admin/reports')
         Route::put('/{id}/status', [ReportController::class, 'updateStatus']); // Cập nhật trạng thái
     });
 
-// ✅ Seller xử lý báo cáo liên quan đến sản phẩm của họ (review)
 Route::prefix('seller/reports/reviews')
     ->middleware(['auth:sanctum', 'checkRole:seller'])
     ->group(function () {
         Route::get('/', [ReportController::class, 'sellerIndex']);
+        Route::get('/counts', [ReportController::class, 'sellerReportCounts']); // Thêm route mới
         Route::get('/{id}', [ReportController::class, 'sellerShow']);
         Route::put('/{id}/status', [ReportController::class, 'sellerUpdateStatus']);
     });
-
 
