@@ -25,7 +25,7 @@
         <div class="bg-gray-200 px-4 py-3 flex flex-wrap items-center gap-3 text-sm text-gray-700">
           <div class="flex items-center gap-2">
             <span class="font-bold">Tất cả</span>
-            <span>({{ orders.length }})</span>
+            <span>({{ orders.length }} đơn hàng)</span>
           </div>
           <div class="flex gap-2">
             <select v-model="filters.status" class="rounded-md border border-gray-300 py-1.5 pl-3 pr-8 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
@@ -45,14 +45,33 @@
             <input type="date" v-model="filters.to_date" class="rounded-md border border-gray-300 py-1.5 px-2 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500" placeholder="Đến ngày">
             <input type="text" v-model="filters.order_id" placeholder="Mã đơn hàng" class="rounded-md border border-gray-300 py-1.5 px-2 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
           </div>
-          <div class="ml-auto flex gap-2">
+          <div class="ml-auto flex gap-2 items-center">
+            <div class="flex items-center gap-2">
+              <span class="text-sm text-gray-600">Hiển thị:</span>
+              <select v-model="orderPageSize" @change="orderPage = 1; fetchOrders()" class="border border-gray-300 rounded px-2 py-1 text-sm">
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+              <span class="text-sm text-gray-600">đơn hàng/trang</span>
+            </div>
             <button @click="resetFilters" class="px-4 py-2 border rounded-md bg-white hover:bg-gray-50">Đặt lại</button>
             <button @click="fetchOrders" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Tìm kiếm</button>
           </div>
         </div>
 
         <!-- Table -->
-        <table class="min-w-full border-collapse border border-gray-300 text-sm">
+        <div v-if="ordersLoading" class="flex justify-center items-center py-8">
+          <div class="flex items-center gap-2">
+            <svg class="animate-spin h-6 w-6 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+            </svg>
+            <span class="text-gray-600">Đang tải danh sách đơn hàng...</span>
+          </div>
+        </div>
+        <table v-else class="min-w-full border-collapse border border-gray-300 text-sm">
           <thead class="bg-white border-b border-gray-300">
             <tr>
               <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Mã vận đơn</th>
@@ -65,6 +84,11 @@
             </tr>
           </thead>
           <tbody>
+            <tr v-if="orderPaginatedData.length === 0" class="border-b border-gray-300">
+              <td colspan="7" class="border border-gray-300 px-3 py-4 text-center text-gray-500">
+                Không có đơn hàng nào
+              </td>
+            </tr>
             <tr v-for="order in orderPaginatedData" :key="order.id" class="border-b border-gray-300">
               <td class="border border-gray-300 px-3 py-2 text-left font-semibold text-blue-700">{{ order.shipping?.tracking_code || 'Chưa có' }}</td>
               <td class="border border-gray-300 px-3 py-2 text-left">
@@ -444,9 +468,9 @@
 
         <!-- Phân trang -->
         <div v-if="orderTotalPages > 1" class="flex justify-center mt-4">
-          <button @click="orderPage--" :disabled="orderPage === 1" class="px-3 py-1 mx-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50"><</button>
-          <button v-for="p in orderTotalPages" :key="p" @click="orderPage = p" :class="['px-3 py-1 mx-1 rounded border', orderPage === p ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-gray-700 border-gray-300']">{{ p }}</button>
-          <button @click="orderPage++" :disabled="orderPage === orderTotalPages" class="px-3 py-1 mx-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50">></button>
+          <button @click="orderPage--" :disabled="orderPage === 1" class="px-3 py-1 mx-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50">&lt;</button>
+          <button v-for="page in orderTotalPages" :key="page" @click="orderPage = page" :class="['px-3 py-1 mx-1 rounded border', orderPage === page ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-gray-700 border-gray-300']">{{ page }}</button>
+          <button @click="orderPage++" :disabled="orderPage === orderTotalPages" class="px-3 py-1 mx-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50">&gt;</button>
         </div>
       </div>
       <div v-else-if="activeTab === 'payouts'">
@@ -773,10 +797,10 @@ const payoutPaginatedData = computed(() => {
 const payoutFilters = ref({ keyword: '', status: '' });
 const orderPage = ref(1);
 const orderPageSize = ref(10);
-const orderTotalPages = computed(() => Math.ceil(filteredOrders.value.length / orderPageSize.value));
+const orderTotalPages = ref(1);
 const orderPaginatedData = computed(() => {
-  const start = (orderPage.value - 1) * orderPageSize.value;
-  return filteredOrders.value.slice(start, start + orderPageSize.value);
+  // Since we're using backend pagination, just return the orders directly
+  return orders.value;
 });
 const provinces = ref([]);
 const districts = ref([]);
@@ -785,6 +809,7 @@ const showNotification = ref(false);
 const notificationMessage = ref('');
 const notificationType = ref('success');
 const loading = ref(false);
+const ordersLoading = ref(false);
 const sidebarTab = ref('pending');
 const showWithdrawModal = ref(false);
 const withdrawAmount = ref(0);
@@ -814,6 +839,7 @@ const withdrawSortAmount = ref('desc'); // 'desc' = cao->thấp, 'asc' = thấp-
 
 const fetchOrders = async () => {
   try {
+    ordersLoading.value = true;
     let token = null;
     if (process.client) {
       token = localStorage.getItem('access_token');
@@ -828,16 +854,32 @@ const fetchOrders = async () => {
     params.append('per_page', orderPageSize.value);
     const url = `${apiBase}/orders/seller?${params.toString()}`;
 
-    const data = await secureFetch(url, {},['seller']);
-    orders.value = data.data || [];
+    const response = await secureFetch(url, {}, ['seller']);
+    
+    // Handle the API response structure properly
+    if (response && response.data) {
+      orders.value = response.data || [];
+      // Update pagination metadata from backend
+      if (response.meta) {
+        orderTotalPages.value = response.meta.last_page || 1;
+        orderPage.value = response.meta.current_page || 1;
+        orderPageSize.value = response.meta.per_page || 10;
+      }
+    } else {
+      orders.value = [];
+    }
   } catch (e) {
+    console.error('Error fetching orders:', e);
     orders.value = [];
     showNotificationMessage('Lỗi khi tải danh sách đơn hàng!', 'error');
+  } finally {
+    ordersLoading.value = false;
   }
 };
 
 const resetFilters = () => {
   filters.value = { status: '', from_date: '', to_date: '', order_id: '' };
+  orderPage.value = 1; // Reset to first page
   fetchOrders();
 };
 
@@ -1535,6 +1577,13 @@ const receivePayout = async (order) => {
     showNotification('Lỗi kết nối server', false);
   }
 };
+
+// Add watchers for pagination
+watch(orderPage, () => {
+  fetchOrders();
+});
+
+
 </script>
 
 <style scoped>
