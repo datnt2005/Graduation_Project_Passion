@@ -285,4 +285,77 @@ class SellerOrderController extends Controller
             'transferred_at' => $payout ? $payout->transferred_at : null,
         ]);
     }
+
+    /**
+     * Xóa hàng loạt các đơn hàng đã hủy
+     */
+    public function bulkDelete(Request $request)
+    {
+        $user = Auth::user();
+        $seller = Seller::where('user_id', $user->id)->first();
+        if (!$seller) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Người dùng không phải là seller.'
+            ], 403);
+        }
+
+        $request->validate([
+            'order_ids' => 'required|array',
+            'order_ids.*' => 'required|integer|exists:orders,id'
+        ]);
+
+        $orderIds = $request->order_ids;
+
+        // Kiểm tra xem các đơn hàng có chứa sản phẩm của seller này không
+        $validOrderIds = OrderItem::whereIn('order_id', $orderIds)
+            ->whereHas('product', function ($q) use ($seller) {
+                $q->where('seller_id', $seller->id);
+            })
+            ->pluck('order_id')
+            ->unique()
+            ->toArray();
+
+        if (empty($validOrderIds)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không tìm thấy đơn hàng hợp lệ để xóa.'
+            ], 400);
+        }
+
+        // Kiểm tra xem tất cả đơn hàng có trạng thái 'cancelled' không
+        $cancelledOrders = Order::whereIn('id', $validOrderIds)
+            ->where('status', 'cancelled')
+            ->pluck('id')
+            ->toArray();
+
+        if (empty($cancelledOrders)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Chỉ có thể xóa các đơn hàng có trạng thái "Đã hủy".'
+            ], 400);
+        }
+
+        // Xóa các order_items thuộc seller này trong các đơn hàng đã hủy
+        $deletedItems = OrderItem::whereIn('order_id', $cancelledOrders)
+            ->whereHas('product', function ($q) use ($seller) {
+                $q->where('seller_id', $seller->id);
+            })
+            ->delete();
+
+        // Kiểm tra xem còn order_items nào trong các đơn hàng này không
+        $remainingItems = OrderItem::whereIn('order_id', $cancelledOrders)->count();
+
+        // Nếu không còn order_items nào, xóa luôn đơn hàng
+        if ($remainingItems === 0) {
+            Order::whereIn('id', $cancelledOrders)->delete();
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => "Đã xóa thành công {$deletedItems} sản phẩm từ " . count($cancelledOrders) . " đơn hàng đã hủy.",
+            'deleted_items_count' => $deletedItems,
+            'deleted_orders_count' => count($cancelledOrders)
+        ]);
+    }
 } 
