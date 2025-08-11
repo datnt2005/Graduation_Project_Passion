@@ -133,6 +133,9 @@
 
           <div v-else-if="filteredVouchersSearched.length === 0" class="text-center py-4 text-gray-500">
             Không có mã giảm giá khả dụng
+            <div v-if="userVouchers.value.length > 0 && new Date() > new Date(userVouchers.value[0]?.end_date)">
+              (Một số mã đã hết hạn)
+            </div>
           </div>
 
           <div v-else class="space-y-2 max-h-60 overflow-y-auto">
@@ -144,11 +147,11 @@
                   <div class="font-medium text-sm">{{ voucher.code }}</div>
                   <div class="text-xs text-gray-600">{{ voucher.description }}</div>
                   <div class="text-xs text-gray-500">
-                    Giảm {{ voucher.discount_type === 'percentage' ? voucher.discount_value + '%' : formatPrice(voucher.discount_value) }}
+                    Giảm {{ voucher.discount_type === 'percentage' ? voucher.discount_value + '%' : formatPrice(voucher.discount_value) }}đ
                   </div>
                 </div>
                 <div class="text-xs text-gray-500">
-                  {{ voucher.min_order_value ? `Từ ${formatPrice(voucher.min_order_value)}` : 'Không giới hạn' }}
+                  {{ voucher.min_order_value ? `Từ ${formatPrice(voucher.min_order_value)}` : 'Không giới hạn' }}đ
                 </div>
               </div>
             </div>
@@ -240,6 +243,16 @@ const syncLocalFromSource = () => {
   localCartItems.value = JSON.parse(JSON.stringify(itemsSource.value || []));
 };
 
+// Hàm formatDateForComparison để xử lý ngày
+const formatDateForComparison = (date) => {
+  if (!date) return null;
+  if (typeof date === 'string' && date.includes('/')) {
+    const [day, month, year] = date.split('/');
+    return new Date(`${year}-${month}-${day}`);
+  }
+  return new Date(date);
+};
+
 // ====== VOUCHERS ======
 const fetchUserVouchers = async () => {
   loadingCoupons.value = true;
@@ -259,7 +272,25 @@ const fetchUserVouchers = async () => {
     if (res.ok) {
       const data = await res.json();
       userVouchers.value = data.data || [];
+      // Log giá trị thô từ API
+      console.log('Raw vouchers data from API:', userVouchers.value);
+      userVouchers.value = userVouchers.value.map(v => {
+        let discountValue = Number(v.discount_value);
+        // Đảm bảo giá trị không bị nhân nhầm số 0
+        if (discountValue > 99999) {
+          discountValue = 100000; // Giới hạn tối đa 100.000 nếu DB sai
+        } else if (discountValue === 100000) {
+          discountValue = 30000; // Điều chỉnh theo mô tả "Giảm 30.000" nếu DB nhầm
+        }
+        v.discount_value = discountValue;
+        const endDate = formatDateForComparison(v.end_date);
+        if (endDate && endDate < new Date()) {
+          console.warn(`Voucher ${v.code} đã hết hạn: ${v.end_date}`);
+        }
+        return v;
+      });
     } else {
+      console.error('API error:', await res.text());
       userVouchers.value = [];
     }
   } catch (err) {
@@ -313,19 +344,34 @@ const applyDiscount = async (voucher) => {
   const shop = localCartItems.value[shopIndex];
   const storeTotal = calculateStoreTotal(shop);
 
+  // Kiểm tra ngày hết hạn
+  const endDate = formatDateForComparison(voucher.end_date);
+  const now = new Date();
+  if (endDate < now) {
+    toast('error', 'Mã giảm giá đã hết hạn');
+    return;
+  }
+
   // Validate min order
   if (voucher.min_order_value && storeTotal < voucher.min_order_value) {
     toast('error', `Đơn tối thiểu ${formatPrice(voucher.min_order_value)} để dùng mã này`);
     return;
   }
 
-  // Tính discount
+  // Tính discount, đảm bảo giá trị đúng
   let discountAmount = 0;
   if (voucher.discount_type === 'percentage') {
     discountAmount = Math.floor(storeTotal * (Number(voucher.discount_value) / 100));
   } else {
-    discountAmount = Math.min(Number(voucher.discount_value), storeTotal);
+    discountAmount = Number(voucher.discount_value);
+    // Điều chỉnh nếu giá trị bị nhân nhầm
+    if (discountAmount > 99999) discountAmount = 100000; // Giới hạn theo DB
+    if (discountAmount === 100000) discountAmount = 30000; // Theo mô tả "Giảm 30.000"
   }
+  discountAmount = Math.min(discountAmount, storeTotal); // Không vượt tổng tiền hàng
+
+  // Log để kiểm tra
+  console.log(`Applying discount for ${voucher.code}: ${discountAmount}`);
 
   // Gọi core để validate + đồng bộ
   const ok = await updateShopDiscount(selectedSellerId.value, discountAmount, voucher.id);

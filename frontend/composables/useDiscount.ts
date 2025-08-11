@@ -25,45 +25,49 @@ export const useDiscount = () => {
     const config = useRuntimeConfig();
 
     const fetchDiscounts = async () => {
-        loading.value = true;
-        error.value = null;
+    loading.value = true;
+    error.value = null;
 
-        try {
-            const res = await fetch(`${config.public.apiBaseUrl}/discounts/all`, {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/json'
-                }
-            });
+    try {
+        const res = await fetch(`${config.public.apiBaseUrl}/discounts/all`, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json'
+            }
+        });
 
-            if (!res.ok) {
-                throw new Error('Lỗi khi lấy danh sách mã giảm giá');
+        if (!res.ok) {
+            throw new Error('Lỗi khi lấy danh sách mã giảm giá');
+        }
+
+        const data = await res.json();
+        console.log('Raw discounts from API:', data.data);
+
+        const filteredDiscounts = data.data.filter((discount: Discount) => {
+            const isValid =
+                discount.status === 'active' &&
+                new Date(discount.end_date) > new Date() &&
+                discount.discount_value > 0 &&
+                discount.discount_value < 1000000;
+
+            if (!isValid) {
+                console.warn('Invalid discount filtered out:', discount);
             }
 
-            const data = await res.json();
-            console.log('Raw discounts from API:', data.data);
-            
-            discounts.value = data.data.filter((discount: Discount) => {
-                const isValid = discount.status === 'active' &&
-                    new Date(discount.end_date) > new Date() &&
-                    discount.discount_value > 0 &&
-                    discount.discount_value < 1000000;
-                
-                if (!isValid) {
-                    console.warn('Invalid discount filtered out:', discount);
-                }
-                
-                return isValid;
-            });
-            
-            console.log('Filtered discounts:', discounts.value);
-        } catch (err) {
-            console.error('Error fetching discounts:', err);
-            error.value = err instanceof Error ? err.message : 'Lỗi không xác định';
-        } finally {
-            loading.value = false;
-        }
-    };
+            return isValid;
+        });
+
+        discounts.value = filteredDiscounts;
+        console.log('Filtered discounts:', discounts.value);
+        return filteredDiscounts; // Thêm return để trả về dữ liệu
+    } catch (err) {
+        console.error('Error fetching discounts:', err);
+        error.value = err instanceof Error ? err.message : 'Lỗi không xác định';
+        return []; // Trả về mảng rỗng nếu có lỗi
+    } finally {
+        loading.value = false;
+    }
+};
 
     const fetchSellerDiscounts = async (sellerId: number) => {
         loading.value = true;
