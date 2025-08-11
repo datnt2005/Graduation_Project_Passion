@@ -317,7 +317,7 @@ const loginWithGoogle = () => {
       localStorage.setItem('access_token', event.data.token)
 
       try {
-        const res = await fetch('http://localhost:8000/api/me', {
+        const res = await fetch(`${api}/me`, {
           headers: { Authorization: `Bearer ${event.data.token}` },
         })
 

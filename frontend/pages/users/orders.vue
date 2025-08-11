@@ -1004,29 +1004,38 @@ const cancelOrder = async (id) => {
 };
 
 const reorderToCart = async (order) => {
-  if (user.value?.is_cod_blocked) {
-    toast('error', 'Bạn đã bị cấm sử dụng thanh toán COD do từ chối nhận hàng!');
+  if (!order?.id) {
+    toast('error', 'Không xác định được đơn hàng!');
     return;
   }
+
   const token = localStorage.getItem('access_token');
-  const item = order.order_items[0];
-
-  if (!item?.product?.id || !item?.quantity) {
-    toast('error', 'Không thể thêm sản phẩm vào giỏ hàng!');
-    return;
-  }
-
-  const availableStock = item.variant?.stock ?? item.product?.stock ?? 0;
-  if (item.quantity > availableStock) {
-    toast('error', 'Hết hàng, vui lòng quay lại sau!');
-    return;
-  }
 
   try {
+    // Gọi API reorder-detail
+    const { data } = await axios.get(
+      `${apiBase}/orders/orders/${order.id}/reorder-detail`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    if (!data.success) {
+      toast('error', data.message || 'Không thể lấy thông tin reorder');
+      return;
+    }
+
+    const p = data.data;
+    const stock = p.variant_id ? p.variant_stock : p.product_stock;
+
+    if (p.quantity > stock) {
+      toast('error', 'Hết hàng, vui lòng quay lại sau!');
+      return;
+    }
+
+    // Thêm vào giỏ
     await axios.post(`${apiBase}/cart/add`, {
-      product_id: item.product.id,
-      product_variant_id: item.variant?.id || undefined,
-      quantity: item.quantity,
+      product_id: p.product_id,
+      product_variant_id: p.variant_id || undefined,
+      quantity: p.quantity,
       payment_method: user.value?.is_cod_blocked ? 'online' : undefined
     }, {
       headers: { Authorization: `Bearer ${token}` }
@@ -1038,6 +1047,10 @@ const reorderToCart = async (order) => {
     toast('error', 'Không thể thêm sản phẩm vào giỏ hàng!');
   }
 };
+
+
+
+
 
 const loadProvinces = async () => {
   try {

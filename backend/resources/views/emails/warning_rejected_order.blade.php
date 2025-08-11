@@ -141,7 +141,7 @@
                 </p>
                 <p>Vui lòng liên hệ với chúng tôi qua email <a href="mailto:support@example.com" class="btn">support@example.com</a> nếu bạn có bất kỳ câu hỏi nào.</p>
                 <div class="button">
-                    <a href="{{ url('/orders/' . $order->id) }}" class="btn" target="_blank">Xem chi tiết đơn hàng</a>
+                    <a href="https://passionfpt.shop/users/orders" class="btn" target="_blank">Xem chi tiết đơn hàng</a>
                 </div>
             </div>
         </div>
