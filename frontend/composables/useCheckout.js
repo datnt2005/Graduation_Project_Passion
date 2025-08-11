@@ -1,4 +1,5 @@
 import { checkoutPerformance, shippingPerformance } from '~/utils/performance';
+import { nextTick, watch } from 'vue';
 
 export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress, storeNotes) {
   const config = useRuntimeConfig();
@@ -518,7 +519,12 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
 
       console.time('calculate-shipping-fees');
       const shippingFeePromises = items.map(async (store) => {
-        if (!store.seller_id || store.shipping_fee > 0) return;
+        if (!store.seller_id) return;
+
+        // Với Buy Now, luôn tính toán phí ship để đảm bảo cập nhật
+        // Với Cart, chỉ tính toán nếu chưa có phí ship
+        const shouldCalculate = isBuyNow.value || store.shipping_fee <= 0;
+        if (!shouldCalculate) return;
 
         const { fee, service_id } = await calculateShippingFee(store.seller_id, sellerAddresses.value[store.seller_id], selectedAddress.value);
 
@@ -602,15 +608,21 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
         } else {
           buyNowData.value = data;
           if (data.seller_id) {
-            fetchSellerAddress(data.seller_id);
-            console.time('[BUY_NOW] fetchSellerAddress');
+            // Fetch seller address và tự động tính phí ship
             fetchSellerAddress(data.seller_id).then(addr => {
+              // Sau khi có địa chỉ seller, luôn gọi loadShippingFees
+              // Nếu có selectedAddress, tính phí ship ngay
+              // Nếu không có, sẽ được tính khi selectedAddress được set
+              if (addr) {
+                nextTick(() => {
+                  if (selectedAddress.value && selectedAddress.value.province_id && selectedAddress.value.district_id) {
+                    loadShippingFees();
+                  }
+                });
+              }
             }).catch(e => {
               console.warn('[BUY_NOW] fetchSellerAddress error:', e);
             });
-            if (data.seller_id) {
-              fetchSellerAddress(data.seller_id);
-            }
           }
         }
       } catch (error) {
@@ -813,6 +825,14 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
     const sellerId = buyNowData.value.seller_id;
     const sellerAddress = sellerAddresses.value[sellerId] || {};
     const shippingDiscount = getShippingDiscountPerShop(total.value, 1); // Chỉ 1 shop cho Buy Now
+    
+    // Sử dụng phí ship đã được tính toán từ loadShippingFees
+    // Nếu có service_id trong shopServiceIds, sử dụng phí ship đã tính
+    // Nếu không, sử dụng phí ship từ buyNowData (có thể là 0)
+    const hasCalculatedShipping = shopServiceIds.value[sellerId];
+    const calculatedShippingFee = hasCalculatedShipping ? 
+      (buyNowData.value.shipping_fee || 0) : 0;
+    
     return [{
       seller_id: sellerId || null,
       store_name: buyNowData.value.store_name || '',
@@ -844,9 +864,9 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
       store_total: price * buyNowData.value.quantity,
       discount: getShopDiscount(sellerId),
       selectedDiscountId: getShopDiscountId(sellerId),
-      shipping_fee: buyNowData.value.shipping_fee || 0,
-      original_shipping_fee: buyNowData.value.shipping_fee || 0,
-      service_id: buyNowData.value.service_id || null,
+      shipping_fee: calculatedShippingFee,
+      original_shipping_fee: calculatedShippingFee,
+      service_id: shopServiceIds.value[sellerId] || buyNowData.value.service_id || null,
       shipping_discount: shippingDiscount, // Áp dụng mã giảm giá vận chuyển
     }];
   });
@@ -1025,6 +1045,8 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
       const storeShippingFees = {};
       const storeServiceIds = {};
       const storeDiscounts = {};
+      const storeShippingDiscounts = {}; // Thêm riêng shipping discounts
+      const storeProductDiscounts = {}; // Thêm riêng product discounts
 
       if (isBuyNow.value) {
         const store = buyNowItems.value?.[0];
@@ -1069,6 +1091,8 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
         storeShippingFees[store.seller_id] = store.shipping_fee;
         storeServiceIds[store.seller_id] = store.service_id;
         storeDiscounts[store.seller_id] = (store.discount || 0) + (store.shipping_discount || 0); // Tổng hợp cả giảm giá sản phẩm và vận chuyển
+        storeShippingDiscounts[store.seller_id] = store.shipping_discount || 0; // Riêng shipping discount
+        storeProductDiscounts[store.seller_id] = store.discount || 0; // Riêng product discount
       } else {
         items.forEach(store => {
           const serviceId = store.service_id;
@@ -1089,6 +1113,8 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
           storeShippingFees[store.seller_id] = shippingFee;
           storeServiceIds[store.seller_id] = serviceId;
           storeDiscounts[store.seller_id] = shopDiscount;
+          storeShippingDiscounts[store.seller_id] = store.shipping_discount || 0; // Riêng shipping discount
+          storeProductDiscounts[store.seller_id] = store.discount || 0; // Riêng product discount
         });
       }
 
@@ -1112,6 +1138,8 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
         store_shipping_fees: storeShippingFees,
         store_service_ids: storeServiceIds,
         store_discounts: storeDiscounts, // Bao gồm cả giảm giá sản phẩm và vận chuyển
+        store_shipping_discounts: storeShippingDiscounts, // Riêng shipping discounts
+        store_product_discounts: storeProductDiscounts, // Riêng product discounts
       };
 
       console.log('Dữ liệu đơn hàng gửi API:', orderData); // Log để debug
@@ -1225,6 +1253,16 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
 
   loadBuyNowData();
   checkCodEligibility();
+
+  // Watch selectedAddress để tự động tính phí ship cho Buy Now
+  watch(selectedAddress, async (newAddress) => {
+    if (isBuyNow.value && buyNowData.value && newAddress && newAddress.province_id && newAddress.district_id) {
+      console.log('[BUY_NOW] Address changed, triggering loadShippingFees');
+      // Đợi một chút để đảm bảo sellerAddresses đã được cập nhật
+      await nextTick();
+      await loadShippingFees();
+    }
+  });
 
   return {
     cartItems,
