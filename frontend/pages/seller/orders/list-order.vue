@@ -25,7 +25,7 @@
         <div class="bg-gray-200 px-4 py-3 flex flex-wrap items-center gap-3 text-sm text-gray-700">
           <div class="flex items-center gap-2">
             <span class="font-bold">Tất cả</span>
-            <span>({{ orders.length }})</span>
+            <span>({{ orders.length }} đơn hàng)</span>
           </div>
           <div class="flex gap-2">
             <select v-model="filters.status" class="rounded-md border border-gray-300 py-1.5 pl-3 pr-8 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
@@ -45,16 +45,72 @@
             <input type="date" v-model="filters.to_date" class="rounded-md border border-gray-300 py-1.5 px-2 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500" placeholder="Đến ngày">
             <input type="text" v-model="filters.order_id" placeholder="Mã đơn hàng" class="rounded-md border border-gray-300 py-1.5 px-2 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
           </div>
-          <div class="ml-auto flex gap-2">
+          <div class="ml-auto flex gap-2 items-center">
+            <div class="flex items-center gap-2">
+              <span class="text-sm text-gray-600">Hiển thị:</span>
+              <select v-model="orderPageSize" @change="orderPage = 1; fetchOrders()" class="border border-gray-300 rounded px-2 py-1 text-sm">
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+              <span class="text-sm text-gray-600">đơn hàng/trang</span>
+            </div>
             <button @click="resetFilters" class="px-4 py-2 border rounded-md bg-white hover:bg-gray-50">Đặt lại</button>
             <button @click="fetchOrders" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Tìm kiếm</button>
           </div>
         </div>
 
+        <!-- Bulk Actions Bar -->
+        <div v-if="selectedOrders.length > 0" class="bg-blue-50 px-4 py-3 flex items-center justify-between border-b border-blue-200">
+          <div class="flex items-center gap-3">
+            <span class="text-sm font-medium text-blue-800">
+              Đã chọn {{ selectedOrders.length }} đơn hàng
+            </span>
+            <button @click="clearSelection" class="text-sm text-blue-600 hover:text-blue-800 underline">
+              Bỏ chọn tất cả
+            </button>
+          </div>
+          <div class="flex gap-2">
+            <button 
+              v-if="hasCancelledOrdersSelected" 
+              @click="bulkDeleteOrders" 
+              :disabled="bulkDeleteLoading"
+              class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
+            >
+              <svg v-if="bulkDeleteLoading" class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+              </svg>
+              <svg v-else class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              Xóa đơn hàng đã hủy ({{ cancelledOrdersSelectedCount }})
+            </button>
+          </div>
+        </div>
+
         <!-- Table -->
-        <table class="min-w-full border-collapse border border-gray-300 text-sm">
+        <div v-if="ordersLoading" class="flex justify-center items-center py-8">
+          <div class="flex items-center gap-2">
+            <svg class="animate-spin h-6 w-6 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+            </svg>
+            <span class="text-gray-600">Đang tải danh sách đơn hàng...</span>
+          </div>
+        </div>
+        <table v-else class="min-w-full border-collapse border border-gray-300 text-sm">
           <thead class="bg-white border-b border-gray-300">
             <tr>
+              <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">
+                <input 
+                  type="checkbox" 
+                  :checked="isAllSelected" 
+                  @change="toggleSelectAll"
+                  class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+              </th>
               <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Mã vận đơn</th>
               <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Khách hàng</th>
               <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Tổng tiền</th>
@@ -65,7 +121,20 @@
             </tr>
           </thead>
           <tbody>
+            <tr v-if="orderPaginatedData.length === 0" class="border-b border-gray-300">
+              <td colspan="8" class="border border-gray-300 px-3 py-4 text-center text-gray-500">
+                Không có đơn hàng nào
+              </td>
+            </tr>
             <tr v-for="order in orderPaginatedData" :key="order.id" class="border-b border-gray-300">
+              <td class="border border-gray-300 px-3 py-2 text-center">
+                <input 
+                  type="checkbox" 
+                  :value="order.id"
+                  v-model="selectedOrders"
+                  class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+              </td>
               <td class="border border-gray-300 px-3 py-2 text-left font-semibold text-blue-700">{{ order.shipping?.tracking_code || 'Chưa có' }}</td>
               <td class="border border-gray-300 px-3 py-2 text-left">
                 {{ order.user?.name }}<br>
@@ -444,9 +513,9 @@
 
         <!-- Phân trang -->
         <div v-if="orderTotalPages > 1" class="flex justify-center mt-4">
-          <button @click="orderPage--" :disabled="orderPage === 1" class="px-3 py-1 mx-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50"><</button>
-          <button v-for="p in orderTotalPages" :key="p" @click="orderPage = p" :class="['px-3 py-1 mx-1 rounded border', orderPage === p ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-gray-700 border-gray-300']">{{ p }}</button>
-          <button @click="orderPage++" :disabled="orderPage === orderTotalPages" class="px-3 py-1 mx-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50">></button>
+          <button @click="orderPage--" :disabled="orderPage === 1" class="px-3 py-1 mx-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50">&lt;</button>
+          <button v-for="page in orderTotalPages" :key="page" @click="orderPage = page" :class="['px-3 py-1 mx-1 rounded border', orderPage === page ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-gray-700 border-gray-300']">{{ page }}</button>
+          <button @click="orderPage++" :disabled="orderPage === orderTotalPages" class="px-3 py-1 mx-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50">&gt;</button>
         </div>
       </div>
       <div v-else-if="activeTab === 'payouts'">
@@ -734,6 +803,58 @@
         </div>
       </div>
     </Teleport>
+    <!-- Confirmation Dialog -->
+    <Teleport to="body">
+      <Transition enter-active-class="transition ease-out duration-200" enter-from-class="opacity-0"
+        enter-to-class="opacity-100" leave-active-class="transition ease-in duration-100" leave-from-class="opacity-100"
+        leave-to-class="opacity-0">
+        <div v-if="showConfirmDialog" class="fixed inset-0 z-50 overflow-y-auto">
+          <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="closeConfirmDialog"></div>
+
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true"></span>
+
+            <div
+              class="relative inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+              <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div class="sm:flex sm:items-start">
+                  <div
+                    class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                    <svg class="h-6 w-6 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                      stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </div>
+                  <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900">
+                      {{ confirmDialogTitle }}
+                    </h3>
+                    <div class="mt-2">
+                      <p class="text-sm text-gray-500">
+                        {{ confirmDialogMessage }}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button type="button"
+                  class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm"
+                  @click="handleConfirmAction">
+                  Xác nhận
+                </button>
+                <button type="button"
+                  class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                  @click="closeConfirmDialog">
+                  Hủy
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -773,10 +894,10 @@ const payoutPaginatedData = computed(() => {
 const payoutFilters = ref({ keyword: '', status: '' });
 const orderPage = ref(1);
 const orderPageSize = ref(10);
-const orderTotalPages = computed(() => Math.ceil(filteredOrders.value.length / orderPageSize.value));
+const orderTotalPages = ref(1);
 const orderPaginatedData = computed(() => {
-  const start = (orderPage.value - 1) * orderPageSize.value;
-  return filteredOrders.value.slice(start, start + orderPageSize.value);
+  // Since we're using backend pagination, just return the orders directly
+  return orders.value;
 });
 const provinces = ref([]);
 const districts = ref([]);
@@ -785,6 +906,7 @@ const showNotification = ref(false);
 const notificationMessage = ref('');
 const notificationType = ref('success');
 const loading = ref(false);
+const ordersLoading = ref(false);
 const sidebarTab = ref('pending');
 const showWithdrawModal = ref(false);
 const withdrawAmount = ref(0);
@@ -812,8 +934,120 @@ const withdrawSearch = ref('');
 const withdrawSortDate = ref('desc'); // 'desc' = mới nhất, 'asc' = cũ nhất
 const withdrawSortAmount = ref('desc'); // 'desc' = cao->thấp, 'asc' = thấp->cao
 
+// Multi-select functionality
+const selectedOrders = ref([]);
+const bulkDeleteLoading = ref(false);
+
+// Confirmation dialog variables
+const showConfirmDialog = ref(false);
+const confirmDialogTitle = ref('');
+const confirmDialogMessage = ref('');
+const confirmAction = ref(null);
+
+// Computed properties for multi-select
+const isAllSelected = computed(() => {
+  return orderPaginatedData.value.length > 0 && selectedOrders.value.length === orderPaginatedData.value.length;
+});
+
+const hasCancelledOrdersSelected = computed(() => {
+  return selectedOrders.value.some(orderId => {
+    const order = orderPaginatedData.value.find(o => o.id === orderId);
+    return order && order.status === 'cancelled';
+  });
+});
+
+const cancelledOrdersSelectedCount = computed(() => {
+  return selectedOrders.value.filter(orderId => {
+    const order = orderPaginatedData.value.find(o => o.id === orderId);
+    return order && order.status === 'cancelled';
+  }).length;
+});
+
+// Multi-select functions
+const toggleSelectAll = () => {
+  if (isAllSelected.value) {
+    selectedOrders.value = [];
+  } else {
+    selectedOrders.value = orderPaginatedData.value.map(order => order.id);
+  }
+};
+
+const clearSelection = () => {
+  selectedOrders.value = [];
+};
+
+// Confirmation dialog functions
+const closeConfirmDialog = () => {
+  showConfirmDialog.value = false;
+  confirmAction.value = null;
+};
+
+const handleConfirmAction = async () => {
+  if (confirmAction.value) {
+    await confirmAction.value();
+  }
+  closeConfirmDialog();
+};
+
+const showConfirmationDialog = (title, message, action) => {
+  confirmDialogTitle.value = title;
+  confirmDialogMessage.value = message;
+  confirmAction.value = action;
+  showConfirmDialog.value = true;
+};
+
+const bulkDeleteOrders = async () => {
+  const cancelledOrderIds = selectedOrders.value.filter(orderId => {
+    const order = orderPaginatedData.value.find(o => o.id === orderId);
+    return order && order.status === 'cancelled';
+  });
+
+  if (cancelledOrderIds.length === 0) {
+    showNotificationMessage('Không có đơn hàng đã hủy nào được chọn!', 'error');
+    return;
+  }
+
+  showConfirmationDialog(
+    'Xác nhận xóa đơn hàng',
+    `Bạn có chắc chắn muốn xóa ${cancelledOrderIds.length} đơn hàng đã hủy này không? Hành động này không thể hoàn tác.`,
+    async () => {
+      try {
+        bulkDeleteLoading.value = true;
+        const token = localStorage.getItem('access_token');
+        
+        const response = await fetch(`${apiBase}/orders/seller/bulk-delete`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            order_ids: cancelledOrderIds
+          }),
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          showNotificationMessage(`Đã xóa thành công ${cancelledOrderIds.length} đơn hàng đã hủy!`, 'success');
+          selectedOrders.value = [];
+          await fetchOrders(); // Refresh the list
+        } else {
+          throw new Error(data.message || `Lỗi ${response.status}: Không thể xóa đơn hàng`);
+        }
+      } catch (e) {
+        console.error('Error in bulkDeleteOrders:', e);
+        showNotificationMessage(`Lỗi khi xóa đơn hàng: ${e.message || 'Không thể kết nối đến server'}`, 'error');
+      } finally {
+        bulkDeleteLoading.value = false;
+      }
+    }
+  );
+};
+
 const fetchOrders = async () => {
   try {
+    ordersLoading.value = true;
     let token = null;
     if (process.client) {
       token = localStorage.getItem('access_token');
@@ -828,16 +1062,33 @@ const fetchOrders = async () => {
     params.append('per_page', orderPageSize.value);
     const url = `${apiBase}/orders/seller?${params.toString()}`;
 
-    const data = await secureFetch(url, {},['seller']);
-    orders.value = data.data || [];
+    const response = await secureFetch(url, {}, ['seller']);
+    
+    // Handle the API response structure properly
+    if (response && response.data) {
+      orders.value = response.data || [];
+      // Update pagination metadata from backend
+      if (response.meta) {
+        orderTotalPages.value = response.meta.last_page || 1;
+        orderPage.value = response.meta.current_page || 1;
+        orderPageSize.value = response.meta.per_page || 10;
+      }
+    } else {
+      orders.value = [];
+    }
   } catch (e) {
+    console.error('Error fetching orders:', e);
     orders.value = [];
     showNotificationMessage('Lỗi khi tải danh sách đơn hàng!', 'error');
+  } finally {
+    ordersLoading.value = false;
   }
 };
 
 const resetFilters = () => {
   filters.value = { status: '', from_date: '', to_date: '', order_id: '' };
+  orderPage.value = 1; // Reset to first page
+  selectedOrders.value = []; // Clear selection when filters are reset
   fetchOrders();
 };
 
@@ -1535,6 +1786,14 @@ const receivePayout = async (order) => {
     showNotification('Lỗi kết nối server', false);
   }
 };
+
+// Add watchers for pagination
+watch(orderPage, () => {
+  selectedOrders.value = []; // Clear selection when page changes
+  fetchOrders();
+});
+
+
 </script>
 
 <style scoped>

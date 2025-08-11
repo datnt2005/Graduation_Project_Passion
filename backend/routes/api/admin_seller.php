@@ -18,6 +18,7 @@ Route::middleware(['auth:sanctum', 'checkRole:seller'])->get('/orders/seller', [
 
 Route::middleware(['auth:sanctum', 'checkRole:seller'])->group(function () {
     Route::put('/orders/seller/{id}/status', [SellerOrderController::class, 'updateStatus']);
+    Route::delete('/orders/seller/bulk-delete', [SellerOrderController::class, 'bulkDelete']);
 });
 Route::middleware(['auth:sanctum', 'checkRole:seller'])->group(function () {
    Route::get('orders/seller/{id}', [SellerOrderController::class, 'show']);
