@@ -17,6 +17,33 @@ interface Discount {
     is_saved?: boolean;
 }
 
+interface DiscountCheckResponse {
+    success: boolean;
+    message: string;
+    data?: {
+        product_discount?: {
+            id: number;
+            code: string;
+            discount_type: string;
+            discount_value: number;
+            discount_amount: number;
+            min_order_value: number;
+            seller_id: number | null;
+        };
+        shipping_discount?: {
+            id: number;
+            code: string;
+            discount_type: string;
+            discount_value: number;
+            discount_amount: number;
+            seller_id: number | null;
+        };
+        total_product_discount: number;
+        total_shipping_discount: number;
+        total_discount: number;
+    };
+}
+
 export const useDiscount = () => {
     const discounts = ref<Discount[]>([]);
     const loading = ref<boolean>(false);
@@ -225,6 +252,35 @@ export const useDiscount = () => {
         } catch (e) {
             showErrorNotification('Lỗi hệ thống khi kiểm tra mã giảm giá');
             return { success: false, message: 'Lỗi hệ thống khi kiểm tra mã giảm giá' };
+        }
+    };
+
+    // Phương thức mới để kiểm tra nhiều mã giảm giá
+    const checkMultipleDiscounts = async (discountIds: number[], userId: number, totalAmount: number, shippingFee: number = 0): Promise<DiscountCheckResponse> => {
+        try {
+            const token = localStorage.getItem('access_token');
+            if (!token) {
+                throw new Error('Vui lòng đăng nhập để sử dụng mã giảm giá');
+            }
+
+            const response = await $fetch(`${config.public.apiBaseUrl}/discounts/check-multiple`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: {
+                    discount_ids: discountIds,
+                    user_id: userId,
+                    total_amount: totalAmount,
+                    shipping_fee: shippingFee,
+                },
+            });
+
+            return response as DiscountCheckResponse;
+        } catch (error: any) {
+            console.error('Error checking multiple discounts:', error);
+            throw new Error(error.data?.message || 'Lỗi khi kiểm tra mã giảm giá');
         }
     };
 
@@ -467,6 +523,7 @@ export const useDiscount = () => {
         getShippingDiscount,
         saveVoucherByCode,
         deleteUserCoupon,
-        checkShopDiscount
+        checkShopDiscount,
+        checkMultipleDiscounts
     };
 };

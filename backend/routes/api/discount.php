@@ -13,6 +13,7 @@ Route::middleware(['auth:sanctum', 'checkRole:user,seller,admin'])->group(functi
     Route::get('/discounts/my-vouchers', [DiscountController::class, 'myVouchers']);
     Route::post('/discounts/save-by-code', [DiscountController::class, 'saveVoucherByCode']);
     Route::post('/discounts/check', [DiscountController::class, 'checkVoucher']);
+    Route::post('/discounts/check-multiple', [DiscountController::class, 'checkMultipleVouchers']);
     Route::post('/discounts/check-shop-discount', [DiscountController::class, 'checkShopDiscount']);
     Route::delete('/discounts/my-voucher/{id}', [DiscountController::class, 'deleteUserVoucher']);
 });

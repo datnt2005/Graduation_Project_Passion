@@ -944,27 +944,34 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
     if (isPlacingOrder.value) return;
 
     if (isAccountBanned.value) {
-      toast('error', 'Tài khoản của bạn đã bị khóa do có quá nhiều đơn hàng bị từ chối nhận.');
-      return;
+      throw new Error('Tài khoản của bạn đã bị khóa do có quá nhiều đơn hàng bị từ chối nhận.');
     }
 
     const items = isBuyNow.value ? buyNowItems.value : cartItems.value;
     if (!items || !items.length) {
-      toast('error', 'Giỏ hàng trống hoặc chưa chọn sản phẩm.');
-      return;
+      throw new Error('Giỏ hàng trống hoặc chưa chọn sản phẩm.');
     }
     if (!selectedPaymentMethod.value) {
-      toast('error', 'Vui lòng chọn phương thức thanh toán.');
-      return;
+      throw new Error('Vui lòng chọn phương thức thanh toán.');
+    }
+    
+    if (!selectedAddress.value || !selectedAddress.value.district_id || !selectedAddress.value.ward_code) {
+      throw new Error('Vui lòng chọn địa chỉ giao hàng.');
+    }
+    
+    // Kiểm tra xem tất cả các shop đã có phí ship chưa
+    for (const store of items) {
+      if (!store.shipping_fee || !store.service_id) {
+        throw new Error('Vui lòng chờ phí vận chuyển được tính toán hoàn tất.');
+      }
     }
 
     isPlacingOrder.value = true;
     try {
       const token = localStorage.getItem('access_token');
       if (!token) {
-        toast('error', 'Vui lòng đăng nhập để tiếp tục.');
         window.dispatchEvent(new CustomEvent('openLoginModal'));
-        return;
+        throw new Error('Vui lòng đăng nhập để tiếp tục.');
       }
 
       // Lấy thông tin user

@@ -664,7 +664,7 @@ class OrderController extends Controller
                 }
 
                 $discountPrice = 0;
-                $appliedDiscountId = null;
+                $appliedDiscountIds = [];
                 $shopDiscount = null;
                 $adminDiscount = null;
                 $shippingDiscount = null;
@@ -702,7 +702,7 @@ class OrderController extends Controller
                     $usedDiscount = $adminDiscount;
                 }
 
-                // Tính toán discount price
+                // Tính toán discount price cho sản phẩm
                 if ($usedDiscount) {
                     if ($usedDiscount->discount_type === 'percentage') {
                         $discountPrice = $totalPrice * ($usedDiscount->discount_value / 100);
@@ -723,16 +723,17 @@ class OrderController extends Controller
                         'seller_id' => $usedDiscount->seller_id
                     ]);
 
-                    DiscountUser::create([
-                        'discount_id' => $usedDiscount->id,
-                        'user_id' => $request->user()->id,
-                        'is_used' => true,
-                    ]);
                     // Tăng used_count cho discount
                     if ($usedDiscount) {
                         $usedDiscount->increment('used_count');
                     }
-                    $order->discount_id = $usedDiscount->id;
+                    $appliedDiscountIds['product'] = $usedDiscount->id;
+                }
+
+                // Xử lý shipping discount
+                if ($shippingDiscount) {
+                    $shippingDiscount->increment('used_count');
+                    $appliedDiscountIds['shipping'] = $shippingDiscount->id;
                 }
 
                 // Frontend đã tính và gửi discount, backend chỉ cần sử dụng
@@ -765,10 +766,47 @@ class OrderController extends Controller
                 }
 
                 $shippingDiscountValue = 0;
+                // Kiểm tra store_shipping_discounts trước, nếu không có thì tính từ store_discounts
                 if ($request->has('store_shipping_discounts') && isset($request->store_shipping_discounts[$sellerId])) {
                     $shippingDiscountValue = floatval($request->store_shipping_discounts[$sellerId]);
+                } elseif ($request->has('store_discounts') && isset($request->store_discounts[$sellerId])) {
+                    // Nếu có store_discounts, cần tách riêng shipping discount
+                    $totalStoreDiscount = floatval($request->store_discounts[$sellerId]);
+                    $productDiscount = 0;
+                    
+                    // Tính product discount từ appliedDiscountIds
+                    if (isset($appliedDiscountIds['product'])) {
+                        $productDiscountId = $appliedDiscountIds['product'];
+                        $productDiscountObj = Discount::find($productDiscountId);
+                        if ($productDiscountObj) {
+                            if ($productDiscountObj->discount_type === 'percentage') {
+                                $productDiscount = $totalPrice * ($productDiscountObj->discount_value / 100);
+                            } else {
+                                $productDiscount = $productDiscountObj->discount_value;
+                            }
+                            $productDiscount = min($productDiscount, $totalPrice);
+                        }
+                    }
+                    
+                    // Shipping discount = total store discount - product discount
+                    $shippingDiscountValue = max(0, $totalStoreDiscount - $productDiscount);
                 }
+                
                 $shippingFee = $request->store_shipping_fees[$sellerId] ?? 0;
+                
+                // Debug log để kiểm tra shipping discount
+                Log::info("Shipping discount debug", [
+                    'order_id' => $order->id,
+                    'seller_id' => $sellerId,
+                    'request_has_store_shipping_discounts' => $request->has('store_shipping_discounts'),
+                    'request_has_store_discounts' => $request->has('store_discounts'),
+                    'store_shipping_discounts' => $request->store_shipping_discounts ?? 'not_set',
+                    'store_discounts' => $request->store_discounts ?? 'not_set',
+                    'applied_discount_ids' => $appliedDiscountIds,
+                    'shipping_discount_value' => $shippingDiscountValue,
+                    'original_shipping_fee' => $shippingFee,
+                    'final_shipping_fee' => max(0, $shippingFee - $shippingDiscountValue),
+                ]);
                 // Trừ discount phí ship đã chia đều cho shop này
                 $shippingFee = max(0, $shippingFee - $shippingDiscountValue);
                 // Bỏ kiểm tra khớp với shippingMethod->cost
@@ -818,15 +856,9 @@ class OrderController extends Controller
                     }
                 }
 
-                if ($shippingDiscount) {
-                    // FE đã trừ discount rồi, BE chỉ cần ghi nhận việc sử dụng discount
-                    DiscountUser::create([
-                        'discount_id' => $shippingDiscount->id,
-                        'user_id' => $request->user()->id,
-                        'is_used' => true,
-                    ]);
-                    // Tăng used_count cho shipping discount
-                    $shippingDiscount->increment('used_count');
+                // Lưu discount IDs dưới dạng JSON
+                if (!empty($appliedDiscountIds)) {
+                    $order->discount_id = $appliedDiscountIds;
                 }
 
                 $shipping = Shipping::create([
@@ -834,6 +866,7 @@ class OrderController extends Controller
                     'shipping_method_id' => $shippingMethod->id,
                     'estimated_delivery' => $estimatedDelivery,
                     'shipping_fee' => $shippingFee,
+                    'shipping_discount' => $shippingDiscountValue,
                     'tracking_code' => $trackingCode,
                     'status' => 'pending',
                 ]);
@@ -841,8 +874,7 @@ class OrderController extends Controller
                 $order->update([
                     'total_price' => $totalPrice,
                     'discount_price' => $shopDiscount,
-                    'final_price' => $finalPrice + $shippingFee,
-                    'discount_id' => $order->discount_id,
+                    'final_price' => $finalPrice + $shippingFee + $shippingDiscountValue,
                 ]);
 
                 $paymentMethod = PaymentMethod::firstOrCreate(
@@ -850,7 +882,7 @@ class OrderController extends Controller
                     ['status' => 'active']
                 );
 
-                $totalPaymentAmount = $finalPrice + $shippingFee;
+                $totalPaymentAmount = $finalPrice + $shippingFee + $shippingDiscountValue;
 
                 Payment::create([
                     'order_id' => $order->id,

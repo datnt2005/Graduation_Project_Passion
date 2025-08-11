@@ -63,6 +63,36 @@ const popupBanner = ref(null)
 const showPopup = ref(false)
 let popupTimeout = null
 
+// Hàm kiểm tra xem có nên hiện popup không
+function shouldShowPopup() {
+  // Kiểm tra thời gian đóng popup cuối cùng
+  const lastClosedTime = localStorage.getItem('popupBannerClosedTime')
+  if (lastClosedTime) {
+    const now = Date.now()
+    const timeDiff = now - parseInt(lastClosedTime)
+    const thirtyMinutes = 30 * 60 * 1000 // 30 phút tính bằng milliseconds
+    
+    // Nếu chưa đủ 30 phút thì không hiện
+    if (timeDiff < thirtyMinutes) {
+      return false
+    }
+  }
+  
+  // Kiểm tra số lần load trang
+  const loadCount = parseInt(localStorage.getItem('homepageLoadCount') || '0')
+  if (loadCount >= 4) {
+    return true
+  }
+  
+  return false
+}
+
+// Hàm tăng số lần load trang
+function incrementLoadCount() {
+  const currentCount = parseInt(localStorage.getItem('homepageLoadCount') || '0')
+  localStorage.setItem('homepageLoadCount', (currentCount + 1).toString())
+}
+
 async function fetchPopupBanner() {
   try {
     const res = await $fetch(`${apiBase}/banners/popups`)
@@ -81,12 +111,17 @@ async function fetchPopupBanner() {
 
 function closePopup() {
   showPopup.value = false
-  localStorage.setItem('popupBannerClosed', '1')
+  // Lưu thời gian đóng popup
+  localStorage.setItem('popupBannerClosedTime', Date.now().toString())
   if (popupTimeout) clearTimeout(popupTimeout)
 }
 
 onMounted(() => {
-  if (!localStorage.getItem('popupBannerClosed')) {
+  // Tăng số lần load trang
+  incrementLoadCount()
+  
+  // Kiểm tra xem có nên hiện popup không
+  if (shouldShowPopup()) {
     fetchPopupBanner()
   }
 })
