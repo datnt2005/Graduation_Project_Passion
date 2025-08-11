@@ -1,13 +1,10 @@
 <template>
   <div class="bg-[#F8F9FF] text-gray-700">
     <!-- Loading Overlay -->
-    <div v-if="isPlacingOrder"
-      class="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center loading-backdrop">
-      <div
-        class="bg-white rounded-2xl shadow-2xl p-10 flex flex-col items-center space-y-6 max-w-md mx-4 relative overflow-hidden">
+    <div v-if="isPlacingOrder" class="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center loading-backdrop">
+      <div class="bg-white rounded-2xl shadow-2xl p-10 flex flex-col items-center space-y-6 max-w-md mx-4 relative overflow-hidden">
         <!-- Background decoration -->
         <div class="absolute inset-0 bg-gradient-to-br from-blue-50 to-indigo-50 opacity-50"></div>
-
         <!-- Animated Shopping Cart Icon -->
         <div class="relative z-10">
           <svg class="w-16 h-16 text-blue-600 animate-float" fill="currentColor" viewBox="0 0 24 24">
@@ -21,24 +18,17 @@
             <div class="w-2 h-2 bg-red-500 rounded-full animate-pulse" style="animation-delay: 0.4s"></div>
           </div>
         </div>
-
         <!-- Enhanced Loading Spinner -->
         <div class="relative z-10">
           <div class="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
-          <div
-            class="absolute inset-0 w-12 h-12 border-4 border-transparent border-t-green-500 rounded-full animate-spin"
-            style="animation-duration: 1.5s"></div>
-          <div
-            class="absolute inset-0 w-12 h-12 border-4 border-transparent border-t-yellow-500 rounded-full animate-spin"
-            style="animation-duration: 2s"></div>
+          <div class="absolute inset-0 w-12 h-12 border-4 border-transparent border-t-green-500 rounded-full animate-spin" style="animation-duration: 1.5s"></div>
+          <div class="absolute inset-0 w-12 h-12 border-4 border-transparent border-t-yellow-500 rounded-full animate-spin" style="animation-duration: 2s"></div>
         </div>
-
         <div class="text-center space-y-3 z-10">
           <h3 class="text-xl font-bold text-gray-800">Đang xử lý đơn hàng</h3>
           <p class="text-sm text-gray-600 leading-relaxed">
             Vui lòng chờ trong giây lát, chúng tôi đang chuẩn bị đơn hàng của bạn...
           </p>
-
           <!-- Enhanced Progress indicators -->
           <div class="flex justify-center space-x-4 mt-6">
             <div class="flex items-center space-x-2">
@@ -55,7 +45,6 @@
             </div>
           </div>
         </div>
-
         <!-- Decorative elements -->
         <div class="absolute top-4 right-4 z-10">
           <svg class="w-6 h-6 text-blue-200" fill="currentColor" viewBox="0 0 24 24">
@@ -63,27 +52,22 @@
               d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
           </svg>
         </div>
-
         <!-- Bottom decoration -->
-        <div class="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-green-500 to-yellow-500">
-        </div>
+        <div class="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-green-500 to-yellow-500"></div>
       </div>
     </div>
     <div class="max-w-7xl mx-auto px-4 py-6 flex flex-col lg:flex-row gap-6">
-      <main class="flex-1 overflow-y-hidden"
-        :class="{ 'opacity-50 pointer-events-none': isAccountBanned || isPlacingOrder }">
+      <main class="flex-1 overflow-y-hidden" :class="{ 'opacity-50 pointer-events-none': isAccountBanned || isPlacingOrder }">
         <!-- Thông báo khi tài khoản bị khóa hoặc không thể dùng COD -->
         <div v-if="isAccountBanned || (!canUseCod && !isAccountBanned && rejectedOrdersCount >= 2)"
           class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
           <template v-if="isAccountBanned">
-            Tài khoản của bạn đã bị khóa do có quá nhiều đơn hàng bị từ chối nhận. Vui lòng liên hệ hỗ trợ để biết thêm
-            chi tiết.
+            Tài khoản của bạn đã bị khóa do có quá nhiều đơn hàng bị từ chối nhận. Vui lòng liên hệ hỗ trợ để biết thêm chi tiết.
           </template>
           <template v-else>
             Bạn không thể sử dụng phương thức thanh toán COD vì có quá nhiều đơn hàng bị từ chối nhận.
           </template>
         </div>
-
         <!-- Breadcrumb -->
         <div class="w-full max-w-7xl mb-4">
           <div class="text-sm text-gray-500 px-4 py-2 rounded">
@@ -92,7 +76,6 @@
             <span class="text-black font-medium">Thanh toán</span>
           </div>
         </div>
-
         <!-- Header -->
         <section class="bg-white px-6 py-4 border-b border-gray-200 space-y-4 mb-2">
           <div class="flex justify-between items-center">
@@ -106,7 +89,6 @@
             </div>
           </div>
         </section>
-
         <div class="min-h-full max-w-7xl mx-auto">
           <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div class="lg:col-span-2 space-y-2">
@@ -115,9 +97,15 @@
                 <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
               </div>
               <!-- Shipping Selector -->
-              <ShippingSelector :key="isBuyNow ? 'buy-now' : 'from-cart'" :address="selectedAddress"
-                :cart-items="displayItems" :is-buy-now="isBuyNow" @update:shippingFee="updateShippingFee"
-                @update:shopDiscount="handleShopDiscountUpdate" @update:totalShippingFee="handleTotalShippingFeeUpdate"
+              <ShippingSelector 
+                :key="isBuyNow ? 'buy-now' : 'from-cart'" 
+                :address="selectedAddress" 
+                :cart-items="displayItems" 
+                :is-buy-now="isBuyNow" 
+                :shipping-discounts="uniqueShippingDiscounts"
+                @update:shippingFee="updateShippingFee"
+                @update:shopDiscount="handleShopDiscountUpdate" 
+                @update:totalShippingFee="handleTotalShippingFeeUpdate"
                 @update:shippingDiscount="handleShippingDiscountUpdate" />
               <!-- Payment Methods -->
               <section class="bg-white rounded-[4px] p-5">
@@ -207,13 +195,11 @@
                 </form>
               </section>
             </div>
-
             <!-- Sidebar -->
             <div class="lg:col-span-1 space-y-2">
               <!-- Address Selector -->
               <SelectedAddress :address="selectedAddress" :provinces="provinces" :districts="districts" :wards="wards"
                 @update:address="updateSelectedAddress" />
-
               <!-- Discounts -->
               <section class="bg-white p-6 rounded-[4px] shadow-sm">
                 <div class="flex items-start justify-between mb-4">
@@ -235,9 +221,11 @@
                           <p class="text-xs text-gray-600">
                             {{ discount.discount_type === 'percentage'
                               ? `Giảm ${Math.round(discount.discount_value)}%`
-                              : (discount.discount_type === 'shipping_fee'
+                              : discount.discount_type === 'fixed'
                                 ? `Giảm ${formatPrice(Number(discount.discount_value))} đ`
-                                : `Giảm ${formatPrice(discount.discount_value)} đ`)
+                                : (discount.discount_type === 'shipping_fee'
+                                  ? `Giảm ${formatPrice(Number(discount.discount_value))} đ phí vận chuyển`
+                                  : `Giảm ${formatPrice(Number(discount.discount_value))} đ`)
                             }}
                             <span v-if="discount.min_order_value">
                               (Đơn tối thiểu {{ formatPrice(discount.min_order_value) }} đ)
@@ -255,7 +243,6 @@
                   Chọn hoặc nhập mã khác
                   <i class="fas fa-chevron-right text-[10px]"></i>
                 </button>
-
                 <!-- Discount Modal -->
                 <div v-if="showDiscountModal"
                   class="fixed inset-0 bg-black bg-opacity-40 z-50 flex items-center justify-center"
@@ -283,17 +270,97 @@
                       </p>
                     </div>
                     <div class="space-y-6 max-h-[450px] overflow-y-auto">
+                      <!-- Phần 1: Mã giảm phí vận chuyển -->
                       <div>
                         <h3 class="text-sm font-medium text-gray-700 mb-2">Mã giảm phí vận chuyển</h3>
-                        <div v-if="discountLoading" class="text-gray-500 text-sm italic mt-2">Đang tải mã giảm giá...
-                        </div>
+                        <div v-if="discountLoading" class="text-gray-500 text-sm italic mt-2">Đang tải mã giảm giá...</div>
                         <div v-else-if="uniqueShippingDiscounts.length" class="space-y-3">
                           <div v-for="discount in uniqueShippingDiscounts" :key="discount.id"
                             class="border border-gray-300 rounded-md p-4 hover:border-blue-500 transition duration-200"
-                            :class="{ 'opacity-50': total < discount.min_order_value }">
+                            :class="{ 'opacity-50': total < (discount.min_order_value || 0) || isDiscountExpired(discount) }">
                             <div class="flex justify-between items-center">
                               <div>
-                                <p class="font-semibold text-sm text-gray-800">{{ discount.name }}</p>
+                                <p class="font-semibold text-sm text-gray-800">{{ discount.name }} <span
+                                    v-if="discount.seller_id"> (Shop: {{ getShopName(discount.seller_id) }})</span><span
+                                    v-else> (Admin)</span></p>
+                                <p class="text-xs text-gray-600">
+                                  Giảm {{ formatPrice(Number(discount.discount_value)) }} đ phí vận chuyển
+                                  <span v-if="discount.min_order_value">
+                                    | Đơn tối thiểu {{ formatPrice(discount.min_order_value) }} đ
+                                  </span>
+                                </p>
+                                <p class="text-[11px] text-gray-400 mt-1">HSD: {{ formatDate(discount.end_date) }}</p>
+                                <p v-if="isDiscountExpired(discount)" class="text-[11px] text-red-500 mt-1">Mã đã hết hạn</p>
+                                <p v-else-if="total < (discount.min_order_value || 0)" class="text-[11px] text-red-500 mt-1">Đơn hàng chưa đủ {{ formatPrice(discount.min_order_value) }} đ</p>
+                              </div>
+                              <div>
+                                <button v-if="selectedDiscounts.some(d => d.id === discount.id)"
+                                  @click="removeDiscount(discount.id)" class="text-red-500 text-sm hover:underline">
+                                  Bỏ chọn
+                                </button>
+                                <button v-else @click="applyDiscount(discount)"
+                                  :disabled="total < (discount.min_order_value || 0) || isDiscountExpired(discount)"
+                                  class="text-blue-600 text-sm hover:underline disabled:text-gray-400 disabled:cursor-not-allowed">
+                                  Áp dụng
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div v-else class="text-gray-500 text-sm italic mt-2">Không có mã giảm phí vận chuyển phù hợp</div>
+                      </div>
+                      <!-- Phần 2: Mã giảm giá theo phần trăm -->
+                      <div>
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">Mã giảm giá theo phần trăm</h3>
+                        <div v-if="discountLoading" class="text-gray-500 text-sm italic mt-2">Đang tải mã giảm giá...</div>
+                        <div v-else-if="uniquePercentageDiscounts.length" class="space-y-3">
+                          <div v-for="discount in uniquePercentageDiscounts" :key="discount.id"
+                            class="border border-gray-300 rounded-md p-4 hover:border-blue-500 transition duration-200"
+                            :class="{ 'opacity-50': total < (discount.min_order_value || 0) || isDiscountExpired(discount) }">
+                            <div class="flex justify-between items-center">
+                              <div>
+                                <p class="font-semibold text-sm text-gray-800">{{ discount.name }} <span
+                                    v-if="discount.seller_id"> (Shop: {{ getShopName(discount.seller_id) }})</span><span
+                                    v-else> (Admin)</span></p>
+                                <p class="text-xs text-gray-600">
+                                  Giảm {{ Math.round(discount.discount_value) }}%
+                                  <span v-if="discount.min_order_value">
+                                    | Đơn tối thiểu {{ formatPrice(discount.min_order_value) }} đ
+                                  </span>
+                                </p>
+                                <p class="text-[11px] text-gray-400 mt-1">HSD: {{ formatDate(discount.end_date) }}</p>
+                                <p v-if="isDiscountExpired(discount)" class="text-[11px] text-red-500 mt-1">Mã đã hết hạn</p>
+                                <p v-else-if="total < (discount.min_order_value || 0)" class="text-[11px] text-red-500 mt-1">Đơn hàng chưa đủ {{ formatPrice(discount.min_order_value) }} đ</p>
+                              </div>
+                              <div>
+                                <button v-if="selectedDiscounts.some(d => d.id === discount.id)"
+                                  @click="removeDiscount(discount.id)" class="text-red-500 text-sm hover:underline">
+                                  Bỏ chọn
+                                </button>
+                                <button v-else @click="applyDiscount(discount)"
+                                  :disabled="total < (discount.min_order_value || 0) || isDiscountExpired(discount)"
+                                  class="text-blue-600 text-sm hover:underline disabled:text-gray-400 disabled:cursor-not-allowed">
+                                  Áp dụng
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div v-else class="text-gray-500 text-sm italic mt-2">Không có mã giảm giá theo phần trăm phù hợp</div>
+                      </div>
+                      <!-- Phần 3: Mã giảm giá theo tiền cố định -->
+                      <div>
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">Mã giảm giá theo tiền cố định</h3>
+                        <div v-if="discountLoading" class="text-gray-500 text-sm italic mt-2">Đang tải mã giảm giá...</div>
+                        <div v-else-if="uniqueFixedDiscounts.length" class="space-y-3">
+                          <div v-for="discount in uniqueFixedDiscounts" :key="discount.id"
+                            class="border border-gray-300 rounded-md p-4 hover:border-blue-500 transition duration-200"
+                            :class="{ 'opacity-50': total < (discount.min_order_value || 0) || isDiscountExpired(discount) }">
+                            <div class="flex justify-between items-center">
+                              <div>
+                                <p class="font-semibold text-sm text-gray-800">{{ discount.name }} <span
+                                    v-if="discount.seller_id"> (Shop: {{ getShopName(discount.seller_id) }})</span><span
+                                    v-else> (Admin)</span></p>
                                 <p class="text-xs text-gray-600">
                                   Giảm {{ formatPrice(Number(discount.discount_value)) }} đ
                                   <span v-if="discount.min_order_value">
@@ -301,6 +368,8 @@
                                   </span>
                                 </p>
                                 <p class="text-[11px] text-gray-400 mt-1">HSD: {{ formatDate(discount.end_date) }}</p>
+                                <p v-if="isDiscountExpired(discount)" class="text-[11px] text-red-500 mt-1">Mã đã hết hạn</p>
+                                <p v-else-if="total < (discount.min_order_value || 0)" class="text-[11px] text-red-500 mt-1">Đơn hàng chưa đủ {{ formatPrice(discount.min_order_value) }} đ</p>
                               </div>
                               <div>
                                 <button v-if="selectedDiscounts.some(d => d.id === discount.id)"
@@ -308,62 +377,20 @@
                                   Bỏ chọn
                                 </button>
                                 <button v-else @click="applyDiscount(discount)"
-                                  :disabled="total < discount.min_order_value"
-                                  class="text-blue-600 text-sm hover:underline">
+                                  :disabled="total < (discount.min_order_value || 0) || isDiscountExpired(discount)"
+                                  class="text-blue-600 text-sm hover:underline disabled:text-gray-400 disabled:cursor-not-allowed">
                                   Áp dụng
                                 </button>
                               </div>
                             </div>
                           </div>
                         </div>
-                        <div v-else class="text-gray-500 text-sm italic mt-2">Không có mã phù hợp</div>
-                      </div>
-                      <div>
-                        <h3 class="text-sm font-medium text-gray-700 mb-2">Mã giảm giá sản phẩm</h3>
-                        <div v-if="discountLoading" class="text-gray-500 text-sm italic mt-2">Đang tải mã giảm giá...
-                        </div>
-                        <div
-                          v-else-if="publicDiscounts.filter(d => d.discount_type !== 'shipping_fee' && d.seller_id === null).length"
-                          class="space-y-3">
-                          <div
-                            v-for="discount in publicDiscounts.filter(d => d.discount_type !== 'shipping_fee' && d.seller_id === null)"
-                            :key="discount.id"
-                            class="border border-gray-300 rounded-md p-4 hover:border-blue-500 transition duration-200"
-                            :class="{ 'opacity-50': total < discount.min_order_value }">
-                            <div class="flex justify-between items-center">
-                              <div>
-                                <p class="font-semibold text-sm text-gray-800">{{ discount.name }}</p>
-                                <p class="text-xs text-gray-600">
-                                  {{ discount.discount_type === 'percentage'
-                                    ? `Giảm ${Math.round(discount.discount_value)}%`
-                                    : `Giảm ${formatPrice(Number(discount.discount_value))} đ` }}
-                                  <span v-if="discount.min_order_value">
-                                    | Đơn tối thiểu {{ formatPrice(discount.min_order_value) }} đ
-                                  </span>
-                                </p>
-                                <p class="text-[11px] text-gray-400 mt-1">HSD: {{ formatDate(discount.end_date) }}</p>
-                              </div>
-                              <div>
-                                <button v-if="selectedDiscounts.some(d => d.id === discount.id)"
-                                  @click="removeDiscount(discount.id)" class="text-red-500 text-sm hover:underline">
-                                  Bỏ chọn
-                                </button>
-                                <button v-else @click="applyDiscount(discount)"
-                                  :disabled="total < discount.min_order_value"
-                                  class="text-blue-600 text-sm hover:underline">
-                                  Áp dụng
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        <div v-else class="text-gray-500 text-sm italic mt-2">Không có mã phù hợp</div>
+                        <div v-else class="text-gray-500 text-sm italic mt-2">Không có mã giảm giá cố định phù hợp</div>
                       </div>
                     </div>
                   </div>
                 </div>
               </section>
-
               <!-- Order Summary -->
               <section class="bg-white rounded-lg p-5 text-sm text-gray-700 border border-gray-200 space-y-4">
                 <div class="flex justify-between items-center">
@@ -424,7 +451,8 @@
                     <span v-if="isPlacingOrder" class="flex items-center justify-center">
                       <!-- Animated shopping cart icon -->
                       <svg class="w-5 h-5 mr-2 animate-bounce" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12L8.1 13h7.45c.75 0 1.41-.41 1.75-1.03L21.7 4H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/>
+                        <path
+                          d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12L8.1 13h7.45c.75 0 1.41-.41 1.75-1.03L21.7 4H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z" />
                       </svg>
                       <!-- Loading dots -->
                       <div class="flex space-x-1 mr-2">
@@ -437,7 +465,8 @@
                     <span v-else class="flex items-center justify-center">
                       <!-- Shopping cart icon -->
                       <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12L8.1 13h7.45c.75 0 1.41-.41 1.75-1.03L21.7 4H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/>
+                        <path
+                          d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12L8.1 13h7.45c.75 0 1.41-.41 1.75-1.03L21.7 4H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z" />
                       </svg>
                       Đặt hàng ngay
                     </span>
@@ -453,7 +482,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
+import { ref, onMounted, onUnmounted, watch, computed, reactive } from 'vue';
 import { useRoute, useRuntimeConfig } from '#app';
 import axios from 'axios';
 import Swal from 'sweetalert2';
@@ -479,7 +508,7 @@ const showDiscountModal = ref(false);
 const storeNotes = ref({});
 const isOrderDetailsOpen = ref(false);
 const shippingFees = ref({});
-const orderLoading = ref(false); 
+const orderLoading = ref(false);
 const displayItems = computed(() => (isBuyNow.value ? buyNowItems.value : cartItems.value));
 const displayProductCount = computed(() =>
   displayItems.value.reduce((sum, shop) => sum + (shop.items?.reduce((s, i) => s + (i.quantity || 0), 0) || 0), 0)
@@ -549,64 +578,105 @@ const {
   getProductDiscountPerShop,
   totalShippingDiscount,
   removeShopDiscount,
-  recalculateAllShopDiscounts
+  recalculateAllShopDiscounts,
+  canUseCod
 } = useCheckout(shippingRef, selectedShippingMethod, selectedAddress, storeNotes);
 
 const { fetchMyVouchers, fetchDiscounts: fetchPublicDiscounts, fetchSellerDiscounts, discounts: publicDiscounts } = useDiscount();
 
+// Ensure publicDiscounts is reactive
+publicDiscounts.value = reactive(publicDiscounts.value || []);
+
+// Computed unique discounts for each type to avoid duplication and ensure proper display
 const uniqueShippingDiscounts = computed(() => {
   const seen = new Set();
-  return (publicDiscounts.value || []).filter(d => {
-    if (d.discount_type === 'shipping_fee' && d.seller_id === null) {
-      const key = d.id || d.code || d.name; // Sử dụng id, code hoặc name làm khóa duy nhất
-      if (!seen.has(key)) {
-        seen.add(key);
-        return true;
-      }
-    }
-    return false;
-  });
+  const filtered = publicDiscounts.value
+    .filter(d => d.discount_type === 'shipping_fee' && !d.seller_id && !seen.has(d.id || `${d.code}-${d.name}-${d.discount_type}`) && seen.add(d.id || `${d.code}-${d.name}-${d.discount_type}`))
+    .map(d => ({ ...d, admin: true }));
+  console.log('Computed uniqueShippingDiscounts:', filtered);
+  return filtered;
 });
 
+const uniquePercentageDiscounts = computed(() => {
+  const seen = new Set();
+  const filtered = publicDiscounts.value
+    .filter(d => d.discount_type === 'percentage' && !d.seller_id && !seen.has(d.id || `${d.code}-${d.name}-${d.discount_type}`) && seen.add(d.id || `${d.code}-${d.name}-${d.discount_type}`))
+    .map(d => ({ ...d, admin: true }));
+  console.log('Computed uniquePercentageDiscounts:', filtered);
+  return filtered;
+});
+
+const uniqueFixedDiscounts = computed(() => {
+  const seen = new Set();
+  const filtered = publicDiscounts.value
+    .filter(d => d.discount_type === 'fixed' && !d.seller_id && !seen.has(d.id || `${d.code}-${d.name}-${d.discount_type}`) && seen.add(d.id || `${d.code}-${d.name}-${d.discount_type}`))
+    .map(d => ({ ...d, admin: true }));
+  console.log('Computed uniqueFixedDiscounts:', filtered);
+  return filtered;
+});
+
+// Hàm lấy tên shop từ seller_id
+const getShopName = (sellerId) => {
+  const shop = cartItems.value.find(s => s.seller_id === sellerId);
+  return shop ? shop.store_name : 'Unknown';
+};
+
+// Hàm kiểm tra mã hết hạn
+const isDiscountExpired = (discount) => {
+  if (!discount || !discount.end_date) return true;
+  const endDate = new Date(discount.end_date);
+  return endDate < new Date();
+};
+
+// Hàm định dạng ngày hiển thị
+const formatDate = (date) => {
+  if (!date) return 'N/A';
+  const d = new Date(date);
+  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+};
+
 const updateShippingFee = ({ sellerId, fee }) => {
-  console.log(`Cập nhật phí vận chuyển cho shop ${sellerId}: ${fee}`);
+  console.log(`Updating shipping fee for shop ${sellerId}: ${fee}`);
   if (cart.value && cart.value.stores) {
     const store = cart.value.stores.find(s => s.seller_id === sellerId);
     if (store) {
       store.shipping_fee = fee;
-      console.log(`Đã cập nhật shipping_fee cho shop ${sellerId}: ${fee}`);
+      console.log(`Updated shipping_fee for shop ${sellerId}: ${fee}`);
     }
   }
 };
 
 const handleTotalShippingFeeUpdate = (newTotal) => {
-  console.log(`Cập nhật totalShippingFee: ${newTotal}`);
+  console.log(`Updated totalShippingFee: ${newTotal}`);
 };
 
 const handleShopDiscountUpdate = async (data) => {
   if (data && data.sellerId) {
     if (data.action === 'remove') {
-      removeShopDiscount(data.sellerId);
-      console.log('Đã xóa discount cho shop', data.sellerId);
+      await removeShopDiscount(data.sellerId);
+      console.log('Removed discount for shop', data.sellerId);
+      toast('success', `Đã xóa mã giảm giá cho shop ${data.sellerId}`);
     } else {
       const success = await updateShopDiscount(data.sellerId, data.discount, data.discountId);
       if (success) {
-        console.log('Cập nhật discount cho shop', data.sellerId, '->', data.discount);
+        console.log('Updated discount for shop', data.sellerId, '->', data.discount);
+        toast('success', `Đã áp dụng mã giảm giá cho shop ${data.sellerId}`);
       } else {
-        console.log('Không thể áp dụng mã giảm giá cho shop', data.sellerId);
+        console.log('Failed to apply discount for shop', data.sellerId);
+        toast('error', `Không thể áp dụng mã giảm giá cho shop ${data.sellerId}`);
       }
     }
   }
 };
 
 const handleShippingDiscountUpdate = (discountData) => {
-  console.log('Cập nhật shipping discount từ ShippingSelector:', discountData);
+  console.log('Updating shipping discount from ShippingSelector:', discountData);
   if (discountData.sellerId) {
     if (cart.value && cart.value.stores) {
       const store = cart.value.stores.find(s => s.seller_id === discountData.sellerId);
       if (store) {
         store.shipping_discount = discountData.shippingDiscount || 0;
-        console.log(`Đã cập nhật shipping_discount cho shop ${store.seller_id}: ${store.shipping_discount}`);
+        console.log(`Updated shipping_discount for shop ${store.seller_id}: ${store.shipping_discount}`);
       }
     }
   }
@@ -619,40 +689,35 @@ const applyManualDiscount = async () => {
     return;
   }
 
-  let discount = publicDiscounts.value.find((d) => d.code?.toUpperCase() === code);
-
-  if (!discount) {
-    for (const shop of cartItems.value) {
-      if (shop.seller_id) {
-        const sellerDiscounts = await fetchSellerDiscounts(shop.seller_id);
-        discount = sellerDiscounts.find((d) => d.code?.toUpperCase() === code);
-        if (discount) {
-          const discountAmount = discount.discount_type === 'percentage'
-            ? (shop.store_total * discount.discount_value / 100)
-            : discount.discount_value;
-          const success = await updateShopDiscount(shop.seller_id, discountAmount, discount.id);
-          if (success) {
-            await applyDiscount(discount);
-            toast('success', `Đã áp dụng mã giảm giá cho ${shop.store_name}`);
-            manualCode.value = '';
-            showDiscountModal.value = false;
-            return;
-          } else {
-            toast('error', `Không thể áp dụng mã giảm giá cho ${shop.store_name}`);
-            return;
-          }
-        }
-      }
-    }
-  }
+  let discount = publicDiscounts.value.find((d) => d.code?.toUpperCase() === code && !d.seller_id && ['shipping_fee', 'percentage', 'fixed'].includes(d.discount_type));
+  console.log('Manual discount input:', code, 'Found:', discount);
 
   if (!discount) {
     toast('error', 'Không tìm thấy mã giảm giá này');
     return;
   }
 
-  if (total.value < discount.min_order_value) {
+  if (isDiscountExpired(discount)) {
+    toast('error', 'Mã giảm giá đã hết hạn');
+    return;
+  }
+
+  if (discount.min_order_value && total.value < discount.min_order_value) {
     toast('error', `Đơn hàng chưa đủ điều kiện (${formatPrice(discount.min_order_value)} đ) để dùng mã này`);
+    return;
+  }
+
+  if (selectedDiscounts.value.length >= 2) {
+    toast('error', 'Bạn chỉ có thể áp dụng tối đa 2 mã giảm giá');
+    return;
+  }
+
+  let discountAmount = discount.discount_type === 'percentage'
+    ? total.value * discount.discount_value / 100
+    : discount.discount_value;
+
+  if (discountAmount > total.value) {
+    toast('error', 'Giá trị giảm giá không hợp lệ vì vượt quá tổng đơn hàng');
     return;
   }
 
@@ -672,10 +737,14 @@ const applyManualDiscount = async () => {
   } else if (discount.seller_id) {
     const shop = cartItems.value.find(s => s.seller_id === discount.seller_id);
     if (shop) {
-      const discountAmount = discount.discount_type === 'percentage'
-        ? (shop.store_total * discount.discount_value / 100)
+      const shopDiscountAmount = discount.discount_type === 'percentage'
+        ? shop.store_total * discount.discount_value / 100
         : discount.discount_value;
-      const success = await updateShopDiscount(shop.seller_id, discountAmount, discount.id);
+      if (shopDiscountAmount > shop.store_total) {
+        toast('error', `Giá trị giảm giá không hợp lệ cho ${shop.store_name}`);
+        return;
+      }
+      const success = await updateShopDiscount(shop.seller_id, shopDiscountAmount, discount.id);
       if (success) {
         toast('success', `Đã áp dụng mã giảm giá cho ${shop.store_name}`);
       } else {
@@ -689,11 +758,34 @@ const applyManualDiscount = async () => {
 };
 
 const selectCardPromotion = async (promo) => {
-  const discount = discounts.value.find((d) => d.name === promo.name);
+  const discount = discounts.value.find((d) => d.name === promo.name && !d.seller_id && ['percentage', 'fixed'].includes(d.discount_type));
+  console.log('Selected card promotion:', promo, 'Found discount:', discount);
   if (!discount) {
     toast('error', 'Ưu đãi không khả dụng');
     return;
   }
+  if (isDiscountExpired(discount)) {
+    toast('error', 'Ưu đãi đã hết hạn');
+    return;
+  }
+  if (discount.min_order_value && total.value < discount.min_order_value) {
+    toast('error', `Đơn hàng chưa đủ điều kiện (${formatPrice(discount.min_order_value)} đ) để dùng mã này`);
+    return;
+  }
+  if (selectedDiscounts.value.length >= 2) {
+    toast('error', 'Bạn chỉ có thể áp dụng tối đa 2 mã giảm giá');
+    return;
+  }
+
+  let discountAmount = discount.discount_type === 'percentage'
+    ? total.value * discount.discount_value / 100
+    : discount.discount_value;
+
+  if (discountAmount > total.value) {
+    toast('error', 'Giá trị giảm giá không hợp lệ vì vượt quá tổng đơn hàng');
+    return;
+  }
+
   await applyDiscount(discount);
 
   if (!discount.seller_id && (discount.discount_type === 'percentage' || discount.discount_type === 'fixed')) {
@@ -743,7 +835,7 @@ const loadWards = async (district_id) => {
 };
 
 const updateSelectedAddress = async (newAddress) => {
-  console.log('Cập nhật địa chỉ:', JSON.stringify(newAddress, null, 2));
+  console.log('Updating address:', JSON.stringify(newAddress, null, 2));
   selectedAddress.value = newAddress;
   if (newAddress && newAddress.province_id && newAddress.district_id) {
     await loadDistricts(newAddress.province_id);
@@ -790,23 +882,17 @@ const loadSelectedAddress = async () => {
         is_default: selectedAddress.value.is_default,
         address_type: selectedAddress.value.address_type,
       };
-      console.log('Địa chỉ đã chọn:', JSON.stringify(selectedAddress.value, null, 2));
+      console.log('Selected address:', JSON.stringify(selectedAddress.value, null, 2));
       await loadDistricts(selectedAddress.value.province_id);
       await loadWards(selectedAddress.value.district_id);
       await loadShippingFees();
     } else {
-      console.warn('Không tìm thấy địa chỉ giao hàng phù hợp');
+      console.warn('No suitable shipping address found');
     }
   } catch (err) {
-    console.error('Lỗi khi tải địa chỉ:', err);
+    console.error('Error loading address:', err);
     toast('error', 'Không thể tải địa chỉ giao hàng');
   }
-};
-
-const formatDate = (date) => {
-  if (!date) return '';
-  const d = new Date(date);
-  return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}/${d.getFullYear()}`;
 };
 
 const toast = (icon, title) => {
@@ -833,9 +919,10 @@ const handlePlaceOrder = async () => {
   orderLoading.value = true;
   try {
     await placeOrder();
+    toast('success', 'Đặt hàng thành công!');
   } catch (err) {
     console.error('Error placing order:', err);
-    toast('error', 'Lỗi khi đặt hàng');
+    toast('error', 'Lỗi khi đặt hàng: ' + (err.message || 'Vui lòng thử lại'));
   } finally {
     orderLoading.value = false;
   }
@@ -853,7 +940,7 @@ watch(discountError, (val) => {
 
 watch(selectedAddress, async (newAddress) => {
   if (newAddress && newAddress.district_id && newAddress.ward_code) {
-    console.log('Địa chỉ đã thay đổi, gọi loadShippingFees');
+    console.log('Address changed, triggering loadShippingFees');
     if (window.addressChangeTimeout) {
       clearTimeout(window.addressChangeTimeout);
     }
@@ -908,39 +995,47 @@ onMounted(async () => {
   try {
     checkoutPerformance.start();
     console.time('checkout-load');
+    console.log('Total value:', total.value);
 
-    const loadPromises = [
-      selectStoreItems(),
-      fetchPaymentMethods(),
-      fetchPublicDiscounts(),
-      fetchMyVouchers(),
-      loadSelectedAddress(),
-      checkCodEligibility(),
-    ];
+    await selectStoreItems();
+    await fetchPaymentMethods();
 
-    await Promise.all(loadPromises);
+    // Fetch discounts from multiple sources
+    discountLoading.value = true;
+    const [publicList, myVoucherList] = await Promise.all([
+      fetchPublicDiscounts().catch(err => {
+        console.error('Error fetching public discounts:', err);
+        return [];
+      }),
+      fetchMyVouchers().catch(err => {
+        console.error('Error fetching my vouchers:', err);
+        return [];
+      }),
+    ]);
+    console.log('Public discounts:', publicList);
+    console.log('My vouchers:', myVoucherList);
 
-    // Loại bỏ mã giảm giá trùng lặp
+    // Merge all discounts and ensure no duplicates
+    const merged = [...(publicList || []), ...(myVoucherList || [])];
+    console.log('Merged discounts:', merged);
+
+    // Deduplicate discounts and filter only admin discounts (no seller_id) with valid types
     const seen = new Set();
-    publicDiscounts.value = publicDiscounts.value.filter(d => {
-      const key = d.id || d.code || d.name;
-      if (!seen.has(key)) {
-        seen.add(key);
-        return true;
-      }
-      return false;
+    publicDiscounts.value = merged.filter(d => {
+      const key = d.id || `${d.code}-${d.name}-${d.discount_type}`;
+      return !seen.has(key) && seen.add(key) && !d.seller_id && ['shipping_fee', 'percentage', 'fixed'].includes(d.discount_type);
     });
+    console.log('Filtered publicDiscounts:', publicDiscounts.value);
+    console.log('Admin discounts:', publicDiscounts.value);
+
+    discountLoading.value = false;
+
+    await loadSelectedAddress();
+    await checkCodEligibility();
 
     checkoutPerformance.markMilestone('Data loaded');
     console.timeEnd('checkout-load');
-
-    console.log('🚀 Checkout page loaded successfully');
     checkoutPerformance.end();
-
-    const shippingStats = shippingPerformance.getSummary();
-    if (shippingStats.totalCalculations > 0) {
-      console.log('📊 Shipping Performance Summary:', shippingStats);
-    }
   } catch (err) {
     console.error('Error during checkout load:', err);
     toast('error', 'Lỗi khi tải dữ liệu thanh toán');
@@ -955,25 +1050,13 @@ onMounted(async () => {
 
 /* Custom animations for loading overlay */
 @keyframes float {
-
-  0%,
-  100% {
-    transform: translateY(0px);
-  }
-
-  50% {
-    transform: translateY(-10px);
-  }
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
 }
 
 @keyframes shimmer {
-  0% {
-    background-position: -200px 0;
-  }
-
-  100% {
-    background-position: calc(200px + 100%) 0;
-  }
+  0% { background-position: -200px 0; }
+  100% { background-position: calc(200px + 100%) 0; }
 }
 
 .animate-float {

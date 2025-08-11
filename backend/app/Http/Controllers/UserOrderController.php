@@ -101,7 +101,7 @@ class UserOrderController extends Controller
             'created_at' => $order->created_at->format('d/m/Y H:i'),
             'total_price' => $order->total_price,
             'discount_price' => $order->discount_price,
-            'shipping_fee' => $order->shipping_fee,
+            'shipping_fee' => $order->shipping->shipping_fee ?? 0,
             'final_price' => $order->final_price,
             'user' => [
                 'name' => $order->user->name ?? '',
@@ -122,6 +122,7 @@ class UserOrderController extends Controller
                 'tracking_code' => $order->shipping->tracking_code,
                 'status' => $order->shipping->status,
                 'estimated_delivery' => $order->shipping->estimated_delivery,
+                'shipping_fee' => (int) ($order->shipping->shipping_fee ?? 0),
             ] : null,
             'order_items' => $order->orderItems->map(function ($item) {
                 $product = $item->product;
