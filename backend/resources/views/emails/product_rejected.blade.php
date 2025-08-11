@@ -140,7 +140,7 @@
         <div class="footer">
             <p>Trân trọng,<br>Đội ngũ <strong>Passion</strong></p>
             <p>
-                <a href="https://passion.com">Website</a> |
+                <a href="https://passionfpt.shop">Website</a> |
                 <a href="mailto:support@passion.com">Liên hệ hỗ trợ</a>
             </p>
             <p style="margin-top: 10px;">&copy; {{ date('Y') }} <strong>Passion</strong>. Mọi quyền được bảo lưu.</p>

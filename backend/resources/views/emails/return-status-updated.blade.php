@@ -166,15 +166,13 @@
       <p><strong>Ghi chú từ người xử lý:</strong><br>{{ $returnRequest->admin_note }}</p>
       @endif
 
-
-
       <p>Nếu có bất kỳ thắc mắc nào, bạn có thể liên hệ lại với chúng tôi qua email hỗ trợ.</p>
     </div>
 
     <div class="footer">
       <p>Trân trọng,<br>Đội ngũ <strong>Passion</strong></p>
       <p>
-        <a href="https://passion.com">Website</a> |
+        <a href="https://passionfpt.shop/">Website</a> |
         <a href="mailto:support@passion.com">Liên hệ hỗ trợ</a>
       </p>
       <p style="margin-top: 10px;">&copy; {{ date('Y') }} <strong>Passion</strong>. Mọi quyền được bảo lưu.</p>
