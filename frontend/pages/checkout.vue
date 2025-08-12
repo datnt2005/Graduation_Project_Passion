@@ -582,7 +582,7 @@ const {
   canUseCod
 } = useCheckout(shippingRef, selectedShippingMethod, selectedAddress, storeNotes);
 
-const { fetchMyVouchers, fetchDiscounts: fetchPublicDiscounts, fetchSellerDiscounts, discounts: publicDiscounts } = useDiscount();
+const { fetchMyVouchers, fetchDiscounts: fetchPublicDiscounts, fetchSellerDiscounts, discounts: publicDiscounts, checkMultipleDiscounts } = useDiscount();
 
 // Ensure publicDiscounts is reactive
 publicDiscounts.value = reactive(publicDiscounts.value || []);
@@ -712,18 +712,23 @@ const applyManualDiscount = async () => {
     return;
   }
 
-  let discountAmount = discount.discount_type === 'percentage'
-    ? total.value * discount.discount_value / 100
-    : discount.discount_value;
-
-  if (discountAmount > total.value) {
-    toast('error', 'Giá trị giảm giá không hợp lệ vì vượt quá tổng đơn hàng');
-    return;
-  }
-
+  // Kiểm tra xem có thể áp dụng cùng lúc với discount hiện tại không
+  const currentDiscounts = selectedDiscounts.value.map(d => d.id);
+  const testDiscounts = [...currentDiscounts, discount.id];
+  
+  try {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const checkResult = await checkMultipleDiscounts(testDiscounts, user.id, total.value, realShippingFee.value);
+    
+    if (checkResult.success) {
   await applyDiscount(discount);
 
-  if (!discount.seller_id && (discount.discount_type === 'percentage' || discount.discount_type === 'fixed')) {
+      // Xử lý theo loại discount
+      if (discount.discount_type === 'shipping_fee') {
+        // Shipping discount được xử lý tự động bởi backend
+        toast('success', `Đã áp dụng mã giảm phí vận chuyển ${discount.name}`);
+      } else if (!discount.seller_id && (discount.discount_type === 'percentage' || discount.discount_type === 'fixed')) {
+        // Product discount - chia đều cho các shop
     const shopCount = cartItems.value.length;
     const perShopDiscount = getProductDiscountPerShop(total.value, shopCount);
     if (perShopDiscount > 0) {
@@ -735,6 +740,7 @@ const applyManualDiscount = async () => {
       toast('error', 'Không thể phân bổ mã giảm giá do tổng tiền hàng hoặc số lượng shop không hợp lệ');
     }
   } else if (discount.seller_id) {
+        // Shop-specific discount
     const shop = cartItems.value.find(s => s.seller_id === discount.seller_id);
     if (shop) {
       const shopDiscountAmount = discount.discount_type === 'percentage'
@@ -751,6 +757,13 @@ const applyManualDiscount = async () => {
         toast('error', `Không thể áp dụng mã giảm giá cho ${shop.store_name}`);
       }
     }
+      }
+    } else {
+      toast('error', checkResult.message || 'Không thể áp dụng mã giảm giá này');
+    }
+  } catch (error) {
+    console.error('Error checking multiple discounts:', error);
+    toast('error', 'Lỗi khi kiểm tra mã giảm giá');
   }
 
   manualCode.value = '';
@@ -777,15 +790,15 @@ const selectCardPromotion = async (promo) => {
     return;
   }
 
-  let discountAmount = discount.discount_type === 'percentage'
-    ? total.value * discount.discount_value / 100
-    : discount.discount_value;
-
-  if (discountAmount > total.value) {
-    toast('error', 'Giá trị giảm giá không hợp lệ vì vượt quá tổng đơn hàng');
-    return;
-  }
-
+  // Kiểm tra xem có thể áp dụng cùng lúc với discount hiện tại không
+  const currentDiscounts = selectedDiscounts.value.map(d => d.id);
+  const testDiscounts = [...currentDiscounts, discount.id];
+  
+  try {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const checkResult = await checkMultipleDiscounts(testDiscounts, user.id, total.value, realShippingFee.value);
+    
+    if (checkResult.success) {
   await applyDiscount(discount);
 
   if (!discount.seller_id && (discount.discount_type === 'percentage' || discount.discount_type === 'fixed')) {
@@ -797,6 +810,13 @@ const selectCardPromotion = async (promo) => {
       }
       toast('success', `Đã áp dụng ưu đãi ${discount.name} cho tất cả cửa hàng`);
     }
+      }
+    } else {
+      toast('error', checkResult.message || 'Không thể áp dụng ưu đãi này');
+    }
+  } catch (error) {
+    console.error('Error checking multiple discounts:', error);
+    toast('error', 'Lỗi khi kiểm tra ưu đãi');
   }
 };
 

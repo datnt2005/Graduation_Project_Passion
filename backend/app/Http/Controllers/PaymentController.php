@@ -718,7 +718,7 @@ class PaymentController extends Controller
     $accessKey = "F8BBA842ECF85";
     $secretKey = "K951B6PE1waDMi640xX08PD3vg6EkVlz";
     $orderInfo = "Thanh toán đơn hàng " . $order->id;
-    $amount = (int)($order->final_price + ($order->shipping->shipping_fee ?? 0) - ($order->shipping->shipping_discount ?? 0));
+    $amount = (int)$order->final_price;
     $orderId = time() . "";
     $redirectUrl = "http://localhost:3000/payment/momo-return";
     $ipnUrl = "http://localhost:8000/api/payments/momo/ipn";
