@@ -2,13 +2,45 @@
   <main class="flex-1 p-6 sm:p-10 bg-white max-w-6xl mx-auto rounded-lg shadow flex flex-col md:flex-row gap-8">
     <!-- Nội dung chính -->
     <div class="flex-1 min-w-0">
-      <!-- Loading & Error -->
-      <div v-if="loading" class="text-center text-gray-400 py-16 text-lg flex flex-col items-center gap-2">
-        <span class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mb-2"></span>
-        Đang tải bài viết...
+       <!-- Loading Skeleton -->
+      <div v-if="loading" class="space-y-4 animate-pulse">
+        <!-- Title skeleton -->
+        <div class="h-8 bg-gray-200 rounded w-3/4"></div>
+
+        <!-- Info row skeleton -->
+        <div class="flex gap-4">
+          <div class="h-4 bg-gray-200 rounded w-20"></div>
+          <div class="h-4 bg-gray-200 rounded w-16"></div>
+          <div class="h-4 bg-gray-200 rounded w-24"></div>
+        </div>
+
+        <!-- Image skeleton -->
+        <div class="h-64 bg-gray-200 rounded-lg"></div>
+
+        <!-- Content skeleton lines -->
+        <div class="space-y-2">
+          <div class="h-4 bg-gray-200 rounded w-full"></div>
+          <div class="h-4 bg-gray-200 rounded w-5/6"></div>
+          <div class="h-4 bg-gray-200 rounded w-4/6"></div>
+          <div class="h-4 bg-gray-200 rounded w-3/6"></div>
+        </div>
       </div>
-      <div v-else-if="error" class="text-center text-red-500 py-16 text-lg">{{ error }}</div>
-      <div v-else-if="!post" class="text-center text-gray-500 py-16 text-lg">Không tìm thấy bài viết.</div>
+
+      <!-- Error -->
+      <div
+        v-else-if="error"
+        class="text-center text-red-500 py-16 text-lg"
+      >
+        {{ error }}
+      </div>
+
+      <!-- Not Found -->
+      <div
+        v-else-if="!post"
+        class="text-center text-gray-500 py-16 text-lg"
+      >
+        Không tìm thấy bài viết.
+      </div>
 
       <div v-else>
         <h1 class="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-4 leading-tight break-words whitespace-normal">

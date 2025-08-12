@@ -1,7 +1,7 @@
 <template>
-  <div class="flex min-h-screen bg-gray-100 justify-center py-8">
-    <main class="container mx-auto px-4 sm:px-6 lg:px-8 bg-white shadow-md rounded-lg mt-4 py-6">
-      <h2 class="text-xl font-bold mb-4">2. Địa chỉ giao hàng</h2>
+  <main class="bg-[#f5f5f5] py-6">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 bg-white shadow-md rounded-lg mt-4 py-6">
+      <h2 class="text-xl font-bold mb-4">Địa chỉ giao hàng</h2>
       <p class="mb-4 text-gray-600">Chọn địa chỉ giao hàng có sẵn dưới đây:</p>
 
       <!-- Loading skeleton -->
@@ -14,7 +14,8 @@
       </div>
 
       <!-- Address list -->
-      <div v-else v-for="address in addresses" :key="address.id" class="border border-green-500 p-4 rounded-lg mb-6 relative">
+      <div v-else v-for="address in addresses" :key="address.id"
+        class="border border-green-500 p-4 rounded-lg mb-6 relative">
         <span v-if="address.is_default"
           class="absolute top-0 right-0 bg-green-500 text-white text-xs px-2 py-1 rounded-bl-lg">Mặc định</span>
         <h3 class="font-semibold text-lg mb-2">{{ address.name }}</h3>
@@ -155,8 +156,8 @@
           </div>
         </div>
       </div>
-    </main>
-  </div>
+    </div>
+  </main>
 </template>
 
 <script setup>
@@ -297,12 +298,12 @@ const loadAddresses = async () => {
     // Load addresses first - show immediately
     const res = await axios.get(`${apiBase}/address`, useAuthHeaders());
     addresses.value = res.data.data || [];
-    
+
     // Preload location data in background without blocking UI
     if (addresses.value.length > 0) {
       const uniqueProvinceIds = [...new Set(addresses.value.map(addr => addr.province_id))].filter(Boolean);
       const uniqueDistrictIds = [...new Set(addresses.value.map(addr => addr.district_id))].filter(Boolean);
-      
+
       // Load location data in parallel with timeout
       setTimeout(() => {
         Promise.allSettled([
@@ -500,7 +501,7 @@ const onDistrictChange = async () => {
 onMounted(async () => {
   // Load addresses first for faster UI display
   await loadAddresses();
-  
+
   // Load provinces in background with delay
   setTimeout(() => {
     loadProvinces();
@@ -532,9 +533,12 @@ body {
 }
 
 @keyframes pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 1;
   }
+
   50% {
     opacity: .5;
   }

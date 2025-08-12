@@ -294,63 +294,69 @@ const resetForm = ref({
 })
 
 const loginWithGoogle = () => {
-  const width = 500
-  const height = 600
-  const left = window.screen.width / 2 - width / 2
-  const top = window.screen.height / 2 - height / 2
+  const width = 500;
+  const height = 600;
+  const left = window.screen.width / 2 - width / 2;
+  const top = window.screen.height / 2 - height / 2;
 
-  const googleAuthUrl = 'http://localhost:8000/api/auth/google/redirect'
-  const expectedOrigin = 'http://localhost:8000'
+  const googleAuthUrl = 'https://api.passionfpt.shop/api/auth/google/redirect';
+  const allowedOrigins = [
+    'https://api.passionfpt.shop',
+    'https://passionfpt.shop',
+    'http://localhost:3000' // dev local
+  ];
+
   const popup = window.open(
     googleAuthUrl,
     'Google Login',
     `width=${width},height=${height},top=${top},left=${left}`
-  )
+  );
 
   const messageHandler = async (event) => {
-    if (event.origin !== expectedOrigin) {
-      console.warn('Invalid origin:', event.origin)
-      return
-    }
+    // Lọc origin
+    if (!allowedOrigins.includes(event.origin)) return;
 
-    if (event.data?.token) {
-      localStorage.setItem('access_token', event.data.token)
+    // Lọc message hợp lệ (có token hoặc error)
+    const { token, error } = event.data || {};
+    if (!token && !error) return;
+
+    if (token) {
+      localStorage.setItem('access_token', token);
 
       try {
         const res = await fetch(`${api}/me`, {
-          headers: { Authorization: `Bearer ${event.data.token}` },
-        })
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
-        const data = await res.json()
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-        if (res.ok && data.data) {
-          emit('login-success', data.data)
-          toast('success', 'Đăng nhập Google thành công!')
-          setTimeout(() => {
-            window.location.reload()
-          }, 1500)
-          showModal.value = false
+        const data = await res.json();
+        if (data?.data) {
+          emit('login-success', data.data);
+          toast('success', 'Đăng nhập Google thành công!');
+          setTimeout(() => window.location.reload(), 1500);
+          showModal.value = false;
         } else {
-          throw new Error(data.message || 'Không lấy được thông tin tài khoản!')
+          throw new Error(data.message || 'Không lấy được thông tin tài khoản!');
         }
-      } catch (error) {
-        console.error('Login verification failed:', error)
-        toast('error', 'Xác thực đăng nhập thất bại.')
-        localStorage.removeItem('access_token')
+      } catch (err) {
+        toast('error', 'Xác thực đăng nhập thất bại.');
+        localStorage.removeItem('access_token');
       } finally {
-        popup?.close()
-        window.removeEventListener('message', messageHandler)
+        popup?.close();
+        window.removeEventListener('message', messageHandler);
       }
-    } else if (event.data?.error) {
-      toast('error', event.data.error)
-      popup?.close()
-      window.removeEventListener('message', messageHandler)
     }
-  }
 
-  window.addEventListener('message', messageHandler, { once: true })
-}
+    if (error) {
+      toast('error', error);
+      popup?.close();
+      window.removeEventListener('message', messageHandler);
+    }
+  };
 
+  window.addEventListener('message', messageHandler, { once: true });
+};
 const cancelOtp = () => {
   showOtp.value = false
   showVerifyEmailForm.value = false

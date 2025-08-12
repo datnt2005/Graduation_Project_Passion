@@ -1142,8 +1142,6 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
         store_product_discounts: storeProductDiscounts, // Riêng product discounts
       };
 
-      console.log('Dữ liệu đơn hàng gửi API:', orderData); // Log để debug
-
       const orderResponse = await fetch(`${config.public.apiBaseUrl}/orders`, {
         method: 'POST',
         headers: {

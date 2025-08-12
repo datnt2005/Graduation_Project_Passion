@@ -53,7 +53,7 @@
                 <span>{{ formatPrice(order.total_price) }} đ</span>
               </div>
               <div class="flex justify-between" v-if="order.discount_price > 0">
-                <span>Giảm giá sản phẩm:</span>
+                <span>Tổng giảm giá:</span>
                 <span class="text-green-600">- {{ formatPrice(order.discount_price) }} đ</span>
               </div>
               <div class="flex justify-between">
