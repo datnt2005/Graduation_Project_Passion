@@ -1802,95 +1802,142 @@ const isDelivered = (status) => {
   return s === 'delivered' || s === 'đã giao' || s.includes('delivered') || s.includes('đã giao');
 };
 
+
+
 //  in hoa don
 const printInvoice = async (order) => {
-  // Gọi API để lấy chi tiết đơn hàng
-  const res = await fetch(`${apiBase}/api/orders/${order.id}`);
-  const detail = await res.json();
+  try {
+    const json = await secureFetch(`${apiBase}/orders/${order.id}/print-invoice`);
+    console.log("API JSON:", json);
 
-  // Format tiền
-  const formatCurrency = (v) =>
-    new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(v || 0));
+    const detail = json?.data;
+    if (!detail) {
+      console.error("Không có dữ liệu detail từ API");
+      return;
+    }
 
-  // Danh sách sản phẩm
-  const itemsHtml = (detail.items || []).map(it => `
-    <tr>
-      <td>${it.product?.name || it.name || '-'}</td>
-      <td style="text-align:center">${it.quantity || 0}</td>
-      <td style="text-align:right">${formatCurrency(it.price || 0)}</td>
-      <td style="text-align:right">${formatCurrency((it.price || 0) * (it.quantity || 0))}</td>
-    </tr>
-  `).join('');
+    // Map trạng thái sang tiếng Việt
+    const statusMap = {
+      pending: "Chờ xử lý",
+      confirmed: "Đã xác nhận",
+      processing: "Đang xử lý",
+      shipping: "Đang giao hàng",
+      delivered: "Đã giao",
+      cancelled: "Đã hủy",
+      refunded: "Đã hoàn tiền",
+      failed: "Thất bại",
+      failed_delivery: "Giao hàng thất bại",
+      rejected_by_customer: "Khách từ chối nhận"
+    };
+    const vnStatus = statusMap[detail.status] || detail.status || "-";
 
-  // HTML in
-  const html = `
-    <!doctype html>
-    <html>
-      <head>
-        <meta charset="utf-8"/>
-        <title>Hóa đơn #${detail.code || detail.id}</title>
-        <style>
-          body { font-family: Arial, sans-serif; padding: 10px; font-size: 13px; }
-          .label-box { border: 2px solid #000; padding: 10px; }
-          .flex { display: flex; justify-content: space-between; }
-          .bold { font-weight: bold; }
-          .table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-          .table th, .table td { border: 1px solid #000; padding: 4px; }
-          .right { text-align: right; }
-          .center { text-align: center; }
-          @media print { .no-print { display: none } }
-        </style>
-      </head>
-      <body>
-        <div class="label-box">
-          <div class="flex bold" style="font-size:16px; margin-bottom:6px;">
-            <span>passion</span>
-            <span>Mã đơn: ${detail.code || detail.id}</span>
-          </div>
-          
-          <div class="flex">
-            <div>
-              <div class="bold">Từ:</div>
-              <div>passion</div>
-              <div>Địa chỉ: ${detail.from_address || 'TP. Buôn Ma Thuột, Đắk Lắk'}</div>
-              <div>SĐT: ${detail.from_phone || '-'}</div>
+    // Format tiền tệ
+    const formatCurrency = (v) =>
+      new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' })
+        .format(Number(v || 0));
+
+    // Lấy địa chỉ khách hàng
+    let customerAddress = "-";
+    if (detail.customer?.address) {
+      customerAddress = detail.customer.address;
+    } else if (detail.customer?.address_detail) {
+      customerAddress = [
+        detail.customer.address_detail,
+        detail.customer.ward_name || detail.customer.ward_code || "",
+        detail.customer.district_name || detail.customer.district_id || "",
+        detail.customer.province_name || detail.customer.province_id || ""
+      ].filter(Boolean).join(", ");
+    }
+
+    // HTML bảng sản phẩm
+    const itemsHtml = (detail.items || []).map(it => `
+      <tr>
+        <td>${it.product_name || '-'}</td>
+        <td class="center">${it.quantity || 0}</td>
+        <td class="right">${formatCurrency(it.price || 0)}</td>
+        <td class="right">${formatCurrency(it.total || 0)}</td>
+      </tr>
+    `).join('');
+
+    // HTML in hóa đơn
+    const html = `
+      <!doctype html>
+      <html>
+        <head>
+          <meta charset="utf-8"/>
+          <title>Hóa đơn #${detail.order_id}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 10px; font-size: 13px; }
+            .label-box { border: 2px solid #000; padding: 10px; }
+            .flex { display: flex; justify-content: space-between; }
+            .bold { font-weight: bold; }
+            .table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+            .table th, .table td { border: 1px solid #000; padding: 4px; }
+            .right { text-align: right; }
+            .center { text-align: center; }
+            @media print { .no-print { display: none } }
+          </style>
+        </head>
+        <body>
+          <div class="label-box">
+            <div class="flex bold" style="font-size:16px; margin-bottom:6px;">
+              <span>passion</span>
+              <span>Mã đơn: ${detail.order_id}</span>
             </div>
-            <div>
-              <div class="bold">Đến:</div>
-              <div>${detail.user?.name || detail.customer_name || '-'}</div>
-              <div>Địa chỉ: ${detail.address?.full || detail.address || '-'}</div>
-              <div>SĐT: ${detail.phone || detail.address?.phone || '-'}</div>
+            <div>Ngày tạo: ${detail.created_at || '-'}</div>
+            <div>Trạng thái: ${vnStatus}</div>
+            
+            <div class="flex" style="margin-top:6px;">
+              <div>
+                <div class="bold">Từ:</div>
+                <div>passion</div>
+                <div>Địa chỉ: TP. Buôn Ma Thuột, Đắk Lắk</div>
+                <div>SĐT: -</div>
+              </div>
+              <div>
+                <div class="bold">Đến:</div>
+                <div>${detail.customer?.name || '-'}</div>
+                <div>SĐT: ${detail.customer?.phone || '-'}</div>
+                <div>Địa chỉ: ${customerAddress}</div>
+              </div>
+            </div>
+
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Sản phẩm</th>
+                  <th class="center">SL</th>
+                  <th class="right">Đơn giá</th>
+                  <th class="right">Thành tiền</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${itemsHtml}
+              </tbody>
+            </table>
+
+            <div class="right" style="margin-top:6px;">
+              <div>Tổng phụ: ${formatCurrency(detail.subtotal)}</div>
+              <div>Giảm giá: ${formatCurrency(detail.discount)}</div>
+              <div>Phí ship: ${formatCurrency(detail.shipping_fee)}</div>
+              <div class="bold">Tổng thanh toán: ${formatCurrency(detail.final_price)}</div>
+              <div>Phương thức thanh toán: ${detail.payment_method || '-'}</div>
             </div>
           </div>
+        </body>
+      </html>
+    `;
 
-          <table class="table">
-            <thead>
-              <tr>
-                <th>Sản phẩm</th>
-                <th class="center">SL</th>
-                <th class="right">Đơn giá</th>
-                <th class="right">Thành tiền</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${itemsHtml}
-            </tbody>
-          </table>
+    const w = window.open('', '_blank');
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    setTimeout(() => { w.print(); }, 300);
 
-          <div class="right bold" style="margin-top:6px;">
-            Tổng: ${formatCurrency(detail.final_price || detail.total || ((detail.items||[]).reduce((s,it)=>(s + (it.quantity||0)*(it.price||0)),0)))}
-          </div>
-        </div>
-      </body>
-    </html>
-  `;
-
-  const w = window.open('', '_blank');
-  w.document.open();
-  w.document.write(html);
-  w.document.close();
-  w.focus();
-  setTimeout(() => { w.print(); }, 300);
+  } catch (err) {
+    console.error("Lỗi khi in hóa đơn:", err);
+  }
 };
 
 

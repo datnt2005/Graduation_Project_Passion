@@ -259,14 +259,31 @@
             </article>
           </div>
 
-          <!-- Pagination -->
-          <div v-if="filteredOrders.length > 0 && selectedTab !== 'refunds'" class="mt-4 flex justify-center gap-2">
-            <button @click="page.value -= 1" :disabled="page.value === 1"
-              class="px-4 py-2 border rounded-md disabled:opacity-50" aria-label="Trang trước">Trang trước</button>
-            <span class="px-4 py-2 text-sm">Trang {{ page.value }} / {{ totalPages }}</span>
-            <button @click="page.value += 1" :disabled="page.value === totalPages"
-              class="px-4 py-2 border rounded-md disabled:opacity-50" aria-label="Trang sau">Trang sau</button>
-          </div>
+<!-- Pagination -->
+<div v-if="filteredOrders.length > 0 && selectedTab !== 'refunds'" 
+     class="mt-4 flex justify-center gap-2">
+
+  <button 
+    @click="setPage(page - 1)" 
+    :disabled="page === 1"
+    class="px-4 py-2 border rounded-md disabled:opacity-50"
+    aria-label="Trang trước">
+    Trang trước
+  </button>
+
+  <span class="px-4 py-2 text-sm">
+    Trang {{ page }} / {{ pagesCount }}
+  </span>
+
+  <button 
+    @click="setPage(page + 1)" 
+    :disabled="page === pagesCount"
+    class="px-4 py-2 border rounded-md disabled:opacity-50"
+    aria-label="Trang sau">
+    Trang sau
+  </button>
+</div>
+
 
           <!-- No orders -->
           <div v-if="filteredOrders.length === 0 && selectedTab !== 'refunds'" class="text-center text-gray-600 mt-10">
@@ -523,11 +540,19 @@ const refundReason = ref('');
 const bankAccountNumber = ref('');
 const bankName = ref('');
 const showPayments = ref(false);
-const page = ref(1);
-const perPage = 10;
 const isReturnModalOpen = ref(false);
 const selectedReturnOrder = ref(null);
 const openDropdownId = ref(null);
+const page = ref(1)
+const perPage = 2
+const pagesCount = computed(() => Math.ceil(filteredOrders.value.length / perPage))
+
+function setPage(p) {
+  if (p < 1 || p > pagesCount.value) return
+  page.value = p
+}
+
+ 
 
 function toggleDropdown(id) {
   openDropdownId.value = openDropdownId.value === id ? null : id;
@@ -1049,9 +1074,6 @@ const reorderToCart = async (order) => {
 };
 
 
-
-
-
 const loadProvinces = async () => {
   try {
     const res = await axios.get(`${apiBase}/ghn/provinces`);
@@ -1211,6 +1233,14 @@ const paginatedOrders = computed(() => {
   const start = (page.value - 1) * perPage;
   return filteredOrders.value.slice(start, start + perPage);
 });
+
+
+// go to page 
+function goToPage(p) {
+  if (p < 1 || p > totalPages.value) return
+  page.value = p
+  fetchOrders()
+}
 
 // Lifecycle and watchers
 onMounted(async () => {
