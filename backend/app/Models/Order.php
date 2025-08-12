@@ -188,6 +188,7 @@ class Order extends Model
 
         throw new \Exception('Đơn hàng chưa áp dụng mã giảm giá');
     }
+    
 
     /**
      * Kiểm tra trạng thái hợp lệ

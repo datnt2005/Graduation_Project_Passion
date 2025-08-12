@@ -383,11 +383,21 @@ class OrderController extends Controller
                         'name' => $order->user->name,
                         'email' => $order->user->email
                     ],
+                    'items' => $order->orderItems->map(function ($item) {
+                            return [
+                                'name' => $item->productVariant?->product?->name,
+                                'variant' => $item->productVariant?->name,
+                                'quantity' => $item->quantity,
+                                'price' => $item->price
+                            ];
+                        }),
                     'shipping' => $order->shipping ? [
                         'tracking_code' => $order->shipping->tracking_code,
                         'shipping_method' => $order->shipping->shipping_method,
                         'shipping_fee' => $order->shipping->shipping_fee,
                         'estimated_delivery_date' => $order->shipping->estimated_delivery_date,
+                         'address' => $order->shipping->address,
+                        'phone' => $order->shipping->phone,
                     ] : null,
                     'status' => $order->status,
                     'payment_method' => $order->payments->first()?->paymentMethod?->name ?? null,
@@ -399,6 +409,7 @@ class OrderController extends Controller
                             'status' => $payment->status,
                             'created_at' => $payment->created_at,
                         ];
+
                     }),
                     'payment_status' => $order->payment_status,
                     'subtotal' => $order->subtotal,
@@ -1991,6 +2002,135 @@ class OrderController extends Controller
         ], 500);
     }
 }
+
+public function printInvoice($id)
+{
+    try {
+        $user = auth()->user();
+
+        $query = Order::with([
+            'orderItems.product',
+            'orderItems.productVariant',
+            'user',
+            'address',
+            'payments.paymentMethod',
+            'shipping'
+        ])->where('id', $id);
+
+        if ($user->role === 'user') {
+            $query->where('user_id', $user->id);
+        }
+
+        $order = $query->firstOrFail();
+
+       $token = env('GHN_TOKEN');
+$apiUrl = rtrim(env('GHN_API_URL'), '/');
+
+// Hàm tiện ích để gọi GHN API
+function ghnGet($url, $params = [])
+{
+    return Http::withHeaders([
+        'Token' => env('GHN_TOKEN')
+    ])->get($url, $params);
+}
+
+// Lấy tên tỉnh
+$provinceName = null;
+if (!empty($order->address?->province_id)) {
+    $res = ghnGet("$apiUrl/master-data/province");
+    if ($res->successful()) {
+        $province = collect($res->json('data'))
+            ->firstWhere('ProvinceID', (int)$order->address->province_id);
+        $provinceName = $province['ProvinceName'] ?? null;
+    }
+}
+
+// Lấy tên quận/huyện
+$districtName = null;
+if (!empty($order->address?->district_id)) {
+    $res = Http::withHeaders([
+        'Token' => $token
+    ])->post("$apiUrl/master-data/district", [
+        'province_id' => (int)$order->address->province_id
+    ]);
+    if ($res->successful()) {
+        $district = collect($res->json('data'))
+            ->firstWhere('DistrictID', (int)$order->address->district_id);
+        $districtName = $district['DistrictName'] ?? null;
+    }
+}
+
+// Lấy tên phường/xã
+$wardName = null;
+if (!empty($order->address?->ward_code)) {
+    $res = Http::withHeaders([
+        'Token' => $token
+    ])->post("$apiUrl/master-data/ward", [
+        'district_id' => (int)$order->address->district_id
+    ]);
+    if ($res->successful()) {
+        $ward = collect($res->json('data'))
+            ->firstWhere('WardCode', (string)$order->address->ward_code);
+        $wardName = $ward['WardName'] ?? null;
+    }
+}
+
+// Gắn vào dữ liệu trả về
+$invoiceData['customer']['province_name'] = $provinceName;
+$invoiceData['customer']['district_name'] = $districtName;
+$invoiceData['customer']['ward_name'] = $wardName;
+
+
+
+        $invoiceData = [
+            'order_id' => $order->id,
+            'customer' => [
+                'name' => $order->user->name,
+                'phone' => $order->address->phone ?? $order->user->phone ?? null,
+                'address_detail' => $order->address->detail ?? null,
+                'province_name' => $provinceName,
+                'district_name' => $districtName,
+                'ward_name' => $wardName,
+            ],
+            'items' => $order->orderItems->map(function ($item) {
+                return [
+                    'product_name' => $item->product->name,
+                    'variant' => $item->productVariant->name ?? null,
+                    'quantity' => $item->quantity,
+                    'price' => $item->price,
+                    'total' => $item->price * $item->quantity,
+                ];
+            }),
+            'subtotal' => $order->subtotal,
+            'shipping_fee' => $order->shipping_fee,
+            'discount' => $order->discount_price,
+            'final_price' => $order->final_price,
+            'payment_method' => $order->payments->first()?->paymentMethod?->name ?? null,
+            'status' => $order->status,
+            'created_at' => $order->created_at->format('d/m/Y H:i'),
+        ];
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Lấy thông tin hóa đơn thành công',
+            'data' => $invoiceData
+        ], 200);
+
+    } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Không tìm thấy đơn hàng'
+        ], 404);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Có lỗi xảy ra khi lấy hóa đơn',
+            'error' => env('APP_DEBUG', false) ? $e->getMessage() : null
+        ], 500);
+    }
+}
+
+
 
 
 
