@@ -21,7 +21,7 @@ Route::prefix('orders')->middleware(['auth:sanctum'])->group(function () {
     Route::middleware('checkRole:user')->get('/', [OrderController::class, 'index']);
     Route::middleware('checkRole:user')->get('/{id}', [OrderController::class, 'show']);
 
-     
+
 Route::get('/orders/{id}/reorder-detail', [OrderController::class, 'reorderDetail'])
     ->middleware(['auth:sanctum', 'checkRole:user']);
 
@@ -35,6 +35,11 @@ Route::get('/orders/{id}/reorder-detail', [OrderController::class, 'reorderDetai
         Route::get('/orders/{id}/refund', [OrderController::class, 'getRefund']);
        Route::put('/seller/{id}/status', [OrderController::class, 'update']);
     });
+
+
+    Route::get('/{id}/print-invoice', [OrderController::class, 'printInvoice'])
+    ->middleware(['auth:sanctum', 'checkRole:admin,seller,user']);
+
 
 
 
