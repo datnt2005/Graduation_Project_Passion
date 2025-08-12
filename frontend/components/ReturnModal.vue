@@ -94,7 +94,6 @@
         <!-- Trạng thái đổi trả -->
         <div class="mb-4 space-y-1 text-sm">
           <p v-if="isReturnExpired" class="text-red-600">Đã quá thời gian đổi trả (14 ngày kể từ ngày đặt hàng).</p>
-          <p v-else-if="remainingDays > 0" class="text-gray-500">Bạn còn {{ remainingDays }} ngày để đổi trả.</p>
           <p v-if="hasSubmittedRequest && requestStatus === 'pending'" class="text-red-600">
             Bạn đã gửi yêu cầu. Vui lòng chờ phản hồi từ người bán.
           </p>
