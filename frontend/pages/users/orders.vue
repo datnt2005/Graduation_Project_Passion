@@ -1154,9 +1154,129 @@ const refreshData = async () => {
   toast('success', 'Dữ liệu đã được làm mới!');
 };
 
-const printOrder = (orderId) => {
-  window.open(`/users/print-order/${orderId}`, '_blank');
+const printOrder = async (orderId) => {
+  try {
+    const json = await secureFetch(`${apiBase}/orders/${orderId}/print-invoice`);
+    const detail = json?.data;
+    if (!detail) {
+      console.error("Không có dữ liệu từ API");
+      return;
+    }
+
+    const statusMap = {
+      pending: "Chờ xử lý",
+      confirmed: "Đã xác nhận",
+      processing: "Đang xử lý",
+      shipping: "Đang giao hàng",
+      delivered: "Đã giao",
+      cancelled: "Đã hủy",
+      refunded: "Đã hoàn tiền",
+      failed: "Thất bại",
+      failed_delivery: "Giao hàng thất bại",
+      rejected_by_customer: "Khách từ chối nhận"
+    };
+    const vnStatus = statusMap[detail.status] || detail.status || "-";
+
+    const formatCurrency = (v) =>
+      new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' })
+        .format(Number(v || 0));
+
+    const itemsHtml = (detail.items || []).map(it => `
+      <tr>
+        <td>${it.product_name || '-'}</td>
+        <td style="text-align:center">${it.quantity || 0}</td>
+        <td style="text-align:right">${formatCurrency(it.price || 0)}</td>
+        <td style="text-align:right">${formatCurrency(it.total || 0)}</td>
+      </tr>
+    `).join('');
+
+    const addressStr = [
+      detail.customer?.address_detail,
+      detail.customer?.ward_name,
+      detail.customer?.district_name,
+      detail.customer?.province_name
+    ].filter(Boolean).join(', ');
+
+    const html = `
+      <!doctype html>
+      <html>
+        <head>
+          <meta charset="utf-8"/>
+          <title>Hóa đơn #${detail.order_id}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 10px; font-size: 13px; }
+            .label-box { border: 2px solid #000; padding: 10px; }
+            .flex { display: flex; justify-content: space-between; }
+            .bold { font-weight: bold; }
+            .table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+            .table th, .table td { border: 1px solid #000; padding: 4px; }
+            .right { text-align: right; }
+            .center { text-align: center; }
+            @media print { .no-print { display: none } }
+          </style>
+        </head>
+        <body>
+          <div class="label-box">
+            <div class="flex bold" style="font-size:16px; margin-bottom:6px;">
+              <span>Passion</span>
+              <span>Mã đơn: ${detail.order_id}</span>
+            </div>
+            <div>Ngày tạo: ${detail.created_at || '-'}</div>
+            <div>Trạng thái: ${vnStatus}</div>
+
+            <div class="flex" style="margin-top:6px;">
+              <div>
+                <div class="bold">Từ:</div>
+                <div>Passion</div>
+                <div>Địa chỉ: TP. Buôn Ma Thuột, Đắk Lắk</div>
+                <div>SĐT: -</div>
+              </div>
+              <div>
+                <div class="bold">Đến:</div>
+                <div>${detail.customer?.name || '-'}</div>
+                <div>SĐT: ${detail.customer?.phone || '-'}</div>
+                <div>Địa chỉ: ${addressStr || '-'}</div>
+              </div>
+            </div>
+
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Sản phẩm</th>
+                  <th class="center">SL</th>
+                  <th class="right">Đơn giá</th>
+                  <th class="right">Thành tiền</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${itemsHtml}
+              </tbody>
+            </table>
+
+            <div class="right" style="margin-top:6px;">
+              <div>Tổng phụ: ${formatCurrency(detail.subtotal)}</div>
+              <div>Giảm giá: ${formatCurrency(detail.discount)}</div>
+              <div>Phí ship: ${formatCurrency(detail.shipping_fee)}</div>
+              <div class="bold">Tổng thanh toán: ${formatCurrency(detail.final_price)}</div>
+              <div>Phương thức thanh toán: ${detail.payment_method || '-'}</div>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    const w = window.open('', '_blank');
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    setTimeout(() => { w.print(); }, 300);
+
+  } catch (err) {
+    console.error("Lỗi khi in hóa đơn:", err);
+  }
 };
+
 
 const downloadPDF = async (orderId) => {
   try {
