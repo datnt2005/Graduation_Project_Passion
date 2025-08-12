@@ -544,7 +544,7 @@ const isReturnModalOpen = ref(false);
 const selectedReturnOrder = ref(null);
 const openDropdownId = ref(null);
 const page = ref(1)
-const perPage = 2
+const perPage = 5
 const pagesCount = computed(() => Math.ceil(filteredOrders.value.length / perPage))
 
 function setPage(p) {
