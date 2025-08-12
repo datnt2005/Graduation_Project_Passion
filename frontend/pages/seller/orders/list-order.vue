@@ -186,7 +186,7 @@
                   <button @click="openUpdateStatusModal(order); activeDropdown = null"
                     class="w-full text-left px-4 py-2 text-sm text-blue-700 hover:bg-blue-50">Cập nhật trạng thái</button>
                     <button
-                        v-if="isDelivered(order.status)"
+                       
                         @click.prevent="printInvoice(order)"
                          class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                         title="In hoá đơn"
@@ -1803,69 +1803,97 @@ const isDelivered = (status) => {
 };
 
 //  in hoa don
-const printInvoice = (order) => {
+const printInvoice = async (order) => {
+  // Gọi API để lấy chi tiết đơn hàng
+  const res = await fetch(`${apiBase}/api/orders/${order.id}`);
+  const detail = await res.json();
+
+  // Format tiền
   const formatCurrency = (v) =>
     new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(v || 0));
 
-  const itemsHtml = (order.items || []).map(it => `
+  // Danh sách sản phẩm
+  const itemsHtml = (detail.items || []).map(it => `
     <tr>
       <td>${it.product?.name || it.name || '-'}</td>
-      <td style="text-align:right">${it.quantity || it.qty || 0}</td>
-      <td style="text-align:right">${formatCurrency(it.price || it.unit_price || 0)}</td>
-      <td style="text-align:right">${formatCurrency((it.price || it.unit_price || 0) * (it.quantity || it.qty || 0))}</td>
+      <td style="text-align:center">${it.quantity || 0}</td>
+      <td style="text-align:right">${formatCurrency(it.price || 0)}</td>
+      <td style="text-align:right">${formatCurrency((it.price || 0) * (it.quantity || 0))}</td>
     </tr>
   `).join('');
 
+  // HTML in
   const html = `
     <!doctype html>
     <html>
       <head>
         <meta charset="utf-8"/>
-        <title>Hoá đơn #${order.id}</title>
+        <title>Hóa đơn #${detail.code || detail.id}</title>
         <style>
-          body{font-family:Arial,sans-serif;padding:20px}
-          table{width:100%;border-collapse:collapse}
-          td,th{border:1px solid #ddd;padding:6px;font-size:13px}
-          .right{text-align:right}
-          @media print { .no-print{display:none} }
+          body { font-family: Arial, sans-serif; padding: 10px; font-size: 13px; }
+          .label-box { border: 2px solid #000; padding: 10px; }
+          .flex { display: flex; justify-content: space-between; }
+          .bold { font-weight: bold; }
+          .table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+          .table th, .table td { border: 1px solid #000; padding: 4px; }
+          .right { text-align: right; }
+          .center { text-align: center; }
+          @media print { .no-print { display: none } }
         </style>
       </head>
       <body>
-        <h2>Hoá đơn giao hàng — #${order.id}</h2>
-        <div>Khách: ${order.user?.name || order.customer_name || '-'}</div>
-        <div>Địa chỉ: ${order.address?.full || order.address || '-'}</div>
+        <div class="label-box">
+          <div class="flex bold" style="font-size:16px; margin-bottom:6px;">
+            <span>passion</span>
+            <span>Mã đơn: ${detail.code || detail.id}</span>
+          </div>
+          
+          <div class="flex">
+            <div>
+              <div class="bold">Từ:</div>
+              <div>passion</div>
+              <div>Địa chỉ: ${detail.from_address || 'TP. Buôn Ma Thuột, Đắk Lắk'}</div>
+              <div>SĐT: ${detail.from_phone || '-'}</div>
+            </div>
+            <div>
+              <div class="bold">Đến:</div>
+              <div>${detail.user?.name || detail.customer_name || '-'}</div>
+              <div>Địa chỉ: ${detail.address?.full || detail.address || '-'}</div>
+              <div>SĐT: ${detail.phone || detail.address?.phone || '-'}</div>
+            </div>
+          </div>
 
-        <table>
-          <thead>
-            <tr><th>Sản phẩm</th><th>Số lượng</th><th>Đơn giá</th><th>Thành tiền</th></tr>
-          </thead>
-          <tbody>
-            ${itemsHtml}
-          </tbody>
-        </table>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Sản phẩm</th>
+                <th class="center">SL</th>
+                <th class="right">Đơn giá</th>
+                <th class="right">Thành tiền</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsHtml}
+            </tbody>
+          </table>
 
-        <div style="margin-top:10px;text-align:right;font-weight:bold">
-          Tổng: ${formatCurrency(order.final_price || order.total || ((order.items||[]).reduce((s,it)=>(s + (it.quantity||it.qty||0)*(it.price||it.unit_price||0)),0)))}
-        </div>
-
-        <div class="no-print" style="margin-top:12px">
-          <button onclick="window.print()">In (nếu in không tự bật)</button>
+          <div class="right bold" style="margin-top:6px;">
+            Tổng: ${formatCurrency(detail.final_price || detail.total || ((detail.items||[]).reduce((s,it)=>(s + (it.quantity||0)*(it.price||0)),0)))}
+          </div>
         </div>
       </body>
     </html>
   `;
 
   const w = window.open('', '_blank');
-  if (!w) {
-    alert('Trình duyệt có thể chặn pop-up. Bật pop-up hoặc in từ chi tiết đơn.');
-    return;
-  }
   w.document.open();
   w.document.write(html);
   w.document.close();
   w.focus();
-  setTimeout(() => { try { w.print(); } catch (e) { console.error(e); } }, 300);
+  setTimeout(() => { w.print(); }, 300);
 };
+
+
 
 </script>
 

@@ -383,11 +383,21 @@ class OrderController extends Controller
                         'name' => $order->user->name,
                         'email' => $order->user->email
                     ],
+                    'items' => $order->orderItems->map(function ($item) {
+                            return [
+                                'name' => $item->productVariant?->product?->name,
+                                'variant' => $item->productVariant?->name,
+                                'quantity' => $item->quantity,
+                                'price' => $item->price
+                            ];
+                        }),
                     'shipping' => $order->shipping ? [
                         'tracking_code' => $order->shipping->tracking_code,
                         'shipping_method' => $order->shipping->shipping_method,
                         'shipping_fee' => $order->shipping->shipping_fee,
                         'estimated_delivery_date' => $order->shipping->estimated_delivery_date,
+                         'address' => $order->shipping->address,
+                        'phone' => $order->shipping->phone,
                     ] : null,
                     'status' => $order->status,
                     'payment_method' => $order->payments->first()?->paymentMethod?->name ?? null,
@@ -399,6 +409,7 @@ class OrderController extends Controller
                             'status' => $payment->status,
                             'created_at' => $payment->created_at,
                         ];
+
                     }),
                     'payment_status' => $order->payment_status,
                     'subtotal' => $order->subtotal,
