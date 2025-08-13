@@ -166,9 +166,9 @@ import StockMovementHistory from '@/components/inventories/StockMovementHistory.
 import { secureAxios } from '@/utils/secureAxios';
 import { useNotification } from '@/composables/useNotification';
 
-const { setNotification } = useNotification();
+const { showMessage } = useNotification();
 const config = useRuntimeConfig();
-const apiBase = config.public.apiBaseUrl;
+const apiBase = config.public.apiBaseUrl; 
 
 const searchQuery = ref('');
 const totalInventories = ref(0);
@@ -210,7 +210,7 @@ const fetchInventories = async () => {
     console.log('Dữ liệu kho hàng:', inventories.value); // Debug
   } catch (error) {
     console.error('Lỗi khi lấy danh sách kho hàng:', error);
-    setNotification('Không thể tải danh sách kho hàng. Vui lòng thử lại.', 'error');
+    showMessage('Không thể tải danh sách kho hàng. Vui lòng thử lại.', 'error');
   } finally {
     isLoading.value = false;
   }
@@ -237,7 +237,7 @@ const onInventorySubmitted = async () => {
   await fetchInventories();
   currentPage.value = 1; // Reset to first page
   stockRefreshKey.value += 1; // Trigger StockMovementHistory refresh
-  setNotification('Danh sách kho hàng đã được làm mới!', 'success');
+  showMessage('Danh sách kho hàng đã được làm mới!', 'success');
 };
 
 const filteredInventories = computed(() => {

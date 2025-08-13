@@ -522,9 +522,9 @@
 
         <!-- Phân trang -->
         <div v-if="orderTotalPages > 1" class="flex justify-center mt-4">
-          <button @click="orderPage--" :disabled="orderPage === 1" class="px-3 py-1 mx-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50">&lt;</button>
-          <button v-for="page in orderTotalPages" :key="page" @click="orderPage = page" :class="['px-3 py-1 mx-1 rounded border', orderPage === page ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-gray-700 border-gray-300']">{{ page }}</button>
-          <button @click="orderPage++" :disabled="orderPage === orderTotalPages" class="px-3 py-1 mx-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50">&gt;</button>
+          <button @click="changeOrderPage(orderPage - 1)" :disabled="orderPage === 1" class="px-3 py-1 mx-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50">&lt;</button>
+          <button v-for="page in orderTotalPages" :key="page" @click="changeOrderPage(page)" :class="['px-3 py-1 mx-1 rounded border', orderPage === page ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-gray-700 border-gray-300']">{{ page }}</button>
+          <button @click="changeOrderPage(orderPage + 1)" :disabled="orderPage === orderTotalPages" class="px-3 py-1 mx-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50">&gt;</button>
         </div>
       </div>
       <div v-else-if="activeTab === 'payouts'">
@@ -904,10 +904,14 @@ const payoutFilters = ref({ keyword: '', status: '' });
 const orderPage = ref(1);
 const orderPageSize = ref(10);
 const orderTotalPages = ref(1);
-const orderPaginatedData = computed(() => {
-  // Since we're using backend pagination, just return the orders directly
-  return orders.value;
-});
+// Backend pagination: orders.value is the current page's data
+const orderPaginatedData = computed(() => orders.value);
+// Change page and fetch orders
+function changeOrderPage(page) {
+  if (page < 1 || page > orderTotalPages.value) return;
+  orderPage.value = page;
+  fetchOrders();
+}
 const provinces = ref([]);
 const districts = ref([]);
 const wards = ref([]);
