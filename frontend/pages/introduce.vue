@@ -7,10 +7,22 @@
         <div>
           <h2 class="text-2xl font-bold mb-4">Giới thiệu về Passion</h2>
           <p class="text-gray-700 text-lg leading-relaxed">
-            Passion là nền tảng thương mại điện tử đa ngành, nơi kết nối hàng triệu người mua với hàng ngàn người bán trên khắp Việt Nam. Không chỉ là nơi mua sắm đa dạng, Passion còn cho phép người dùng dễ dàng trở thành người bán, khởi tạo gian hàng và phát triển thương hiệu cá nhân.
+            Passion là nền tảng thương mại điện tử đa ngành, nơi kết nối hàng triệu người mua với hàng ngàn người bán
+            trên khắp Việt Nam.
+            Không chỉ là nơi mua sắm đa dạng, Passion còn cho phép người dùng dễ dàng trở thành người bán, khởi tạo gian
+            hàng và phát triển thương hiệu cá nhân.
           </p>
+          <p class="text-gray-700 text-lg leading-relaxed mt-4">
+            Đặc biệt, dự án Passion được phát triển bởi một nhóm sinh viên xuất sắc của trường <strong>FPT
+              Polytechnic</strong>, những con người đầy nhiệt huyết và sáng tạo.
+            Với tinh thần đoàn kết bền chặt, không ngừng học hỏi và khát khao chinh phục thử thách, họ đã biến ý tưởng
+            thành hiện thực, tạo nên một sản phẩm mang tính đột phá.
+            Mỗi thành viên đều là một mảnh ghép hoàn hảo, đóng góp chuyên môn và tâm huyết để Passion không chỉ là một
+            dự án tốt nghiệp, mà còn là minh chứng cho sự trưởng thành và bản lĩnh của thế hệ trẻ đầy tài năng.
+          </p>
+
         </div>
-        <img src="https://cdn-img.upanhlaylink.com/img/image_20250527d785fa616f5da6aa56ce93f3ecf34d12.jpg" alt="Giới thiệu Passion" class="rounded-xl shadow-md w-full" />
+        <img :src="BannerSecond" alt="Giới thiệu Passion" class="rounded-xl shadow-md w-full" />
       </div>
     </section>
 
@@ -57,7 +69,8 @@
     <section class="bg-gray-100 py-12 px-4 md:px-20">
       <h2 class="text-2xl font-bold mb-4">Giá trị kinh doanh</h2>
       <p class="text-gray-700 text-lg">
-        Passion tạo ra giá trị bền vững bằng cách kết nối thị trường, giảm rào cản khởi nghiệp và tối ưu trải nghiệm người dùng.
+        Passion tạo ra giá trị bền vững bằng cách kết nối thị trường, giảm rào cản khởi nghiệp và tối ưu trải nghiệm
+        người dùng.
       </p>
     </section>
 
@@ -66,17 +79,20 @@
       <h2 class="text-2xl font-bold mb-4">Ngành hàng nổi bật</h2>
       <div class="grid md:grid-cols-3 gap-6 text-gray-700 text-lg">
         <div class="bg-white shadow-lg rounded-xl p-6 border">
-          <img src="https://cdn-img.upanhlaylink.com/img/image_20250527f0565522b18541ed5fd33781865eb70b.jpg" alt="Thời trang" class="mb-4 rounded-md" />
-          <h3 class="font-semibold text-xl mb-2">Thời trang & Phụ kiện</h3> 
+          <img src="https://cdn-img.upanhlaylink.com/img/image_20250527f0565522b18541ed5fd33781865eb70b.jpg"
+            alt="Thời trang" class="mb-4 rounded-md" />
+          <h3 class="font-semibold text-xl mb-2">Thời trang & Phụ kiện</h3>
           <p>Đa dạng từ local brand đến quốc tế.</p>
         </div>
         <div class="bg-white shadow-lg rounded-xl p-6 border">
-          <img src="https://cdn-img.upanhlaylink.com/img/image_20250527047ea929e69a1039186215c3439f5d8c.jpg" alt="Điện tử" class="mb-4 rounded-md" />
+          <img src="https://cdn-img.upanhlaylink.com/img/image_20250527047ea929e69a1039186215c3439f5d8c.jpg"
+            alt="Điện tử" class="mb-4 rounded-md" />
           <h3 class="font-semibold text-xl mb-2">Điện tử & Công nghệ</h3>
           <p>Sản phẩm chính hãng, cập nhật liên tục.</p>
         </div>
         <div class="bg-white shadow-lg rounded-xl p-6 border">
-          <img src="https://cdn-img.upanhlaylink.com/img/image_20250527e196e04165191fcf91257649fd93e1b5.jpg"  alt="Mỹ phẩm" class="mb-4 rounded-md" />
+          <img src="https://cdn-img.upanhlaylink.com/img/image_20250527e196e04165191fcf91257649fd93e1b5.jpg"
+            alt="Mỹ phẩm" class="mb-4 rounded-md" />
           <h3 class="font-semibold text-xl mb-2">Mỹ phẩm & Làm đẹp</h3>
           <p>Chất lượng cao, giá cả cạnh tranh.</p>
         </div>
@@ -91,11 +107,13 @@
           <p class="text-gray-700 text-lg mb-6">
             Với chỉ vài bước đơn giản, bạn có thể mở gian hàng, đăng sản phẩm và bắt đầu kinh doanh ngay hôm nay.
           </p>
-          <NuxtLink to="" class="inline-block bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-3 px-6 rounded-lg transition">
+          <NuxtLink to="/sell-together-passion"
+            class="inline-block bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-3 px-6 rounded-lg transition">
             Đăng ký ngay
           </NuxtLink>
         </div>
-        <img src="https://cdn-img.upanhlaylink.com/img/image_20250527510475fcab156211ddae7d0b9a5546d6.jpg" alt="Trở thành người bán" class="rounded-xl shadow-md" />
+        <img src="https://cdn-img.upanhlaylink.com/img/image_20250527510475fcab156211ddae7d0b9a5546d6.jpg"
+          alt="Trở thành người bán" class="rounded-xl shadow-md" />
       </div>
     </section>
 
@@ -114,6 +132,7 @@
 
 <script setup>
 import { useHead } from '#imports'
+import BannerSecond from '~/images/banner2.png'
 
 useHead({
   title: 'Giới thiệu Passion',
