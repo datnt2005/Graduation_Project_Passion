@@ -5,6 +5,8 @@
         <h1 class="text-xl font-semibold text-gray-800">Báo cáo đánh giá sản phẩm của bạn</h1>
       </div>
 
+
+
       <!-- Bộ lọc -->
       <div class="bg-gray-200 px-4 py-3 flex flex-wrap items-center gap-3 text-sm text-gray-700 mb-4 rounded">
         <div class="flex items-center space-x-2">
@@ -83,12 +85,26 @@
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
 import { useRuntimeConfig, useRouter } from '#app';
-import { useToast } from '@/composables/useToast';
+
+
 import { Eye } from 'lucide-vue-next';
 import Pagination from '~/components/Pagination.vue';
 
-const { toast } = useToast();
 definePageMeta({ layout: 'default-seller' });
+// Notification state
+const showNotification = ref(false);
+const notificationMessage = ref('');
+const notificationType = ref('success');
+
+// Show notification (bottom right)
+const showMessage = (message, type = 'success') => {
+  notificationMessage.value = message;
+  notificationType.value = type;
+  showNotification.value = true;
+  setTimeout(() => {
+    showNotification.value = false;
+  }, 3000);
+};
 
 const config = useRuntimeConfig();
 const apiBase = config.public.apiBaseUrl || 'http://localhost:8000/api';
@@ -165,7 +181,7 @@ const fetchReports = async (page = 1) => {
     currentPage.value = res.data.current_page || page;
 
     if (!reports.value.length) {
-      toast('info', 'Không có báo cáo nào');
+      showMessage('Không có báo cáo nào', 'info');
     }
   } catch (err) {
     console.error('Lỗi khi tải báo cáo:', err);
@@ -184,7 +200,8 @@ const fetchReports = async (page = 1) => {
     } else {
       errorMessage = err.message || 'Không thể kết nối đến server';
     }
-    toast('error', errorMessage);
+  showMessage(errorMessage, 'error');
+
     reports.value = [];
     lastPage.value = 1;
     total.value = 0;

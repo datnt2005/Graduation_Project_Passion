@@ -468,7 +468,10 @@ public function resetPassword(Request $request)
     $user->otp_expired_at = null;
     $user->save();
 
-    return response()->json(['message' => 'Đặt lại mật khẩu thành công.'], 200);
+    return response()->json([
+        'message' => 'Đặt lại mật khẩu thành công.',
+        'success' => true,
+    ], 200);
 }
 
 

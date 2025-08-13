@@ -515,9 +515,12 @@ const sendForgotEmail = async () => {
 const submitResetPassword = async () => {
   isResetting.value = true
   try {
-    await axios.post(`${api}/reset-password`, resetForm.value)
+   const res = await axios.post(`${api}/reset-password`, resetForm.value)
+    if (res.data.success === false) {
+      toast('error', res.data.message || 'Không thể đặt lại mật khẩu.')
+      return
+    }
     toast('success', 'Mật khẩu đã được đặt lại thành công!')
-    showResetPassword.value = false
     isResetMode.value = false
     isLogin.value = true
   } catch (err) {

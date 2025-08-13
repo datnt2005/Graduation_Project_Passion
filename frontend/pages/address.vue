@@ -411,17 +411,12 @@ const submitForm = async () => {
     if (editAddress.value) {
       await axios.put(`${apiBase}/address/${editAddress.value.id}`, payload, useAuthHeaders())
       showSuccess('Cập nhật địa chỉ thành công!')
-      // Update local data instead of reloading
-      const index = addresses.value.findIndex(a => a.id === editAddress.value.id);
-      if (index !== -1) {
-        addresses.value[index] = { ...editAddress.value, ...payload };
-      }
     } else {
-      const res = await axios.post(`${apiBase}/address`, payload, useAuthHeaders())
+      await axios.post(`${apiBase}/address`, payload, useAuthHeaders())
       showSuccess('Thêm địa chỉ thành công!')
-      // Add new address to local data
-      addresses.value.unshift(res.data.data);
     }
+    // Sau khi thêm/cập nhật, luôn reload lại danh sách địa chỉ từ backend
+    await loadAddresses();
   } catch (error) {
     showError(error.response?.data?.message || 'Lỗi khi lưu địa chỉ.')
     console.error('Error submitting form:', error)

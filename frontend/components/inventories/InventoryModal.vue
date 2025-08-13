@@ -279,7 +279,7 @@ import { useRuntimeConfig } from '#app';
 import { secureAxios } from '@/utils/secureAxios';
 import { useNotification } from '@/composables/useNotification';
 
-const { showNotification, notificationMessage, notificationType, setNotification } = useNotification();
+const { showNotification, notificationMessage, notificationType, showMessage } = useNotification();
 
 const props = defineProps({
   mode: {
@@ -320,7 +320,7 @@ onMounted(async () => {
       const { data } = await secureAxios(`${apiBase}/product-variants`, { method: 'GET' }, ['admin', 'seller']);
       productVariants.value = data;
     } catch (e) {
-      setNotification('Không thể tải danh sách biến thể sản phẩm. Vui lòng thử lại sau.', 'error');
+      showMessage('Không thể tải danh sách biến thể sản phẩm. Vui lòng thử lại sau.', 'error');
     }
   }
 });
@@ -332,7 +332,7 @@ const handleSubmit = async () => {
   try {
     if (props.mode === 'create') {
       if (!selectedVariantId.value) {
-        setNotification('Vui lòng chọn biến thể sản phẩm.', 'error');
+        showMessage('Vui lòng chọn biến thể sản phẩm.', 'error');
         isSubmitting.value = false;
         return;
       }
@@ -349,7 +349,7 @@ const handleSubmit = async () => {
         },
       }, ['admin', 'seller']);
 
-      setNotification('Nhập kho thành công!', 'success');
+      showMessage('Nhập kho thành công!', 'success');
     }
 
     if (props.mode === 'edit') {
@@ -361,12 +361,12 @@ const handleSubmit = async () => {
         },
       }, ['admin', 'seller']);
 
-      setNotification('Cập nhật tồn kho thành công!', 'success');
+      showMessage('Cập nhật tồn kho thành công!', 'success');
     }
 
     if (props.mode === 'damage') {
       if (!actionType.value) {
-        setNotification('Vui lòng chọn hành động (Xuất kho hoặc Trả hàng lỗi).', 'error');
+        showMessage('Vui lòng chọn hành động (Xuất kho hoặc Trả hàng lỗi).', 'error');
         isSubmitting.value = false;
         return;
       }
@@ -380,13 +380,13 @@ const handleSubmit = async () => {
         },
       }, ['admin', 'seller']);
 
-      setNotification('Đánh dấu lỗi thành công!', 'success');
+      showMessage('Đánh dấu lỗi thành công!', 'success');
     }
 
     emit('submitted');
     emit('close');
   } catch (e) {
-    setNotification(
+    showMessage(
       e.response?.data?.message || 'Đã xảy ra lỗi. Vui lòng thử lại sau.',
       'error'
     );

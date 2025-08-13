@@ -268,7 +268,7 @@ definePageMeta({ layout: 'default-seller' });
 const config = useRuntimeConfig();
 const apiBase = config.public.apiBaseUrl || 'http://localhost:8000/api';
 const router = useRouter();
-const { showNotification, notificationMessage, notificationType, setNotification } = useNotification();
+const { showNotification, notificationMessage, notificationType, showMessage } = useNotification();
 
 const reviews = ref([]);
 const loading = ref(true);
@@ -326,11 +326,11 @@ const fetchReviews = async (page = 1) => {
     countWithMedia.value = response.data.count_with_media || 0;
 
     if (!reviews.value.length) {
-      setNotification('Không có đánh giá nào', 'info');
+      showMessage('Không có đánh giá nào', 'info');
     }
   } catch (e) {
     console.error('Lỗi khi tải đánh giá:', e);
-    setNotification('Lỗi khi tải đánh giá: ' + e.message, 'error');
+    showMessage('Lỗi khi tải đánh giá: ' + e.message, 'error');
     reviews.value = [];
     lastPage.value = 1;
     total.value = 0;
@@ -375,7 +375,7 @@ const reportReview = (id) => {
 
 const handleReportSubmitted = () => {
   showReportDialog.value = false;
-  setNotification('Báo cáo đã được gửi thành công', 'success');
+  showMessage('Báo cáo đã được gửi thành công', 'success');
 };
 
 // Delete review
@@ -392,11 +392,11 @@ const deleteReview = async (id) => {
     }, ['seller']);
 
     reviews.value = reviews.value.filter(r => r.id !== id);
-    setNotification('Đã xóa đánh giá thành công', 'success');
+    showMessage('Đã xóa đánh giá thành công', 'success');
     await fetchReviews(currentPage.value);
   } catch (e) {
     console.error('Lỗi khi xóa đánh giá:', e);
-    setNotification('Lỗi khi xóa đánh giá: ' + e.message, 'error');
+    showMessage('Lỗi khi xóa đánh giá: ' + e.message, 'error');
   }
 };
 
