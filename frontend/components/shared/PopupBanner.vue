@@ -57,7 +57,7 @@ const props = defineProps({
   storageKey: { type: String, default: 'popup_home_banner_v1' }, // key localStorage
   closeOnBackdrop: { type: Boolean, default: true },
   escToClose: { type: Boolean, default: true },
-  autoCloseMs: { type: Number, default: 700000 },     // tự đóng sau X ms (0 = tắt)
+  autoCloseMs: { type: Number, default: 1000000 },     // tự đóng sau X ms (0 = tắt)
 })
 
 const emit = defineEmits(['opened', 'closed'])

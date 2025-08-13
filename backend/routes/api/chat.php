@@ -11,5 +11,6 @@ use App\Http\Controllers\ChatController;
         Route::post('/message', [ChatController::class, 'sendMessage']);
         Route::get('/messages/{sessionId}', [ChatController::class, 'getMessages']);
         Route::post('/messages/{sessionId}/read', [ChatController::class, 'markAsRead']);
+        Route::post('/messages/{id}/action', [ChatController::class, 'messageAction']);
     });
 // });

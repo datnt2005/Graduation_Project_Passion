@@ -20,7 +20,7 @@ return new class extends Migration
                 $table->enum('sender_type', ['user', 'seller']);
                 $table->text('message')->nullable()->charset('utf8mb4')->collation('utf8mb4_unicode_ci');
                 $table->enum('message_type', ['text', 'image', 'product'])->default('text');
-                $table->enum('status', ['normal', 'deleted'])->default('normal');
+                $table->enum('status', ['normal', 'deleted','revoke','edited'])->default('normal');
                 $table->timestamps();
 
                 $table->foreign('session_id')->references('id')->on('chat_sessions')->onDelete('cascade');
