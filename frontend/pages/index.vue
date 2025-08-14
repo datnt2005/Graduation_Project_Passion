@@ -6,6 +6,14 @@
         <Tags />
         <Categories />
         <ProductSearch />
+        <!-- banner -->
+        <div class="mb-4">
+          <img
+            :src="BannerSecondIndex"
+            alt="Banner"
+            class="w-full h-[350px] rounded-lg shadow-md"
+          />
+        </div>
         <Products />
       </section>
     </div>
@@ -26,6 +34,7 @@ import Categories from '~/components/shared/Categories.vue'
 import Products from '~/components/shared/Products.vue'
 import ProductSearch from '~/components/shared/ProductSearch.vue'
 import PopupBanner from '~/components/shared/PopupBanner.vue'
+import BannerSecondIndex from '~/images/banner3-small.png'
 
 import { ref, onMounted } from 'vue'
 import { useRuntimeConfig } from '#app'

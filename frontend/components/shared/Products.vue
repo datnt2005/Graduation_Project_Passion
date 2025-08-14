@@ -17,7 +17,6 @@
 
 <script setup>
 import { ref, computed, onMounted } from "vue";
-import Filters from "~/components/shared/filters/Filters.vue";
 import ProductCard from "~/components/shared/products/ProductCard.vue";
 import { useSearchStore } from "~/stores/search";
 
