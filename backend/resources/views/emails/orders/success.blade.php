@@ -12,22 +12,19 @@
             padding: 0;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
         }
-
         .container {
             max-width: 600px;
             margin: 32px auto;
             background: #fff;
-            border-radius: 8px;
+            border-radius: 12px;
             overflow: hidden;
-            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+            box-shadow: 0 6px 32px rgba(26, 115, 232, 0.10);
         }
-
         .logo-container {
             background-color: #1a73e8;
             text-align: center;
-            padding: 10px 15px;
+            padding: 18px 15px 10px 15px;
         }
-
         .logo-container img {
             max-width: 120px;
             height: auto;
@@ -35,232 +32,201 @@
             margin: 0 auto;
             filter: brightness(0) invert(1);
         }
-
-        .header {
-            background: #1a73e8;
-            padding: 20px 24px;
-            text-align: center;
-            border-bottom: 2px solid #e0e0e0;
+        .success-icon {
+            width: 70px;
+            height: 70px;
+            background: #22c55e;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 12px auto;
+            box-shadow: 0 2px 12px rgba(34,197,94,0.12);
         }
-
-        .header img {
-            max-width: 60px;
-            margin-bottom: 10px;
-            display: block;
-            margin-left: auto;
-            margin-right: auto;
-        }
-
-        .header-title {
+        .success-icon svg {
+            width: 38px;
+            height: 38px;
             color: #fff;
-            font-size: 1.5rem;
-            font-weight: bold;
-            margin: 0;
         }
-
-        /* Tracking Code Section */
+        .header {
+            background: #fff;
+            padding: 0 24px 18px 24px;
+            text-align: center;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .header-title {
+            color: #22c55e;
+            font-size: 1.7rem;
+            font-weight: bold;
+            margin: 0 0 6px 0;
+        }
+        .header-desc {
+            color: #333;
+            font-size: 1.1rem;
+            margin-bottom: 0;
+        }
         .tracking-section {
-            padding: 20px 24px;
+            padding: 20px 24px 12px 24px;
             background: #f8f9fa;
             border-bottom: 1px solid #e0e0e0;
             text-align: center;
         }
-
         .tracking-code {
-            font-size: 1.8rem;
+            font-size: 1.5rem;
             font-weight: bold;
             color: #1a73e8;
             letter-spacing: 2px;
             font-family: 'Segoe UI Mono', 'Consolas', monospace;
-            margin-bottom: 8px;
+            margin-bottom: 4px;
         }
-
         .order-code {
             font-size: 1rem;
             color: #666;
             font-weight: 500;
         }
-
-        /* Sender/Recipient Section */
         .address-section {
-            padding: 20px 24px;
+            padding: 20px 24px 10px 24px;
             border-bottom: 1px solid #e0e0e0;
         }
-
         .address-row {
             display: flex;
             gap: 20px;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
             justify-content: space-between;
             flex-wrap: wrap;
-            align-items: center;
+            align-items: flex-start;
         }
-
         .address-box {
             flex: 1;
             padding: 15px;
-            border: 1px solid #e0e0e0;
-            border-radius: 6px;
-            background: #fafafa;
+border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background: #f9fafb;
             margin: 0 10px;
         }
-
         .address-label {
             font-weight: bold;
-            color: #333;
+            color: #1a73e8;
             margin-bottom: 8px;
-            font-size: 0.9rem;
+            font-size: 0.97rem;
         }
-
         .address-content {
-            font-size: 0.85rem;
-            color: #555;
-            line-height: 1.4;
+            font-size: 0.93rem;
+            color: #333;
+            line-height: 1.5;
         }
-
-        .delivery-note {
-            font-size: 0.8rem;
-            color: #888;
-            font-style: italic;
-            margin-top: 5px;
-        }
-
-        /* Order Content Section */
         .order-content-section {
-            padding: 20px 24px;
+            padding: 20px 24px 10px 24px;
             border-bottom: 1px solid #e0e0e0;
         }
-
         .order-content-title {
             font-weight: bold;
-            color: #333;
+            color: #1a73e8;
             margin-bottom: 10px;
-            font-size: 1rem;
+            font-size: 1.08rem;
         }
-
         .order-items {
             background: #f8f9fa;
             padding: 15px;
-            border-radius: 6px;
+            border-radius: 8px;
             border: 1px solid #e0e0e0;
         }
-
         .order-item {
-            font-size: 0.85rem;
+            font-size: 0.95rem;
             color: #555;
             margin-bottom: 8px;
             padding: 5px 0;
             border-bottom: 1px solid #eee;
         }
-
         .order-item:last-child {
             border-bottom: none;
             margin-bottom: 0;
         }
-
-        /* Payment Section */
         .payment-section {
-            padding: 20px 24px;
+            padding: 20px 24px 10px 24px;
             background: #f8f9fa;
             border-bottom: 1px solid #e0e0e0;
         }
-
         .payment-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
-
         .payment-label {
             font-weight: bold;
             color: #333;
-            font-size: 1rem;
+            font-size: 1.08rem;
         }
-
         .payment-amount {
             font-size: 1.5rem;
             font-weight: bold;
             color: #1a73e8;
         }
-
-        /* Status Section */
         .status-section {
-            padding: 20px 24px;
+            padding: 20px 24px 10px 24px;
             text-align: center;
             background: #fff;
         }
-
         .status-box {
             display: inline-block;
-            padding: 10px 20px;
+            padding: 10px 24px;
             background: #e8f5e8;
-            border: 1px solid #4caf50;
-            border-radius: 6px;
-            color: #2e7d32;
+            border: 1px solid #22c55e;
+            border-radius: 8px;
+            color: #22c55e;
             font-weight: bold;
-            font-size: 1rem;
+            font-size: 1.08rem;
         }
-
-        /* Action Button */
         .action-section {
-            padding: 20px 24px;
+            padding: 24px 24px 18px 24px;
             text-align: center;
             background: #fff;
         }
-
         .button {
             display: inline-block;
-            padding: 12px 30px;
+            padding: 14px 38px;
             background-color: #1a73e8;
-            color: #fff;
+            color: #fff !important;
             text-decoration: none;
-            border-radius: 6px;
+            border-radius: 30px;
             font-weight: bold;
-            font-size: 1rem;
-            box-shadow: 0 2px 8px rgba(26, 115, 232, 0.2);
-            transition: background 0.2s;
+            font-size: 1.08rem;
+            box-shadow: 0 2px 12px rgba(26, 115, 232, 0.13);
+            transition: background 0.2s, box-shadow 0.2s;
         }
-
         .button:hover {
             background: #1761c6;
+            box-shadow: 0 4px 18px rgba(26, 115, 232, 0.18);
         }
-
-        /* Footer */
         .footer {
             background: #f4f6fa;
-            padding: 20px 24px;
-            text-align: center;
-            font-size: 0.85rem;
+            padding: 22px 24px 18px 24px;
+text-align: center;
+            font-size: 0.97rem;
             color: #666;
             border-top: 1px solid #e0e0e0;
         }
-
         .footer a {
             color: #1a73e8;
             text-decoration: none;
         }
-
         .footer a:hover {
             text-decoration: underline;
         }
-
         @media only screen and (max-width: 600px) {
             .container {
                 width: 100%;
                 margin: 0;
                 border-radius: 0;
             }
-
             .address-row {
                 flex-direction: column;
                 gap: 10px;
             }
-
             .tracking-code {
-                font-size: 1.4rem;
+                font-size: 1.2rem;
                 letter-spacing: 1px;
             }
-
             .payment-row {
                 flex-direction: column;
                 gap: 10px;
@@ -279,9 +245,17 @@
                 style="max-width: 120px; height: auto; filter: brightness(0) invert(1);">
         </div>
 
-        <!-- Header section -->
+
+        <!-- Success Icon & Header section -->
         <div class="header">
-            <div class="header-title">Xác thực đơn hàng</div>
+                                    <div class="success-icon">
+                                            <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <circle cx="30" cy="30" r="30" fill="#22c55e"/>
+                                                <path d="M18 32 L27 41 L43 23" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                                            </svg>
+                                    </div>
+            <div class="header-title">Đặt hàng thành công!</div>
+            <div class="header-desc">Cảm ơn bạn đã đặt hàng tại <strong>PASSION</strong>.<br>Thông tin đơn hàng của bạn đã được ghi nhận.</div>
         </div>
 
         <!-- Tracking Code Section -->
@@ -299,7 +273,7 @@
                         <strong>{{ $order->orderItems->first()->product->seller->store_name ?? 'PASSION' }}</strong><br>
                         SĐT: {{ $order->orderItems->first()->product->seller->phone_number ?? 'Liên hệ' }}
                     </div>
-                </div>
+</div>
                 <div class="address-box">
                     <div class="address-label">Người mua:</div>
                     <div class="address-content">
@@ -353,6 +327,7 @@
         <!-- Action Section -->
         <div class="action-section">
             <a href="{{ url('/orders/' . $order->id) }}" class="button">Xem chi tiết đơn hàng</a>
+            <div style="margin-top: 14px; color: #888; font-size: 0.97rem;">Bạn sẽ sớm nhận được thông báo khi đơn hàng được xác nhận và giao cho đơn vị vận chuyển.</div>
         </div>
 
         <!-- Footer -->
@@ -361,11 +336,8 @@
                 <strong>Chỉ dẫn giao hàng:</strong> Được đồng kiểm<br>
                 <small>Chuyển hoàn sau 3 lần phát; Lưu kho tối đa 5 ngày</small>
             </div>
-            Nếu có thắc mắc, vui lòng liên hệ bộ phận CSKH của chúng tôi.<br><br>
-            Trân trọng,<br>
-            Đội ngũ <strong>PASSION</strong><br>
-            <a href="{{ config('app.url') }}">Website</a> |
-            <a href="mailto:support@passion.com">Liên hệ hỗ trợ</a>
+            Nếu có thắc mắc, vui lòng liên hệ bộ phận CSKH của chúng tôi.<br>
+            <a href="mailto:support@passion.com">support@passion.com</a> | <a href="{{ config('app.url') }}">Website</a>
             <div style="margin-top: 10px;">&copy; {{ date('Y') }} <strong>PASSION</strong>. Mọi quyền được bảo lưu.</div>
         </div>
     </div>

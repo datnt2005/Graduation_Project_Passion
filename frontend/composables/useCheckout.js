@@ -738,7 +738,7 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
   const getShippingDiscountPerShop = (total, shopCount) => {
     const discount = getShippingDiscount(total);
     if (!discount || !shopCount) return 0;
-    return Math.floor(discount / shopCount);
+    return discount / shopCount; // Bỏ Math.floor để giữ nguyên giá trị thập phân
   };
 
   const getProductDiscountPerShop = (total, shopCount) => {
@@ -1045,8 +1045,6 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
       const storeShippingFees = {};
       const storeServiceIds = {};
       const storeDiscounts = {};
-      const storeShippingDiscounts = {}; // Thêm riêng shipping discounts
-      const storeProductDiscounts = {}; // Thêm riêng product discounts
 
       if (isBuyNow.value) {
         const store = buyNowItems.value?.[0];
@@ -1085,14 +1083,12 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
           seller_id: store.seller_id,
           shipping_fee: store.shipping_fee,
           service_id: store.service_id,
-          shipping_discount: store.shipping_discount || 0, // Thêm shipping_discount
+          // Bỏ shipping_discount vì đã được tính vào shipping_fee rồi
         });
 
         storeShippingFees[store.seller_id] = store.shipping_fee;
         storeServiceIds[store.seller_id] = store.service_id;
         storeDiscounts[store.seller_id] = (store.discount || 0) + (store.shipping_discount || 0); // Tổng hợp cả giảm giá sản phẩm và vận chuyển
-        storeShippingDiscounts[store.seller_id] = store.shipping_discount || 0; // Riêng shipping discount
-        storeProductDiscounts[store.seller_id] = store.discount || 0; // Riêng product discount
       } else {
         items.forEach(store => {
           const serviceId = store.service_id;
@@ -1107,14 +1103,12 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
               seller_id: store.seller_id,
               shipping_fee: shippingFee,
               service_id: serviceId,
-              shipping_discount: store.shipping_discount || 0, // Thêm shipping_discount
+              // Bỏ shipping_discount vì đã được tính vào shipping_fee rồi
             });
           });
           storeShippingFees[store.seller_id] = shippingFee;
           storeServiceIds[store.seller_id] = serviceId;
           storeDiscounts[store.seller_id] = shopDiscount;
-          storeShippingDiscounts[store.seller_id] = store.shipping_discount || 0; // Riêng shipping discount
-          storeProductDiscounts[store.seller_id] = store.discount || 0; // Riêng product discount
         });
       }
 
@@ -1138,9 +1132,20 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
         store_shipping_fees: storeShippingFees,
         store_service_ids: storeServiceIds,
         store_discounts: storeDiscounts, // Bao gồm cả giảm giá sản phẩm và vận chuyển
-        store_shipping_discounts: storeShippingDiscounts, // Riêng shipping discounts
-        store_product_discounts: storeProductDiscounts, // Riêng product discounts
       };
+
+      console.log('Dữ liệu đơn hàng gửi API:', orderData); // Log để debug
+      console.log('Shipping discount debug - Frontend:', {
+        'selectedDiscounts': selectedDiscounts.value,
+        'shippingDiscounts': selectedDiscounts.value.filter(d => d.discount_type === 'shipping_fee'),
+        'total': total.value,
+        'shopCount': items.length,
+        'itemsShippingDiscounts': items.map(store => ({
+          seller_id: store.seller_id,
+          shipping_discount: store.shipping_discount,
+          discount: store.discount
+        }))
+      });
 
       const orderResponse = await fetch(`${config.public.apiBaseUrl}/orders`, {
         method: 'POST',
