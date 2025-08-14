@@ -737,9 +737,19 @@ class OrderController extends Controller
                 }
 
                 // Frontend đã tính và gửi discount, backend chỉ cần sử dụng
+                // Tính shopDiscount chỉ từ product discount (không bao gồm shipping discount)
                 $shopDiscount = 0;
-                if ($request->has('store_discounts') && isset($request->store_discounts[$sellerId])) {
-                    $shopDiscount = floatval($request->store_discounts[$sellerId]);
+                if (isset($appliedDiscountIds['product'])) {
+                    $productDiscountId = $appliedDiscountIds['product'];
+                    $productDiscountObj = Discount::find($productDiscountId);
+                    if ($productDiscountObj) {
+                        if ($productDiscountObj->discount_type === 'percentage') {
+                            $shopDiscount = $totalPrice * ($productDiscountObj->discount_value / 100);
+                        } else {
+                            $shopDiscount = $productDiscountObj->discount_value;
+                        }
+                        $shopDiscount = min($shopDiscount, $totalPrice);
+                    }
                 }
                 $finalPrice = $totalPrice - $shopDiscount;
                 $finalPrice = max($finalPrice, 0);
@@ -800,10 +810,11 @@ class OrderController extends Controller
                 }
                 
                 $originalShippingFee = $request->store_shipping_fees[$sellerId] ?? 0;
-                $shippingFee = $originalShippingFee; // Frontend đã trừ discount rồi
                 
-                // Tính shipping_discount thực tế để lưu vào database
-                $actualShippingDiscount = max(0, $originalShippingFee - $shippingFee);
+                // Đảm bảo shipping_discount không vượt quá shipping_fee
+                // Nếu shipping_discount > shipping_fee thì chỉ giảm về 0, không âm
+                $actualShippingDiscount = min($shippingDiscountValue, $originalShippingFee);
+                $shippingFee = max(0, $originalShippingFee - $actualShippingDiscount);
                 
                 // Debug log để kiểm tra shipping discount
                 Log::info("Shipping fee debug", [
@@ -818,12 +829,10 @@ class OrderController extends Controller
                     'applied_discount_ids' => $appliedDiscountIds,
                     'shipping_discount_value' => $shippingDiscountValue,
                     'original_shipping_fee' => $originalShippingFee,
-                    'final_shipping_fee' => $shippingFee, // Frontend đã tính discount rồi
                     'actual_shipping_discount' => $actualShippingDiscount,
+                    'final_shipping_fee' => $shippingFee,
+                    'note' => 'Đã đảm bảo shipping_discount không vượt quá shipping_fee'
                 ]);
-                // Frontend đã tính shipping_discount và trừ khỏi shipping_fee rồi
-                // Không cần trừ thêm nữa
-                // $shippingFee = max(0, $shippingFee - $shippingDiscountValue);
                 
                 // Bỏ kiểm tra khớp với shippingMethod->cost
                 Log::info("Sử dụng phí vận chuyển từ request cho seller_id: {$sellerId}", [
