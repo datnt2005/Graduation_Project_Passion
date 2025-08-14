@@ -54,11 +54,11 @@
               <div class="mt-4 text-left text-sm space-y-1">
                 <div class="flex justify-between">
                   <span>Tổng tiền hàng:</span>
-                  <span>{{ formatPrice(order.total_price) }}</span>
+                  <span>{{ formatPrice(order.total_price) }}đ</span>
                 </div>
                 <div class="flex justify-between" v-if="order.discount_price > 0">
                   <span>Giảm giá sản phẩm:</span>
-                  <span class="text-green-600">- {{ formatPrice(order.discount_price) }}</span>
+                  <span class="text-green-600">- {{ formatPrice(order.discount_price) }}đ</span>
                 </div>
                 <div class="flex justify-between">
                   <span>Phí vận chuyển:</span>
@@ -66,11 +66,11 @@
                 </div>
                 <div class="flex justify-between" v-if="order.shipping && order.shipping.shipping_discount > 0">
                   <span>Giảm giá phí ship:</span>
-                  <span class="text-green-600">- {{ formatPrice(order.shipping.shipping_discount) }}</span>
+                  <span class="text-green-600">- {{ formatPrice(order.shipping.shipping_discount) }}đ</span>
                 </div>
                 <div class="flex justify-between font-bold border-t pt-2 mt-2">
                   <span>Tổng thanh toán:</span>
-                  <span class="text-blue-700">{{ formatPrice(order.final_price || 0) }}</span>
+                  <span class="text-blue-700">{{ formatPrice(order.final_price || 0) }}đ</span>
                 </div>
               </div>
 
@@ -107,7 +107,7 @@
               </div>
             </div>
             <div class="text-right text-lg font-bold text-blue-700 border-t pt-4 mt-4">
-              Tổng thanh toán: {{ formatPrice(orderDetail?.final_price || 0) }}
+              Tổng thanh toán: {{ formatPrice(orderDetail?.final_price || 0) }}đ
             </div>
 
           </div>

@@ -47,23 +47,23 @@
             <div class="mt-4 text-left text-sm space-y-1">
               <div class="flex justify-between">
                 <span>Tổng tiền hàng:</span>
-                <span>{{ formatPrice(order.total_price) }}</span>
+                <span>{{ formatPrice(order.total_price) }}đ</span>
               </div>
               <div class="flex justify-between" v-if="order.discount_price > 0">
                 <span>Giảm giá sản phẩm:</span>
-                <span class="text-green-600">- {{ formatPrice(order.discount_price) }}</span>
+                <span class="text-green-600">- {{ formatPrice(order.discount_price) }}đ</span>
               </div>
               <div class="flex justify-between">
                 <span>Phí vận chuyển:</span>
-                <span>{{ formatPrice(order.shipping?.shipping_fee) }}</span>
+                <span>{{ formatPrice(order.shipping?.shipping_fee) }}đ</span>
               </div>
               <div class="flex justify-between" v-if="order.shipping && order.shipping.shipping_discount > 0">
                 <span>Giảm giá phí ship:</span>
-                <span class="text-green-600">- {{ formatPrice(order.shipping.shipping_discount) }}</span>
+                <span class="text-green-600">- {{ formatPrice(order.shipping.shipping_discount) }}đ</span>
               </div>
               <div class="flex justify-between font-bold border-t pt-2 mt-2">
                 <span>Tổng thanh toán:</span>
-                <span class="text-blue-700">{{ formatPrice(order.final_price || 0) }}</span>
+                <span class="text-blue-700">{{ formatPrice(order.final_price || 0) }}đ</span>
               </div>
             </div>
             <!-- Danh sách sản phẩm đã đặt (nếu có) -->
@@ -82,9 +82,9 @@
                   <div class="flex-1">
                     <div class="font-semibold text-gray-900">{{ item.product?.name || '-' }}</div>
                     <div v-if="item.variant && item.variant.name" class="text-xs text-gray-500">Phân loại: {{ item.variant.name }}</div>
-                    <div class="text-xs text-gray-500">Số lượng: {{ item.quantity }} × {{ formatPrice(item.price) }}</div>
+                    <div class="text-xs text-gray-500">Số lượng: {{ item.quantity }} × {{ formatPrice(item.price) }}đ</div>
                   </div>
-                  <div class="font-bold text-blue-700">{{ formatPrice(item.total) }}</div>
+                  <div class="font-bold text-blue-700">{{ formatPrice(item.total) }}đ</div>
                 </div>
               </div>
             </div>
