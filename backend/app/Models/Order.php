@@ -44,7 +44,6 @@ class Order extends Model
         'delivered',
         'cancelled',
         'failed',
-        'refunded',
         'failed_delivery',
         'rejected_by_customer',
     ];
@@ -59,7 +58,6 @@ class Order extends Model
             'delivered' => 'Đã giao hàng',
             'cancelled' => 'Đã hủy',
             'failed' => 'Giao thất bại',
-            'refunded' => 'Đã hoàn tiền',
             'failed_delivery' => 'Giao không thành công',
             'rejected_by_customer' => 'Khách từ chối nhận',
         ];
@@ -305,7 +303,6 @@ class Order extends Model
 
         throw new \Exception('Đơn hàng chưa áp dụng mã giảm giá');
     }
-    
 
     /**
      * Kiểm tra trạng thái hợp lệ
@@ -319,7 +316,6 @@ class Order extends Model
             'shipped',
             'delivered',
             'cancelled',
-            'refunded',
             'failed',
             'failed_delivery',
             'rejected_by_customer'
@@ -337,8 +333,8 @@ class Order extends Model
             'failed' => ['rejected_by_customer', 'failed_delivery', 'cancelled'],
             'failed_delivery' => ['rejected_by_customer', 'cancelled'],
             'rejected_by_customer' => ['cancelled'],
-            'delivered' => [ 'cancelled', 'refunded', 'failed', 'rejected_by_customer','pending'],
-            'cancelled' => ['refunded', 'failed', 'rejected_by_customer'],
+            'delivered' => [],
+            'cancelled' => [],
         ];
 
         return in_array($newStatus, $transitions[$this->status] ?? []);
