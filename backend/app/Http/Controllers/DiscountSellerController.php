@@ -22,7 +22,7 @@ class DiscountSellerController extends Controller
     {
         try {
             $seller = Auth::user()->seller;
-            $discounts = Discount::with(['products', 'categories', 'users', 'flashSales'])
+            $discounts = Discount::with(['products', 'categories', 'users'])
                 ->where('seller_id', $seller->id)
                 ->get();
             return response()->json([
@@ -151,7 +151,7 @@ class DiscountSellerController extends Controller
                 ], 403);
             }
 
-            $discount = Discount::with(['products', 'categories', 'users', 'flashSales'])
+            $discount = Discount::with(['products', 'categories', 'users'])
                 ->where('seller_id', $seller->id)
                 ->findOrFail($id);
 
