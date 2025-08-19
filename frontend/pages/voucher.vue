@@ -256,32 +256,44 @@ const sortOptions = [
 ]
 const selectedSort = ref('newest')
 
-const { discounts, saveVoucherByCode, loading, error, fetchMyVouchers, deleteUserCoupon } = useDiscount()
+const { discounts, saveVoucherByCode, loading, error, fetchMyVouchers, deleteUserCoupon, fetchSellerDiscounts } = useDiscount()
 const { showNotification } = useNotification()
 const { toast } = useToast()
 
 const vouchers = computed(() => discounts.value)
 
-// Danh sách tất cả voucher (đã lưu + có sẵn)
+// Dữ liệu seller và voucher của seller
+const availableSellerDiscounts = ref([])
+const verifiedSellers = ref([])
+const sellersMap = ref({})
+
+// Danh sách tất cả voucher (đã lưu + có sẵn admin + có sẵn từ seller)
 const allVouchers = computed(() => {
   const savedVouchers = vouchers.value || []
-  const availableVouchers = availableDiscounts.value || []
-  
-  // Gộp 2 danh sách và loại bỏ trùng lặp
+  const adminAvailable = availableDiscounts.value || []
+  const sellerAvailable = availableSellerDiscounts.value || []
+
   const allVouchersMap = new Map()
-  
-  // Thêm voucher đã lưu trước
+
+  // Ưu tiên voucher đã lưu
   savedVouchers.forEach(voucher => {
     allVouchersMap.set(voucher.id, { ...voucher, isSaved: true })
   })
-  
-  // Thêm voucher có sẵn (nếu chưa có trong danh sách đã lưu)
-  availableVouchers.forEach(voucher => {
+
+  // Thêm voucher admin công khai
+  adminAvailable.forEach(voucher => {
     if (!allVouchersMap.has(voucher.id)) {
       allVouchersMap.set(voucher.id, { ...voucher, isSaved: false })
     }
   })
-  
+
+  // Thêm voucher seller công khai
+  sellerAvailable.forEach(voucher => {
+    if (!allVouchersMap.has(voucher.id)) {
+      allVouchersMap.set(voucher.id, { ...voucher, isSaved: false })
+    }
+  })
+
   return Array.from(allVouchersMap.values())
 })
 
@@ -400,6 +412,7 @@ function goToCheckout(code) {
 onMounted(() => {
   fetchMyVouchers()
   fetchAvailableDiscounts()
+  fetchAvailableSellerDiscounts()
 })
 
 function formatDate(dateStr) {
@@ -452,6 +465,62 @@ const fetchAvailableDiscounts = async () => {
     availableDiscounts.value = []
   } finally {
     availableLoading.value = false
+  }
+}
+
+// Lấy danh sách seller xác thực và voucher của họ (công khai)
+const fetchVerifiedSellers = async () => {
+  try {
+    const res = await fetch(`${useRuntimeConfig().public.apiBaseUrl}/sellers/verified`, {
+      headers: { 'Accept': 'application/json' }
+    })
+    const data = await res.json()
+    if (res.ok && data.data) {
+      verifiedSellers.value = data.data
+      const map = {}
+      data.data.forEach((s) => { map[s.id] = s })
+      sellersMap.value = map
+    } else {
+      verifiedSellers.value = []
+      sellersMap.value = {}
+    }
+  } catch (e) {
+    verifiedSellers.value = []
+    sellersMap.value = {}
+  }
+}
+
+const fetchAvailableSellerDiscounts = async () => {
+  await fetchVerifiedSellers()
+  if (!verifiedSellers.value.length) {
+    availableSellerDiscounts.value = []
+    return
+  }
+  try {
+    const lists = await Promise.all(
+      verifiedSellers.value.map(async (seller) => {
+        const list = await fetchSellerDiscounts(seller.id)
+        // Gắn thông tin seller để hiển thị
+        return (list || []).map(d => ({
+          ...d,
+          seller: {
+            id: seller.id,
+            store_name: seller.store_name,
+            store_slug: seller.store_slug,
+          },
+        }))
+      })
+    )
+    // Nối và loại bỏ trùng id
+    const flat = lists.flat()
+    const seen = new Set()
+    availableSellerDiscounts.value = flat.filter(d => {
+      if (seen.has(d.id)) return false
+      seen.add(d.id)
+      return true
+    })
+  } catch (e) {
+    availableSellerDiscounts.value = []
   }
 }
 

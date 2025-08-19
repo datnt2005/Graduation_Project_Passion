@@ -900,6 +900,8 @@ class OrderController extends Controller
                     'total_price' => $totalPrice,
                     'discount_price' => $shopDiscount,
                     'final_price' => $finalPrice + $shippingFee, // shippingFee đã được trừ discount rồi
+                    // Lưu mapping discount đã áp dụng (product/shipping)
+                    'discount_id' => !empty($appliedDiscountIds) ? $appliedDiscountIds : null,
                 ]);
 
                 $paymentMethod = PaymentMethod::firstOrCreate(

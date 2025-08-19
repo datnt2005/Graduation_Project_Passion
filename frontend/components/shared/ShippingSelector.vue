@@ -133,7 +133,7 @@
 
           <div v-else-if="filteredVouchersSearched.length === 0" class="text-center py-4 text-gray-500">
             Không có mã giảm giá khả dụng
-            <div v-if="userVouchers.value.length > 0 && new Date() > new Date(userVouchers.value[0]?.end_date)">
+            <div v-if="userVouchers.length > 0 && new Date() > new Date(userVouchers[0]?.end_date)">
               (Một số mã đã hết hạn)
             </div>
           </div>

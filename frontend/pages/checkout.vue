@@ -988,22 +988,13 @@ onMounted(async () => {
     await fetchPaymentMethods();
 
     discountLoading.value = true;
-    const [publicList, myVoucherList] = await Promise.all([
-      fetchPublicDiscounts().catch(err => {
-        console.error('Error fetching public discounts:', err);
-        return [];
-      }),
-      fetchMyVouchers().catch(err => {
-        console.error('Error fetching my vouchers:', err);
-        return [];
-      }),
-    ]);
-    // Merge all discounts and ensure no duplicates
-    const merged = [...(publicList || []), ...(myVoucherList || [])];
+    // Chỉ lấy voucher đã lưu của user, sau đó lọc ra voucher ADMIN để hiển thị
+    await fetchMyVouchers().catch(err => {
+      console.error('Error fetching my vouchers:', err);
+    });
 
-    // Deduplicate discounts and filter only admin discounts (no seller_id) with valid types
     const seen = new Set();
-    publicDiscounts.value = merged.filter(d => {
+    publicDiscounts.value = (publicDiscounts.value || []).filter(d => {
       const key = d.id || `${d.code}-${d.name}-${d.discount_type}`;
       return !seen.has(key) && seen.add(key) && !d.seller_id && ['shipping_fee', 'percentage', 'fixed'].includes(d.discount_type);
     });

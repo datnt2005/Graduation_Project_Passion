@@ -22,7 +22,7 @@ class DiscountController extends Controller
     public function index()
     {
         try {
-            $discounts = Discount::with(['products', 'categories', 'users', 'flashSales'])->get();
+            $discounts = Discount::with(['products', 'categories', 'users'])->get();
             return response()->json([
                 'success' => true,
                 'message' => 'Lấy danh sách mã giảm giá thành công',
@@ -94,7 +94,7 @@ class DiscountController extends Controller
     public function show($id)
     {
         try {
-            $discount = Discount::with(['products', 'categories', 'users', 'flashSales'])->findOrFail($id);
+            $discount = Discount::with(['products', 'categories', 'users'])->findOrFail($id);
             return response()->json([
                 'success' => true,
                 'message' => 'Lấy thông tin mã giảm giá thành công',

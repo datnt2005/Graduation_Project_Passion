@@ -1045,6 +1045,19 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
       const storeShippingFees = {};
       const storeServiceIds = {};
       const storeDiscounts = {};
+      
+      // Chuẩn hoá danh sách discount_ids: ưu tiên shop voucher nếu có, vẫn cho phép mã phí ship admin
+      const adminProductDiscountIds = selectedDiscounts.value
+        .filter(d => !d.seller_id && (d.discount_type === 'percentage' || d.discount_type === 'fixed'))
+        .map(d => d.id);
+      const adminShippingDiscountIds = selectedDiscounts.value
+        .filter(d => !d.seller_id && d.discount_type === 'shipping_fee')
+        .map(d => d.id);
+      const shopProductDiscountIds = Object.values(shopDiscountIds.value || {});
+      const productDiscountIdsToSend = (shopProductDiscountIds && shopProductDiscountIds.length > 0)
+        ? shopProductDiscountIds
+        : adminProductDiscountIds;
+      const discountIds = Array.from(new Set([...(productDiscountIdsToSend || []), ...(adminShippingDiscountIds || [])]));
 
       if (isBuyNow.value) {
         const store = buyNowItems.value?.[0];
@@ -1121,7 +1134,7 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
         receiver_name: selectedAddress.value?.name || userData.name,
         receiver_phone: selectedAddress.value?.phone || '',
         payment_method: selectedPaymentMethod.value,
-        discount_ids: selectedDiscounts.value.map(d => d.id),
+        discount_ids: discountIds,
         items: allItems,
         ward_id: selectedAddress.value?.ward_code || null,
         district_id: selectedAddress.value?.district_id || null,
