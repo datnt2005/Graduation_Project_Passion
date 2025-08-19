@@ -161,6 +161,7 @@ const router = useRouter()
 const config = useRuntimeConfig()
 const mediaBaseUrl = config.public.mediaBaseUrl.endsWith('/') ? config.public.mediaBaseUrl : config.public.mediaBaseUrl + '/'
 const { clearOrderedItems } = useCart()
+const REDIRECT_URL = 'https://passionfpt.shop/'
 
 const loading = ref(true)
 const success = ref(false)
@@ -284,6 +285,7 @@ onMounted(async () => {
     bankCode.value = queryParams.vnp_BankCode || '-'
     transactionId.value = queryParams.vnp_TransactionNo || '-'
     console.warn('Missing required VNPAY parameters:', queryParams)
+    try { window.location.replace(REDIRECT_URL) } catch {}
     return
   }
 
@@ -419,6 +421,7 @@ onMounted(async () => {
       transactionId.value = queryParams.vnp_TransactionNo || '-'
       tracking_code.value = '-'
       orderDetail.value = []
+      try { window.location.replace(REDIRECT_URL) } catch {}
     }
   } catch (error) {
     loading.value = false
@@ -431,6 +434,7 @@ onMounted(async () => {
     transactionId.value = '-'
     tracking_code.value = '-'
     orderDetail.value = []
+    try { window.location.replace(REDIRECT_URL) } catch {}
   }
 })
 

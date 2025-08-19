@@ -105,10 +105,12 @@ class WithdrawRequestController extends Controller
                 'bank_account_name' => $item->bank_account_name,
                 // Thông tin seller và user
                 'seller' => $item->seller ? [
-                    'shop_name' => $item->seller->shop_name,
-                    'name' => $item->seller->user->name ?? null,
-                    'email' => $item->seller->user->email ?? null,
-                    'phone' => $item->seller->user->phone ?? null,
+                    // Ưu tiên shop_name; nếu không có, fallback về store_name để đảm bảo hiển thị đúng tên cửa hàng
+                    'shop_name' => $item->seller->shop_name ?? $item->seller->store_name ?? null,
+                    'store_name' => $item->seller->store_name ?? null,
+                    'name' => optional($item->seller->user)->name,
+                    'email' => optional($item->seller->user)->email,
+                    'phone' => optional($item->seller->user)->phone,
                 ] : null,
             ];
         });

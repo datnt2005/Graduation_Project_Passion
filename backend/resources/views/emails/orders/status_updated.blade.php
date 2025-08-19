@@ -211,13 +211,13 @@
                 <div><strong>Tổng tiền:</strong> {{ number_format($order->final_price, 0, '', ',') }} đ</div>
             </div>
             <div class="note">Bạn có thể kiểm tra chi tiết đơn hàng hoặc liên hệ CSKH nếu cần hỗ trợ thêm.</div>
-            <a href="{{ url('/orders/' . $order->id) }}" class="button">Xem chi tiết đơn hàng</a>
+            <a href="https://passionfpt.shop/order" class="button">Xem chi tiết đơn hàng</a>
         </div>
         <div class="footer">
             Nếu có thắc mắc, vui lòng liên hệ bộ phận CSKH của chúng tôi.<br><br>
             Trân trọng,<br>
             Đội ngũ <strong>PASSION</strong><br>
-            <a href="{{ config('app.url') }}">Website</a> |
+            <a href="https://passionfpt.shop/">Website</a> |
             <a href="mailto:support@passion.com">Liên hệ hỗ trợ</a>
             <div style="margin-top: 10px;">&copy; {{ date('Y') }} <strong>PASSION</strong>. Mọi quyền được bảo lưu.</div>
         </div>

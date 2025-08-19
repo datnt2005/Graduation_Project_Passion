@@ -35,6 +35,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
 use App\Models\Notification;
 use App\Models\NotificationRecipient;
+use App\Models\StockMovement;
 
 
 class OrderController extends Controller
@@ -1314,6 +1315,75 @@ class OrderController extends Controller
                 'user_email' => $order->user ? $order->user->email : null,
                 'warning_email_sent' => $order->user ? $order->user->warning_email_sent : null
             ]);
+
+            // Tự động trừ kho khi chuyển sang trạng thái "processing" với đơn hàng COD
+            try {
+                if ($oldStatus !== 'processing' && $request->input('status') === 'processing') {
+                    // Kiểm tra phương thức thanh toán là COD
+                    $order->load(['payments.paymentMethod', 'orderItems.productVariant.inventories']);
+                    $firstPaymentMethod = optional($order->payments->first())->paymentMethod->name ?? null;
+                    $isCod = strtolower((string) $firstPaymentMethod) === 'cod';
+
+                    if ($isCod) {
+                        // Tránh trừ kho nhiều lần cho cùng một đơn: kiểm tra lịch sử xuất kho theo note
+                        $variantIds = $order->orderItems->pluck('product_variant_id')->filter()->values();
+                        $alreadyDeducted = $variantIds->isNotEmpty() && StockMovement::whereIn('product_variant_id', $variantIds)
+                            ->where('action_type', 'export')
+                            ->where('note', 'like', '%#' . $order->id . '%')
+                            ->exists();
+
+                        if (!$alreadyDeducted) {
+                            // Dùng logic sẵn có để trừ kho theo từng inventory
+                            foreach ($order->orderItems as $item) {
+                                $variant = $item->productVariant;
+                                if (!$variant) {
+                                    continue;
+                                }
+                                $quantityToDeduct = (int) $item->quantity;
+                                $inventories = $variant->inventories()->orderBy('id')->get();
+                                foreach ($inventories as $inventory) {
+                                    if ($quantityToDeduct <= 0) {
+                                        break;
+                                    }
+                                    $deduct = (int) min($inventory->quantity, $quantityToDeduct);
+                                    if ($deduct > 0) {
+                                        $inventory->quantity -= $deduct;
+                                        $inventory->last_updated = now();
+                                        $inventory->save();
+                                        $quantityToDeduct -= $deduct;
+                                    }
+                                }
+                                // Cập nhật lại tổng quantity cho variant
+                                $totalQuantity = $variant->inventories()->sum('quantity');
+                                $variant->quantity = $totalQuantity;
+                                $variant->save();
+
+                                // Ghi lịch sử xuất kho
+                                StockMovement::create([
+                                    'product_variant_id' => $variant->id,
+                                    'action_type' => 'export',
+                                    'quantity' => (int) $item->quantity,
+                                    'note' => 'Xuất kho cho đơn hàng #' . $order->id,
+                                    'created_by' => 'system',
+                                    'created_by_type' => 'system',
+                                ]);
+                            }
+                            Log::info('Đã trừ kho cho đơn hàng COD khi vào processing', [
+                                'order_id' => $order->id
+                            ]);
+                        } else {
+                            Log::info('Bỏ qua trừ kho vì đã trừ trước đó', [
+                                'order_id' => $order->id
+                            ]);
+                        }
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::warning('Lỗi khi tự trừ kho cho đơn COD ở trạng thái processing', [
+                    'order_id' => $id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
 
             // Kiểm tra dữ liệu trong cơ sở dữ liệu sau khi cập nhật
             $dbCheck = DB::table('orders')->where('id', $id)->first(['status', 'failure_reason', 'note']);

@@ -464,6 +464,15 @@
           <select v-model="newStatus" @change="validateInputs" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition">
             <option v-for="status in availableStatuses" :key="status.value" :value="status.value">{{ status.label }}</option>
           </select>
+          <div class="mt-2 text-xs text-gray-500 leading-5 bg-gray-50 border border-gray-200 rounded p-3">
+            <div class="font-medium text-gray-700 mb-1">Lưu ý khi cập nhật trạng thái:</div>
+            <ul class="list-disc pl-4 space-y-1">
+              <li>Không thể chuyển ngược về "Chờ xử lý" sau khi đơn đã sang "Đang xử lý".</li>
+              <li>Chuỗi chuyển trạng thái hợp lệ thường là: "Chờ xử lý" → "Đã xác nhận" → "Đang xử lý" → "Đang giao" → "Đã giao".</li>
+              <li>Khi chọn "Đang giao" cần nhập mã vận đơn gồm 6 ký tự chữ hoặc số.</li>
+              <li>Khi chọn "Giao thất bại", "Giao không thành công" hoặc "Khách từ chối nhận" cần nhập lý do.</li>
+            </ul>
+          </div>
         </div>
         <div v-if="newStatus === 'shipping'" class="mb-6">
           <label class="block mb-2 text-gray-700 font-medium">Mã vận đơn:</label>
@@ -1433,10 +1442,61 @@ console.log('Payload gửi đi:', payload);
                 showNotificationMessage(`Lỗi gửi email cảnh báo: ${data.warning_email_error}`, 'error');
             }
         } else {
-            // Nếu backend trả về message lỗi, hiển thị cho user
-            const msg = data.message || data.error || `Lỗi ${response.status}: Không thể cập nhật trạng thái`;
-            showNotificationMessage(msg, 'error');
-            throw new Error(msg);
+            // Ưu tiên hiển thị lỗi chi tiết từ backend (errors)
+            let msg = '';
+            if (data && data.errors && typeof data.errors === 'object') {
+              const parts = [];
+              Object.keys(data.errors).forEach((k) => {
+                const v = data.errors[k];
+                if (Array.isArray(v) && v.length) parts.push(v[0]);
+                else if (typeof v === 'string') parts.push(v);
+              });
+              msg = parts.filter(Boolean).join(' | ');
+            }
+            // Chuẩn hóa một số thông điệp tiếng Việt dễ hiểu hơn
+            const rawMsg = msg || data?.message || data?.error || '';
+            const normalized = rawMsg
+              .replace("Invalid data", "Dữ liệu không hợp lệ")
+              .replace("Payload JSON không hợp lệ", "Dữ liệu gửi lên không hợp lệ")
+              .replace(/Cannot transition from 'processing' to 'pending'\.?/i, "Không thể chuyển trạng thái từ 'Đang xử lý' về 'Chờ xử lý'.")
+              .replace(/status is required/i, "Vui lòng chọn trạng thái")
+              .replace(/tracking code is required/i, "Vui lòng nhập mã vận đơn")
+              .replace(/tracking code must be 6 alphanumeric characters/i, "Mã vận đơn phải gồm 6 ký tự chữ cái hoặc số")
+              .replace(/failure reason is required/i, "Vui lòng nhập lý do thất bại");
+
+            // Dịch mã trạng thái (pending, processing, ...) sang tiếng Việt trong thông điệp lỗi
+            const translateStatusCodes = (text) => {
+              if (!text) return text;
+              const map = {
+                pending: 'Chờ xử lý',
+                confirmed: 'Đã xác nhận',
+                processing: 'Đang xử lý',
+                shipping: 'Đang giao',
+                delivered: 'Đã giao',
+                cancelled: 'Đã hủy',
+                refunded: 'Đã hoàn tiền',
+                failed: 'Giao thất bại',
+                failed_delivery: 'Giao không thành công',
+                rejected_by_customer: 'Khách từ chối nhận',
+              };
+              let out = text;
+              Object.keys(map).forEach((code) => {
+                const label = map[code];
+                // thay cả có hoặc không có dấu nháy, có dấu gạch dưới
+                const re = new RegExp(`(['"])${code}(['"])`, 'gi');
+                out = out.replace(re, `$1${label}$2`);
+                const re2 = new RegExp(`\\b${code}\\b`, 'gi');
+                out = out.replace(re2, label);
+              });
+              return out;
+            };
+
+            const finalMsg = translateStatusCodes(normalized) || (response.status === 422
+              ? 'Vui lòng kiểm tra lại thông tin và thử lại.'
+              : `Lỗi ${response.status}: Không thể cập nhật trạng thái`);
+
+            showNotificationMessage(finalMsg, 'error');
+            throw new Error(finalMsg);
         }
     } catch (e) {
         console.error('Error in confirmUpdateStatus:', e.message, e.stack);

@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Mail\OrderStatusUpdatedMail;
 use Illuminate\Support\Facades\Mail;
 use App\Models\Payout;
+use App\Models\StockMovement;
 
 class SellerOrderController extends Controller
 {
@@ -158,7 +159,13 @@ class SellerOrderController extends Controller
             }
         }
 
-        $order = Order::with('user', 'shipping', 'orderItems.product', 'orderItems.productVariant')->findOrFail($id);
+        $order = Order::with(
+            'user',
+            'shipping',
+            'orderItems.product',
+            'orderItems.productVariant.inventories',
+            'payments.paymentMethod'
+        )->findOrFail($id);
 
         // Chỉ cho phép cập nhật nếu seller có sản phẩm trong order này
         $hasProduct = $order->orderItems()->whereHas('product', function($q) use ($seller) {
@@ -171,6 +178,64 @@ class SellerOrderController extends Controller
         $oldStatus = $order->status;
         $order->status = $status;
         $order->save();
+
+        // Tự động trừ kho khi chuyển sang trạng thái "processing" với đơn hàng COD
+        try {
+            if ($oldStatus !== 'processing' && $status === 'processing') {
+                $firstPaymentMethod = optional($order->payments->first())->paymentMethod->name ?? null;
+                $isCod = strtolower((string) $firstPaymentMethod) === 'cod';
+
+                if ($isCod) {
+                    // Tránh trừ kho nhiều lần cho cùng một đơn
+                    $variantIds = $order->orderItems->pluck('product_variant_id')->filter()->values();
+                    $alreadyDeducted = $variantIds->isNotEmpty() && StockMovement::whereIn('product_variant_id', $variantIds)
+                        ->where('action_type', 'export')
+                        ->where('note', 'like', '%#' . $order->id . '%')
+                        ->exists();
+
+                    if (!$alreadyDeducted) {
+                        foreach ($order->orderItems as $item) {
+                            $variant = $item->productVariant;
+                            if (!$variant) continue;
+                            $quantityToDeduct = (int) $item->quantity;
+                            $inventories = $variant->inventories()->orderBy('id')->get();
+                            foreach ($inventories as $inventory) {
+                                if ($quantityToDeduct <= 0) break;
+                                $deduct = (int) min($inventory->quantity, $quantityToDeduct);
+                                if ($deduct > 0) {
+                                    $inventory->quantity -= $deduct;
+                                    $inventory->last_updated = now();
+                                    $inventory->save();
+                                    $quantityToDeduct -= $deduct;
+                                }
+                            }
+                            // Cập nhật tổng tồn kho cho variant
+                            $variant->quantity = $variant->inventories()->sum('quantity');
+                            $variant->save();
+
+                            // Ghi lịch sử
+                            StockMovement::create([
+                                'product_variant_id' => $variant->id,
+                                'action_type' => 'export',
+                                'quantity' => (int) $item->quantity,
+                                'note' => 'Xuất kho cho đơn hàng #' . $order->id,
+                                'created_by' => $seller->user_id,
+                                'created_by_type' => 'seller',
+                            ]);
+                        }
+                        \Log::info('Đã trừ kho cho đơn COD khi vào processing (seller cập nhật)', [
+                            'order_id' => $order->id,
+                            'seller_id' => $seller->id,
+                        ]);
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            \Log::warning('Lỗi khi trừ kho cho đơn COD ở trạng thái processing (seller cập nhật)', [
+                'order_id' => $order->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         // Tự động tạo payout khi đơn hàng chuyển sang delivered lần đầu (cho seller này)
         if ($oldStatus !== 'delivered' && $order->status === 'delivered') {
