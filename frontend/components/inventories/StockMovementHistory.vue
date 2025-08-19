@@ -2,11 +2,11 @@
   <div class="mt-10 bg-white p-6 rounded-xl shadow">
     <h2 class="text-lg font-semibold mb-4 text-gray-800">Lịch sử biến động kho</h2>
     <div v-if="isLoading" class="text-sm">
-      <div class="grid grid-cols-8 gap-2 bg-gray-100 p-2 rounded text-gray-400 font-medium">
-        <div v-for="i in 8" :key="'header-' + i" class="h-4 bg-gray-300 rounded"></div>
+      <div class="grid grid-cols-11 gap-2 bg-gray-100 p-2 rounded text-gray-400 font-medium">
+        <div v-for="i in 11" :key="'header-' + i" class="h-4 bg-gray-300 rounded"></div>
       </div>
-      <div v-for="n in 5" :key="'row-' + n" class="grid grid-cols-8 gap-2 p-2">
-        <div v-for="i in 8" :key="'cell-' + n + '-' + i" class="h-4 bg-gray-200 rounded animate-pulse"></div>
+      <div v-for="n in 5" :key="'row-' + n" class="grid grid-cols-11 gap-2 p-2">
+        <div v-for="i in 11" :key="'cell-' + n + '-' + i" class="h-4 bg-gray-200 rounded animate-pulse"></div>
       </div>
     </div>
 
@@ -134,6 +134,20 @@
               </span>
               <span class="text-sm text-gray-500">Số lượng</span>
             </div>
+            <div class="mt-3 grid grid-cols-3 gap-2 text-sm">
+              <div>
+                <p class="text-gray-600 font-medium">Mã lô</p>
+                <p class="text-gray-800">{{ getInventoryField(selectedItem, 'batch_number') }}</p>
+              </div>
+              <div>
+                <p class="text-gray-600 font-medium">Tên kho</p>
+                <p class="text-gray-800">{{ getInventoryField(selectedItem, 'location') }}</p>
+              </div>
+              <div>
+                <p class="text-gray-600 font-medium">Nhà cung cấp</p>
+                <p class="text-gray-800">{{ getInventoryField(selectedItem, 'import_source') }}</p>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -178,7 +192,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import dayjs from 'dayjs';
 import { secureAxios } from '@/utils/secureAxios';
 import { useNotification } from '@/composables/useNotification';
@@ -233,6 +247,21 @@ const prevPage = () => {
   if (currentPage.value > 1) currentPage.value--;
 };
 
+const getInventoryField = (item, field) => {
+  if (!item.product_variant?.inventories?.length) return '-';
+  // Find the inventory entry closest to the movement's created_at
+  const movementDate = dayjs(item.created_at);
+  const inventory = item.product_variant.inventories.reduce((selected, inv) => {
+    if (!inv[field]) return selected; // Skip if field is null
+    const invDate = dayjs(inv.last_updated);
+    if (!selected || Math.abs(movementDate.diff(invDate)) < Math.abs(movementDate.diff(dayjs(selected.last_updated)))) {
+      return inv;
+    }
+    return selected;
+  }, null);
+  return inventory ? inventory[field] || '-' : '-';
+};
+
 const fetchStockMovements = async () => {
   isLoading.value = true;
   try {
@@ -240,7 +269,10 @@ const fetchStockMovements = async () => {
       ? `${apiBase}/stock-movements?product_variant_id=${props.productVariantId}&t=${Date.now()}`
       : `${apiBase}/stock-movements?t=${Date.now()}`;
     const { data } = await secureAxios(url, {}, ['admin', 'seller']);
-    movements.value = [...(data.data || data)]; // Ensure reactivity
+    movements.value = [...(data.data || data)].map(item => ({
+      ...item,
+      created_at: item.created_at ? dayjs(item.created_at).format('YYYY-MM-DD HH:mm:ss') : null,
+    }));
   } catch (err) {
     console.error('Lỗi khi lấy lịch sử biến động:', err);
     setNotification('Không thể tải lịch sử biến động kho. Vui lòng thử lại.', 'error');
@@ -250,22 +282,12 @@ const fetchStockMovements = async () => {
 };
 
 watch(
-  () => props.refreshKey,
+  () => [props.productVariantId, props.refreshKey],
   () => {
     fetchStockMovements();
-  }
+  },
+  { immediate: true }
 );
-
-watch(
-  () => props.productVariantId,
-  () => {
-    fetchStockMovements();
-  }
-);
-
-onMounted(() => {
-  fetchStockMovements();
-});
 
 const formatDate = (d) => dayjs(d).format('DD/MM/YYYY HH:mm');
 

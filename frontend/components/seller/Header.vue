@@ -88,7 +88,7 @@ const mergeNotificationsWithLocalStorage = (serverNotifications) => {
 const fetchMe = async () => {
   try {
     const data = await secureFetch(`${apiBase}/sellers/me` , {}, ['seller'])
-    me.value = data.seller  
+    me.value = data.data.seller || {}     
   } catch (error) {
     console.error('Failed to fetch me:', error)
     return null

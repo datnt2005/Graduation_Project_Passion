@@ -279,7 +279,7 @@ class InventoryController extends Controller
 
     $isAdmin = $user->role === 'admin';
 
-    $query = StockMovement::with(['productVariant.product', 'creator'])
+    $query = StockMovement::with(['productVariant.product', 'creator', 'productVariant.inventories'])
         ->when(
             $request->filled('product_variant_id'),
             fn($q) => $q->where('product_variant_id', $request->product_variant_id)
