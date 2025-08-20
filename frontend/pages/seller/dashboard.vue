@@ -73,16 +73,7 @@
         </div>
       </div>
 
-  <!-- Bảng Tổng Lỗ riêng -->
-  <div class="bg-white p-4 rounded shadow mt-6 w-full max-w-md mx-auto">
-    <h3 class="text-lg font-semibold text-red-600 mb-2">Tổng Lỗ</h3>
-    <div v-if="dashboardStats.lossStats && dashboardStats.lossStats.length">
-      <div v-for="loss in dashboardStats.lossStats" :key="loss.key" class="text-center">
-        <span class="text-2xl font-bold text-red-600">{{ formatNumber(loss.value) }}</span>
-      </div>
-          </div>
-    <div v-else class="text-gray-400">Không có dữ liệu lỗ</div>
-      </div>
+  
 
   <!-- Biểu đồ doanh thu + lợi nhuận -->
   <div class="bg-white p-4 sm:p-6 rounded shadow mt-6 w-full overflow-x-auto">
@@ -123,6 +114,7 @@
           <option value="line">Đường</option>
           <option value="pie">Tròn</option>
         </select>
+        
       </div>
     </div>
     <div class="h-[300px] sm:h-[400px] min-w-[600px]">
@@ -131,6 +123,60 @@
       <component v-else :is="chartComponent" :data="combinedChartData" :options="combinedChartOptions" />
     </div>
       </div>
+
+  <div class="bg-white p-4 sm:p-6 rounded shadow mt-4">
+    <div class="flex flex-wrap items-center gap-3">
+      <div class="flex items-center gap-2">
+        <label class="text-sm text-gray-600">So sánh tháng:</label>
+        <select v-model="monthCompareA" class="border border-gray-300 rounded px-3 py-1 text-sm">
+          <option v-for="lbl in monthLabels" :key="'A-'+lbl" :value="lbl">{{ lbl }}</option>
+        </select>
+        <span class="text-gray-400">vs</span>
+        <select v-model="monthCompareB" class="border border-gray-300 rounded px-3 py-1 text-sm">
+          <option v-for="lbl in monthLabels" :key="'B-'+lbl" :value="lbl">{{ lbl }}</option>
+        </select>
+      </div>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
+      <div class="bg-gray-50 rounded-lg p-4 border">
+        <div class="text-sm text-gray-500">Doanh thu</div>
+        <div class="text-lg font-semibold text-gray-900">{{ formatNumber(compareRevenueA) }} đ</div>
+        <div class="text-xs text-gray-500">{{ monthCompareA }}</div>
+      </div>
+      <div class="bg-gray-50 rounded-lg p-4 border">
+        <div class="text-sm text-gray-500">Doanh thu</div>
+        <div class="text-lg font-semibold text-gray-900">{{ formatNumber(compareRevenueB) }} đ</div>
+        <div class="text-xs text-gray-500">{{ monthCompareB }}</div>
+      </div>
+      <div class="bg-gray-50 rounded-lg p-4 border">
+        <div class="text-sm text-gray-500">Chênh lệch</div>
+        <div :class="['text-lg font-semibold', revenueDiff >= 0 ? 'text-green-600' : 'text-red-600']">{{ formatNumber(revenueDiff) }} đ</div>
+        <div class="text-xs text-gray-500">Tăng/Giảm</div>
+      </div>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
+      <div class="bg-gray-50 rounded-lg p-4 border">
+        <div class="text-sm text-gray-500">Lợi nhuận</div>
+        <div class="text-lg font-semibold text-gray-900">{{ formatNumber(compareProfitA) }} đ</div>
+        <div class="text-xs text-gray-500">{{ monthCompareA }}</div>
+      </div>
+      <div class="bg-gray-50 rounded-lg p-4 border">
+        <div class="text-sm text-gray-500">Lợi nhuận</div>
+        <div class="text-lg font-semibold text-gray-900">{{ formatNumber(compareProfitB) }} đ</div>
+        <div class="text-xs text-gray-500">{{ monthCompareB }}</div>
+      </div>
+      <div class="bg-gray-50 rounded-lg p-4 border">
+        <div class="text-sm text-gray-500">Chênh lệch</div>
+        <div :class="['text-lg font-semibold', profitDiff >= 0 ? 'text-green-600' : 'text-red-600']">{{ formatNumber(profitDiff) }} đ</div>
+        <div class="text-xs text-gray-500">Tăng/Giảm</div>
+      </div>
+    </div>
+    <div class="mt-4">
+      <div class="h-48">
+        <Bar :data="comparisonChartData" :options="comparisonChartOptions" />
+      </div>
+    </div>
+  </div>
 
   <!-- Bảng xếp hạng sản phẩm -->
   <div class="bg-white p-4 sm:p-6 rounded shadow mt-6 w-full overflow-x-auto">
@@ -160,6 +206,16 @@
         class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 w-full sm:w-auto">Lọc</button>
       <button @click="resetFilters"
         class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 w-full sm:w-auto">Reset</button>
+      <div class="ml-auto flex items-center gap-2">
+        <label class="text-sm text-gray-600 whitespace-nowrap">Hiển thị:</label>
+        <select v-model.number="inventoryPageSize" class="border border-gray-300 rounded px-2 py-1 text-sm">
+          <option :value="10">10</option>
+          <option :value="25">25</option>
+          <option :value="50">50</option>
+          <option :value="100">100</option>
+          <option :value="0">Tất cả</option>
+        </select>
+      </div>
     </div>
     <!-- Bảng tồn kho hoặc bảng bán chạy -->
     <div v-if="!showBestSellers">
@@ -183,7 +239,7 @@
           <tbody v-for="item in paginatedInventoryData" :key="item.id" class="bg-white">
             <tr>
               <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                <NuxtLink :to="`/admin/products/edit-product/${item.id}`" class="text-blue-600 hover:text-blue-800 hover:underline">
+                <NuxtLink :to="`/seller/products/edit-product/${item.id}`" class="text-blue-600 hover:text-blue-800 hover:underline">
                   {{ item.product_name }}
                 </NuxtLink>
               </td>
@@ -222,7 +278,7 @@
           <tbody v-for="item in paginatedBestSellers" :key="item.id" class="bg-white">
             <tr class="hover:bg-gray-50">
               <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                <NuxtLink :to="`/admin/products/edit-product/${item.id}`" class="text-blue-600 hover:text-blue-800 hover:underline">
+                <NuxtLink :to="`/seller/products/edit-product/${item.id}`" class="text-blue-600 hover:text-blue-800 hover:underline">
                   {{ item.product_name }}
                 </NuxtLink>
               </td>
@@ -373,9 +429,13 @@ const outOfStockProducts = computed(() => {
 const inventoryPage = ref(1)
 const inventoryPageSize = ref(10)
 const inventoryTotalPages = computed(() => {
+  if (!inventoryPageSize.value || inventoryPageSize.value <= 0) return 1
   return Math.ceil(filteredData.value.length / inventoryPageSize.value)
 })
 const paginatedInventoryData = computed(() => {
+  if (!inventoryPageSize.value || inventoryPageSize.value <= 0) {
+    return filteredData.value
+  }
   const start = (inventoryPage.value - 1) * inventoryPageSize.value
   return filteredData.value.slice(start, start + inventoryPageSize.value)
 })
@@ -395,12 +455,17 @@ onMounted(async () => {
     loadingStats.value = false
   }
   await fetchInventory();
+  applyFilters()
   await fetchChartData(chartType.value);
 })
 
 const chartLoading = ref(false)
 const chartError = ref('')
 const chartDataApi = ref({})
+const monthDataApi = ref({ labels: [], revenue: [], profit: [] })
+// giữ chart theo ngày mặc định, bỏ lọc range ngày
+const monthCompareA = ref('')
+const monthCompareB = ref('')
 
 async function fetchChartData(type = 'month') {
   chartLoading.value = true
@@ -415,6 +480,15 @@ async function fetchChartData(type = 'month') {
 
     if (!data.success) throw new Error(data.message || 'Không lấy được dữ liệu biểu đồ')
     chartDataApi.value = data.data
+    // Nếu là tháng, lưu để so sánh; nếu không, vẫn cố lấy 12 tháng để so sánh mặc định
+    if (type === 'month') {
+      monthDataApi.value = data.data
+    } else {
+      try {
+        const monthly = await secureFetch(`${apiBaseUrl}/dashboard/seller-revenue-profit-chart?type=month`, {}, ['seller'])
+        if (monthly.success) monthDataApi.value = monthly.data
+      } catch {}
+    }
 
   } catch (e) {
     console.error('Chart error:', e)
@@ -450,6 +524,40 @@ const filters = ref({
   minPrice: '',
   maxPrice: ''
 })
+
+function applyFilters() {
+  const keyword = (filters.value.keyword || '').toString().toLowerCase().trim()
+  const status = filters.value.status
+  const maxQty = filters.value.maxQuantity !== '' && filters.value.maxQuantity !== null ? Number(filters.value.maxQuantity) : null
+  const minPrice = filters.value.minPrice !== '' && filters.value.minPrice !== null ? Number(filters.value.minPrice) : null
+  const maxPrice = filters.value.maxPrice !== '' && filters.value.maxPrice !== null ? Number(filters.value.maxPrice) : null
+
+  const source = inventoryList.value ? [...inventoryList.value] : []
+  const result = source.filter(item => {
+    const name = (item.product_name || '').toString().toLowerCase()
+    const code = (item.product_code || '').toString().toLowerCase()
+    const category = (item.category_name || '').toString().toLowerCase()
+    const qty = Number(item.quantity || 0)
+    const sell = Number(item.sell_price || 0)
+
+    if (keyword && !(name.includes(keyword) || code.includes(keyword) || category.includes(keyword))) {
+      return false
+    }
+    if (status) {
+      if (status === 'Còn hàng' && !(qty > 5)) return false
+      if (status === 'Gần hết' && !(qty > 0 && qty <= 5)) return false
+      if (status === 'Hết hàng' && !(qty === 0)) return false
+    }
+    if (maxQty !== null && !Number.isNaN(maxQty) && qty > maxQty) return false
+    if (minPrice !== null && !Number.isNaN(minPrice) && sell < minPrice) return false
+    if (maxPrice !== null && !Number.isNaN(maxPrice) && sell > maxPrice) return false
+
+    return true
+  })
+
+  filteredData.value = result
+  inventoryPage.value = 1
+}
 
 function resetFilters() {
   filters.value = {
@@ -496,8 +604,12 @@ const combinedChartData = computed(() => {
     })
   }
   if (orderChartMode.value === 'inventory') {
-    const inventoryLabels = inventoryList.value ? inventoryList.value.map(item => item.product_name) : []
-    const inventoryData = inventoryList.value ? inventoryList.value.map(item => item.quantity) : []
+    // Dùng dữ liệu đã lọc để chart khớp với bảng
+    const source = Array.isArray(filteredData.value) && filteredData.value.length
+      ? filteredData.value
+      : (inventoryList.value || [])
+    const inventoryLabels = source.map(item => item.product_name)
+    const inventoryData = source.map(item => Number(item.quantity || 0))
     datasets.push({
       label: 'Tồn kho',
       data: inventoryData,
@@ -525,6 +637,10 @@ const combinedChartData = computed(() => {
   }
   return { labels, datasets }
 })
+
+const monthLabels = computed(() => monthDataApi.value.labels || [])
+
+// bỏ visibleChartData theo range ngày, dùng combinedChartData mặc định
 
 const combinedChartOptions = computed(() => {
   return {
@@ -658,6 +774,79 @@ watch(hasChartData, (val) => {
 watch(chartType, (val) => {
   fetchChartData(val)
 })
+
+watch(inventoryPageSize, () => {
+  inventoryPage.value = 1
+})
+
+watch(filters, () => {
+  applyFilters()
+}, { deep: true })
+
+watch(combinedChartData, (val) => {
+  if (chartType.value === 'month' && val.labels && val.labels.length) {
+    const lbls = monthLabels.value
+    monthCompareA.value = lbls[lbls.length - 2] || ''
+    monthCompareB.value = lbls[lbls.length - 1] || ''
+  }
+})
+
+const compareRevenueA = computed(() => {
+  const labels = monthLabels.value
+  const rev = { data: monthDataApi.value.revenue || [] }
+  if (!rev) return 0
+  const idx = labels.indexOf(monthCompareA.value)
+  return idx >= 0 ? Number(rev.data[idx] || 0) : 0
+})
+const compareRevenueB = computed(() => {
+  const labels = monthLabels.value
+  const rev = { data: monthDataApi.value.revenue || [] }
+  if (!rev) return 0
+  const idx = labels.indexOf(monthCompareB.value)
+  return idx >= 0 ? Number(rev.data[idx] || 0) : 0
+})
+const revenueDiff = computed(() => compareRevenueB.value - compareRevenueA.value)
+
+const compareProfitA = computed(() => {
+  const labels = monthLabels.value
+  const pf = { data: monthDataApi.value.profit || [] }
+  if (!pf) return 0
+  const idx = labels.indexOf(monthCompareA.value)
+  return idx >= 0 ? Number(pf.data[idx] || 0) : 0
+})
+const compareProfitB = computed(() => {
+  const labels = monthLabels.value
+  const pf = { data: monthDataApi.value.profit || [] }
+  if (!pf) return 0
+  const idx = labels.indexOf(monthCompareB.value)
+  return idx >= 0 ? Number(pf.data[idx] || 0) : 0
+})
+const profitDiff = computed(() => compareProfitB.value - compareProfitA.value)
+
+const comparisonChartData = computed(() => {
+  const labels = ['Doanh thu', 'Lợi nhuận']
+  return {
+    labels,
+    datasets: [
+      {
+        label: monthCompareA.value || 'Tháng A',
+        data: [compareRevenueA.value, compareProfitA.value],
+        backgroundColor: '#93c5fd'
+      },
+      {
+        label: monthCompareB.value || 'Tháng B',
+        data: [compareRevenueB.value, compareProfitB.value],
+        backgroundColor: '#60a5fa'
+      }
+    ]
+  }
+})
+const comparisonChartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: { legend: { position: 'bottom' } },
+  scales: { y: { beginAtZero: true, ticks: { callback: v => Number(v).toLocaleString('vi-VN') } } }
+}
 </script>
 
 <style scoped>

@@ -37,10 +37,16 @@
           :class="['px-4 py-2 rounded', activeTab === 'refunds' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700']">
           Yêu cầu hoàn tiền
         </button>
+        <div class="relative inline-block">
         <button @click="activeTab = 'withdraw'; fetchWithdrawList()"
           :class="['px-4 py-2 rounded', activeTab === 'withdraw' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700']">
           Yêu cầu rút tiền
         </button>
+          <span v-if="withdrawPendingCount > 0"
+            class="absolute -right-2 -top-2 inline-flex items-center justify-center w-6 h-6 text-xs font-bold text-white bg-red-500 rounded-full shadow">
+            +{{ withdrawPendingCount }}
+          </span>
+        </div>
       </div>
 
       <!-- Tab Đơn hàng -->
@@ -528,7 +534,7 @@
                 <td class="px-4 py-3 text-sm break-words whitespace-normal">{{ item.bank_account }}</td>
                 <td class="px-4 py-3 text-sm break-words whitespace-normal">{{ item.bank_account_name }}</td>
                 <td class="px-4 py-3 text-sm break-words whitespace-normal">
-                  <span :class="payoutStatusClass(item.status)">{{ payoutStatusLabel(item.status) }}</span>
+                  <span :class="withdrawStatusClass(item.status)">{{ withdrawStatusLabel(item.status) }}</span>
                 </td>
                 <td class="px-4 py-3 text-sm break-words whitespace-normal">{{ formatDate(item.created_at) }}</td>
                 <td class="px-4 py-3 text-sm break-words whitespace-normal">{{ item.approved_at ? formatDate(item.approved_at) : '-' }}</td>
@@ -580,7 +586,7 @@
                 <p><b>Mã vận đơn:</b> {{ selectedOrder.shipping?.tracking_code || 'Chưa có' }}</p>
                 <p><b>Trạng thái đơn hàng:</b> <span :class="getStatusClass(selectedOrder.status)">{{
                   getStatusText(selectedOrder.status) }}</span></p>
-                <p><b>Trạng thái GHN:</b> {{ statusText(selectedOrder.shipping?.status) || 'Chưa đồng bộ' }}</p>
+                <p><b>Trạng thái GHN:</b> {{ selectedOrder.shipping?.status ? statusText(selectedOrder.shipping.status) : 'Chờ GHN lấy hàng' }}</p>
                 <p><b>Ngày tạo:</b> {{ formatDate(selectedOrder.created_at) }}</p>
                 <p v-if="selectedOrder.shipping?.tracking_code" class="mt-2">
                   <button @click="verifyGhnStatus(selectedOrder)"
@@ -788,7 +794,7 @@
               <p><b>Ngân hàng:</b> {{ withdrawDetailItem.bank_name }}</p>
               <p><b>Số tài khoản:</b> {{ withdrawDetailItem.bank_account }}</p>
               <p><b>Tên chủ tài khoản:</b> {{ withdrawDetailItem.bank_account_name }}</p>
-              <p><b>Trạng thái:</b> <span :class="payoutStatusClass(withdrawDetailItem.status)">{{ payoutStatusLabel(withdrawDetailItem.status) }}</span></p>
+              <p><b>Trạng thái:</b> <span :class="withdrawStatusClass(withdrawDetailItem.status)">{{ withdrawStatusLabel(withdrawDetailItem.status) }}</span></p>
               <p><b>Ngày gửi:</b> {{ formatDate(withdrawDetailItem.created_at) }}</p>
               <p><b>Ngày duyệt:</b> {{ withdrawDetailItem.approved_at ? formatDate(withdrawDetailItem.approved_at) : '-' }}</p>
               <p><b>Ghi chú:</b> {{ withdrawDetailItem.note || '-' }}</p>
@@ -1251,6 +1257,11 @@ const uniqueShops = computed(() => {
     .filter((shop, index, arr) => shop && arr.indexOf(shop) === index)
     .sort();
   return shops;
+});
+
+// Số lượng yêu cầu rút tiền đang chờ → hiển thị badge trên nút
+const withdrawPendingCount = computed(() => {
+  return withdrawList.value.filter(item => item.status === 'pending').length;
 });
 
 const withdrawListFiltered = computed(() => {
@@ -2182,6 +2193,24 @@ const refundStatusMap = {
   pending: { text: 'Chờ xử lý', class: 'bg-yellow-100 text-yellow-800' },
   approved: { text: 'Đã duyệt', class: 'bg-green-100 text-green-800' },
   rejected: { text: 'Đã từ chối', class: 'bg-red-100 text-red-800' }
+};
+
+// Nhãn tiếng Việt cho trạng thái rút tiền
+const withdrawStatusLabel = (status) => {
+  return {
+    pending: 'Chờ xử lý',
+    approved: 'Đã duyệt',
+    rejected: 'Đã từ chối',
+    completed: 'Đã chuyển khoản'
+  }[status] || status || 'Không xác định';
+};
+const withdrawStatusClass = (status) => {
+  return {
+    pending: 'bg-yellow-100 text-yellow-800',
+    approved: 'bg-green-100 text-green-800',
+    rejected: 'bg-red-100 text-red-800',
+    completed: 'bg-green-100 text-green-800'
+  }[status] || 'bg-gray-100 text-gray-800';
 };
 
 const verifyGhnStatus = async (order) => {

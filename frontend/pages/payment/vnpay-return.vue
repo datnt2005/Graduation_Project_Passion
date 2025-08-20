@@ -178,6 +178,20 @@ const districts = ref([])
 const wards = ref([])
 let countdownInterval = null
 
+const processedKey = ref('')
+
+const startRedirectCountdown = () => {
+  try { clearInterval(countdownInterval) } catch {}
+  countdown.value = 10
+  countdownInterval = setInterval(() => {
+    countdown.value -= 1
+    if (countdown.value <= 0) {
+      clearInterval(countdownInterval)
+      router.push('/')
+    }
+  }, 1000)
+}
+
 const formatPrice = (price) => {
   if (!price) return '0'
   // Chuyển về số nguyên và format
@@ -276,6 +290,19 @@ onMounted(async () => {
   const queryParams = { ...route.query }
   console.log('VNPAY Redirect Query Parameters:', queryParams)
 
+  // Ngăn reload spam: nếu giao dịch này đã xử lý thì bỏ qua và tự chuyển sau 10s
+  const txnRef = queryParams.vnp_TxnRef || ''
+  const transNo = queryParams.vnp_TransactionNo || ''
+  const responseCode = queryParams.vnp_ResponseCode || ''
+  processedKey.value = `payment_processed_vnpay_${[txnRef, transNo, responseCode].filter(Boolean).join('_')}`
+  if (processedKey.value && sessionStorage.getItem(processedKey.value)) {
+    loading.value = false
+    success.value = (responseCode === '00')
+    message.value = success.value ? 'Thanh toán đã được xử lý.' : 'Thanh toán thất bại'
+    startRedirectCountdown()
+    return
+  }
+
   if (!queryParams.vnp_TxnRef || !queryParams.vnp_ResponseCode || !queryParams.vnp_SecureHash) {
     loading.value = false
     success.value = false
@@ -285,7 +312,7 @@ onMounted(async () => {
     bankCode.value = queryParams.vnp_BankCode || '-'
     transactionId.value = queryParams.vnp_TransactionNo || '-'
     console.warn('Missing required VNPAY parameters:', queryParams)
-    try { window.location.replace(REDIRECT_URL) } catch {}
+    startRedirectCountdown()
     return
   }
 
@@ -411,6 +438,8 @@ onMounted(async () => {
       } else if (orderDetail.value && orderDetail.value.address) {
         enrichAddress(orderDetail.value.address);
       }
+      if (processedKey.value) sessionStorage.setItem(processedKey.value, '1')
+      startRedirectCountdown()
     } else {
       loading.value = false
       success.value = false
@@ -421,7 +450,8 @@ onMounted(async () => {
       transactionId.value = queryParams.vnp_TransactionNo || '-'
       tracking_code.value = '-'
       orderDetail.value = []
-      try { window.location.replace(REDIRECT_URL) } catch {}
+      if (processedKey.value) sessionStorage.setItem(processedKey.value, '1')
+      startRedirectCountdown()
     }
   } catch (error) {
     loading.value = false
@@ -434,7 +464,8 @@ onMounted(async () => {
     transactionId.value = '-'
     tracking_code.value = '-'
     orderDetail.value = []
-    try { window.location.replace(REDIRECT_URL) } catch {}
+    if (processedKey.value) sessionStorage.setItem(processedKey.value, '1')
+    startRedirectCountdown()
   }
 })
 
