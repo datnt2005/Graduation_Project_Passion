@@ -280,7 +280,7 @@
           <span>💸</span> Danh sách thanh toán đã cập nhật
         </h2>
         <div class="flex flex-wrap gap-3 mb-4">
-          <input v-model="payoutTrackingKeyword" type="text" placeholder="Tìm theo mã vận đơn (tracking_code)"
+          <input v-model="payoutTrackingKeyword" type="text" placeholder="Tìm theo mã vận đơn"
             class="border p-2 rounded flex-1 min-w-[180px] placeholder-gray-400">
           <select v-model="payoutSortOption" class="border p-2 rounded min-w-[160px]">
             <option value="transferred_desc">Mới nhất (ngày chuyển khoản)</option>
@@ -296,7 +296,7 @@
           <table class="w-full table-auto divide-y divide-gray-200">
             <thead>
               <tr>
-                <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">Mã payout</th>
+                <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">Mã thanh toán</th>
                 <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">Mã vận đơn</th>
                 <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">Số tiền</th>
                 <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">Ngày yêu cầu</th>

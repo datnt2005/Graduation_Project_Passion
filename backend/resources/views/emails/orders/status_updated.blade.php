@@ -188,21 +188,32 @@
             <div class="tracking-box">
                 <div><strong>Trạng thái cũ:</strong>
                     @php
-                    $statusMap = [
-                    'pending' => 'Chờ xác nhận',
-                    'processing' => 'Đang xử lý',
-                    'shipped' => 'Đang giao',
-                    'delivered' => 'Đã giao',
-                    'cancelled' => 'Đã hủy',
-                    'completed' => 'Hoàn thành',
-                    ];
-                    echo $statusMap[$oldStatus] ?? ucfirst($oldStatus);
+                        $statusMap = [
+                            'pending'    => 'Chờ xác nhận',
+                            'confirmed'  => 'Đã xác nhận',
+                            'processing' => 'Đang xử lý',
+                            'shipping'   => 'Đang giao',
+                            'shipped'    => 'Đang giao',
+                            'delivered'  => 'Đã giao',
+                            'cancelled'  => 'Đã hủy',
+                            'completed'  => 'Hoàn thành',
+                            'returned'   => 'Đã trả hàng',
+                            'refunded'   => 'Đã hoàn tiền',
+                            'failed'     => 'Thất bại',
+                            'success'    => 'Thành công',
+                            'paid'       => 'Đã thanh toán',
+                            'unpaid'     => 'Chưa thanh toán',
+                            'waiting'    => 'Đang chờ',
+                            'error'      => 'Lỗi',
+                        ];
+                        $old = strtolower($oldStatus ?? '');
+                        echo $statusMap[$old] ?? ucfirst(strtolower(str_replace('_',' ', (string)$oldStatus)));
                     @endphp
                 </div>
                 <div><strong>Trạng thái mới:</strong>
                     @php
-                    $status = $order->status;
-                    echo $statusMap[$status] ?? ucfirst($status);
+                        $status = strtolower($order->status ?? '');
+                        echo $statusMap[$status] ?? ucfirst(strtolower(str_replace('_',' ', (string)$order->status)));
                     @endphp
                 </div>
             </div>
