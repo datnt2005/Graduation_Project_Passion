@@ -23,7 +23,7 @@ Route::prefix('products')->group(function () {
             Route::get('/sellers', [ProductController::class, 'getAllProductBySellers']);
             Route::get('/sellers/trash', [ProductController::class, 'getTrashBySeller']);
             Route::get('/trash', [ProductController::class, 'getTrash']);
-
+            Route::get('/approvals/seller/history', [ProductApprovalController::class, 'getHistoryApprovalBySeller']);
             Route::post('/', [ProductController::class, 'store']);
             Route::post('/import', [ProductController::class, 'import']);
             Route::post('/change-status/{id}', [ProductController::class, 'changeStatus'])->whereNumber('id');

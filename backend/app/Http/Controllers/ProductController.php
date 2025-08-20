@@ -1440,7 +1440,7 @@ class ProductController extends Controller
                 'search' => 'nullable|string|max:255',
                 'price_min' => 'nullable|numeric|min:0',
                 'price_max' => 'nullable|numeric|min:0',
-                'brands' => 'nullable|string', // Chấp nhận chuỗi dạng "Samsung,Apple"
+                'brands' => 'nullable|string',
                 'category_id' => 'nullable|integer|exists:categories,id',
             ], [
                 'brands.string' => 'Danh sách thương hiệu không hợp lệ.',

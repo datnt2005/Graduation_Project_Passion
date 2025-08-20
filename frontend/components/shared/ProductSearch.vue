@@ -1,12 +1,12 @@
 <template>
-  <div class="max-w-7xl mx-auto bg-white relative">
+  <div class="max-w-[1300px] mx-auto bg-white relative">
     <div class="flex justify-between items-center px-4 py-3 border-b border-[#f0f0f0]">
       <div class="text-[#1BA0E2] font-bold text-sm uppercase">SẢN PHẨM THỊNH HÀNH</div>
     </div>
 
     <div
       ref="scrollContainer"
-      class="grid grid-cols-8 gap-4 overflow-x-auto scrollbar-hide px-4 py-4 relative touch-pan-y"
+      class="grid grid-rows-2 grid-flow-col-dense gap-4 px-4 py-4 overflow-x-auto scrollbar-hide relative touch-pan-y"
       style="grid-template-rows: repeat(2, minmax(0, 1fr));"
       @mousedown="startDragging"
       @mousemove="dragging"
@@ -15,12 +15,38 @@
       @touchstart="startDragging"
       @touchmove="dragging"
       @touchend="stopDragging"
+      @scroll="updateScrollIndicators"
     >
+      <!-- Skeleton loading -->
       <div
-        v-if="displayProducts.length"
-        v-for="(product, index) in displayProducts"
-        :key="index"
-        class="flex-shrink-0 w-[140px]"
+        v-if="pending"
+        class="contents"
+        aria-hidden="true"
+      >
+        <div
+          v-for="i in 16"
+          :key="'skel-' + i"
+          class="w-[140px] flex-shrink-0"
+        >
+          <div class="relative">
+            <div class="w-full h-[120px] rounded bg-gray-200 animate-pulse"></div>
+            <div class="absolute top-2 left-2">
+              <div class="h-4 w-10 bg-gray-300 rounded animate-pulse"></div>
+            </div>
+          </div>
+          <div class="mt-2 space-y-1">
+            <div class="h-3 bg-gray-200 rounded animate-pulse"></div>
+            <div class="h-3 w-2/3 bg-gray-200 rounded animate-pulse"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Products -->
+      <div
+        v-else-if="products.length"
+        v-for="(product, index) in products"
+        :key="product.id ?? product.slug ?? index"
+        class="w-[140px] flex-shrink-0"
       >
         <NuxtLink :to="`/products/${product.slug}`">
           <div class="relative">
@@ -30,8 +56,9 @@
               class="w-full h-[120px] object-cover rounded"
               width="140"
               height="120"
+              loading="lazy"
             />
-            <div class="absolute top-2 left-2 bg-[#1BA0E2] text-white text-[10px] font-bold px-1.5 py-[1px] uppercase">
+            <div class="absolute top-2 left-2 bg-[#1BA0E2] text-white text-[10px] font-bold px-1.5 py-[1px] uppercase rounded">
               TOP
             </div>
           </div>
@@ -41,27 +68,23 @@
         </NuxtLink>
       </div>
 
-      <!-- Loading hoặc lỗi fallback -->
-      <div v-if="pending" class="col-span-8 text-sm text-gray-500 px-4">Đang tải sản phẩm thịnh hành...</div>
-      <div v-if="error" class="col-span-8 text-sm text-red-500 px-4">Lỗi khi tải sản phẩm: {{ error.message }}</div>
-      <div v-if="!pending && !error && !displayProducts.length" class="col-span-8 text-sm text-gray-500 px-4">
+      <!-- Empty / Error -->
+      <div v-else-if="error" class="text-sm text-red-500 px-4 col-span-2">
+        Lỗi khi tải sản phẩm: {{ error.message || 'Không thể tải dữ liệu.' }}
+      </div>
+      <div v-else class="text-sm text-gray-500 px-4 col-span-2">
         Không có sản phẩm thịnh hành.
       </div>
     </div>
 
-    <!-- Nút điều hướng trái -->
+    <!-- Navigation buttons (ẩn khi loading) -->
     <button
-      v-if="canNavigate"
+      v-if="showNavigationButtons && canScrollLeft"
       @click="scrollLeft"
       class="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white z-10 p-1 shadow rounded-full hover:bg-gray-100 transition"
       aria-label="Scroll left"
     >
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        class="h-4 w-4 text-gray-600"
-        viewBox="0 0 20 20"
-        fill="currentColor"
-      >
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-600" viewBox="0 0 20 20" fill="currentColor">
         <path
           fill-rule="evenodd"
           d="M12.707 15.707a1 1 0 01-1.414 0L6.586 11l4.707-4.707a1 1 0 111.414 1.414L9.414 11l3.293 3.293a1 1 0 010 1.414z"
@@ -70,19 +93,13 @@
       </svg>
     </button>
 
-    <!-- Nút điều hướng phải -->
     <button
-      v-if="canNavigate"
+      v-if="showNavigationButtons"
       @click="scrollRight"
       class="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white z-10 p-1 shadow rounded-full hover:bg-gray-100 transition"
       aria-label="Scroll right"
     >
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        class="h-4 w-4 text-gray-600"
-        viewBox="0 0 20 20"
-        fill="currentColor"
-      >
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-600" viewBox="0 0 20 20" fill="currentColor">
         <path
           fill-rule="evenodd"
           d="M7.293 4.293a1 1 0 011.414 0L13.414 9l-4.707 4.707a1 1 0 01-1.414-1.414L10.586 9 7.293 5.707a1 1 0 010-1.414z"
@@ -90,122 +107,164 @@
         />
       </svg>
     </button>
+
+    <!-- Scroll indicators -->
+    <div
+      v-if="showNavigationButtons && canScrollLeft"
+      class="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xl font-bold pointer-events-none"
+    >
+      &lt;
+    </div>
+    <div
+      v-if="showNavigationButtons"
+      class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 text-xl font-bold pointer-events-none"
+    >
+      &gt;
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRuntimeConfig } from '#imports'
 
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBaseUrl
 const mediaBase = config.public.mediaBaseUrl
+
 const scrollContainer = ref(null)
 const products = ref([])
 const pending = ref(true)
 const error = ref(null)
-
-// Limit to 32 products
-const displayProducts = computed(() => {
-  return products.value.slice(0, 32)
-})
 
 // Drag state
 const isDragging = ref(false)
 const startX = ref(0)
 const scrollLeftStart = ref(0)
 
-// Fetch data from API
-async function fetchTrendingProducts() {
-  try {
-    pending.value = true
-    error.value = null
-    const response = await $fetch(`${apiBase}/search/trending-products`, {
-      method: 'GET',
-    })
-    if (response.success) {
-      products.value = response.data || []
-    } else {
-      throw new Error(response.message || 'Lỗi không xác định')
-    }
-  } catch (err) {
-    error.value = err
-    products.value = []
-  } finally {
-    pending.value = false
-  }
-}
+// Scroll indicator states
+const canScrollLeft = ref(false)
+const canScrollRight = ref(false)
 
-// Logic cuộn
 const canNavigate = computed(() => {
-  return scrollContainer.value && scrollContainer.value.scrollWidth > scrollContainer.value.clientWidth
+  const el = scrollContainer.value
+  return !!el && el.scrollWidth > el.clientWidth
 })
 
-function scrollLeft() {
-  if (scrollContainer.value) {
-    scrollContainer.value.scrollBy({
-      left: -200,
-      behavior: 'smooth',
-    })
-  }
+// Ẩn nút điều hướng khi loading
+const showNavigationButtons = computed(() => {
+  if (pending.value) return false
+  const count = products.value.length
+  return count > 16 || canNavigate.value
+})
+
+// Update indicators
+const updateScrollIndicators = () => {
+  const el = scrollContainer.value
+  if (!el) return
+  const { scrollLeft, scrollWidth, clientWidth } = el
+  canScrollLeft.value = scrollLeft > 0
+  canScrollRight.value = scrollLeft < scrollWidth - clientWidth - 1
 }
 
-function scrollRight() {
-  if (scrollContainer.value) {
-    scrollContainer.value.scrollBy({
-      left: 200,
-      behavior: 'smooth',
-    })
+// Smooth scroll
+function smoothScroll(target, duration) {
+  const el = scrollContainer.value
+  if (!el) return
+  const start = el.scrollLeft
+  const change = target - start
+  const startTime = performance.now()
+
+  function animateScroll(currentTime) {
+    const elapsed = currentTime - startTime
+    const progress = Math.min(elapsed / duration, 1)
+    const ease = progress * (2 - progress)
+    el.scrollLeft = start + change * ease
+    if (progress < 1) requestAnimationFrame(animateScroll)
   }
+  requestAnimationFrame(animateScroll)
+}
+
+function scrollLeft() {
+  const el = scrollContainer.value
+  if (el) smoothScroll(el.scrollLeft - 200, 400)
+}
+function scrollRight() {
+  const el = scrollContainer.value
+  if (el) smoothScroll(el.scrollLeft + 200, 400)
 }
 
 function getImageUrl(path) {
   return `${mediaBase}${path}`
 }
 
-// Drag functionality
+// Drag handlers
 function startDragging(event) {
-  if (scrollContainer.value) {
-    isDragging.value = true
-    startX.value = event.type.includes('touch') ? event.touches[0].clientX : event.clientX
-    scrollLeftStart.value = scrollContainer.value.scrollLeft
-    scrollContainer.value.style.scrollBehavior = 'auto' // Tắt smooth scroll khi drag
-    scrollContainer.value.style.cursor = 'grabbing' // Thay đổi con trỏ khi kéo
-  }
+  const el = scrollContainer.value
+  if (!el) return
+  isDragging.value = true
+  startX.value = event.type.includes('touch') ? event.touches[0].clientX : event.clientX
+  scrollLeftStart.value = el.scrollLeft
+  el.style.scrollBehavior = 'auto'
+  el.style.cursor = 'grabbing'
 }
-
 function dragging(event) {
-  if (isDragging.value && scrollContainer.value) {
-    event.preventDefault() // Ngăn chặn hành vi mặc định (như chọn text)
-    const currentX = event.type.includes('touch') ? event.touches[0].clientX : event.clientX
-    const diffX = startX.value - currentX
-    scrollContainer.value.scrollLeft = scrollLeftStart.value + diffX
-  }
+  const el = scrollContainer.value
+  if (!isDragging.value || !el) return
+  event.preventDefault()
+  const currentX = event.type.includes('touch') ? event.touches[0].clientX : event.clientX
+  const diffX = startX.value - currentX
+  el.scrollLeft = scrollLeftStart.value + diffX
 }
-
 function stopDragging() {
-  if (isDragging.value && scrollContainer.value) {
-    isDragging.value = false
-    scrollContainer.value.style.scrollBehavior = 'smooth' // Khôi phục smooth scroll
-    scrollContainer.value.style.cursor = 'grab' // Khôi phục con trỏ ban đầu
+  const el = scrollContainer.value
+  if (!isDragging.value || !el) return
+  isDragging.value = false
+  el.style.scrollBehavior = 'smooth'
+  el.style.cursor = 'grab'
+}
+
+// Fetch data
+async function fetchTrendingProducts() {
+  try {
+    pending.value = true
+    error.value = null
+    const response = await $fetch(`${apiBase}/search/trending-products`, { method: 'GET' })
+    if (response?.success !== false) {
+      // chấp nhận cả dạng {success:true,data:[...]} hoặc trả mảng trực tiếp
+      products.value = response.data?.products || response.data || response || []
+    } else {
+      throw new Error(response.message || 'Lỗi không xác định')
+    }
+  } catch (err) {
+    error.value = err
+    products.value = []
+    // eslint-disable-next-line no-console
+    console.error('Lỗi tải sản phẩm:', err)
+  } finally {
+    pending.value = false
+    // đợi render xong rồi tính lại khả năng cuộn
+    requestAnimationFrame(updateScrollIndicators)
   }
 }
 
-// Fetch data when component mounts
+// Recalc when data changes
+watch(products, () => {
+  updateScrollIndicators()
+})
+
+// Init
 onMounted(() => {
   fetchTrendingProducts()
+  if (scrollContainer.value) {
+    scrollContainer.value.addEventListener('scroll', updateScrollIndicators)
+  }
 })
 </script>
 
 <style scoped>
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
-}
-
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 
 .line-clamp-2 {
   display: -webkit-box;
@@ -214,36 +273,17 @@ onMounted(() => {
   overflow: hidden;
 }
 
-.transition {
-  transition: all 0.3s ease;
-}
+.transition { transition: all 0.3s ease; }
 
-/* Ngăn chặn highlight text khi drag */
 .touch-pan-y {
   -webkit-user-select: none;
   -ms-user-select: none;
   user-select: none;
-  touch-action: pan-y; /* Cho phép cuộn dọc trên touch device, nhưng không ảnh hưởng drag ngang */
-  cursor: grab; /* Con trỏ mặc định */
-}
-
-/* Thay đổi con trỏ khi hover */
-.touch-pan-y:hover {
+  touch-action: pan-y;
   cursor: grab;
 }
+.touch-pan-y:hover { cursor: grab; }
 
-/* Ensure grid layout for two rows */
-.grid {
-  display: grid;
-  grid-template-columns: repeat(8, 140px); /* 8 products per row */
-  grid-template-rows: repeat(2, auto); /* Two rows */
-  gap: 16px; /* Space between products */
-  overflow-x: auto;
-  scroll-snap-type: x mandatory; /* Optional: Snap to products when scrolling */
-}
-
-/* Ensure products are properly sized */
-.grid > div {
-  scroll-snap-align: start; /* Optional: Align products when snapping */
-}
+/* Ensure smooth scroll container */
+.scroll-container { scroll-behavior: smooth; }
 </style>

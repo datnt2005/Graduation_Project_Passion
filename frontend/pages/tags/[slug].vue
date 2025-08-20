@@ -43,11 +43,13 @@
 
           <!-- Nếu có sản phẩm giảm giá -->
           <template v-else-if="saleProducts.length">
-            <div
+            <NuxtLink 
               v-for="item in paginatedSaleProducts"
               :key="item.id"
+              :to="`/products/${item.slug}`"
               class="bg-white rounded-xl shadow-sm p-4 hover:shadow-lg hover:scale-105 transition-all duration-300 transform"
             >
+            
               <img
                 :src="resolveImage(item.thumbnail)"
                 alt=""
@@ -61,7 +63,7 @@
                 <p class="text-red-600 font-semibold">{{ formatPrice(item.sale_price) }}</p>
               </div>
               <p class="text-xs text-gray-500 mt-1">{{ item.quantity }} trong kho</p>
-            </div>
+            </NuxtLink>
           </template>
 
           <!-- Không có sản phẩm sale -->
@@ -129,9 +131,10 @@
 
           <!-- Nếu có sản phẩm cùng danh mục -->
           <template v-else-if="relatedProducts.length">
-            <div
+            <NuxtLink
               v-for="item in paginatedRelatedProducts"
               :key="item.id"
+              :to="`/products/${item.slug}`"
               class="bg-white rounded-xl shadow-sm p-4 hover:shadow-lg hover:scale-105 transition-all duration-300 transform"
             >
               <img
@@ -152,7 +155,7 @@
                 <p class="text-gray-800 font-semibold mt-1">{{ formatPrice(item.price) }}</p>
               </template>
               <p class="text-xs text-gray-500 mt-1">{{ item.quantity }} trong kho</p>
-            </div>
+            </NuxtLink>
           </template>
 
           <!-- Không có sản phẩm cùng danh mục -->
