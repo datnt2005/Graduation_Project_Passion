@@ -580,7 +580,7 @@
                 <p><b>Mã vận đơn:</b> {{ selectedOrder.shipping?.tracking_code || 'Chưa có' }}</p>
                 <p><b>Trạng thái đơn hàng:</b> <span :class="getStatusClass(selectedOrder.status)">{{
                   getStatusText(selectedOrder.status) }}</span></p>
-                <p><b>Trạng thái GHN:</b> {{ statusText(selectedOrder.shipping?.status) || 'Chưa đồng bộ' }}</p>
+                <p><b>Trạng thái GHN:</b> {{ selectedOrder.shipping?.status ? statusText(selectedOrder.shipping.status) : 'Chờ GHN lấy hàng' }}</p>
                 <p><b>Ngày tạo:</b> {{ formatDate(selectedOrder.created_at) }}</p>
                 <p v-if="selectedOrder.shipping?.tracking_code" class="mt-2">
                   <button @click="verifyGhnStatus(selectedOrder)"
@@ -2160,17 +2160,36 @@ const statusMap = {
   returned: { text: 'Đã trả hàng', class: 'bg-orange-100 text-orange-800' }
 };
 
-const ghnStatusMap = {
-  ready_to_pick: { text: 'Sẵn sàng lấy hàng', class: 'bg-yellow-100 text-yellow-800' },
-  picking: { text: 'Đang lấy hàng', class: 'bg-blue-100 text-blue-800' },
-  shipping: { text: 'Đang giao hàng', class: 'bg-purple-100 text-purple-800' },
-  delivered: { text: 'Đã giao', class: 'bg-green-100 text-green-800' },
-  cancelled: { text: 'Đã hủy', class: 'bg-red-100 text-red-800' },
-  returned: { text: 'Đã trả hàng', class: 'bg-orange-100 text-orange-800' },
-  failed: { text: 'Giao thất bại', class: 'bg-red-100 text-red-800' }
+// Mapping trạng thái GHN giống seller (dùng switch-case)
+const statusText = (status) => {
+  switch (status) {
+    case 'pending': return 'Chờ xử lý';
+    case 'confirmed': return 'Đã xác nhận';
+    case 'processing': return 'Đang xử lý';
+    case 'shipping': return 'Đang giao';
+    case 'delivered': return 'Đã giao';
+    case 'cancelled': return 'Đã hủy';
+    case 'refunded': return 'Đã hoàn tiền';
+    case 'failed': return 'Giao thất bại';
+    case 'failed_delivery': return 'Giao không thành công';
+    case 'rejected_by_customer': return 'Khách từ chối nhận';
+    case 'completed': return 'Đã thanh toán';
+    case 'waiting': return 'Chờ xác nhận';
+    case 'success': return 'Thành công';
+    case 'paid': return 'Đã thanh toán';
+    case 'unpaid': return 'Chưa thanh toán';
+    case 'ready_to_pick': return 'Chờ GHN lấy hàng';
+    case 'picking': return 'GHN đang lấy hàng';
+    case 'picked': return 'GHN đã lấy hàng';
+    case 'delivering': return 'Đang giao hàng';
+    case 'return': return 'Trả hàng';
+    case 'returned': return 'Đã trả hàng';
+    case 'cancel': return 'Hủy đơn GHN';
+    default:
+      if (!status) return '';
+      return typeof status === 'string' ? status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : String(status);
+  }
 };
-
-const statusText = (status) => ghnStatusMap[status]?.text || status || 'Không xác định';
 
 const paymentMethodMap = {
   cod: 'Thanh toán khi nhận hàng',
@@ -2200,7 +2219,7 @@ const verifyGhnStatus = async (order) => {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
         'Accept': 'application/json'
-      },
+      }, 
       body: JSON.stringify({ tracking_code: order.shipping.tracking_code })
     });
 
