@@ -25,7 +25,7 @@
         <div class="bg-gray-200 px-4 py-3 flex flex-wrap items-center gap-3 text-sm text-gray-700">
           <div class="flex items-center gap-2">
             <span class="font-bold">Tất cả</span>
-            <span>({{ orders.length }} đơn hàng)</span>
+            <span>({{ orderTotalItems || orders.length }} đơn hàng)</span>
           </div>
           <div class="flex gap-2">
             <select v-model="filters.status" class="rounded-md border border-gray-300 py-1.5 pl-3 pr-8 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
@@ -170,6 +170,21 @@
             </tr>
           </tbody>
         </table>
+
+        <!-- Pagination (giống admin) -->
+        <div class="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
+          <div class="flex justify-between items-center">
+            <div class="text-sm text-gray-700">
+              Hiển thị {{ Math.min(((orderPage - 1) * orderPageSize) + (orderPaginatedData.length > 0 ? 1 : 0), orderTotalItems) }} đến {{ Math.min(orderPage * orderPageSize, orderTotalItems) }} trong tổng số {{ orderTotalItems }} đơn hàng
+            </div>
+            <div class="flex space-x-2">
+              <button @click="changeOrderPage(orderPage - 1)" :disabled="orderPage === 1" class="px-3 py-1 border rounded-md disabled:opacity-50">Trước</button>
+              <button v-for="p in orderTotalPages" :key="p" @click="changeOrderPage(p)"
+                :class="['px-3 py-1 border rounded-md', orderPage === p ? 'bg-blue-600 text-white' : 'bg-white text-gray-700']">{{ p }}</button>
+              <button @click="changeOrderPage(orderPage + 1)" :disabled="orderPage === orderTotalPages" class="px-3 py-1 border rounded-md disabled:opacity-50">Sau</button>
+            </div>
+          </div>
+        </div>
 
    <!-- Dropdown Portal -->
         <Teleport to="body">
@@ -528,13 +543,7 @@
       </div>
     </div>
   </Teleport>
-
-        <!-- Phân trang -->
-        <div v-if="orderTotalPages > 1" class="flex justify-center mt-4">
-          <button @click="changeOrderPage(orderPage - 1)" :disabled="orderPage === 1" class="px-3 py-1 mx-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50">&lt;</button>
-          <button v-for="page in orderTotalPages" :key="page" @click="changeOrderPage(page)" :class="['px-3 py-1 mx-1 rounded border', orderPage === page ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-gray-700 border-gray-300']">{{ page }}</button>
-          <button @click="changeOrderPage(orderPage + 1)" :disabled="orderPage === orderTotalPages" class="px-3 py-1 mx-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50">&gt;</button>
-        </div>
+  
       </div>
       <div v-else-if="activeTab === 'payouts'">
         <!-- Bảng đơn hàng đã giao, chờ admin duyệt payout -->
@@ -913,6 +922,7 @@ const payoutFilters = ref({ keyword: '', status: '' });
 const orderPage = ref(1);
 const orderPageSize = ref(10);
 const orderTotalPages = ref(1);
+const orderTotalItems = ref(0);
 // Backend pagination: orders.value is the current page's data
 const orderPaginatedData = computed(() => orders.value);
 // Change page and fetch orders
@@ -1094,9 +1104,13 @@ const fetchOrders = async () => {
         orderTotalPages.value = response.meta.last_page || 1;
         orderPage.value = response.meta.current_page || 1;
         orderPageSize.value = response.meta.per_page || 10;
+        orderTotalItems.value = response.meta.total || orders.value.length;
+      } else {
+        orderTotalItems.value = orders.value.length;
       }
     } else {
       orders.value = [];
+      orderTotalItems.value = 0;
     }
   } catch (e) {
     console.error('Error fetching orders:', e);
