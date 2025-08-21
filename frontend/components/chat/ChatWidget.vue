@@ -33,7 +33,7 @@
         >
           <!-- Avatar shop/seller ở sidebar -->
           <img
-            :src="getSidebarAvatar(session)"
+            :src="getAvatar(session.seller?.user?.avatar)"
             @error="handleImageError"
             class="w-10 h-10 rounded-full object-cover border"
             alt="Avatar cửa hàng"
@@ -80,13 +80,12 @@
 
           <!-- Avatar tiêu đề: seller/shop -->
           <img
-            :src="getSidebarAvatar(currentSession)"
+            :src="getAvatar(currentSession?.seller?.user?.avatar)"
             @error="handleImageError"
             class="w-8 h-8 rounded-full object-cover border"
             alt="Avatar cửa hàng"
           />
           <!-- Tiêu đề -->
-           <!-- <p>{{ currentSession }}</p> -->
           <span class="font-semibold text-sm truncate">{{ headerTitle }}</span>
         </div>
 
@@ -122,7 +121,8 @@
           <!-- Avatar (chỉ hiển thị cho tin của seller) -->
           <img
             v-if="message.sender_type !== 'user'"
-            :src="message.avatar.startsWith('http') ? message.avatar : `${mediaBaseUrl}${message.avatar}` || DEFAULT_AVATAR"
+            :src="getAvatar(message.avatar || currentSession?.seller?.user?.avatar)"
+            @error="handleImageError"
             class="w-8 h-8 rounded-full object-cover"
             alt="Avatar"
           />
@@ -174,10 +174,10 @@
                   class="w-24 h-24 rounded overflow-hidden cursor-pointer"
                 >
                   <img
-                    :src="attachment.file_url || attachment.url || '/images/image.png'"
+                    :src="attachment.file_url || attachment.url || getAvatar(currentSession?.seller?.user?.avatar)"
                     @error="handleImageError"
                     class="w-full h-full object-cover rounded border border-gray-200"
-                    @click.stop="openImageViewer(attachment.file_url || attachment.url || '/images/image.png')"
+                    @click.stop="openImageViewer(attachment.file_url || attachment.url || getAvatar(currentSession?.seller?.user?.avatar))"
                   />
                 </div>
               </div>
@@ -206,10 +206,10 @@
                 </div>
                 <div class="flex border rounded overflow-hidden bg-white hover:shadow-md transition">
                   <img
-                    :src="message.attachments?.[0]?.meta_data?.file_url || '/images/image.png'"
+                    :src="message.attachments?.[0]?.meta_data?.file_url || getAvatar(currentSession?.seller?.user?.avatar)"
                     alt="Ảnh sản phẩm"
                     class="w-24 h-24 object-cover border-r cursor-pointer"
-                    @click.stop="openImageViewer(message.attachments?.[0]?.meta_data?.file_url || '/images/image.png')"
+                    @click.stop="openImageViewer(message.attachments?.[0]?.meta_data?.file_url || getAvatar(currentSession?.seller?.user?.avatar))"
                     @error="handleImageError"
                   />
                   <div class="flex-1 p-2 overflow-hidden">
@@ -490,12 +490,11 @@ const headerTitle = computed(() =>
   || "Cửa hàng"
 );
 
-/* Avatar ở sidebar: ưu tiên seller.user.avatar */
-const getSidebarAvatar = (session) => {
-  if (!session) return DEFAULT_AVATAR;
-  return session.seller?.user?.avatar?.startsWith('http')
-    ? session.seller.user.avatar
-    : `${mediaBaseUrl}${session.seller?.user?.avatar || session.seller?.avatar || DEFAULT_AVATAR}`;
+/* Avatar ở sidebar: ưu tiên seller.user.avatar và fallback giống Seller */
+const getAvatar = (avatar) => {
+  if (!avatar) return DEFAULT_AVATAR;
+  if (avatar && avatar.startsWith('http')) return avatar;
+  return `${mediaBaseUrl}${avatar}` || DEFAULT_AVATAR;
 };
 
 /* ===== Sessions ===== */
@@ -989,8 +988,10 @@ const onDocClick = (ev) => {
   if (el && !el.contains(ev.target)) closeContext();
 };
 
-/* ===== Misc ===== */
-const handleImageError = (event) => (event.target.src = DEFAULT_AVATAR);
+const handleImageError = (event) => {
+  event.target.src = getAvatar(currentSession?.seller?.user?.avatar) || DEFAULT_AVATAR;
+};
+
 const handleEscKey = (event) => {
   if (event.key === "Escape" && imageViewer.value.visible) closeImageViewer();
   if (event.key === "Escape" && contextMenu.value.open) closeContext();
