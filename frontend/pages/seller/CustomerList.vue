@@ -151,7 +151,7 @@
           <img
             :src="selectedCustomer?.avatar?.startsWith('http') 
               ? selectedCustomer.avatar 
-              : `https://pub-3fc809b4396849cba1c342a5b9f50be9.r2.dev/${selectedCustomer.avatar}`"
+              : `${mediaBaseUrl}${selectedCustomer.avatar}`"
             class="w-20 h-20 rounded-full bg-gray-100 object-cover border mb-3"
             alt="avatar" />
           <h2 class="text-lg font-semibold text-gray-800">{{ selectedCustomer?.name }}</h2>
@@ -216,6 +216,11 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { secureAxios } from '@/utils/secureAxios'
+import { useRuntimeConfig } from '#imports'
+
+const config = useRuntimeConfig()
+const apiBase = config.public.apiBaseUrl
+const mediaBaseUrl = config.public.mediaBaseUrl
 
 const customers = ref([])
 const allCustomers = ref([])
@@ -285,7 +290,7 @@ const fetchCustomers = async () => {
     if (filterType.value === 'all') {
       const types = ['ordered', 'follow_only', 'reviewed', 'messaged']
       const promises = types.map(type =>
-        secureAxios(`http://localhost:8000/api/seller/customers?type=${type}`, {}, ['seller'])
+        secureAxios(`${apiBase}/seller/customers?type=${type}`, {}, ['seller'])
           .then(res => res.data)
           .catch(err => {
             console.warn(`Bỏ qua ${type} vì lỗi`, err)
@@ -296,7 +301,7 @@ const fetchCustomers = async () => {
       customers.value = results.flat()
     } else {
       const res = await secureAxios(
-        `http://localhost:8000/api/seller/customers?type=${filterType.value}`,
+        `${apiBase}/seller/customers?type=${filterType.value}`,
         {},
         ['seller']
       )

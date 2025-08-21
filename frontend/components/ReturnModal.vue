@@ -11,9 +11,12 @@
           <div class="space-y-1">
             <p><b>Mã vận đơn:</b> {{ order?.shipping?.tracking_code || '-' }}</p>
             <p><b>Ngày đặt:</b> {{ formatDate(order?.created_at) || '-' }}</p>
+            <p><b>Tổng tiền hàng:</b>
+              {{ formatPrice(order?.final_price || 0) }}
+            </p>
             <p>
-              <b>Trạng thái:</b>
-              <span :class="statusClass(order?.status)">{{ statusText(order?.status) }}</span>
+              <b>Trạng thái: </b>
+              <span :class="statusClass(order?.status)"> {{ statusText(order?.status) }}</span>
             </p>
           </div>
           <div class="space-y-1">
@@ -172,7 +175,7 @@ const remainingDays = computed(() => {
 
 
 onMounted(() => {
-  checkIfAlreadySubmitted()  
+  checkIfAlreadySubmitted()
 })
 
 async function checkIfAlreadySubmitted() {
@@ -204,12 +207,31 @@ async function submit() {
     form.append('additional_reason', additionalReason.value || '')
     form.append('type', type.value)
     imageFiles.value.forEach(file => form.append('images[]', file))
-    await secureFetch(`${apiBase}/returns`, { method: 'POST', body: form })
-    toast('success', 'Yêu cầu trả hàng đã được gửi!')
-    emit('close')
-  } catch (err) {
-    console.error(err)
-    toast('error', 'Có lỗi xảy ra khi gửi yêu cầu!')
+
+    const res = await fetch(`${apiBase}/returns`, {
+      method: 'POST',
+      body: form,
+      headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` }
+    })
+
+    const data = await res.json()
+
+    if (!res.ok) {
+      // Lấy lỗi từ backend
+      throw new Error(data?.message || 'Có lỗi xảy ra')
+    }
+
+    if (data?.success) {
+      hasSubmittedRequest.value = true
+      requestStatus.value = 'pending'
+      toast('success', 'Yêu cầu trả hàng đã được gửi thành công!')
+      emit('close')
+    } else {
+      toast('error', data?.message || 'Lỗi khi gửi yêu cầu!')
+    }
+  } catch (e) {
+    console.error('Lỗi khi gửi yêu cầu:', e)
+    toast('error', e.message || 'Lỗi khi gửi yêu cầu! Vui lòng thử lại sau.')
   } finally {
     isLoading.value = false
   }

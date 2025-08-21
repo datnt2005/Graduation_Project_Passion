@@ -56,8 +56,22 @@ class UserOrderController extends Controller
                     'order_items' => $order->orderItems->map(function ($item) {
                         return [
                             'id' => $item->id,
-                            'product' => optional($item->product)->only(['id', 'name', 'thumbnail', 'slug']),
-                            'variant' => optional($item->productVariant)->only(['id', 'name']),
+                            'product' =>
+                            [
+                                'id' => $item->product->id,
+                                'name' => $item->product->name,
+                                'thumbnail' => $item->product->productPic->first()
+                                    ? config('app.media_base_url') . $item->product->productPic->first()->imagePath
+                                    : null,
+                                'slug' => $item->product->slug,
+                            ],
+                            'variant' => [
+                                'id' => $item->productVariant->id ?? null,
+                                'name' => $item->productVariant->attributes
+                                    ->map(function ($attr) {
+                                        return $attr->values->where('id', $attr->pivot->value_id)->first()->value;
+                                    })->implode(' - ') ?? null,
+                                ],
                             'quantity' => $item->quantity,
                             'price' => number_format($item->price, 0, '', ',') . ' đ',
                             'total' => number_format($item->price * $item->quantity, 0, '', ',') . ' đ',
@@ -130,7 +144,7 @@ class UserOrderController extends Controller
                 // Sinh tên variant động từ các thuộc tính
                 $variantName = null;
                 if ($variant && $variant->attributes && $variant->attributes->count()) {
-                    $variantName = $variant->attributes->map(function($attr) {
+                    $variantName = $variant->attributes->map(function ($attr) {
                         $value = $attr->values->where('id', $attr->pivot->value_id)->first();
                         return $value ? $value->value : null;
                     })->filter()->implode(' - ');
@@ -168,59 +182,57 @@ class UserOrderController extends Controller
 
 
     // Hủy đơn hàng (chỉ khi trạng thái là 'pending')
-   public function cancel(Order $order)
-{
-    if ($order->user_id !== Auth::id()) {
-        return response()->json(['message' => 'Không có quyền hủy đơn này'], 403);
-    }
-
-    if (!in_array($order->status, ['pending'])) {
-        return response()->json(['message' => 'Không thể hủy đơn hàng trong trạng thái hiện tại'], 400);
-    }
-
-    $order->status = 'cancelled';
-    $order->save();
-
-
-    $sellers = $order->orderItems
-        ->pluck('product.seller')
-        ->filter()
-        ->unique('id');
-
-    foreach ($sellers as $seller) {
-        try {
-            $notification = \App\Models\Notification::create([
-                'title' => 'Đơn hàng bị hủy',
-                'content' => "Đơn hàng #{$order->id} của người dùng đã bị hủy.",
-                'type' => 'order',
-                'link' => 'seller/orders/list-order',
-                'user_id' => $seller->user_id,
-                'from_role' => 'system',
-                'channels' => json_encode(['dashboard']),
-                'status' => 'sent',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-
-            \App\Models\NotificationRecipient::create([
-                'notification_id' => $notification->id,
-                'user_id' => $seller->user_id,
-                'is_read' => false,
-                'is_hidden' => false,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-        } catch (\Exception $e) {
-            \Log::warning('Lỗi khi tạo thông báo cho seller khi đơn hàng bị hủy', [
-                'order_id' => $order->id,
-                'seller_id' => $seller->id ?? null,
-                'error' => $e->getMessage(),
-            ]);
+    public function cancel(Order $order)
+    {
+        if ($order->user_id !== Auth::id()) {
+            return response()->json(['message' => 'Không có quyền hủy đơn này'], 403);
         }
+
+        if (!in_array($order->status, ['pending'])) {
+            return response()->json(['message' => 'Không thể hủy đơn hàng trong trạng thái hiện tại'], 400);
+        }
+
+        $order->status = 'cancelled';
+        $order->save();
+
+
+        $sellers = $order->orderItems
+            ->pluck('product.seller')
+            ->filter()
+            ->unique('id');
+
+        foreach ($sellers as $seller) {
+            try {
+                $notification = \App\Models\Notification::create([
+                    'title' => 'Đơn hàng bị hủy',
+                    'content' => "Đơn hàng #{$order->id} của người dùng đã bị hủy.",
+                    'type' => 'order',
+                    'link' => 'seller/orders/list-order',
+                    'user_id' => $seller->user_id,
+                    'from_role' => 'system',
+                    'channels' => json_encode(['dashboard']),
+                    'status' => 'sent',
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+
+                \App\Models\NotificationRecipient::create([
+                    'notification_id' => $notification->id,
+                    'user_id' => $seller->user_id,
+                    'is_read' => false,
+                    'is_hidden' => false,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            } catch (\Exception $e) {
+                \Log::warning('Lỗi khi tạo thông báo cho seller khi đơn hàng bị hủy', [
+                    'order_id' => $order->id,
+                    'seller_id' => $seller->id ?? null,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return response()->json(['message' => 'Đã hủy đơn hàng thành công']);
     }
-
-    return response()->json(['message' => 'Đã hủy đơn hàng thành công']);
-}
-
-
 }

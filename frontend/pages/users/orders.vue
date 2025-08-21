@@ -57,7 +57,8 @@
 
         <!-- Blocked account message -->
         <div v-if="user && user.is_blocked" class="bg-red-100 text-red-700 p-4 rounded-md text-center mb-6">
-          Tài khoản của bạn đã bị khóa do có quá nhiều đơn hàng bị từ chối. Vui lòng liên hệ hỗ trợ để biết thêm chi tiết.
+          Tài khoản của bạn đã bị khóa do có quá nhiều đơn hàng bị từ chối. Vui lòng liên hệ hỗ trợ để biết thêm chi
+          tiết.
         </div>
         <!-- Loading Skeleton for Order Table -->
         <div v-if="isLoading" class="bg-white rounded-md shadow border border-gray-200 overflow-hidden animate-pulse">
@@ -184,21 +185,20 @@
                             class="w-full px-4 py-2 hover:bg-gray-50 text-left text-red-500">
                             <i class="fas fa-times-circle mr-1"></i> Hủy
                           </button>
-                          <button v-if="order.status === 'cancelled'" @click="reorderToCart(order)"
+                          <button v-if="order.status === 'cancelled' || order.status === 'delivered' || order.status === 'refunded'"
+                            @click="reorderToCart(order)"
                             class="w-full px-4 py-2 hover:bg-gray-50 text-left text-orange-500">
-                            <i class="fas fa-undo-alt mr-1"></i> Mua lại
+                            <i class="fas fa-shopping-cart mr-1"></i> Mua lại
                           </button>
+
                           <button v-if="order.status === 'delivered'" @click="returnOrder(order)"
-                            class="w-full px-4 py-2 hover:bg-gray-50 text-left text-orange-500">
-                            <i class="fas fa-undo-alt mr-1"></i> Trả hàng
+                            class="w-full px-4 py-2 hover:bg-gray-50 text-left text-red-500">
+                            <i class="fas fa-reply mr-1"></i> Trả hàng
                           </button>
-                          <button v-if="order.status === 'delivered'" @click="printOrder(order.id)"
+
+                          <button v-if="order.status === 'delivered' || order.status === 'shipping'" @click.prevent="openInvoicePrinter(order.id)"
                             class="w-full px-4 py-2 hover:bg-gray-50 text-left">
-                            <i class="fas fa-print mr-1"></i> In hóa đơn
-                          </button>
-                          <button v-if="order.status === 'delivered'" @click="downloadPDF(order.id)"
-                            class="w-full px-4 py-2 hover:bg-gray-50 text-left text-blue-600">
-                            <i class="fas fa-file-pdf mr-1"></i> Tải PDF
+                            <i class="fas fa-print mr-1"></i> Hóa đơn
                           </button>
                         </div>
                       </div>
@@ -214,7 +214,8 @@
             <article v-for="(order, index) in paginatedOrders" :key="order.id"
               class="bg-white rounded-lg shadow border border-gray-200 p-4">
               <div class="flex justify-between items-center mb-2">
-                <span class="text-sm text-gray-500 font-medium">Mã vận đơn: {{ order.shipping?.tracking_code || '-' }}</span>
+                <span class="text-sm text-gray-500 font-medium">Mã vận đơn: {{ order.shipping?.tracking_code || '-'
+                  }}</span>
                 <span :class="statusClass(order.status)"
                   class="px-2 py-1 text-xs rounded-full font-medium whitespace-nowrap">
                   {{ statusText(order.status) }}
@@ -238,51 +239,44 @@
                   @click="confirmCancel(order.id)" aria-label="Hủy đơn hàng">
                   <i class="fas fa-times-circle"></i> Hủy
                 </button>
-                <button v-if="order.status === 'cancelled'" @click="reorderToCart(order)"
+                <button v-if="order.status === 'delivered'" @click="returnOrder(order)"
+                  class="text-xs px-3 py-1 text-red-500 hover:bg-red-50 flex items-center gap-1"
+                  aria-label="Trả hàng">
+                  <i class="fas fa-reply"></i> Trả hàng
+                </button>
+                <button v-if="order.status === 'cancelled' || order.status === 'delivered' || order.status === 'refunded'" @click="reorderToCart(order)"
                   class="text-xs px-3 py-1 text-orange-600 hover:bg-orange-50 flex items-center gap-1"
                   aria-label="Mua lại đơn hàng">
-                  <i class="fas fa-undo-alt"></i> Mua lại
+                  <i class="fas fa-shopping-cart"></i> Mua lại
                 </button>
-                <div v-if="order.status === 'delivered'" class="flex gap-2">
-                  <button @click="printOrder(order.id)"
+                <div v-if="order.status === 'delivered' || order.status === 'shipping'" class="flex gap-2">
+                  <button @click.prevent="openInvoicePrinter(order.id)"
                     class="text-xs px-3 py-1 text-gray-600 hover:bg-gray-50 flex items-center gap-1"
                     aria-label="In hóa đơn">
-                    <i class="fas fa-print"></i> In hóa đơn
-                  </button>
-                  <button @click="downloadPDF(order.id)"
-                    class="text-xs px-3 py-1 text-blue-600 hover:bg-blue-50 flex items-center gap-1"
-                    aria-label="Tải hóa đơn PDF">
-                    <i class="fas fa-file-pdf"></i> Tải PDF
+                    <i class="fas fa-print"></i> Hóa đơn
                   </button>
                 </div>
               </div>
             </article>
           </div>
 
-<!-- Pagination -->
-<div v-if="filteredOrders.length > 0 && selectedTab !== 'refunds'" 
-     class="mt-4 flex justify-center gap-2">
+          <!-- Pagination -->
+          <div v-if="filteredOrders.length > 0 && selectedTab !== 'refunds'" class="mt-4 flex justify-center gap-2">
 
-  <button 
-    @click="setPage(page - 1)" 
-    :disabled="page === 1"
-    class="px-4 py-2 border rounded-md disabled:opacity-50"
-    aria-label="Trang trước">
-    Trang trước
-  </button>
+            <button @click="setPage(page - 1)" :disabled="page === 1"
+              class="px-4 py-2 border rounded-md disabled:opacity-50" aria-label="Trang trước">
+              Trang trước
+            </button>
 
-  <span class="px-4 py-2 text-sm">
-    Trang {{ page }} / {{ pagesCount }}
-  </span>
+            <span class="px-4 py-2 text-sm">
+              Trang {{ page }} / {{ pagesCount }}
+            </span>
 
-  <button 
-    @click="setPage(page + 1)" 
-    :disabled="page === pagesCount"
-    class="px-4 py-2 border rounded-md disabled:opacity-50"
-    aria-label="Trang sau">
-    Trang sau
-  </button>
-</div>
+            <button @click="setPage(page + 1)" :disabled="page === pagesCount"
+              class="px-4 py-2 border rounded-md disabled:opacity-50" aria-label="Trang sau">
+              Trang sau
+            </button>
+          </div>
 
 
           <!-- No orders -->
@@ -353,7 +347,7 @@
                     </p>
                     <p class="flex gap-1 pb-2">
                       <span class="min-w-[90px] text-gray-500">Ngày đặt:</span>
-                      <span class="text-black">{{ formatDate(selectedOrder?.created_at) }}</span>
+                      <span class="text-black">{{ selectedOrder.created_at }}</span>
                     </p>
                     <p class="flex gap-1 pb-2">
                       <span class="min-w-[90px] text-gray-500">Trạng thái:</span>
@@ -361,7 +355,8 @@
                         {{ statusText(selectedOrder?.status) }}
                       </span>
                     </p>
-                    <p v-if="['failed', 'failed_delivery', 'rejected_by_customer'].includes(selectedOrder?.status)" class="flex gap-1 pb-2">
+                    <p v-if="['failed', 'failed_delivery', 'rejected_by_customer'].includes(selectedOrder?.status)"
+                      class="flex gap-1 pb-2">
                       <span class="min-w-[90px] text-gray-500">Lý do thất bại:</span>
                       <span class="text-black">{{ selectedOrder?.failure_reason || 'Chưa có lý do' }}</span>
                     </p>
@@ -442,28 +437,31 @@
                   </div>
                 </div>
                 <!-- Xử lý hoàn tiền -->
-                <div v-if="['pending', 'failed', 'cancelled', 'returned', 'failed_delivery', 'rejected_by_customer'].includes(selectedOrder.status) && !effectiveRefund && !selectedOrder.payments?.some(payment => payment.method?.toLowerCase() === 'cod')"
+                <div
+                  v-if="['pending', 'failed', 'cancelled', 'returned', 'failed_delivery', 'rejected_by_customer'].includes(selectedOrder.status) && !effectiveRefund && !selectedOrder.payments?.some(payment => payment.method?.toLowerCase() === 'cod')"
                   class="border border-gray-200 rounded-lg mb-6">
                   <div class="border-b px-4 py-2 font-medium text-sm bg-gray-50 text-gray-800">Xử lý hoàn tiền</div>
                   <div class="px-4 py-3 text-sm text-gray-700">
-                    <p><b>Lý do hiện tại:</b> {{ selectedOrder.failure_reason || selectedOrder.note || 'Chưa có ghi chú' }}</p>
+                    <p><b>Lý do hiện tại:</b> {{ selectedOrder.failure_reason || selectedOrder.note || 'Chưa có ghi chú'
+                      }}</p>
                     <div class="mt-2">
                       <label class="block mb-1" for="refund-amount">Số tiền hoàn (VND):</label>
                       <input v-model="formattedRefundAmount" id="refund-amount" type="text"
-                        class="w-full border rounded px-3 py-2 bg-gray-100 cursor-not-allowed"
-                        :disabled="true" :placeholder="`Số tiền hoàn tự động: ${formatPrice(maxRefundAmount * 1000)}`"
+                        class="w-full border rounded px-3 py-2 bg-gray-100 cursor-not-allowed" :disabled="true"
+                        :placeholder="`Số tiền hoàn tự động: ${formatPrice(maxRefundAmount * 1000)}`"
                         aria-label="Số tiền hoàn tự động" aria-required="true">
                       <label class="block mb-1 mt-2" for="refund-reason">Lý do hoàn tiền:</label>
                       <textarea v-model="refundReason" id="refund-reason" class="w-full border rounded px-3 py-2"
-                        placeholder="Nhập lý do hoàn tiền" aria-label="Nhập lý do hoàn tiền" aria-required="true"></textarea>
-                      <label class="block mb-1 mt-2" for="bank-account-number">Số tài khoản ngân hàng (tùy chọn):</label>
+                        placeholder="Nhập lý do hoàn tiền" aria-label="Nhập lý do hoàn tiền"
+                        aria-required="true"></textarea>
+                      <label class="block mb-1 mt-2" for="bank-account-number">Số tài khoản ngân hàng (tùy
+                        chọn):</label>
                       <input v-model="bankAccountNumber" id="bank-account-number" type="text"
                         class="w-full border rounded px-3 py-2" placeholder="Nhập số tài khoản ngân hàng"
                         aria-label="Số tài khoản ngân hàng">
                       <label class="block mb-1 mt-2" for="bank-name">Tên ngân hàng (tùy chọn):</label>
-                      <input v-model="bankName" id="bank-name" type="text"
-                        class="w-full border rounded px-3 py-2" placeholder="Nhập tên ngân hàng"
-                        aria-label="Tên ngân hàng">
+                      <input v-model="bankName" id="bank-name" type="text" class="w-full border rounded px-3 py-2"
+                        placeholder="Nhập tên ngân hàng" aria-label="Tên ngân hàng">
                       <button @click="requestRefund(selectedOrder)"
                         class="mt-2 px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700"
                         :disabled="!refundReason" aria-label="Gửi yêu cầu hoàn tiền">Gửi yêu cầu hoàn tiền</button>
@@ -471,11 +469,13 @@
                   </div>
                 </div>
                 <!-- Thông báo cho đơn hàng COD -->
-                <div v-else-if="['pending', 'failed', 'cancelled', 'returned', 'failed_delivery', 'rejected_by_customer'].includes(selectedOrder.status) && !effectiveRefund && selectedOrder.payments?.some(payment => payment.method?.toLowerCase() === 'cod')"
+                <div
+                  v-else-if="['pending', 'failed', 'cancelled', 'returned', 'failed_delivery', 'rejected_by_customer'].includes(selectedOrder.status) && !effectiveRefund && selectedOrder.payments?.some(payment => payment.method?.toLowerCase() === 'cod')"
                   class="border border-gray-200 rounded-lg mb-6">
                   <div class="border-b px-4 py-2 font-medium text-sm bg-gray-50 text-gray-800">Xử lý hoàn tiền</div>
                   <div class="px-4 py-3 text-sm text-gray-700">
-                    <p>Đơn hàng sử dụng thanh toán COD, không thể yêu cầu hoàn tiền trực tuyến. Vui lòng liên hệ hỗ trợ để được xử lý.</p>
+                    <p>Đơn hàng sử dụng thanh toán COD, không thể yêu cầu hoàn tiền trực tuyến. Vui lòng liên hệ hỗ trợ
+                      để được xử lý.</p>
                   </div>
                 </div>
                 <!-- Thông tin hoàn tiền hiện có -->
@@ -485,7 +485,8 @@
                     <p><b>Mã hoàn tiền:</b> {{ effectiveRefund.id || '-' }}</p>
                     <p><b>Số tiền hoàn:</b> {{ formatPrice(effectiveRefund.amount) }}</p>
                     <p><b>Trạng thái:</b>
-                      <span :class="refundStatusClass(effectiveRefund.status)">{{ refundStatusText(effectiveRefund.status) }}</span>
+                      <span :class="refundStatusClass(effectiveRefund.status)">{{
+                        refundStatusText(effectiveRefund.status) }}</span>
                     </p>
                     <p><b>Lý do:</b> {{ effectiveRefund.reason || '-' }}</p>
                     <p><b>Số tài khoản ngân hàng:</b> {{ effectiveRefund.bank_account_number || '-' }}</p>
@@ -502,6 +503,9 @@
   </section>
 
   <ReturnModal v-if="isReturnModalOpen" :order="selectedReturnOrder" @close="isReturnModalOpen = false" />
+  <Teleport to="body">
+    <InvoicePrinter v-if="showInvoiceModal" :order-id="orderForInvoice.id" @close="showInvoiceModal = false" />
+  </Teleport>
 </template>
 
 <script setup>
@@ -514,6 +518,7 @@ import { useCartStore } from '~/stores/cart';
 import { useRouter, useHead } from '#app';
 import { debounce } from 'lodash';
 import { secureFetch } from '@/utils/secureFetch';
+import InvoicePrinter from '@/components/shared/InvoicePrinter.vue'; // Giả sử đường dẫn component
 
 // State
 const orders = ref([]);
@@ -552,7 +557,7 @@ function setPage(p) {
   page.value = p
 }
 
- 
+
 
 function toggleDropdown(id) {
   openDropdownId.value = openDropdownId.value === id ? null : id;
@@ -1154,181 +1159,6 @@ const refreshData = async () => {
   toast('success', 'Dữ liệu đã được làm mới!');
 };
 
-const printOrder = async (orderId) => {
-  try {
-    const json = await secureFetch(`${apiBase}/orders/${orderId}/print-invoice`);
-    const detail = json?.data;
-    if (!detail) {
-      console.error("Không có dữ liệu từ API");
-      return;
-    }
-
-    const statusMap = {
-      pending: "Chờ xử lý",
-      confirmed: "Đã xác nhận",
-      processing: "Đang xử lý",
-      shipping: "Đang giao hàng",
-      delivered: "Đã giao",
-      cancelled: "Đã hủy",
-      refunded: "Đã hoàn tiền",
-      failed: "Thất bại",
-      failed_delivery: "Giao hàng thất bại",
-      rejected_by_customer: "Khách từ chối nhận"
-    };
-    const vnStatus = statusMap[detail.status] || detail.status || "-";
-
-    const formatCurrency = (v) =>
-      new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' })
-        .format(Number(v || 0));
-
-    const itemsHtml = (detail.items || []).map(it => `
-      <tr>
-        <td>${it.product_name || '-'}</td>
-        <td style="text-align:center">${it.quantity || 0}</td>
-        <td style="text-align:right">${formatCurrency(it.price || 0)}</td>
-        <td style="text-align:right">${formatCurrency(it.total || 0)}</td>
-      </tr>
-    `).join('');
-
-    const addressStr = [
-      detail.customer?.address_detail,
-      detail.customer?.ward_name,
-      detail.customer?.district_name,
-      detail.customer?.province_name
-    ].filter(Boolean).join(', ');
-
-    const html = `
-      <!doctype html>
-      <html>
-        <head>
-          <meta charset="utf-8"/>
-          <title>Hóa đơn #${detail.order_id}</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 10px; font-size: 13px; }
-            .label-box { border: 2px solid #000; padding: 10px; }
-            .flex { display: flex; justify-content: space-between; }
-            .bold { font-weight: bold; }
-            .table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-            .table th, .table td { border: 1px solid #000; padding: 4px; }
-            .right { text-align: right; }
-            .center { text-align: center; }
-            @media print { .no-print { display: none } }
-          </style>
-        </head>
-        <body>
-          <div class="label-box">
-            <div class="flex bold" style="font-size:16px; margin-bottom:6px;">
-              <span>Passion</span>
-              <span>Mã đơn: ${detail.order_id}</span>
-            </div>
-            <div>Ngày tạo: ${detail.created_at || '-'}</div>
-            <div>Trạng thái: ${vnStatus}</div>
-
-            <div class="flex" style="margin-top:6px;">
-              <div>
-                <div class="bold">Từ:</div>
-                <div>Passion</div>
-                <div>Địa chỉ: TP. Buôn Ma Thuột, Đắk Lắk</div>
-                <div>SĐT: -</div>
-              </div>
-              <div>
-                <div class="bold">Đến:</div>
-                <div>${detail.customer?.name || '-'}</div>
-                <div>SĐT: ${detail.customer?.phone || '-'}</div>
-                <div>Địa chỉ: ${addressStr || '-'}</div>
-              </div>
-            </div>
-
-            <table class="table">
-              <thead>
-                <tr>
-                  <th>Sản phẩm</th>
-                  <th class="center">SL</th>
-                  <th class="right">Đơn giá</th>
-                  <th class="right">Thành tiền</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${itemsHtml}
-              </tbody>
-            </table>
-
-            <div class="right" style="margin-top:6px;">
-              <div>Tổng phụ: ${formatCurrency(detail.subtotal)}</div>
-              <div>Giảm giá: ${formatCurrency(detail.discount)}</div>
-              <div>Phí ship: ${formatCurrency(detail.shipping_fee)}</div>
-              <div class="bold">Tổng thanh toán: ${formatCurrency(detail.final_price)}</div>
-              <div>Phương thức thanh toán: ${detail.payment_method || '-'}</div>
-            </div>
-          </div>
-        </body>
-      </html>
-    `;
-
-    const w = window.open('', '_blank');
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
-    w.focus();
-    setTimeout(() => { w.print(); }, 300);
-
-  } catch (err) {
-    console.error("Lỗi khi in hóa đơn:", err);
-  }
-};
-
-
-const downloadPDF = async (orderId) => {
-  try {
-    const token = localStorage.getItem('access_token');
-    const res = await axios.get(`${apiBase}/user/orders/${orderId}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    const data = res.data.success ? res.data.data : res.data;
-    const { default: html2pdf } = await import('html2pdf.js');
-    const content = `
-      <div style="font-family:sans-serif; font-size:13px;">
-        <h2 style="text-align:center">HÓA ĐƠN MUA HÀNG - #ORD${String(data.id).padStart(3, '0')}</h2>
-        <p><strong>Khách hàng:</strong> ${data.user.name}</p>
-        <p><strong>Email:</strong> ${data.user.email}</p>
-        <p><strong>Địa chỉ:</strong> ${data.address.detail}</p>
-        <p><strong>SĐT:</strong> ${data.address.phone}</p>
-        <hr />
-        <table style="width:100%; border-collapse: collapse;" border="1">
-          <thead><tr>
-            <th style="padding:4px;">Sản phẩm</th>
-            <th style="padding:4px;">SL</th>
-            <th style="padding:4px;">Đơn giá</th>
-            <th style="padding:4px;">Thành tiền</th>
-          </tr></thead>
-          <tbody>
-            ${data.order_items.map(item => `
-              <tr>
-                <td style="padding:4px;">${item.product.name}${item.variant ? ` (${item.variant.name})` : ''}</td>
-                <td style="padding:4px; text-align:center;">${item.quantity}</td>
-                <td style="padding:4px; text-align:right;">${formatPrice(item.price)}</td>
-                <td style="padding:4px; text-align:right;">${formatPrice(item.total)}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-        <p style="text-align:right; font-weight:bold; margin-top:10px;">Tổng cộng: ${formatPrice(data.final_price)}</p>
-      </div>
-    `;
-    const opt = {
-      margin: 0.5,
-      filename: `HoaDon_${data.user.name.replace(/\s+/g, '_')}_ORD${String(data.id).padStart(3, '0')}.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2 },
-      jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
-    };
-    html2pdf().from(content).set(opt).save();
-  } catch (err) {
-    console.error('downloadPDF error:', err);
-    toast('error', 'Không thể tải hóa đơn PDF!');
-  }
-};
-
 // Computed
 const filteredOrders = computed(() => {
   let result = orders.value;
@@ -1361,7 +1191,13 @@ function goToPage(p) {
   page.value = p
   fetchOrders()
 }
+const showInvoiceModal = ref(false);
+const orderForInvoice = ref(null);
 
+const openInvoicePrinter = (id) => {
+  orderForInvoice.value = orders.value.find(o => o.id === id);
+  showInvoiceModal.value = true;
+};
 // Lifecycle and watchers
 onMounted(async () => {
   useHead({

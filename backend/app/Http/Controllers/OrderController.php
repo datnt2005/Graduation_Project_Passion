@@ -12,6 +12,8 @@ use App\Models\Refund;
 use App\Models\Seller;
 use App\Models\User;
 use App\Models\Discount;
+use App\Models\Cart;
+use App\Models\CartItem;
 use App\Models\DiscountUser;
 use App\Models\Shipping;
 use App\Models\ShippingMethod;
@@ -25,6 +27,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\PDF;
 use Illuminate\Support\Facades\Cache;
 use App\Mail\WarningRejectedOrder;
 use App\Mail\OrderStatusUpdatedMail;
@@ -35,6 +38,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
 use App\Models\Notification;
 use App\Models\NotificationRecipient;
+
 
 
 class OrderController extends Controller
@@ -782,7 +786,7 @@ class OrderController extends Controller
                     // Lấy shipping_discount từ item đầu tiên (tất cả items của cùng seller sẽ có cùng shipping_discount)
                     $shippingDiscountValue = floatval($sellerItems->first()['shipping_discount'] ?? 0);
                 }
-                
+
                 // Nếu không có shipping_discount trong items, thử lấy từ store_shipping_discounts
                 if ($shippingDiscountValue == 0 && $request->has('store_shipping_discounts') && isset($request->store_shipping_discounts[$sellerId])) {
                     $shippingDiscountValue = floatval($request->store_shipping_discounts[$sellerId]);
@@ -790,7 +794,7 @@ class OrderController extends Controller
                     // Nếu có store_discounts, cần tách riêng shipping discount
                     $totalStoreDiscount = floatval($request->store_discounts[$sellerId]);
                     $productDiscount = 0;
-                    
+
                     // Tính product discount từ appliedDiscountIds
                     if (isset($appliedDiscountIds['product'])) {
                         $productDiscountId = $appliedDiscountIds['product'];
@@ -804,18 +808,18 @@ class OrderController extends Controller
                             $productDiscount = min($productDiscount, $totalPrice);
                         }
                     }
-                    
+
                     // Shipping discount = total store discount - product discount
                     $shippingDiscountValue = max(0, $totalStoreDiscount - $productDiscount);
                 }
-                
+
                 $originalShippingFee = $request->store_shipping_fees[$sellerId] ?? 0;
-                
+
                 // Đảm bảo shipping_discount không vượt quá shipping_fee
                 // Nếu shipping_discount > shipping_fee thì chỉ giảm về 0, không âm
                 $actualShippingDiscount = min($shippingDiscountValue, $originalShippingFee);
                 $shippingFee = max(0, $originalShippingFee - $actualShippingDiscount);
-                
+
                 // Debug log để kiểm tra shipping discount
                 Log::info("Shipping fee debug", [
                     'order_id' => $order->id,
@@ -833,7 +837,7 @@ class OrderController extends Controller
                     'final_shipping_fee' => $shippingFee,
                     'note' => 'Đã đảm bảo shipping_discount không vượt quá shipping_fee'
                 ]);
-                
+
                 // Bỏ kiểm tra khớp với shippingMethod->cost
                 Log::info("Sử dụng phí vận chuyển từ request cho seller_id: {$sellerId}", [
                     'shipping_fee' => $shippingFee,
@@ -1977,6 +1981,136 @@ class OrderController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Lỗi khi lấy danh sách sellers: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function printInvoice($id)
+    {
+        try {
+            // Fetch the order with related data
+            $order = Order::with(['user', 'address', 'orderItems.product', 'payments', 'shipping'])
+                ->where('id', $id)
+                // Ensure the order belongs to the authenticated seller
+                ->first();
+
+            if (!$order) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không tìm thấy đơn hàng hoặc bạn không có quyền truy cập'
+                ], 404);
+            }
+
+            // Prepare customer data
+            $customer = [
+                'name' => $order->user ? $order->user->name : null,
+                'phone' => $order->address ? $order->address->phone : null,
+                'address_detail' => $order->address ? $order->address->detail : null,
+                'ward_code' => $order->address->ward_code ?? null,
+                'district_id' => $order->address->district_id ?? null,
+                'province_id' => $order->address->province_id ?? null,
+            ];
+
+            // Prepare order items
+            $items = $order->orderItems->map(function ($item) {
+                return [
+                    'product_name' => $item->product ? $item->product->name : null,
+                    'quantity' => $item->quantity,
+                    'price' => $item->price,
+                    'variant' => $item->productVariant ? [
+                        'id' => $item->productVariant->id,
+                        'name' => $item->productVariant->name,
+                        'thumbnail' => $item->productVariant->thumbnail ?? null,
+                        //   lấy thuộc tính đã mua
+                        'attributes' => $item->productVariant->attributes->map(function ($attribute) {
+                            return [
+                                'id' => $attribute->id,
+                                'name' => $attribute->name,
+                                'value' => $attribute->pivot->value
+                            ];
+                        })->toArray()
+                    ] : null,
+                    'total' => $item->total,
+                    'store_name' => $item->product->seller->store_name ?? 'Shop #' . $item->product->seller_id,
+                    'store_address' => $item->product->seller->pickup_address ?? 'Địa chỉ shop chưa được cập nhật',
+                    'store_phone' => $item->product->seller->phone_number ?? 'Sđt shop chưa được cập nhật',
+                ];
+            })->toArray();
+
+            // Prepare response data
+            $data = [
+                'tracking_code' => $order->shipping ? $order->shipping->tracking_code : null,
+                'created_at' => $order->created_at ? $order->created_at->format('d/m/Y H:i:s') : null,
+                'status' => $order->status,
+                'customer' => $customer,
+                'items' => $items,
+                'subtotal' => $order->total_price,
+                'discount' => $order->discount_price ?? 0,
+                'shipping_fee' => $order->shipping ? $order->shipping->shipping_fee : 0,
+                'final_price' => $order->final_price,
+                'payment_method' => $order->payments->first() ? $order->payments->first()->method : null
+            ];
+
+            return response()->json([
+                'success' => true,
+                'data' => $data
+            ], 200);
+        } catch (\Exception $e) {
+            \Log::error('Error in printInvoice: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi khi tạo hóa đơn: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+
+    public function reorderDetail($id)
+    {
+        try {
+            $user = auth()->user();
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Bạn chưa đăng nhập!'
+                ], 401);
+            }
+
+            // Tìm đơn hàng theo id và user
+            $order = Order::where('id', $id)
+                ->where('user_id', $user->id)
+                ->with('orderItems.product', 'orderItems.productVariant')
+                ->first();
+
+            if (!$order) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không tìm thấy đơn hàng!'
+                ], 404);
+            }
+            $detail = $order->orderItems->first();
+            if (!$detail) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Đơn hàng không có sản phẩm!'
+                ], 400);
+            }
+
+            $data = [
+                'product_id'     => $detail->product_id,
+                'variant_id'     => $detail->product_variant_id,
+                'quantity'       => $detail->quantity,
+                'price'          => $detail->price,
+            ];
+
+            return response()->json([
+                'success' => true,
+                'data'    => $data,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi server: ' . $e->getMessage(),
             ], 500);
         }
     }
