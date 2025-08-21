@@ -11,6 +11,7 @@ use App\Mail\ReturnRequestStatusUpdatedMail;
 use Illuminate\Support\Facades\Mail;
 use App\Models\Notification;
 use App\Models\NotificationRecipient;
+use Illuminate\Support\Facades\Log;
 
 class ReturnController extends Controller
 {
@@ -84,7 +85,7 @@ class ReturnController extends Controller
         $seller = optional($item->product)->seller;
 if ($seller && $seller->user_id) {
     try {
-        $notification = \App\Models\Notification::create([
+        $notification = Notification::create([
             'title' => 'Yêu cầu đổi/trả mới',
             'content' => "Người dùng đã gửi yêu cầu {$return->type} cho sản phẩm trong đơn hàng #{$item->order_id}.",
             'type' => 'system',
@@ -97,7 +98,7 @@ if ($seller && $seller->user_id) {
             'updated_at' => now(),
         ]);
 
-        \App\Models\NotificationRecipient::create([
+        NotificationRecipient::create([
             'notification_id' => $notification->id,
             'user_id' => $seller->user_id,
             'is_read' => false,

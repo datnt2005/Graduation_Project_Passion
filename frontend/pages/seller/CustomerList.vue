@@ -217,6 +217,10 @@
 import { ref, computed, onMounted } from 'vue'
 import { secureAxios } from '@/utils/secureAxios'
 
+const router = useRouter()
+const config = useRuntimeConfig()
+const api = config.public.apiBaseUrl
+
 const customers = ref([])
 const allCustomers = ref([])
 const searchQuery = ref('')
@@ -285,7 +289,7 @@ const fetchCustomers = async () => {
     if (filterType.value === 'all') {
       const types = ['ordered', 'follow_only', 'reviewed', 'messaged']
       const promises = types.map(type =>
-        secureAxios(`http://localhost:8000/api/seller/customers?type=${type}`, {}, ['seller'])
+        secureAxios(`${api}/seller/customers?type=${type}`, {}, ['seller'])
           .then(res => res.data)
           .catch(err => {
             console.warn(`Bỏ qua ${type} vì lỗi`, err)
@@ -296,7 +300,7 @@ const fetchCustomers = async () => {
       customers.value = results.flat()
     } else {
       const res = await secureAxios(
-        `http://localhost:8000/api/seller/customers?type=${filterType.value}`,
+        `${api}/seller/customers?type=${filterType.value}`,
         {},
         ['seller']
       )

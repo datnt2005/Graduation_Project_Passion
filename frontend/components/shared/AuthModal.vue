@@ -299,8 +299,13 @@ const loginWithGoogle = () => {
   const left = window.screen.width / 2 - width / 2
   const top = window.screen.height / 2 - height / 2
 
-  const googleAuthUrl = 'http://localhost:8000/api/auth/google/redirect'
-  const expectedOrigin = 'http://localhost:8000'
+  const googleAuthUrl = 'https://api.passionfpt.shop/api/auth/google/redirect'
+  const allowedOrigins = [
+    'https://api.passionfpt.shop',
+    'http://localhost:3000' // Cho phép khi dev local
+  ]
+  console.log('[GoogleLogin] Opening popup:', googleAuthUrl)
+
   const popup = window.open(
     googleAuthUrl,
     'Google Login',
@@ -308,22 +313,38 @@ const loginWithGoogle = () => {
   )
 
   const messageHandler = async (event) => {
-    if (event.origin !== expectedOrigin) {
-      console.warn('Invalid origin:', event.origin)
+    console.log('[GoogleLogin] Full event:', event)
+    console.log('[GoogleLogin] event.origin:', event.origin)
+    console.log('[GoogleLogin] event.data:', event.data)
+
+    // Chặn origin không hợp lệ
+    if (!allowedOrigins.includes(event.origin)) {
+      console.warn('[GoogleLogin] Invalid origin — allowed:', allowedOrigins, 'got:', event.origin)
+      return
+    }
+
+    // Chặn message không liên quan đến Google login
+    if (!event.data || (!event.data.token && !event.data.error)) {
+      console.warn('[GoogleLogin] Ignoring unrelated message:', event.data)
       return
     }
 
     if (event.data?.token) {
+      console.log('[GoogleLogin] Token received:', event.data.token)
       localStorage.setItem('access_token', event.data.token)
 
       try {
+        console.log('[GoogleLogin] Fetching user info from /me')
         const res = await fetch(`${api}/me`, {
           headers: { Authorization: `Bearer ${event.data.token}` },
         })
 
+        console.log('[GoogleLogin] /me response status:', res.status)
         const data = await res.json()
+        console.log('[GoogleLogin] /me response body:', data)
 
         if (res.ok && data.data) {
+          console.log('[GoogleLogin] Login success, user data:', data.data)
           emit('login-success', data.data)
           toast('success', 'Đăng nhập Google thành công!')
           setTimeout(() => {
@@ -334,22 +355,28 @@ const loginWithGoogle = () => {
           throw new Error(data.message || 'Không lấy được thông tin tài khoản!')
         }
       } catch (error) {
-        console.error('Login verification failed:', error)
+        console.error('[GoogleLogin] Login verification failed:', error)
         toast('error', 'Xác thực đăng nhập thất bại.')
         localStorage.removeItem('access_token')
       } finally {
+        console.log('[GoogleLogin] Closing popup & removing listener')
         popup?.close()
         window.removeEventListener('message', messageHandler)
       }
     } else if (event.data?.error) {
+      console.error('[GoogleLogin] Error from Google auth:', event.data.error)
       toast('error', event.data.error)
       popup?.close()
       window.removeEventListener('message', messageHandler)
     }
   }
 
+  console.log('[GoogleLogin] Adding message listener')
   window.addEventListener('message', messageHandler, { once: true })
 }
+
+
+
 
 const cancelOtp = () => {
   showOtp.value = false
@@ -563,3 +590,5 @@ watch(() => props.initialMode, (newMode) => {
   position: relative;
 }
 </style>
+
+

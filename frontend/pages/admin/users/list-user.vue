@@ -92,8 +92,9 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="user in filteredUsers" :key="user.id" :class="{'bg-gray-50': user.id % 2 === 0}"
-            class="border-b border-gray-300">
+          <tr v-for="user in paginatedUsers" :key="user.id" :class="{'bg-gray-50': user.id % 2 === 0}"
+  class="border-b border-gray-300">
+
             <td class="border border-gray-300 px-3 py-2 text-left w-10">
               <input type="checkbox" v-model="selectedUsers" :value="user.id" />
             </td>
@@ -125,6 +126,36 @@
           </tr>
         </tbody>
       </table>
+      <!-- Pagination -->
+<div class="flex justify-between items-center px-4 py-3 bg-white border-t border-gray-200">
+  <div class="text-sm text-gray-600">
+    Trang {{ currentPage }} / {{ totalPages }}  
+    ({{ filteredUsers.length }} người dùng)
+  </div>
+  <div class="flex items-center space-x-1">
+    <button @click="currentPage = Math.max(1, currentPage - 1)"
+      :disabled="currentPage === 1"
+      class="px-3 py-1 rounded-md border text-sm"
+      :class="currentPage === 1 ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-white hover:bg-gray-100'">
+      Trước
+    </button>
+
+    <button v-for="page in totalPages" :key="page"
+      @click="currentPage = page"
+      class="px-3 py-1 rounded-md border text-sm"
+      :class="page === currentPage ? 'bg-blue-600 text-white' : 'bg-white hover:bg-gray-100'">
+      {{ page }}
+    </button>
+
+    <button @click="currentPage = Math.min(totalPages, currentPage + 1)"
+      :disabled="currentPage === totalPages"
+      class="px-3 py-1 rounded-md border text-sm"
+      :class="currentPage === totalPages ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-white hover:bg-gray-100'">
+      Sau
+    </button>
+  </div>
+</div>
+
     </div>
 
     <!-- Notification -->
@@ -229,6 +260,17 @@ const confirmDialogTitle = ref('')
 const confirmDialogMessage = ref('')
 const userToDelete = ref(null)
 
+
+// 📌 Pagination
+const currentPage = ref(1)
+const itemsPerPage = ref(5)  
+const totalPages = computed(() => Math.ceil(filteredUsers.value.length / itemsPerPage.value))
+
+ 
+
+
+
+
 const fetchUsers = async () => {
   loading.value = true
   try {
@@ -267,6 +309,16 @@ const filteredUsers = computed(() => {
     return byRole && byQuery
   })
 })
+const paginatedUsers = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage.value
+  const end = start + itemsPerPage.value
+  return filteredUsers.value.slice(start, end)
+})
+
+watch([filteredUsers, itemsPerPage], () => {
+  currentPage.value = 1 // reset về trang 1 khi filter hoặc thay đổi số dòng
+})
+
 
 const toggleSelectAll = () => {
   if (selectAll.value) {
