@@ -150,6 +150,7 @@ import { useNotification } from '~/composables/useNotification'
 import { useToast } from '~/composables/useToast'
 import imageVoucher from '~/images/voucher.png'
 import { useHead } from '#imports'
+import { useCart } from '~/composables/useCart'
 
 useHead({
   title: 'Kho Voucher | Quản lý mã giảm giá',
@@ -177,6 +178,7 @@ const selectedSort = ref('newest')
 const { discounts, saveVoucherByCode, loading, error, fetchMyVouchers, deleteUserCoupon } = useDiscount()
 const { showNotification } = useNotification()
 const { toast } = useToast()
+const { cart, selectedItems, fetchCart } = useCart()
 
 const vouchers = computed(() => discounts.value)
 
@@ -285,8 +287,28 @@ const handleDeleteVoucher = (id) => {
   )
 }
 
-function goToCheckout(code) {
+async function goToCheckout(code) {
   if (!code) return
+  try {
+    await fetchCart()
+  } catch (e) {
+    // ignore fetch errors, proceed to check existing state
+  }
+  let selectedCount = 0
+  if (cart.value && cart.value.stores) {
+    cart.value.stores.forEach(store => {
+      ;(store.items || []).forEach(item => {
+        const isSelected = (selectedItems?.value && typeof selectedItems.value.has === 'function')
+          ? selectedItems.value.has(item.id)
+          : !!item.is_selected
+        if (isSelected) selectedCount += 1
+      })
+    })
+  }
+  if (selectedCount === 0) {
+    toast('error', 'Chưa có sản phẩm trong giỏ hàng để thanh toán')
+    return
+  }
   router.push({ path: '/checkout', query: { voucher: code } })
 }
 

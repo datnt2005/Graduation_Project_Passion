@@ -687,6 +687,30 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
       }
     }
 
+    // Khi áp dụng mã giảm giá theo shop, huỷ các mã giảm giá sản phẩm của admin (percentage/fixed)
+    if (discountId) {
+      try {
+        const adminProductDiscounts = selectedDiscounts.value
+          ? selectedDiscounts.value.filter(d => !d.seller_id && (d.discount_type === 'percentage' || d.discount_type === 'fixed'))
+          : [];
+        if (adminProductDiscounts.length > 0) {
+          selectedDiscounts.value = selectedDiscounts.value.filter(
+            d => d.seller_id || d.discount_type === 'shipping_fee'
+          );
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('adminDiscountRemoved', {
+              detail: {
+                discountId: adminProductDiscounts.map(d => d.id),
+                discount: adminProductDiscounts
+              }
+            }));
+          }
+        }
+      } catch (e) {
+        console.warn('Không thể huỷ admin discount khi áp dụng mã shop:', e);
+      }
+    }
+
     shopDiscounts.value[sellerId] = discount;
     if (discountId) {
       shopDiscountIds.value[sellerId] = discountId;
