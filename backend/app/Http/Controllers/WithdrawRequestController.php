@@ -6,6 +6,9 @@ use Illuminate\Http\Request;
 use App\Models\WithdrawRequest;
 use App\Models\Seller;
 use App\Models\Payout;
+use App\Models\User;
+use App\Models\Notification;
+use App\Models\NotificationRecipient;
 use Illuminate\Support\Facades\Auth;
 
 class WithdrawRequestController extends Controller
@@ -68,6 +71,20 @@ class WithdrawRequestController extends Controller
             'bank_account' => $request->input('bank_account'),
             'bank_account_name' => $request->input('bank_account_name'),
         ]);
+        $admins = User::where('role', 'admin')->get();
+        $notification = Notification::create([
+            'title' => "Có yêu cầu rút tiền mới",
+            'content' => "Có yêu cầu rút tiền mới" . now()->format('d/m/Y H:i'),
+            'type' => 'system',
+            'user_id' => $seller->user->id,
+            'to_roles' => json_encode(['admin']),
+            'link' => '/admin/orders/list-order',
+            'from_role' => 'system',
+            'status' => 'sent',
+            'channels' => json_encode(['dashboard']),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
         return response()->json([
             'success' => true,
@@ -128,6 +145,28 @@ class WithdrawRequestController extends Controller
         $withdraw->status = 'completed';
         $withdraw->approved_at = now();
         $withdraw->save();
+        // Tạo thông báo cho seller
+        $notification = Notification::create([
+            'title' => "Yêu cầu rút tiền đã được duyệt",
+            'content' => "Yêu cầu rút tiền của bạn đã được duyệt vào " . now()->format('d/m/Y H:i'),
+            'type' => 'system',
+            'user_id' => $withdraw->seller->user->id,
+            'to_roles' => json_encode(['seller']),
+            'link' => '/seller/orders/list-order',
+            'from_role' => 'system',
+            'status' => 'sent',
+            'channels' => json_encode(['dashboard']),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        NotificationRecipient::create([
+            'notification_id' => $notification->id,
+            'user_id' => $withdraw->seller->user_id,
+            'is_read' => false,
+            'is_hidden' => false,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
         return response()->json(['success' => true, 'message' => 'Duyệt rút tiền thành công!']);
     }
 
@@ -150,30 +189,30 @@ class WithdrawRequestController extends Controller
     {
         $user = Auth::user();
         $seller = Seller::where('user_id', $user->id)->firstOrFail();
-        
+
         // Tính tổng payout đã hoàn thành
         $totalPayout = Payout::where('seller_id', $seller->id)
             ->where('status', 'completed')
             ->sum('amount');
-        
+
         // Tính tổng payout đã bị thất bại (status = 'failed')
         $failedPayouts = Payout::where('seller_id', $seller->id)
             ->where('status', 'failed')
             ->sum('amount');
-        
+
         // Tính tổng rút tiền đã hoàn thành
         $totalWithdrawCompleted = WithdrawRequest::where('seller_id', $seller->id)
             ->where('status', 'completed')
             ->sum('amount');
-        
+
         // Tính tổng rút tiền đang chờ
         $totalWithdrawPending = WithdrawRequest::where('seller_id', $seller->id)
             ->where('status', 'pending')
             ->sum('amount');
-        
+
         // Số dư khả dụng = Tổng payout - Payout đơn hàng bị thất bại - Tổng rút tiền
         $available = $totalPayout - $failedPayouts - $totalWithdrawCompleted - $totalWithdrawPending;
-        
+
         return response()->json([
             'success' => true,
             'available' => max(0, $available), // Đảm bảo không âm

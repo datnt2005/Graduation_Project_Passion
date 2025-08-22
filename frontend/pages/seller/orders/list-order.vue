@@ -666,7 +666,7 @@
                     <li>Duyệt tự động 80% payout (để đảm bảo an toàn)</li>
                     <li>20% còn lại cần admin duyệt thủ công</li>
                   </ul>
-                  <p class="mt-2 text-xs">Payout được duyệt tự động sẽ có ghi chú "(Duyệt tự động)" và biểu tượng robot 🤖</p>
+                  <p class="mt-2 text-xs">Thanh toán được duyệt tự động sẽ có ghi chú "(Duyệt tự động)" và biểu tượng robot 🤖</p>
                 </div>
               </div>
             </div>
@@ -1555,7 +1555,7 @@ const confirmUpdateStatus = async () => {
     });
 
     const data = await response.json();
-
+    try {
         if (response.ok) {
             showUpdateModal.value = false;
             orderToUpdate.value = null;

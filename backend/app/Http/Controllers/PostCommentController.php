@@ -151,7 +151,7 @@ class PostCommentController extends Controller
             $data = $request->validate([
                 'content' => 'required|string|max:2000',
                 'rating' => 'nullable|integer|min:1|max:5',
-                'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+                'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:10000',
                 'videos.*' => 'nullable|mimetypes:video/mp4,video/quicktime|max:10000',
             ]);
 
