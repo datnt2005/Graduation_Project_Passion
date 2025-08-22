@@ -136,7 +136,7 @@ class PostController extends Controller
             'content' => "Bài viết '{$post->title}' đã được {$user->name} tạo thành công vào " . now()->format('d/m/Y H:i'),
             'type' => 'system',
             'to_roles' => json_encode(['admin']),
-            'link' => "/admin/posts",
+            'link' => "/admin/posts/list-post",
             'user_id' => $user->id,
             'from_role' => 'system',
             'status' => 'sent',
