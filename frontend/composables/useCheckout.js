@@ -92,6 +92,30 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
     }, 0);
   };
 
+  const getUserInfo = async () => {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      throw new Error('Vui lòng đăng nhập để tiếp tục.');
+    }
+
+    const userRes = await fetch(`${config.public.apiBaseUrl}/me`, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+    });
+    
+    if (!userRes.ok) {
+      if (userRes.status === 401) {
+        localStorage.removeItem('access_token');
+        window.dispatchEvent(new CustomEvent('openLoginModal'));
+        throw new Error('Phiên đăng nhập hết hạn');
+      }
+      throw new Error('Không thể lấy thông tin người dùng');
+    }
+    
+    const { data: userData } = await userRes.json();
+    if (!userData?.id) throw new Error('Không tìm thấy thông tin người dùng');
+    return userData;
+  };
+
   const getCacheKey = (payload) => {
     return `${payload.seller_id}_${payload.from_district_id}_${payload.from_ward_code}_${payload.service_id}_${payload.to_district_id}_${payload.to_ward_code}_${payload.weight}_${payload.height}_${payload.length}_${payload.width}`;
   };
@@ -136,6 +160,69 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
     }
     serviceCache.value.delete(cacheKey);
     return null;
+  };
+
+  // Kiểm tra trạng thái seller có bị cấm hay không
+  const checkSellerStatus = async (sellerId) => {
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        throw new Error('Thiếu access token');
+      }
+
+      const response = await fetch(`${config.public.apiBaseUrl}/sellers/${sellerId}/status`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          toast('error', 'Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.');
+          await logout();
+          await navigateTo('/login');
+          throw new Error('Phiên đăng nhập hết hạn');
+        }
+        throw new Error('Không thể kiểm tra trạng thái seller');
+      }
+
+      const { data } = await response.json();
+      return {
+        is_banned: data.is_banned || false,
+        ban_reason: data.ban_reason || '',
+        status: data.status || 'active'
+      };
+    } catch (err) {
+      console.error(`Lỗi khi kiểm tra trạng thái seller ${sellerId}:`, err);
+      // Nếu không thể kiểm tra, giả sử seller vẫn hoạt động
+      return { is_banned: false, ban_reason: '', status: 'active' };
+    }
+  };
+
+  // Kiểm tra tất cả sellers trong giỏ hàng
+  const checkAllSellersStatus = async () => {
+    const items = isBuyNow.value ? buyNowItems.value : cartItems.value;
+    const sellerIds = [...new Set(items.map(store => store.seller_id).filter(id => id))];
+    
+    const sellerStatuses = {};
+    const bannedSellers = [];
+
+    for (const sellerId of sellerIds) {
+      const status = await checkSellerStatus(sellerId);
+      sellerStatuses[sellerId] = status;
+      
+      if (status.is_banned) {
+        bannedSellers.push({
+          seller_id: sellerId,
+          store_name: items.find(store => store.seller_id === sellerId)?.store_name || 'Cửa hàng',
+          ban_reason: status.ban_reason
+        });
+      }
+    }
+
+    return { sellerStatuses, bannedSellers };
   };
 
   const setCachedServices = (sellerId, fromDistrictId, toDistrictId, services) => {
@@ -991,6 +1078,42 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
       throw new Error('Tài khoản của bạn đã bị khóa do có quá nhiều đơn hàng bị từ chối nhận.');
     }
 
+    // Kiểm tra role của user
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      window.dispatchEvent(new CustomEvent('openLoginModal'));
+      throw new Error('Vui lòng đăng nhập để tiếp tục.');
+    }
+
+    try {
+      const userRes = await fetch(`${config.public.apiBaseUrl}/me`, {
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+      });
+      
+      if (!userRes.ok) {
+        if (userRes.status === 401) {
+          localStorage.removeItem('access_token');
+          window.dispatchEvent(new CustomEvent('openLoginModal'));
+          throw new Error('Phiên đăng nhập hết hạn');
+        }
+        throw new Error('Không thể lấy thông tin người dùng');
+      }
+      
+      const { data: userData } = await userRes.json();
+      if (!userData?.id) throw new Error('Không tìm thấy thông tin người dùng');
+
+      // Kiểm tra role - không cho phép admin hoặc seller đặt hàng
+      if (userData.role === 'admin' || userData.role === 'seller') {
+        throw new Error('Tài khoản admin và seller không thể đặt hàng. Vui lòng sử dụng tài khoản khách hàng.');
+      }
+    } catch (err) {
+      if (err.message.includes('admin và seller không thể đặt hàng')) {
+        throw err;
+      }
+      console.error('Lỗi khi kiểm tra role user:', err);
+      throw new Error('Không thể xác thực quyền đặt hàng');
+    }
+
     const items = isBuyNow.value ? buyNowItems.value : cartItems.value;
     if (!items || !items.length) {
       throw new Error('Giỏ hàng trống hoặc chưa chọn sản phẩm.');
@@ -1002,6 +1125,20 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
     if (!selectedAddress.value || !selectedAddress.value.district_id || !selectedAddress.value.ward_code) {
       throw new Error('Vui lòng chọn địa chỉ giao hàng.');
     }
+
+    // Kiểm tra trạng thái tất cả sellers trước khi đặt hàng
+    const { bannedSellers } = await checkAllSellersStatus();
+    if (bannedSellers.length > 0) {
+      const bannedStoreNames = bannedSellers.map(s => s.store_name).join(', ');
+      const banReasons = bannedSellers.map(s => s.ban_reason).filter(r => r).join('; ');
+      
+      let errorMessage = `Không thể đặt hàng vì các cửa hàng sau đã bị cấm: ${bannedStoreNames}`;
+      if (banReasons) {
+        errorMessage += `. Lý do: ${banReasons}`;
+      }
+      
+      throw new Error(errorMessage);
+    }
     
     // Kiểm tra xem tất cả các shop đã có phí ship chưa
     for (const store of items) {
@@ -1012,26 +1149,8 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
 
     isPlacingOrder.value = true;
     try {
-      const token = localStorage.getItem('access_token');
-      if (!token) {
-        window.dispatchEvent(new CustomEvent('openLoginModal'));
-        throw new Error('Vui lòng đăng nhập để tiếp tục.');
-      }
-
-      // Lấy thông tin user
-      const userRes = await fetch(`${config.public.apiBaseUrl}/me`, {
-        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
-      });
-      if (!userRes.ok) {
-        if (userRes.status === 401) {
-          localStorage.removeItem('access_token');
-          window.dispatchEvent(new CustomEvent('openLoginModal'));
-          throw new Error('Phiên đăng nhập hết hạn');
-        }
-        throw new Error('Không thể lấy thông tin người dùng');
-      }
-      const { data: userData } = await userRes.json();
-      if (!userData?.id) throw new Error('Không tìm thấy thông tin người dùng');
+      // Lấy thông tin user (đã được kiểm tra ở đầu function)
+      const userData = await getUserInfo();
 
       // Xử lý phí ship trước
       if (isBuyNow.value) {
@@ -1363,6 +1482,9 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
     isPlacingOrder,
     isCheckoutCalculatingShipping,
     removeShopDiscount,
-    recalculateAllShopDiscounts
+    recalculateAllShopDiscounts,
+    getUserInfo,
+    checkSellerStatus,
+    checkAllSellersStatus
   };
 }

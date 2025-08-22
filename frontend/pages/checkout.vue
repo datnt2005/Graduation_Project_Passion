@@ -65,7 +65,7 @@
     </div>
     <div class="max-w-7xl mx-auto px-4 py-6 flex flex-col lg:flex-row gap-6">
       <main class="flex-1 overflow-y-hidden"
-        :class="{ 'opacity-50 pointer-events-none': isAccountBanned || isPlacingOrder }">
+        :class="{ 'opacity-50 pointer-events-none': isAccountBanned || isPlacingOrder || isAdminOrSeller || hasBannedSellers }">
         <!-- Thông báo khi tài khoản bị khóa hoặc không thể dùng COD -->
         <div v-if="isAccountBanned || (!canUseCod && !isAccountBanned && rejectedOrdersCount >= 2)"
           class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
@@ -76,6 +76,36 @@
           <template v-else>
             Bạn không thể sử dụng phương thức thanh toán COD vì có quá nhiều đơn hàng bị từ chối nhận.
           </template>
+        </div>
+
+        <!-- Thông báo khi user là admin hoặc seller -->
+        <div v-if="isAdminOrSeller" 
+          class="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4">
+          <div class="flex items-center">
+            <i class="fas fa-exclamation-triangle mr-2"></i>
+            <div>
+              <strong>Không thể đặt hàng:</strong> Tài khoản {{ userRole === 'admin' ? 'Admin' : 'Seller' }} không thể thực hiện đặt hàng. 
+              Vui lòng sử dụng tài khoản khách hàng để tiếp tục.
+            </div>
+          </div>
+        </div>
+
+        <!-- Thông báo khi có sellers bị cấm -->
+        <div v-if="hasBannedSellers" 
+          class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          <div class="flex items-center">
+            <i class="fas fa-ban mr-2"></i>
+            <div>
+              <strong>Không thể đặt hàng:</strong> Các cửa hàng sau đã bị cấm:
+              <ul class="mt-2 ml-4 list-disc">
+                <li v-for="seller in bannedSellers" :key="seller.seller_id" class="text-sm">
+                  <strong>{{ seller.store_name }}</strong>
+                  <span v-if="seller.ban_reason"> - {{ seller.ban_reason }}</span>
+                </li>
+              </ul>
+              <p class="text-sm mt-2">Vui lòng xóa các sản phẩm của cửa hàng bị cấm khỏi giỏ hàng để tiếp tục.</p>
+            </div>
+          </div>
         </div>
         <!-- Breadcrumb -->
         <div class="w-full max-w-7xl mb-4">
@@ -441,9 +471,21 @@
                   </p>
                 </div>
                 <div class="pt-2">
+                  <!-- Thông báo cho admin/seller -->
+                  <div v-if="isAdminOrSeller" class="text-center text-sm text-yellow-600 mb-3 p-2 bg-yellow-50 rounded border border-yellow-200">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    Tài khoản {{ userRole === 'admin' ? 'Admin' : 'Seller' }} không thể đặt hàng
+                  </div>
+
+                  <!-- Thông báo cho banned sellers -->
+                  <div v-if="hasBannedSellers" class="text-center text-sm text-red-600 mb-3 p-2 bg-red-50 rounded border border-red-200">
+                    <i class="fas fa-ban mr-1"></i>
+                    Có {{ bannedSellers.length }} cửa hàng bị cấm - Không thể đặt hàng
+                  </div>
+                  
                   <button @click="handlePlaceOrder"
                     class="w-full bg-gradient-to-r from-red-500 to-red-600 text-white py-4 rounded-lg font-bold text-base hover:from-red-600 hover:to-red-700 transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg hover:shadow-xl"
-                    :disabled="!displayItems.length || loading || isAccountBanned || isPlacingOrder">
+                    :disabled="!displayItems.length || loading || isAccountBanned || isPlacingOrder || isAdminOrSeller || hasBannedSellers">
                     <span v-if="isPlacingOrder" class="flex items-center justify-center">
                       <!-- Animated shopping cart icon -->
                       <svg class="w-5 h-5 mr-2 animate-bounce" fill="currentColor" viewBox="0 0 24 24">
@@ -459,6 +501,16 @@
                         </div>
                       </div>
                       Đang xử lý đơn hàng...
+                    </span>
+                    <span v-else-if="isAdminOrSeller" class="flex items-center justify-center">
+                      <!-- Lock icon -->
+                      <i class="fas fa-lock mr-2"></i>
+                      Không thể đặt hàng
+                    </span>
+                    <span v-else-if="hasBannedSellers" class="flex items-center justify-center">
+                      <!-- Ban icon -->
+                      <i class="fas fa-ban mr-2"></i>
+                      Có cửa hàng bị cấm
                     </span>
                     <span v-else class="flex items-center justify-center">
                       <!-- Shopping cart icon -->
@@ -517,6 +569,11 @@ const storeNotes = ref({});
 const isOrderDetailsOpen = ref(false);
 const shippingFees = ref({});
 const orderLoading = ref(false);
+const userRole = ref(null);
+const isAdminOrSeller = ref(false);
+const sellerStatuses = ref({});
+const bannedSellers = ref([]);
+const hasBannedSellers = ref(false);
 const displayItems = computed(() => (isBuyNow.value ? buyNowItems.value : cartItems.value));
 const displayProductCount = computed(() =>
   displayItems.value.reduce((sum, shop) => sum + (shop.items?.reduce((s, i) => s + (i.quantity || 0), 0) || 0), 0)
@@ -587,7 +644,9 @@ const {
   totalShippingDiscount,
   removeShopDiscount,
   recalculateAllShopDiscounts,
-  canUseCod
+  canUseCod,
+  getUserInfo,
+  checkAllSellersStatus
 } = useCheckout(shippingRef, selectedShippingMethod, selectedAddress, storeNotes);
 
 const { fetchMyVouchers, fetchDiscounts: fetchPublicDiscounts, fetchSellerDiscounts, discounts: publicDiscounts, checkMultipleDiscounts } = useDiscount();
@@ -854,6 +913,38 @@ const updateSelectedAddress = async (newAddress) => {
   }
 };
 
+const checkUserRole = async () => {
+  try {
+    const userData = await getUserInfo();
+    userRole.value = userData.role;
+    isAdminOrSeller.value = userData.role === 'admin' || userData.role === 'seller';
+    
+    if (isAdminOrSeller.value) {
+      toast('warning', 'Tài khoản admin và seller không thể đặt hàng. Vui lòng sử dụng tài khoản khách hàng.');
+    }
+  } catch (err) {
+    console.error('Error checking user role:', err);
+    // Không hiển thị toast error ở đây vì có thể user chưa đăng nhập
+  }
+};
+
+const checkSellersStatus = async () => {
+  try {
+    const { sellerStatuses: statuses, bannedSellers: banned } = await checkAllSellersStatus();
+    sellerStatuses.value = statuses;
+    bannedSellers.value = banned;
+    hasBannedSellers.value = banned.length > 0;
+    
+    if (hasBannedSellers.value) {
+      const bannedStoreNames = banned.map(s => s.store_name).join(', ');
+      toast('warning', `Các cửa hàng sau đã bị cấm: ${bannedStoreNames}. Không thể đặt hàng.`);
+    }
+  } catch (err) {
+    console.error('Error checking sellers status:', err);
+    // Không hiển thị toast error ở đây
+  }
+};
+
 const loadSelectedAddress = async () => {
   try {
     await loadProvinces();
@@ -908,6 +999,19 @@ const loadSelectedAddress = async () => {
 
 // Handle place order with loading state
 const handlePlaceOrder = async () => {
+  // Kiểm tra role trước khi đặt hàng
+  if (isAdminOrSeller.value) {
+    toast('warning', 'Tài khoản admin và seller không thể đặt hàng. Vui lòng sử dụng tài khoản khách hàng.');
+    return;
+  }
+
+  // Kiểm tra sellers bị cấm trước khi đặt hàng
+  if (hasBannedSellers.value) {
+    const bannedStoreNames = bannedSellers.value.map(s => s.store_name).join(', ');
+    toast('warning', `Không thể đặt hàng vì các cửa hàng sau đã bị cấm: ${bannedStoreNames}`);
+    return;
+  }
+
   orderLoading.value = true;
   try {
     await placeOrder();
@@ -986,6 +1090,12 @@ onMounted(async () => {
     console.time('checkout-load');
     await selectStoreItems();
     await fetchPaymentMethods();
+
+    // Kiểm tra role của user
+    await checkUserRole();
+
+    // Kiểm tra trạng thái sellers
+    await checkSellersStatus();
 
     discountLoading.value = true;
     // Chỉ lấy voucher đã lưu của user, sau đó lọc ra voucher ADMIN để hiển thị
