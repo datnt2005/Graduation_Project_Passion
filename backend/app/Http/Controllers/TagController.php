@@ -7,32 +7,38 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use App\Models\Product;
-
-
 
 class TagController extends Controller
 {
     // Lấy danh sách tag (API)
-public function index(Request $request)
-{
-    $perPage = $request->input('per_page', 10);
+    public function index(Request $request)
+    {
+        try {
+            // Use cache to store all tags
+            $cacheKey = 'all_tags';
 
-    $tags = Tag::paginate($perPage);
+            $tags = Cache::store('redis')->tags(['tags'])->remember($cacheKey, 3600, function () {
+                return Tag::all();
+            });
 
-    return response()->json([
-        'success' => true,
-        'message' => 'Lấy danh sách thẻ thành công.',
-        'data' => [
-            'tags' => $tags->items(),
-            'current_page' => $tags->currentPage(),
-            'last_page' => $tags->lastPage(),
-            'total' => $tags->total(),
-        ],
-    ], 200);
-}
+            return response()->json([
+                'success' => true,
+                'message' => 'Lấy danh sách thẻ thành công.',
+                'data' => $tags
+            ], 200);
+        } catch (\Exception $e) {
+            Log::error('Lỗi khi lấy danh sách thẻ: ' . $e->getMessage());
 
+            return response()->json([
+                'success' => false,
+                'message' => 'Đã xảy ra lỗi khi lấy danh sách thẻ.',
+                'error' => config('app.debug') ? $e->getMessage() : null
+            ], 500);
+        }
+    }
 
     // Lấy thông tin tag theo ID (API)
     public function show($id)
@@ -198,60 +204,58 @@ public function index(Request $request)
     }
 
 
-  public function productsBySlug($slug)
-{
-    $tag = Tag::where('slug', $slug)->firstOrFail();
+    public function productsBySlug($slug)
+    {
+        $tag = Tag::where('slug', $slug)->firstOrFail();
 
-    $productIds = DB::table('product_tags')
-        ->where('tag_id', $tag->id)
-        ->pluck('product_id');
+        $productIds = DB::table('product_tags')
+            ->where('tag_id', $tag->id)
+            ->pluck('product_id');
 
-    $products = Product::whereIn('id', $productIds)
-        ->where('status', 'active')
-        ->where('admin_status', 'approved')
-        ->with([
-            'variants' => function ($q) {
-                $q->select('id', 'product_id', 'price', 'sale_price', 'quantity', 'thumbnail')
-                  ->orderByRaw('CASE WHEN sale_price IS NOT NULL THEN 0 ELSE 1 END');
-            },
-            'categories:id,name',
-            'tags:id,name',
-        ])
-        ->select('id', 'name', 'slug', 'created_at', 'status', 'admin_status')
-        ->paginate(20);
+        $products = Product::whereIn('id', $productIds)
+            ->where('status', 'active')
+            ->where('admin_status', 'approved')
+            ->with([
+                'variants' => function ($q) {
+                    $q->select('id', 'product_id', 'price', 'sale_price', 'quantity', 'thumbnail')
+                        ->orderByRaw('CASE WHEN sale_price IS NOT NULL THEN 0 ELSE 1 END');
+                },
+                'categories:id,name',
+                'tags:id,name',
+            ])
+            ->select('id', 'name', 'slug', 'created_at', 'status', 'admin_status')
+            ->paginate(20);
 
-    // Chuẩn hoá output
-    $mapped = $products->map(function ($p) {
-        $variant = $p->variants->first();
-        return [
-            'id'           => $p->id,
-            'name'         => $p->name,
-            'slug'         => $p->slug,
-            'price'        => $variant->price ?? null,
-            'sale_price'   => $variant->sale_price ?? null,
-            'thumbnail'    => $p->productPic->first()->imagePath ?? $variant->thumbnail ?? 'products/default.png',
-            'quantity'     => $variant->quantity ?? null,
-            'created_at'   => $p->created_at,
-            'status'       => $p->status,
-            'admin_status' => $p->admin_status,
-            'variants_count' => $p->variants->count(),
-            'categories'   => $p->categories,
-            'tags'         => $p->tags,
-        ];
-    });
+        // Chuẩn hoá output
+        $mapped = $products->map(function ($p) {
+            $variant = $p->variants->first();
+            return [
+                'id'           => $p->id,
+                'name'         => $p->name,
+                'slug'         => $p->slug,
+                'price'        => $variant->price ?? null,
+                'sale_price'   => $variant->sale_price ?? null,
+                'thumbnail'    => $p->productPic->first()->imagePath ?? $variant->thumbnail ?? 'products/default.png',
+                'quantity'     => $variant->quantity ?? null,
+                'created_at'   => $p->created_at,
+                'status'       => $p->status,
+                'admin_status' => $p->admin_status,
+                'variants_count' => $p->variants->count(),
+                'categories'   => $p->categories,
+                'tags'         => $p->tags,
+            ];
+        });
 
-    return response()->json([
-        'success' => true,
-        'message' => 'Lấy sản phẩm theo tag thành công.',
-        'data' => [
-            'tag' => $tag,
-            'products' => $mapped,
-            'current_page' => $products->currentPage(),
-            'last_page' => $products->lastPage(),
-            'total' => $products->total(),
-        ]
-    ]);
-}
-
-
+        return response()->json([
+            'success' => true,
+            'message' => 'Lấy sản phẩm theo tag thành công.',
+            'data' => [
+                'tag' => $tag,
+                'products' => $mapped,
+                'current_page' => $products->currentPage(),
+                'last_page' => $products->lastPage(),
+                'total' => $products->total(),
+            ]
+        ]);
+    }
 }

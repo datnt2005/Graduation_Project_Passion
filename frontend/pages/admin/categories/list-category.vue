@@ -106,7 +106,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="category in filteredCategories" :key="category.id" :class="{'bg-gray-50': category.id % 2 === 0}" class="border-b border-gray-300">
+          <tr v-for="category in paginatedCategories" :key="category.id" :class="{'bg-gray-50': category.id % 2 === 0}" class="border-b border-gray-300">
             <td class="border border-gray-300 px-3 py-2 text-left w-10">
               <input 
                 type="checkbox" 
@@ -154,88 +154,120 @@
           </tr>
         </tbody>
       </table>
-    </div>
-  </div>
-  <Pagination :currentPage="currentPage" :lastPage="lastPage" @change="fetchCategories" />
 
-  <!-- Dropdown Portal -->
-  <Teleport to="body">
-    <Transition
-      enter-active-class="transition duration-100 ease-out"
-      enter-from-class="transform scale-95 opacity-0"
-      enter-to-class="transform scale-100 opacity-100"
-      leave-active-class="transition duration-75 ease-in"
-      leave-from-class="transform scale-100 opacity-100"
-      leave-to-class="transform scale-95 opacity-0"
-    >
-      <div 
-        v-if="activeDropdown !== null"
-        class="fixed inset-0 z-50"
-        @click="closeDropdown"
-      >
-        <div 
-          v-for="category in categories" 
-          :key="category.id"
-          v-show="activeDropdown === category.id"
-          class="absolute bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50 origin-top-right"
-          :style="dropdownPosition"
-        >
-          <div 
-            class="py-1" 
-            role="menu" 
-            aria-orientation="vertical" 
-            aria-labelledby="options-menu"
+      <!-- Pagination -->
+      <div class="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-300">
+        <div class="text-sm text-gray-600">
+          Hiển thị {{ paginatedCategories.length }} trong số {{ filteredCategories.length }} danh mục
+        </div>
+        <div class="flex space-x-2">
+          <button
+            @click="currentPage = Math.max(1, currentPage - 1)"
+            :disabled="currentPage === 1"
+            class="px-3 py-1.5 rounded-md text-sm font-medium"
+            :class="currentPage === 1 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'"
           >
-            <button
-              @click="editCategory(category.id)"
-              class="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-150"
-              role="menuitem"
-            >
-              <svg 
-                xmlns="http://www.w3.org/2000/svg" 
-                class="w-4 h-4 mr-2" 
-                fill="none" 
-                viewBox="0 0 24 24" 
-                stroke="currentColor"
-              >
-                <path 
-                  stroke-linecap="round" 
-                  stroke-linejoin="round" 
-                  stroke-width="2" 
-                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                />
-              </svg>
-              Sửa
-            </button>
-            <button
-              @click="confirmDelete(category)"
-              class="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors duration-150"
-              role="menuitem"
-            >
-              <svg 
-                xmlns="http://www.w3.org/2000/svg" 
-                class="w-4 h-4 mr-2" 
-                fill="none" 
-                viewBox="0 0 24 24" 
-                stroke="currentColor"
-              >
-                <path 
-                  stroke-linecap="round" 
-                  stroke-linejoin="round" 
-                  stroke-width="2" 
-                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                />
-              </svg>
-              Xóa
-            </button>
-          </div>
+            Trước
+          </button>
+          <button
+            v-for="page in displayedPages"
+            :key="page"
+            @click="currentPage = page"
+            class="px-3 py-1.5 rounded-md text-sm font-medium"
+            :class="currentPage === page ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'"
+          >
+            {{ page }}
+          </button>
+          <button
+            @click="currentPage = Math.min(lastPage, currentPage + 1)"
+            :disabled="currentPage === lastPage"
+            class="px-3 py-1.5 rounded-md text-sm font-medium"
+            :class="currentPage === lastPage ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'"
+          >
+            Sau
+          </button>
         </div>
       </div>
-    </Transition>
-  </Teleport>
+    </div>
 
-  <!-- Notification Popup -->
-  <Teleport to="body">
+    <!-- Dropdown Portal -->
+    <Teleport to="body">
+      <Transition
+        enter-active-class="transition duration-100 ease-out"
+        enter-from-class="transform scale-95 opacity-0"
+        enter-to-class="transform scale-100 opacity-100"
+        leave-active-class="transition duration-75 ease-in"
+        leave-from-class="transform scale-100 opacity-100"
+        leave-to-class="transform scale-95 opacity-0"
+      >
+        <div 
+          v-if="activeDropdown !== null"
+          class="fixed inset-0 z-50"
+          @click="closeDropdown"
+        >
+          <div 
+            v-for="category in categories" 
+            :key="category.id"
+            v-show="activeDropdown === category.id"
+            class="absolute bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50 origin-top-right"
+            :style="dropdownPosition"
+          >
+            <div 
+              class="py-1" 
+              role="menu" 
+              aria-orientation="vertical" 
+              aria-labelledby="options-menu"
+            >
+              <button
+                @click="editCategory(category.id)"
+                class="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-150"
+                role="menuitem"
+              >
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  class="w-4 h-4 mr-2" 
+                  fill="none" 
+                  viewBox="0 0 24 24" 
+                  stroke="currentColor"
+                >
+                  <path 
+                    stroke-linecap="round" 
+                    stroke-linejoin="round" 
+                    stroke-width="2" 
+                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                  />
+                </svg>
+                Sửa
+              </button>
+              <button
+                @click="confirmDelete(category)"
+                class="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors duration-150"
+                role="menuitem"
+              >
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  class="w-4 h-4 mr-2" 
+                  fill="none" 
+                  viewBox="0 0 24 24" 
+                  stroke="currentColor"
+                >
+                  <path 
+                    stroke-linecap="round" 
+                    stroke-linejoin="round" 
+                    stroke-width="2" 
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  />
+                </svg>
+                Xóa
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <!-- Notification Popup -->
+    <Teleport to="body">
       <Transition
         enter-active-class="transition ease-out duration-200"
         enter-from-class="transform opacity-0 scale-95"
@@ -303,82 +335,82 @@
       </Transition>
     </Teleport>
 
-  <!-- Confirmation Dialog -->
-  <Teleport to="body">
-    <Transition
-      enter-active-class="transition ease-out duration-200"
-      enter-from-class="opacity-0"
-      enter-to-class="opacity-100"
-      leave-active-class="transition ease-in duration-100"
-      leave-from-class="opacity-100"
-      leave-to-class="opacity-0"
-    >
-      <div v-if="showConfirmDialog" class="fixed inset-0 z-50 overflow-y-auto">
-        <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-          <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="closeConfirmDialog"></div>
-          <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true"></span>
-          <div 
-            class="relative inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full"
-          >
-            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-              <div class="sm:flex sm:items-start">
-                <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
-                  <svg 
-                    class="h-6 w-6 text-red-600" 
-                    xmlns="http://www.w3.org/2000/svg" 
-                    fill="none" 
-                    viewBox="0 0 24 24" 
-                    stroke="currentColor"
-                  >
-                    <path 
-                      stroke-linecap="round" 
-                      stroke-linejoin="round" 
-                      stroke-width="2" 
-                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" 
-                    />
-                  </svg>
-                </div>
-                <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-                  <h3 class="text-lg leading-6 font-medium text-gray-900">
-                    {{ confirmDialogTitle }}
-                  </h3>
-                  <div class="mt-2">
-                    <p class="text-sm text-gray-500">
-                      {{ confirmDialogMessage }}
-                    </p>
+    <!-- Confirmation Dialog -->
+    <Teleport to="body">
+      <Transition
+        enter-active-class="transition ease-out duration-200"
+        enter-from-class="opacity-0"
+        enter-to-class="opacity-100"
+        leave-active-class="transition ease-in duration-100"
+        leave-from-class="opacity-100"
+        leave-to-class="opacity-0"
+      >
+        <div v-if="showConfirmDialog" class="fixed inset-0 z-50 overflow-y-auto">
+          <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="closeConfirmDialog"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true"></span>
+            <div 
+              class="relative inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full"
+            >
+              <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div class="sm:flex sm:items-start">
+                  <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                    <svg 
+                      class="h-6 w-6 text-red-600" 
+                      xmlns="http://www.w3.org/2000/svg" 
+                      fill="none" 
+                      viewBox="0 0 24 24" 
+                      stroke="currentColor"
+                    >
+                      <path 
+                        stroke-linecap="round" 
+                        stroke-linejoin="round" 
+                        stroke-width="2" 
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" 
+                      />
+                    </svg>
+                  </div>
+                  <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900">
+                      {{ confirmDialogTitle }}
+                    </h3>
+                    <div class="mt-2">
+                      <p class="text-sm text-gray-500">
+                        {{ confirmDialogMessage }}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-              <button
-                type="button"
-                class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm"
-                @click="handleConfirmAction"
-              >
-                Xác nhận
-              </button>
-              <button
-                type="button"
-                class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-                @click="closeConfirmDialog"
-              >
-                Hủy
-              </button>
+              <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button
+                  type="button"
+                  class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm"
+                  @click="handleConfirmAction"
+                >
+                  Xác nhận
+                </button>
+                <button
+                  type="button"
+                  class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                  @click="closeConfirmDialog"
+                >
+                  Hủy
+                </button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </Transition>
-  </Teleport>
+      </Transition>
+    </Teleport>
+  </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useRuntimeConfig } from '#app';
-import Pagination from '~/components/Pagination.vue';
-import { secureFetch } from '@/utils/secureFetch' 
+import { secureFetch } from '@/utils/secureFetch';
 
 definePageMeta({
   layout: 'default-admin'
@@ -391,7 +423,7 @@ const mediaBase = config.public.mediaBaseUrl;
 
 const categories = ref([]);
 const selectedCategories = ref([]);
-const selectAll = ref(false);
+const selecAll = ref(false);
 const searchQuery = ref('');
 const selectedAction = ref('');
 const totalCategories = ref(0);
@@ -400,38 +432,33 @@ const dropdownPosition = ref({ top: '0px', left: '0px', width: '192px' });
 const loading = ref(false);
 const showNotification = ref(false);
 const notificationMessage = ref('');
-const notificationType = ref('success'); 
+const notificationType = ref('success');
 const showConfirmDialog = ref(false);
 const confirmDialogTitle = ref('');
 const confirmDialogMessage = ref('');
 const confirmAction = ref(null);
-
 const currentPage = ref(1);
-const lastPage = ref(1);
-const perPage = 10;
-// Fetch categories from API
-const fetchCategories = async (page = 1) => {
+const perPage = ref(10);
+
+// Fetch all categories from API
+const fetchCategories = async () => {
   try {
     loading.value = true;
-    currentPage.value = page;
 
-    const result = await secureFetch(`${apiBase}/categories?page=${page}&per_page=${perPage}`, {
+    const result = await secureFetch(`${apiBase}/categories`, {
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json'
       }
     }, ['admin']);
 
-    // ✅ Kiểm tra cấu trúc phản hồi hợp lệ
-    if (!result || !result.data || !Array.isArray(result.data.data)) {
+    // Check for valid response structure
+    if (!result || !result.data || !Array.isArray(result.data)) {
       throw new Error('Phản hồi API không hợp lệ');
     }
 
-    // ✅ Gán dữ liệu đúng
-    categories.value = result.data.data;
-    currentPage.value = result.data.current_page || 1;
-    lastPage.value = result.data.last_page || 1;
-    totalCategories.value = result.data.total || result.data.data.length;
+    categories.value = result.data;
+    totalCategories.value = result.data.length;
   } catch (error) {
     console.error('Lỗi khi fetch categories:', error);
     showNotificationMessage('Lỗi khi tải danh sách danh mục', 'error');
@@ -440,11 +467,57 @@ const fetchCategories = async (page = 1) => {
   }
 };
 
+// Computed properties for pagination
+const filteredCategories = computed(() => {
+  let result = [...categories.value];
+
+  if (searchQuery.value) {
+    const query = searchQuery.value.toLowerCase();
+    result = result.filter(category => 
+      category.name.toLowerCase().includes(query) ||
+      category.slug.toLowerCase().includes(query)
+    );
+  }
+
+  return result;
+});
+
+const lastPage = computed(() => {
+  return Math.ceil(filteredCategories.value.length / perPage.value) || 1;
+});
+
+const paginatedCategories = computed(() => {
+  const start = (currentPage.value - 1) * perPage.value;
+  const end = start + perPage.value;
+  return filteredCategories.value.slice(start, end);
+});
+
+const displayedPages = computed(() => {
+  const pages = [];
+  const maxPagesToShow = 5;
+  const halfPages = Math.floor(maxPagesToShow / 2);
+  let startPage = Math.max(1, currentPage.value - halfPages);
+  let endPage = Math.min(lastPage.value, currentPage.value + halfPages);
+
+  if (endPage - startPage < maxPagesToShow - 1) {
+    if (startPage === 1) {
+      endPage = Math.min(lastPage.value, startPage + maxPagesToShow - 1);
+    } else {
+      startPage = Math.max(1, endPage - maxPagesToShow + 1);
+    }
+  }
+
+  for (let i = startPage; i <= endPage; i++) {
+    pages.push(i);
+  }
+
+  return pages;
+});
 
 // Toggle select all
 const toggleSelectAll = () => {
   if (selectAll.value) {
-    selectedCategories.value = categories.value.map(c => c.id);
+    selectedCategories.value = paginatedCategories.value.map(c => c.id);
   } else {
     selectedCategories.value = [];
   }
@@ -470,18 +543,18 @@ const applyBulkAction = async () => {
               headers: {
                 'Content-Type': 'application/json'
               }
-            } , ['admin'])
+            }, ['admin'])
           );
 
           await Promise.all(deletePromises);
-          showNotificationMessage('Xóa các danh mục thành công!' , 'success');
+          showNotificationMessage('Xóa các danh mục thành công!', 'success');
           selectedCategories.value = [];
           selectAll.value = false;
           selectedAction.value = '';
           await fetchCategories();
         } catch (error) {
           console.error('Error:', error);
-          showNotificationMessage('Có lỗi xảy ra khi xóa danh mục' , 'error');
+          showNotificationMessage('Có lỗi xảy ra khi xóa danh mục', 'error');
         } finally {
           loading.value = false;
         }
@@ -507,17 +580,17 @@ const confirmDelete = async (category) => {
           headers: {
             'Content-Type': 'application/json'
           }
-        } , ['admin']);
+        }, ['admin']);
 
         if (data.success) {
-          showNotificationMessage('Xóa danh mục thành công!' , 'success');
+          showNotificationMessage('Xóa danh mục thành công!', 'success');
           await fetchCategories();
         } else {
-          showNotificationMessage(data.message || 'Có lỗi xảy ra khi xóa danh mục' , 'error');
+          showNotificationMessage(data.message || 'Có lỗi xảy ra khi xóa danh mục', 'error');
         }
       } catch (error) {
         console.error('Error:', error);
-        showNotificationMessage('Có lỗi xảy ra khi xóa danh mục' , 'error');
+        showNotificationMessage('Có lỗi xảy ra khi xóa danh mục', 'error');
       }
     }
   );
@@ -548,22 +621,7 @@ const closeDropdown = (event) => {
   }
 };
 
-// Filtered categories
-const filteredCategories = computed(() => {
-  let result = [...categories.value];
-
-  if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase();
-    result = result.filter(category => 
-      category.name.toLowerCase().includes(query) ||
-      category.slug.toLowerCase().includes(query)
-    );
-  }
-
-  return result;
-});
-
-// Show success notification
+// Show notification
 const showNotificationMessage = (message, type = 'success') => {
   notificationMessage.value = message;
   notificationType.value = type;

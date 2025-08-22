@@ -66,7 +66,28 @@ export const useChatStore = defineStore("chat", {
 
           session = sessionList.find((s) => s.seller?.id === sellerId);
 
-          // 3. Nếu vẫn chưa có -> tạo session mới
+          // 3. Nếu vẫn chưa có -> lấy thông tin seller từ API nếu sellerInfo không đầy đủ
+          let finalSellerInfo = sellerInfo;
+          if (!sellerInfo?.store_name || !sellerInfo?.avatar) {
+            try {
+              const { data: sellerData } = await axios.get(`${API}/sellers/${sellerId}`, {
+                headers: { Authorization: `Bearer ${token}` },
+              });
+              finalSellerInfo = {
+                store_name: sellerData.store_name || sellerData.user?.name || "Unknown Seller",
+                avatar: sellerData.avatar || sellerData.user?.avatar || null,
+              };
+              console.log('Fetched seller info from API:', finalSellerInfo); // Debug
+            } catch (err) {
+              console.warn('⚠️ Không lấy được thông tin seller:', err);
+              finalSellerInfo = {
+                store_name: sellerInfo?.store_name || "Unknown Seller",
+                avatar: sellerInfo?.avatar || null,
+              };
+            }
+          }
+
+          // 4. Nếu vẫn chưa có session -> tạo session mới
           if (!session) {
             const { data: newSession } = await axios.post(
               `${API}/chat/session`,
@@ -85,10 +106,12 @@ export const useChatStore = defineStore("chat", {
               user_id: userId,
               seller: {
                 id: sellerId,
-                store_name: sellerInfo.store_name || "Unknown Seller",
-                avatar: sellerInfo.avatar || null,
+                store_name: finalSellerInfo.store_name,
+                avatar: finalSellerInfo.avatar,
+                user: newSession.seller?.user || { name: finalSellerInfo.store_name },
               },
             };
+            console.log('Created new session:', session); // Debug
           }
 
           this.sessions.push(session); // cache lại session
@@ -104,6 +127,7 @@ export const useChatStore = defineStore("chat", {
         throw new Error("Không thể tạo hoặc lấy session chat");
       }
     },
+
     async sendProductMessage(product, userId, sellerId) {
       if (!product || !product.id || !userId || !sellerId) {
         console.error("❌ Dữ liệu không hợp lệ:", {
@@ -113,8 +137,8 @@ export const useChatStore = defineStore("chat", {
         });
         throw new Error("Dữ liệu không hợp lệ");
       }
-      console.log("📨 Sending product message:", product);
-      
+      console.log("📨 Sending product message:", product); // Debug
+
       const config = useRuntimeConfig();
       const API = config.public.apiBaseUrl;
       const mediaBaseUrl = config.public.mediaBaseUrl;
@@ -130,10 +154,13 @@ export const useChatStore = defineStore("chat", {
 
       const imageUrl = getImageUrl(product.image);
 
-      const session = await this.getOrCreateSession(userId, sellerId, {
-        store_name: product.store_name,
-        avatar: product.avatar,
-      });
+      const sellerInfo = {
+        store_name: product.store_name || "Unknown Seller",
+        avatar: product.avatar || null,
+      };
+      console.log('Seller info for session:', sellerInfo); // Debug
+
+      const session = await this.getOrCreateSession(userId, sellerId, sellerInfo);
 
       const message = {
         message: `Mình quan tâm sản phẩm: ${product.name} - ${product.price}đ`,
@@ -213,7 +240,6 @@ export const useChatStore = defineStore("chat", {
         });
 
         if (!Array.isArray(data)) {
-          // console.error("❌ Dữ liệu trả về không phải mảng:", data);
           return;
         }
 

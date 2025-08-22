@@ -40,7 +40,7 @@
           />
           <div class="flex flex-col flex-1 min-w-0">
             <div class="font-medium text-gray-800 truncate">
-              {{ session.seller?.store_name || session.seller?.user?.name || "Cửa hàng" }}
+              {{ session.seller?.store_name || session.seller?.user?.name || session?.store_name || "Cửa hàng" }}
             </div>
             <div class="text-sm text-gray-600 truncate">
               {{ getLastMessagePreview(session) }}
@@ -80,7 +80,7 @@
 
           <!-- Avatar tiêu đề: seller/shop -->
           <img
-            :src="getAvatar(currentSession?.seller?.user?.avatar)"
+            :src="getAvatar(headerAvatar)"
             @error="handleImageError"
             class="w-8 h-8 rounded-full object-cover border"
             alt="Avatar cửa hàng"
@@ -121,7 +121,7 @@
           <!-- Avatar (chỉ hiển thị cho tin của seller) -->
           <img
             v-if="message.sender_type !== 'user'"
-            :src="getAvatar(message.avatar || currentSession?.seller?.user?.avatar)"
+            :src="getAvatar(headerAvatar)"
             @error="handleImageError"
             class="w-8 h-8 rounded-full object-cover"
             alt="Avatar"
@@ -174,10 +174,10 @@
                   class="w-24 h-24 rounded overflow-hidden cursor-pointer"
                 >
                   <img
-                    :src="attachment.file_url || attachment.url || getAvatar(currentSession?.seller?.user?.avatar)"
+                    :src="getAvatar(attachment.file_url || attachment.url)"
                     @error="handleImageError"
                     class="w-full h-full object-cover rounded border border-gray-200"
-                    @click.stop="openImageViewer(attachment.file_url || attachment.url || getAvatar(currentSession?.seller?.user?.avatar))"
+                    @click.stop="openImageViewer(attachment.file_url || attachment.url || headerAvatar)"
                   />
                 </div>
               </div>
@@ -206,10 +206,10 @@
                 </div>
                 <div class="flex border rounded overflow-hidden bg-white hover:shadow-md transition">
                   <img
-                    :src="message.attachments?.[0]?.meta_data?.file_url || getAvatar(currentSession?.seller?.user?.avatar)"
+                    :src="getAvatar(message.attachments?.[0]?.meta_data?.file_url || headerAvatar)"
                     alt="Ảnh sản phẩm"
                     class="w-24 h-24 object-cover border-r cursor-pointer"
-                    @click.stop="openImageViewer(message.attachments?.[0]?.meta_data?.file_url || getAvatar(currentSession?.seller?.user?.avatar))"
+                    @click.stop="openImageViewer(message.attachments?.[0]?.meta_data?.file_url || headerAvatar)"
                     @error="handleImageError"
                   />
                   <div class="flex-1 p-2 overflow-hidden">
@@ -477,18 +477,31 @@ const mediaBaseUrl = config.public.mediaBaseUrl;
 const DEFAULT_AVATAR = config.public.mediaBaseUrl + "avatars/default.jpg";
 
 /* ===== Header avatar & title (computed) ===== */
-const headerAvatar = computed(() =>
-  currentSession.value?.seller?.user?.avatar
-  || currentSession.value?.seller?.avatar
-  || currentSession.value?.user?.avatar
-  || DEFAULT_AVATAR
-);
-const headerTitle = computed(() =>
-  currentSession.value?.seller?.store_name
-  || currentSession.value?.seller?.user?.name
-  || currentSession.value?.user?.name
-  || "Cửa hàng"
-);
+const headerAvatar = computed(() => {
+  const session = chatSessions.value.find(s => s.id === currentSession.value?.id);
+  const avatar = session?.seller?.user?.avatar
+    || session?.seller?.avatar
+    || currentSession.value?.seller?.user?.avatar
+    || currentSession.value?.seller?.avatar
+    || currentSession.value?.user?.avatar
+    || DEFAULT_AVATAR;
+  console.log('headerAvatar computed:', avatar);
+  return avatar;
+});
+
+const headerTitle = computed(() => {
+  const session = chatSessions.value.find(s => s.id === currentSession.value?.id);
+  const title = session?.seller?.store_name
+    || session?.seller?.user?.name
+    || session?.store_name
+    || currentSession.value?.seller?.store_name
+    || currentSession.value?.seller?.user?.name
+    || currentSession.value?.user?.name
+    || currentSession.value?.store_name
+    || "Cửa hàng";
+  console.log('headerTitle computed:', title);
+  return title;
+});
 
 /* Avatar ở sidebar: ưu tiên seller.user.avatar và fallback giống Seller */
 const getAvatar = (avatar) => {
@@ -614,7 +627,7 @@ const backToList = () => {
 };
 
 async function openChat(session) {
-  currentSession.value = session;
+  currentSession.value = { ...session }; // Tạo bản sao để giữ dữ liệu gốc
   showChat.value = true;
   showChatList.value = false;
 
@@ -674,6 +687,7 @@ async function createSessionWithSeller(sellerId) {
   if (!res.ok) return null;
   return await res.json();
 }
+
 function openChatWithUser(sellerId) {
   const existing = chatSessions.value.find((s) => s.seller?.user?.id === sellerId);
   if (existing) openChat(existing);
@@ -737,6 +751,7 @@ async function startPollingMessages() {
     }
   }, 3000);
 }
+
 function stopPollingMessages() {
   if (pollingInterval.value) {
     clearInterval(pollingInterval.value);
@@ -861,10 +876,12 @@ const startEdit = (msg) => {
   chatInput.value = msg.message || "";
   contextMenu.value.open = false;
 };
+
 const cancelEdit = () => {
   editing.value = { active: false, id: null };
   chatInput.value = "";
 };
+
 const commitEdit = async () => {
   const newContent = chatInput.value.trim();
   if (!newContent) {
@@ -901,6 +918,7 @@ const startReply = (msg) => {
   replyTarget.value = { id: msg.id, message: msg.message, sender_type: msg.sender_type };
   contextMenu.value.open = false;
 };
+
 const cancelReply = () => (replyTarget.value = null);
 
 /* ===== Xoá (inline confirm) ===== */
@@ -908,6 +926,7 @@ const askRevoke = (msg) => {
   confirmRevoke.value = { open: true, id: msg.id };
   contextMenu.value.open = false;
 };
+
 const doRevoke = async () => {
   const id = confirmRevoke.value.id;
   if (!id) return;
@@ -937,7 +956,7 @@ const doRevoke = async () => {
 const handleImageSelect = (e) => {
   const files = Array.from(e.target.files);
   const validTypes = ["image/jpeg", "image/png", "image/jpg", "image/gif", "image/webp"];
-  const maxSize = 5 * 1024 * 1024;
+  const maxSize = 5 * 1024 * 1000;
 
   files.forEach((file) => {
     if (!validTypes.includes(file.type)) {
@@ -956,8 +975,11 @@ const handleImageSelect = (e) => {
   });
   e.target.value = "";
 };
+
 const removeImage = (index) => previewImages.value.splice(index, 1);
+
 const toggleEmojiPicker = () => (showEmoji.value = !showEmoji.value);
+
 const addEmoji = (event) => (chatInput.value += event.detail.unicode);
 
 /* ===== Image viewer ===== */
@@ -966,6 +988,7 @@ const openImageViewer = (url) => {
   imageViewer.value.visible = true;
   imageViewer.value.url = url;
 };
+
 const closeImageViewer = () => {
   imageViewer.value.visible = false;
   imageViewer.value.url = null;
@@ -981,7 +1004,9 @@ const openContext = (id, e) => {
 
   contextMenu.value = { open: true, messageId: id, x, y };
 };
+
 const closeContext = () => (contextMenu.value = { open: false, messageId: null, x: 0, y: 0 });
+
 const onDocClick = (ev) => {
   if (!contextMenu.value.open) return;
   const el = document.getElementById("ctx-menu");
@@ -989,13 +1014,15 @@ const onDocClick = (ev) => {
 };
 
 const handleImageError = (event) => {
-  event.target.src = getAvatar(currentSession?.seller?.user?.avatar) || DEFAULT_AVATAR;
+  console.log('Image load error:', event.target.src);
+  event.target.src = getAvatar(headerAvatar.value);
 };
 
 const handleEscKey = (event) => {
   if (event.key === "Escape" && imageViewer.value.visible) closeImageViewer();
   if (event.key === "Escape" && contextMenu.value.open) closeContext();
 };
+
 const scrollToBottom = () => {
   if (chatMessages.value) chatMessages.value.scrollTop = chatMessages.value.scrollHeight;
 };
@@ -1038,6 +1065,7 @@ const loadMessages = async () => {
     isLoadingMore.value = false;
   }
 };
+
 const handleScroll = () => {
   const el = chatMessages.value;
   if (!el || isLoadingMore.value || !hasMore.value) return;

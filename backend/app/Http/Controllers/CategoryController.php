@@ -12,28 +12,20 @@ use Illuminate\Support\Facades\Validator;
 
 class CategoryController extends Controller
 {
-    public function index(Request $request)
+   public function index(Request $request)
 {
     try {
-        $perPage = $request->input('per_page', 10); // Mặc định 10 nếu không truyền
+        // Dùng cache cho toàn bộ danh sách danh mục
+        $cacheKey = "all_categories";
 
-        // Dùng cache theo page (tùy ý xóa nếu muốn fresh hơn)
-        $page = $request->input('page', 1);
-        $cacheKey = "categories_page_{$page}_per_{$perPage}";
-
-        $categories = Cache::store('redis')->tags(['categories'])->remember($cacheKey, 3600, function () use ($perPage) {
-            return Category::with('parent')->paginate($perPage);
+        $categories = Cache::store('redis')->tags(['categories'])->remember($cacheKey, 3600, function () {
+            return Category::with('parent')->get();
         });
 
         return response()->json([
             'success' => true,
             'message' => 'Lấy danh sách danh mục thành công.',
-            'data' => [
-                'data' => $categories->items(),
-                'current_page' => $categories->currentPage(),
-                'last_page' => $categories->lastPage(),
-                'total' => $categories->total()
-            ]
+            'data' => $categories
         ], 200);
     } catch (\Exception $e) {
         Log::error('Lỗi khi lấy danh sách danh mục: ' . $e->getMessage());
@@ -429,7 +421,7 @@ class CategoryController extends Controller
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', '%' . $search . '%')
-                  ->orWhere('slug', 'like', '%' . $search . '%');
+                    ->orWhere('slug', 'like', '%' . $search . '%');
             });
         }
 
