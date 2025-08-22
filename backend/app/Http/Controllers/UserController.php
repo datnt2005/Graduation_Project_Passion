@@ -320,7 +320,7 @@ class UserController extends Controller
 
             $validator = Validator::make($request->all(), [
                 'name' => 'sometimes|required|string|max:255',
-                'phone' => 'sometimes|required|string|regex:/^\d{10}$/',
+                'phone' => 'sometimes|nullable|string|regex:/^\d{10}$/|unique:users,phone,' . $user->id,
                 'password' => [
                     'sometimes',
                     'required',
@@ -336,7 +336,7 @@ class UserController extends Controller
             ], [
                 'name.required' => 'Tên không được để trống.',
                 'name.max' => 'Tên không được vượt quá 255 ký tự.',
-                'phone.required' => 'Số điện thoại không được để trống.',
+                'phone.unique' => 'Số điện thoại đã tồn tại.',
                 'phone.regex' => 'Số điện thoại phải là 10 chữ số.',
                 'password.regex' => 'Mật khẩu phải chứa ít nhất 1 chữ hoa, 1 chữ thường, 1 số và 1 ký tự đặc biệt.',
                 'password.min' => 'Mật khẩu phải có ít nhất 6 ký tự.',

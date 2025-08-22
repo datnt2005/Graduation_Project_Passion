@@ -150,6 +150,7 @@ import { useNotification } from '~/composables/useNotification'
 import { useToast } from '~/composables/useToast'
 import imageVoucher from '~/images/voucher.png'
 import { useHead } from '#imports'
+import { useCart } from '~/composables/useCart'
 
 useHead({
   title: 'Kho Voucher | Quản lý mã giảm giá',
@@ -177,6 +178,7 @@ const selectedSort = ref('newest')
 const { discounts, saveVoucherByCode, loading, error, fetchMyVouchers, deleteUserCoupon } = useDiscount()
 const { showNotification } = useNotification()
 const { toast } = useToast()
+const { cart, selectedItems, fetchCart } = useCart()
 
 const vouchers = computed(() => discounts.value)
 
@@ -285,9 +287,9 @@ const handleDeleteVoucher = (id) => {
   )
 }
 
-function goToCheckout(code) {
+async function goToCheckout(code) {
   if (!code) return
-  router.push({ path: '/checkout', query: { voucher: code } })
+  router.push({ path: '/cart', query: { voucher: code } })
 }
 
 onMounted(() => {

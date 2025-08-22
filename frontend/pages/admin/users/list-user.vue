@@ -80,8 +80,8 @@
             <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">
               Vai trò
             </th>
-              <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">
-                 Trạng thái
+            <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">
+              Trạng thái
             </th>
             <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">
               Bài viết
@@ -93,8 +93,7 @@
         </thead>
         <tbody>
           <tr v-for="user in paginatedUsers" :key="user.id" :class="{'bg-gray-50': user.id % 2 === 0}"
-  class="border-b border-gray-300">
-
+            class="border-b border-gray-300">
             <td class="border border-gray-300 px-3 py-2 text-left w-10">
               <input type="checkbox" v-model="selectedUsers" :value="user.id" />
             </td>
@@ -113,7 +112,7 @@
             <td class="border border-gray-300 px-3 py-2 text-left">
               {{ convertRole(user.role) }}
             </td>
-              <td class="border border-gray-300 px-3 py-2 text-left">
+            <td class="border border-gray-300 px-3 py-2 text-left">
               {{ statusLabel[user.status] || 'Chưa xác định' }}
             </td>
             <td class="border border-gray-300 px-3 py-2 text-left">
@@ -126,111 +125,154 @@
           </tr>
         </tbody>
       </table>
+
       <!-- Pagination -->
-<div class="flex justify-between items-center px-4 py-3 bg-white border-t border-gray-200">
-  <div class="text-sm text-gray-600">
-    Trang {{ currentPage }} / {{ totalPages }}  
-    ({{ filteredUsers.length }} người dùng)
-  </div>
-  <div class="flex items-center space-x-1">
-    <button @click="currentPage = Math.max(1, currentPage - 1)"
-      :disabled="currentPage === 1"
-      class="px-3 py-1 rounded-md border text-sm"
-      :class="currentPage === 1 ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-white hover:bg-gray-100'">
-      Trước
-    </button>
-
-    <button v-for="page in totalPages" :key="page"
-      @click="currentPage = page"
-      class="px-3 py-1 rounded-md border text-sm"
-      :class="page === currentPage ? 'bg-blue-600 text-white' : 'bg-white hover:bg-gray-100'">
-      {{ page }}
-    </button>
-
-    <button @click="currentPage = Math.min(totalPages, currentPage + 1)"
-      :disabled="currentPage === totalPages"
-      class="px-3 py-1 rounded-md border text-sm"
-      :class="currentPage === totalPages ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-white hover:bg-gray-100'">
-      Sau
-    </button>
-  </div>
-</div>
-
-    </div>
-
-    <!-- Notification -->
-    <Teleport to="body">
-      <Transition enter-active-class="transition ease-out duration-200" enter-from-class="transform opacity-0 scale-95"
-        enter-to-class="transform opacity-100 scale-100" leave-active-class="transition ease-in duration-100"
-        leave-from-class="transform opacity-100 scale-100" leave-to-class="transform opacity-0 scale-95">
-        <div v-if="showNotification"
-          class="fixed bottom-4 right-4 bg-white rounded-lg shadow-xl border border-gray-200 p-4 flex items-center space-x-3 z-50">
-          <div class="flex-1">
-            <p class="text-sm font-medium text-gray-900">
-              {{ notificationMessage }}
+      <div class="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+        <div class="flex-1 flex items-center justify-between">
+          <div>
+            <p class="text-sm text-gray-700">
+              Hiển thị
+              <select v-model="itemsPerPage" @change="currentPage = 1"
+                class="ml-2 inline-flex items-center px-2 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                <option :value="5">5</option>
+                <option :value="10">10</option>
+                <option :value="20">20</option>
+                <option :value="50">50</option>
+              </select>
+              trên tổng số {{ filteredUsers.length }} người dùng
             </p>
           </div>
-          <button @click="showNotification = false"
-            class="inline-flex text-gray-400 hover:text-gray-500 focus:outline-none">
-            <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-              stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-      </Transition>
-    </Teleport>
+          <div class="flex justify-end items-center gap-1 py-4 flex-wrap">
+            <!-- Nút Prev -->
+            <button
+              @click="currentPage = currentPage - 1"
+              :disabled="currentPage === 1"
+              class="px-3 py-1 border rounded-md text-sm font-medium bg-white hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Trước
+            </button>
 
-    <!-- Confirmation Dialog -->
-    <Teleport to="body">
-      <Transition enter-active-class="transition ease-out duration-200" enter-from-class="opacity-0"
-        enter-to-class="opacity-100" leave-active-class="transition ease-in duration-100" leave-from-class="opacity-100"
-        leave-to-class="opacity-0">
-        <div v-if="showConfirmDialog" class="fixed inset-0 z-50 overflow-y-auto">
-          <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="closeConfirmDialog"></div>
-            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-            <div
-              class="relative inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-              <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                <div class="sm:flex sm:items-start">
-                  <div
-                    class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
-                    <svg class="h-6 w-6 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                      stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                  </div>
-                  <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-                    <h3 class="text-lg leading-6 font-medium text-gray-900">
-                      {{ confirmDialogTitle }}
-                    </h3>
-                    <div class="mt-2">
-                      <p class="text-sm text-gray-500">
-                        {{ confirmDialogMessage }}
-                      </p>
+            <!-- Trang đầu -->
+            <button
+              v-if="startPage > 1"
+              @click="currentPage = 1"
+              class="px-3 py-1 border rounded-md text-sm bg-white hover:bg-gray-100"
+            >
+              1
+            </button>
+            <span v-if="startPage > 2" class="px-2 text-gray-500">...</span>
+
+            <!-- Các trang chính giữa -->
+            <button
+              v-for="page in visiblePages"
+              :key="page"
+              @click="currentPage = page"
+              :class="[
+                'px-3 py-1 border rounded-md text-sm font-medium transition-colors duration-150',
+                page === currentPage
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-gray-700 hover:bg-gray-100'
+              ]"
+            >
+              {{ page }}
+            </button>
+
+            <!-- Trang cuối -->
+            <span v-if="endPage < totalPages - 1" class="px-2 text-gray-500">...</span>
+            <button
+              v-if="endPage < totalPages"
+              @click="currentPage = totalPages"
+              class="px-3 py-1 border rounded-md text-sm bg-white hover:bg-gray-100"
+            >
+              {{ totalPages }}
+            </button>
+
+            <!-- Nút Next -->
+            <button
+              @click="currentPage = currentPage + 1"
+              :disabled="currentPage === totalPages"
+              class="px-3 py-1 border rounded-md text-sm font-medium bg-white hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Sau
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Notification -->
+      <Teleport to="body">
+        <Transition enter-active-class="transition ease-out duration-200" enter-from-class="transform opacity-0 scale-95"
+          enter-to-class="transform opacity-100 scale-100" leave-active-class="transition ease-in duration-100"
+          leave-from-class="transform opacity-100 scale-100" leave-to-class="transform opacity-0 scale-95">
+          <div v-if="showNotification"
+            class="fixed bottom-4 right-4 bg-white rounded-lg shadow-xl border border-gray-200 p-4 flex items-center space-x-3 z-50">
+            <div class="flex-1">
+              <p class="text-sm font-medium text-gray-900">
+                {{ notificationMessage }}
+              </p>
+            </div>
+            <button @click="showNotification = false"
+              class="inline-flex text-gray-400 hover:text-gray-500 focus:outline-none">
+              <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </Transition>
+      </Teleport>
+
+      <!-- Confirmation Dialog -->
+      <Teleport to="body">
+        <Transition enter-active-class="transition ease-out duration-200" enter-from-class="opacity-0"
+          enter-to-class="opacity-100" leave-active-class="transition ease-in duration-100" leave-from-class="opacity-100"
+          leave-to-class="opacity-0">
+          <div v-if="showConfirmDialog" class="fixed inset-0 z-50 overflow-y-auto">
+            <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+              <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="closeConfirmDialog"></div>
+              <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+              <div
+                class="relative inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                  <div class="sm:flex sm:items-start">
+                    <div
+                      class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                      <svg class="h-6 w-6 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3. exercises 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                    </div>
+                    <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                      <h3 class="text-lg leading-6 font-medium text-gray-900">
+                        {{ confirmDialogTitle }}
+                      </h3>
+                      <div class="mt-2">
+                        <p class="text-sm text-gray-500">
+                          {{ confirmDialogMessage }}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-              <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                <button type="button"
-                  class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm"
-                  @click="handleConfirmAction">
-                  Xác nhận
-                </button>
-                <button type="button"
-                  class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-                  @click="closeConfirmDialog">
-                  Hủy
-                </button>
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                  <button type="button"
+                    class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm"
+                    @click="handleConfirmAction">
+                    Xác nhận
+                  </button>
+                  <button type="button"
+                    class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                    @click="closeConfirmDialog">
+                    Hủy
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </Transition>
-    </Teleport>
+        </Transition>
+      </Teleport>
+    </div>
   </div>
 </template>
 
@@ -259,17 +301,8 @@ const showConfirmDialog = ref(false)
 const confirmDialogTitle = ref('')
 const confirmDialogMessage = ref('')
 const userToDelete = ref(null)
-
-
-// 📌 Pagination
 const currentPage = ref(1)
-const itemsPerPage = ref(5)  
-const totalPages = computed(() => Math.ceil(filteredUsers.value.length / itemsPerPage.value))
-
- 
-
-
-
+const itemsPerPage = ref(10)
 
 const fetchUsers = async () => {
   loading.value = true
@@ -295,7 +328,7 @@ const fetchUsers = async () => {
 }
 
 onMounted(fetchUsers)
- 
+
 const filteredUsers = computed(() => {
   return users.value.filter(user => {
     const q = searchQuery.value.toLowerCase()
@@ -309,30 +342,49 @@ const filteredUsers = computed(() => {
     return byRole && byQuery
   })
 })
+
+const totalPages = computed(() => Math.ceil(filteredUsers.value.length / itemsPerPage.value))
+
 const paginatedUsers = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value
   const end = start + itemsPerPage.value
   return filteredUsers.value.slice(start, end)
 })
 
-watch([filteredUsers, itemsPerPage], () => {
-  currentPage.value = 1 // reset về trang 1 khi filter hoặc thay đổi số dòng
-})
+const maxButtons = 5
 
+const startPage = computed(() =>
+  Math.max(1, currentPage.value - Math.floor(maxButtons / 2))
+)
+
+const endPage = computed(() =>
+  Math.min(totalPages.value, startPage.value + maxButtons - 1)
+)
+
+const visiblePages = computed(() => {
+  const pages = []
+  for (let i = startPage.value; i <= endPage.value; i++) {
+    pages.push(i)
+  }
+  return pages
+})
 
 const toggleSelectAll = () => {
   if (selectAll.value) {
-    selectedUsers.value = filteredUsers.value.map(u => u.id)
+    selectedUsers.value = paginatedUsers.value.map(u => u.id)
   } else {
     selectedUsers.value = []
   }
 }
 
-watch(filteredUsers, () => {
-  if (selectedUsers.value.length === filteredUsers.value.length && filteredUsers.value.length > 0) {
+watch([filteredUsers, currentPage, itemsPerPage], () => {
+  if (selectedUsers.value.length === paginatedUsers.value.length && paginatedUsers.value.length > 0) {
     selectAll.value = true
   } else {
     selectAll.value = false
+  }
+  if (currentPage.value > totalPages.value) {
+    currentPage.value = totalPages.value || 1
   }
 })
 
@@ -351,13 +403,11 @@ const applyBulkAction = async () => {
     if (!role) return
 
     loading.value = true
-   await secureFetch(`${api}/users/batch-add-role`,
-   {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ids: selectedUsers.value, role }),
-  },
-  ['admin'])
+    await secureFetch(`${api}/users/batch-add-role`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: selectedUsers.value, role }),
+    }, ['admin'])
 
     await fetchUsers()
     notificationMessage.value = 'Đã cập nhật vai trò cho người dùng.'
@@ -393,14 +443,13 @@ const statusLabel = {
   banned: 'Đã bị khóa',
 }
 
-
-
 const confirmDelete = (user) => {
   userToDelete.value = user
   confirmDialogTitle.value = 'Xác nhận xoá người dùng'
   confirmDialogMessage.value = `Bạn có chắc chắn muốn xoá người dùng "${user.username}"? Hành động này không thể hoàn tác.`
   showConfirmDialog.value = true
 }
+
 const handleDeleteConfirmed = async () => {
   try {
     await secureFetch(`${api}/users/${userToDelete.value.id}`, {}, ['admin'], {
@@ -417,7 +466,6 @@ const handleDeleteConfirmed = async () => {
     await fetchUsers()
   }
 }
-
 
 const closeConfirmDialog = () => {
   showConfirmDialog.value = false
@@ -460,7 +508,6 @@ const handleConfirmAction = async () => {
     loading.value = false
   }
 }
-
 
 const convertRole = (role) => {
   if (!role) return 'Người dùng'

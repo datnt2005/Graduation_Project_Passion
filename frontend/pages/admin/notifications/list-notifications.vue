@@ -1,4 +1,3 @@
-
 <template>
   <div class="bg-gray-100 text-gray-700 font-sans min-h-screen">
     <div class="max-w-full overflow-x-auto">
@@ -75,14 +74,6 @@
             <option value="">Tất cả kênh</option>
             <option value="web">Web</option>
             <option value="email">Email</option>
-          </select>
-          <select
-            v-model="filterReadStatus"
-            class="rounded-md border border-gray-300 py-1.5 pl-3 pr-8 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="">Tất cả trạng thái đọc</option>
-            <option value="read">Đã đọc</option>
-            <option value="unread">Chưa đọc</option>
           </select>
         </div>
         <div class="ml-auto flex flex-wrap gap-2 items-center">
@@ -175,7 +166,6 @@
             <th class="border px-3 py-2 text-left font-semibold">Kênh gửi</th>
             <th class="border px-3 py-2 text-left font-semibold">Trạng thái</th>
             <th class="border px-3 py-2 text-left font-semibold">Hiển thị</th>
-            <th class="border px-3 py-2 text-left font-semibold">Trạng thái đọc</th>
             <th class="border px-3 py-2 text-left font-semibold">Ngày gửi</th>
             <th class="border px-3 py-2 text-left font-semibold">Thao tác</th>
           </tr>
@@ -236,19 +226,6 @@
                 {{ item.is_hidden ? 'Đã ẩn' : 'Đang hiển thị' }}
               </span>
             </td>
-            <td class="px-3 py-2">
-              <span v-if="item.read_status && item.read_status.length">
-                <span
-                  v-for="(status, index) in item.read_status"
-                  :key="index"
-                  class="inline-block px-2 py-1 text-xs font-semibold rounded mr-1"
-                  :class="status.is_read ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'"
-                >
-                  {{ status.is_read ? `Đã đọc` : `Chưa đọc` }}
-                </span>
-              </span>
-              <span v-else class="text-gray-400 italic">Không có</span>
-            </td>
             <td class="px-3 py-2">{{ formatDate(item.created_at) }}</td>
             <td class="px-3 py-2 relative">
               <button
@@ -273,7 +250,7 @@
             </td>
           </tr>
           <tr v-if="paginatedNotifications.length === 0">
-            <td colspan="12" class="text-center py-4 text-gray-500">Không có thông báo nào</td>
+            <td colspan="11" class="text-center py-4 text-gray-500">Không có thông báo nào</td>
           </tr>
         </tbody>
       </table>
@@ -459,487 +436,497 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
-import { useRouter, useRuntimeConfig } from '#app';
-import { Eye } from 'lucide-vue-next';
-import { secureFetch } from '@/utils/secureFetch';
-import Pagination from '~/components/Pagination.vue';
-import Swal from 'sweetalert2';
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { useRouter, useRuntimeConfig, useCookie } from '#app'
+import { Eye, Pencil, Trash2, Send } from 'lucide-vue-next'
+import { secureFetch } from '@/utils/secureFetch'
+import Pagination from '~/components/Pagination.vue'
 
-definePageMeta({ layout: 'default-seller' });
+definePageMeta({ layout: 'default-admin' })
 
-const config = useRuntimeConfig();
-const apiBase = config.public.apiBaseUrl || 'http://localhost:8000/api';
-const mediaBase = config.public.mediaBaseUrl || '';
-const router = useRouter();
+const config = useRuntimeConfig()
+const apiBase = config.public.apiBaseUrl || ''
+const mediaBase = config.public.mediaBaseUrl || ''
+const router = useRouter()
 
-const notifications = ref([]);
-const activeDropdown = ref(null);
-const showMenuDropdown = ref(false);
-const dropdownPosition = ref({ top: '0px', left: '0px', width: '192px' });
-const showNotification = ref(false);
-const notificationMessage = ref('');
-const notificationType = ref('success');
-const currentPage = ref(1);
-const lastPage = ref(1);
-const perPage = ref(10);
-const sortOrder = ref('desc');
-const filterType = ref('');
-const searchQuery = ref('');
-const totalNotifications = ref(0);
-const userId = ref(null);
-const loading = ref(false);
-const selectedNotificationIds = ref([]);
-const selectAll = ref(false);
-const showModal = ref(false);
-const currentNotification = ref(null);
-
-// Debounce for search
-let debounceTimeout = null;
-const debounceFetchNotifications = () => {
-  clearTimeout(debounceTimeout);
-  debounceTimeout = setTimeout(() => {
-    fetchNotifications(1);
-  }, 300);
-};
+const notifications = ref([])
+const selectedIds = ref([])
+const activeDropdown = ref(null)
+const dropdownPosition = ref({ top: '0px', left: '0px', width: '192px' })
+const showNotification = ref(false)
+const notificationMessage = ref('')
+const notificationType = ref('success')
+const currentPage = ref(1)
+const lastPage = ref(1)
+const perPage = ref(10)
+const filterStatus = ref('')
+const filterDraft = ref('')
+const sortBy = ref('newest')
+const filterType = ref('')
+const filterRole = ref('')
+const filterChannel = ref('')
+const searchQuery = ref('')
+const totalNotifications = ref(0)
+const sentNotifications = ref(0)
+const draftNotifications = ref(0)
+const selectedAction = ref('')
+const loading = ref(false)
+const showConfirmDialog = ref(false)
+const confirmDialogTitle = ref('')
+const confirmDialogMessage = ref('')
+const confirmAction = ref(null)
 
 // Quản lý timeout cho toast
-let notificationTimeout = null;
+let notificationTimeout = null
 
 // Hiển thị thông báo toast
 const showNotificationMessage = (message, type = 'success') => {
-  clearTimeout(notificationTimeout);
-  notificationMessage.value = message;
-  notificationType.value = type;
-  showNotification.value = true;
+  clearTimeout(notificationTimeout)
+  notificationMessage.value = message
+  notificationType.value = type
+  showNotification.value = true
   notificationTimeout = setTimeout(() => {
-    showNotification.value = false;
-  }, 3000);
-};
+    showNotification.value = false
+  }, 3000)
+}
 
-// Toggle menu dropdown
-const toggleMenuDropdown = () => {
-  showMenuDropdown.value = !showMenuDropdown.value;
-};
+// Kiểm tra chọn tất cả
+const isAllSelected = computed(() => selectedIds.value.length === paginatedNotifications.value.length)
 
-// Toggle select all
 const toggleSelectAll = () => {
-  if (selectAll.value) {
-    selectedNotificationIds.value = paginatedNotifications.value.map(item => item.id);
-  } else {
-    selectedNotificationIds.value = [];
-  }
-};
+  selectedIds.value = isAllSelected.value ? [] : paginatedNotifications.value.map(n => n.id)
+}
 
-// Toggle dropdown
+// Đặt bộ lọc
+const setFilter = (type) => {
+  if (type === 'all') {
+    filterStatus.value = ''
+    filterDraft.value = ''
+  } else if (type === 'sent') {
+    filterStatus.value = 'sent'
+    filterDraft.value = ''
+  } else if (type === 'draft') {
+    filterDraft.value = 'draft'
+    filterStatus.value = ''
+  }
+  currentPage.value = 1
+  fetchNotifications()
+}
+
+// Debug dropdown
+const logSelectedAction = () => {
+  console.log('Hành động được chọn:', selectedAction.value)
+}
+
 const toggleDropdown = (id, event) => {
   if (activeDropdown.value === id) {
-    activeDropdown.value = null;
-    return;
+    activeDropdown.value = null
+    return
   }
-  activeDropdown.value = id;
+  activeDropdown.value = id
   nextTick(() => {
-    const button = event.target.closest('button');
+    const button = event.target.closest('button')
     if (button) {
-      const rect = button.getBoundingClientRect();
+      const rect = button.getBoundingClientRect()
       dropdownPosition.value = {
         top: `${rect.bottom + window.scrollY + 8}px`,
         left: `${rect.right + window.scrollX - 192}px`,
-        width: '192px',
-      };
+        width: '192px'
+      }
     }
-  });
-};
+  })
+}
 
 const closeDropdown = (event = null) => {
   if (event && (!event.target.closest('.relative') && !event.target.closest('.absolute'))) {
-    activeDropdown.value = null;
-    showMenuDropdown.value = false;
+    activeDropdown.value = null
   } else if (!event) {
-    activeDropdown.value = null;
-    showMenuDropdown.value = false;
+    activeDropdown.value = null
   }
-};
+}
+
+const viewNotification = (id) => {
+  router.push(`/admin/notifications/view/${id}`)
+}
+
+const editNotification = (id) => {
+  router.push(`/admin/notifications/edit-notifications/${id}`)
+}
+
+const channelLabel = (channel) => ({
+  web: 'Web',
+  email: 'Email'
+})[channel] || channel
 
 const typeLabel = (type) => ({
   order: 'Đơn hàng',
   promotion: 'Khuyến mãi',
   message: 'Tin nhắn',
-  system: 'Hệ thống',
-})[type] || 'Không xác định';
+  system: 'Hệ thống'
+})[type] || 'Không xác định'
+
+const roleLabel = (role) => ({
+  user: 'Người dùng',
+  seller: 'Người bán',
+  admin: 'Quản trị viên'
+})[role] || 'Không xác định'
 
 const formatDate = (dateStr) => {
-  if (!dateStr) return '–';
-  const d = new Date(dateStr);
+  if (!dateStr) return '–'
+  const d = new Date(dateStr)
   return d.toLocaleDateString('vi-VN', {
     day: 'numeric',
     month: 'long',
-    year: 'numeric',
-    timeZone: 'Asia/Ho_Chi_Minh',
-  });
-};
+    year: 'numeric'
+  })
+}
 
 const truncateText = (text, maxLength) => {
-  if (!text) return '';
-  return text.length > maxLength ? text.slice(0, maxLength) + '…' : text;
-};
+  if (!text) return ''
+  return text.length > maxLength ? text.slice(0, maxLength) + '…' : text
+}
 
-// Lấy user_id từ token hoặc API
-const fetchUserId = async () => {
+// Lấy số lượng thông báo
+const fetchNotificationCounts = async () => {
   try {
-    const token = localStorage.getItem('access_token');
-    if (!token) throw new Error('Không tìm thấy token');
-    const response = await secureFetch(`${apiBase}/me`, {
+    const response = await secureFetch(`${apiBase}/notifications`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${localStorage.getItem('access_token') || useCookie('access_token')?.value}`
       },
-      cache: 'no-store',
-    }, ['seller']);
-    userId.value = response.data?.id;
-    console.log('User ID:', userId.value);
+      cache: 'no-store'
+    }, ['admin'])
+    const allNotifications = response.data?.data || response.data || []
+    totalNotifications.value = response.data?.total || allNotifications.length
+    sentNotifications.value = allNotifications.filter(n => n.status === 'sent').length
+    draftNotifications.value = allNotifications.filter(n => n.status === 'draft').length
   } catch (error) {
-    console.error('Lỗi khi lấy user_id:', error);
-    showNotificationMessage('Không thể xác định người dùng. Vui lòng đăng nhập lại.', 'error');
-    router.push('/login');
+    console.error('Lỗi khi lấy số lượng thông báo:', error)
+    showNotificationMessage('Có lỗi khi tải số lượng thông báo', 'error')
   }
-};
-
-// Lấy trạng thái recipient cho một thông báo
-const fetchRecipientStatus = async (notificationId) => {
-  try {
-    const response = await secureFetch(`${apiBase}/notifications/${notificationId}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('access_token')}`,
-      },
-      cache: 'no-store',
-    }, ['seller']);
-    
-    console.log(`Response for notification ${notificationId}:`, response); // Debug
-
-    // Kiểm tra nếu response.data không tồn tại hoặc không có recipients
-    if (!response.data || !response.data.recipients) {
-      console.warn(`No recipients found for notification ${notificationId}`);
-      return { is_read: false, is_hidden: false };
-    }
-
-    const recipient = response.data.recipients.find(r => r.user_id === userId.value);
-    if (!recipient) {
-      console.warn(`No recipient found for user ${userId.value} in notification ${notificationId}`);
-      return { is_read: false, is_hidden: false };
-    }
-
-    return recipient;
-  } catch (error) {
-    console.error(`Error fetching recipient status for ${notificationId}:`, error);
-    return { is_read: false, is_hidden: false }; // Trả về giá trị mặc định để tránh crash
-  }
-};
+}
 
 // Lấy danh sách thông báo
 const fetchNotifications = async (page = 1) => {
-  if (!userId.value) await fetchUserId();
-  if (!userId.value) return;
-
   try {
-    loading.value = true;
-    currentPage.value = page;
+    loading.value = true
+    currentPage.value = page
     const queryParams = new URLSearchParams({
       page: page.toString(),
       per_page: perPage.value.toString(),
-      to_roles: 'seller',
-      user_id: userId.value,
+      ...(filterStatus.value && { status: filterStatus.value }),
+      ...(filterDraft.value && { status: filterDraft.value }),
       ...(filterType.value && { type: filterType.value }),
-      ...(searchQuery.value && { search: searchQuery.value }),
-      sort_order: sortOrder.value,
-    });
-    const endpoint = `${apiBase}/notifications?${queryParams.toString()}`;
+      ...(filterRole.value && { to_roles: filterRole.value }),
+      ...(filterChannel.value && { channels: filterChannel.value }),
+      ...(searchQuery.value && { search: searchQuery.value })
+    })
+    const endpoint = `${apiBase}/notifications?${queryParams.toString()}`
     const data = await secureFetch(endpoint, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('access_token')}`,
+        Authorization: `Bearer ${localStorage.getItem('access_token') || useCookie('access_token')?.value}`
       },
-      cache: 'no-store',
-    }, ['seller']);
-
-    console.log('Notifications API response:', data); // Debug
-
-    if (!data.success || !Array.isArray(data.data)) {
-      throw new Error(data.message || 'Dữ liệu thông báo không hợp lệ');
-    }
-
-    // Gắn trạng thái is_read từ recipients
-    notifications.value = await Promise.all(data.data.map(async (item) => {
-      const recipient = await fetchRecipientStatus(item.id);
-      if (recipient.is_hidden) {
-        console.log(`Notification ${item.id} is hidden for user ${userId.value}`);
-        return null; // Bỏ qua thông báo đã ẩn
-      }
-      return {
-        ...item,
-        is_read: recipient ? recipient.is_read : false,
-        is_hidden: recipient ? recipient.is_hidden : false,
-        content: item.content || '',
-      };
-    }));
-
-    // Lọc bỏ các giá trị null (thông báo đã ẩn)
-    notifications.value = notifications.value.filter(item => item !== null);
-    console.log('Processed notifications:', notifications.value); // Debug
-
-    lastPage.value = data.last_page || 1;
-    totalNotifications.value = data.total || data.data.length;
-    currentPage.value = data.current_page || page;
-
+      cache: 'no-store'
+    }, ['admin'])
+    notifications.value = data.data?.data || data.data || []
+    lastPage.value = Math.ceil((data.data?.total || notifications.value.length) / perPage.value)
+    currentPage.value = data.data?.current_page || page
     if (!notifications.value.length) {
-      showNotificationMessage('Không có thông báo nào', 'info');
+      showNotificationMessage(filterDraft.value === 'draft' ? 'Không có thông báo nháp' : 'Không có thông báo', 'info')
     }
+    await fetchNotificationCounts()
   } catch (error) {
-    console.error('Lỗi khi lấy thông báo:', error);
-    showNotificationMessage(`Có lỗi khi tải thông báo: ${error.message}`, 'error');
-    notifications.value = [];
-    lastPage.value = 1;
-    totalNotifications.value = 0;
+    console.error('Lỗi khi lấy thông báo:', error)
+    showNotificationMessage(`Có lỗi khi tải thông báo: ${error.message}`, 'error')
+    notifications.value = []
   } finally {
-    loading.value = false;
+    loading.value = false
   }
-};
-
-// Xử lý click vào thông báo
-const handleNotificationClick = async (item, action = 'item') => {
-  try {
-    const token = localStorage.getItem('access_token');
-    if (!token) throw new Error('Bạn chưa đăng nhập!');
-
-    if (!item.is_read) {
-      await secureFetch(`${apiBase}/notifications/${item.id}/read`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-      }, ['seller']);
-      notifications.value = notifications.value.map(n =>
-        n.id === item.id ? { ...n, is_read: true } : n
-      );
-    }
-
-    if (action === 'detail') {
-      currentNotification.value = item;
-      showModal.value = true;
-    } else if (item.link) {
-      window.open(item.link, '_blank');
-    } else {
-      currentNotification.value = item;
-      showModal.value = true;
-    }
-  } catch (error) {
-    console.error('Lỗi khi xử lý thông báo:', error);
-    showNotificationMessage(error.message || 'Không thể xử lý thông báo', 'error');
-  }
-};
-
-// Đánh dấu một thông báo là đã đọc
-const markAsRead = async (id) => {
-  try {
-    const token = localStorage.getItem('access_token');
-    if (!token) throw new Error('Bạn chưa đăng nhập!');
-
-    await secureFetch(`${apiBase}/notifications/${id}/read`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-    }, ['seller']);
-
-    notifications.value = notifications.value.map(item =>
-      item.id === id ? { ...item, is_read: true } : item
-    );
-    showNotificationMessage('Đã đánh dấu thông báo là đã đọc', 'success');
-  } catch (error) {
-    console.error('Lỗi khi đánh dấu đã đọc:', error);
-    showNotificationMessage(`Không thể đánh dấu đã đọc: ${error.message}`, 'error');
-  }
-};
-
-// Đánh dấu các thông báo đã chọn là đã đọc
-const markSelectedAsRead = async () => {
-  if (selectedNotificationIds.value.length === 0) return;
-
-  const confirm = await Swal.fire({
-    title: 'Đánh dấu đã đọc?',
-    text: `Bạn có chắc chắn muốn đánh dấu ${selectedNotificationIds.value.length} thông báo là đã đọc?`,
-    icon: 'question',
-    showCancelButton: true,
-    confirmButtonText: 'Đánh dấu',
-    cancelButtonText: 'Hủy',
-    confirmButtonColor: '#3b82f6',
-    cancelButtonColor: '#6b7280',
-  });
-
-  if (!confirm.isConfirmed) return;
-
-  try {
-    const token = localStorage.getItem('access_token');
-    if (!token) throw new Error('Bạn chưa đăng nhập!');
-
-    await secureFetch(`${apiBase}/notifications/mark-multiple-read`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ ids: selectedNotificationIds.value }),
-    }, ['seller']);
-
-    notifications.value = notifications.value.map(item =>
-      selectedNotificationIds.value.includes(item.id) ? { ...item, is_read: true } : item
-    );
-    selectedNotificationIds.value = [];
-    selectAll.value = false;
-    showNotificationMessage('Đã đánh dấu các thông báo đã chọn là đã đọc', 'success');
-  } catch (error) {
-    console.error('Lỗi khi đánh dấu đã đọc:', error);
-    showNotificationMessage(`Không thể đánh dấu đã đọc: ${error.message}`, 'error');
-  }
-};
-
-// Đánh dấu tất cả thông báo là đã đọc
-const markAllAsRead = async () => {
-  const confirm = await Swal.fire({
-    title: 'Đánh dấu đọc tất cả?',
-    text: 'Bạn có chắc chắn muốn đánh dấu tất cả thông báo là đã đọc?',
-    icon: 'question',
-    showCancelButton: true,
-    confirmButtonText: 'Đánh dấu',
-    cancelButtonText: 'Hủy',
-    confirmButtonColor: '#3b82f6',
-    cancelButtonColor: '#6b7280',
-  });
-
-  if (!confirm.isConfirmed) return;
-
-  try {
-    const token = localStorage.getItem('access_token');
-    if (!token) throw new Error('Bạn chưa đăng nhập!');
-
-    await secureFetch(`${apiBase}/notifications/mark-all-read`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-    }, ['seller']);
-
-    notifications.value = notifications.value.map(item => ({ ...item, is_read: true }));
-    selectedNotificationIds.value = [];
-    selectAll.value = false;
-    showNotificationMessage('Đã đánh dấu tất cả là đã đọc', 'success');
-  } catch (error) {
-    console.error('Lỗi khi đánh dấu tất cả đã đọc:', error);
-    showNotificationMessage(`Không thể đánh dấu tất cả là đã đọc: ${error.message}`, 'error');
-  }
-};
-
-// Xóa (ẩn) các thông báo đã chọn
-const deleteSelectedNotifications = async (ids = selectedNotificationIds.value) => {
-  if (ids.length === 0) return;
-
-  const confirm = await Swal.fire({
-    title: 'Xóa thông báo?',
-    text: `Bạn có chắc chắn muốn xóa ${ids.length} thông báo đã chọn?`,
-    icon: 'warning',
-    showCancelButton: true,
-    confirmButtonText: 'Xóa',
-    cancelButtonText: 'Hủy',
-    confirmButtonColor: '#ef4444',
-    cancelButtonColor: '#6b7280',
-  });
-
-  if (!confirm.isConfirmed) return;
-
-  try {
-    const token = localStorage.getItem('access_token');
-    if (!token) throw new Error('Bạn chưa đăng nhập!');
-
-    await secureFetch(`${apiBase}/notifications/delete-multiple`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ ids }),
-    }, ['seller']);
-
-    notifications.value = notifications.value.filter(item => !ids.includes(item.id));
-    selectedNotificationIds.value = selectedNotificationIds.value.filter(id => !ids.includes(id));
-    selectAll.value = false;
-    showNotificationMessage('Đã xóa thông báo đã chọn', 'success');
-    await fetchNotifications(currentPage.value); // Làm mới danh sách
-  } catch (error) {
-    console.error('Lỗi khi xóa thông báo:', error);
-    showNotificationMessage(`Không thể xóa thông báo: ${error.message}`, 'error');
-  }
-};
-
-// Xóa tất cả thông báo
-const deleteAllNotifications = async () => {
-  const confirm = await Swal.fire({
-    title: 'Xóa tất cả thông báo?',
-    text: 'Bạn có chắc chắn muốn xóa tất cả thông báo?',
-    icon: 'warning',
-    showCancelButton: true,
-    confirmButtonText: 'Xóa',
-    cancelButtonText: 'Hủy',
-    confirmButtonColor: '#ef4444',
-    cancelButtonColor: '#6b7280',
-  });
-
-  if (!confirm.isConfirmed) return;
-
-  try {
-    const token = localStorage.getItem('access_token');
-    if (!token) throw new Error('Bạn chưa đăng nhập!');
-
-    await secureFetch(`${apiBase}/notifications/delete-all`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-    }, ['seller']);
-
-    notifications.value = [];
-    selectedNotificationIds.value = [];
-    selectAll.value = false;
-    totalNotifications.value = 0;
-    showNotificationMessage('Đã xóa tất cả thông báo', 'success');
-  } catch (error) {
-    console.error('Lỗi khi xóa tất cả thông báo:', error);
-    showNotificationMessage(`Không thể xóa tất cả thông báo: ${error.message}`, 'error');
-  }
-};
+}
 
 // Lọc và phân trang thông báo
+const filteredNotifications = computed(() => {
+  let result = [...notifications.value]
+  if (filterDraft.value === 'draft') {
+    result = result.filter(n => n.status === 'draft')
+  } else if (filterStatus.value === 'sent') {
+    result = result.filter(n => n.status === 'sent')
+  }
+  if (filterType.value) {
+    result = result.filter(n => n.type === filterType.value)
+  }
+  if (filterRole.value) {
+    result = result.filter(n => n.to_roles?.includes(filterRole.value))
+  }
+  if (filterChannel.value) {
+    result = result.filter(n => n.channels?.includes(filterChannel.value))
+  }
+  if (searchQuery.value) {
+    const query = searchQuery.value.toLowerCase()
+    result = result.filter(n =>
+      n.title?.toLowerCase().includes(query) ||
+      n.content?.toLowerCase().includes(query)
+    )
+  }
+  if (sortBy.value === 'newest') {
+    result.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
+  } else if (sortBy.value === 'oldest') {
+    result.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0))
+  }
+  return result
+})
+
 const paginatedNotifications = computed(() => {
-  const start = (currentPage.value - 1) * perPage.value;
-  const end = start + perPage.value;
-  return notifications.value.slice(start, end);
-});
+  const start = (currentPage.value - 1) * perPage.value
+  const end = start + perPage.value
+  return filteredNotifications.value.slice(start, end)
+})
+
+// Xóa một thông báo
+const confirmDelete = async (id) => {
+  const notification = notifications.value.find(n => n.id === id)
+  if (!notification) {
+    showNotificationMessage('Thông báo không tồn tại', 'error')
+    return
+  }
+  showConfirmationDialog(
+    'Xác nhận xóa thông báo',
+    `Bạn có chắc chắn muốn xóa thông báo "${truncateText(notification.title, 30)}"?`,
+    async () => {
+      try {
+        const token = localStorage.getItem('access_token') || useCookie('access_token')?.value
+        if (!token) throw new Error('Không tìm thấy token')
+        const response = await secureFetch(`${apiBase}/notifications/${id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+          cache: 'no-store'
+        }, ['admin'])
+        showNotificationMessage(response.message || 'Xóa thông báo thành công', 'success')
+        await fetchNotifications(currentPage.value)
+      } catch (err) {
+        console.error('Lỗi khi xóa thông báo:', err)
+        showNotificationMessage(err.message || 'Xóa thông báo thất bại', 'error')
+      }
+    }
+  )
+}
+
+// Xóa nhiều thông báo
+const deleteSelected = async () => {
+  if (selectedIds.value.length === 0) {
+    showNotificationMessage('Vui lòng chọn ít nhất một thông báo', 'error')
+    return
+  }
+  showConfirmationDialog(
+    'Xác nhận xóa nhiều thông báo',
+    `Bạn có chắc chắn muốn xóa ${selectedIds.value.length} thông báo đã chọn?`,
+    async () => {
+      try {
+        loading.value = true
+        const token = localStorage.getItem('access_token') || useCookie('access_token')?.value
+        if (!token) throw new Error('Không tìm thấy token')
+        const response = await secureFetch(`${apiBase}/notifications/destroy-multiple`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({ ids: selectedIds.value }),
+          cache: 'no-store'
+        }, ['admin'])
+        showNotificationMessage(response.message || 'Xóa các thông báo thành công', 'success')
+        selectedIds.value = []
+        await fetchNotifications(currentPage.value)
+      } catch (err) {
+        console.error('Lỗi khi xóa nhiều thông báo:', err)
+        showNotificationMessage(err.message || 'Xóa các thông báo thất bại', 'error')
+      } finally {
+        loading.value = false
+      }
+    }
+  )
+}
+
+// Xóa tất cả thông báo
+const deleteAll = async () => {
+  if (loading.value) return
+  showConfirmationDialog(
+    'Xác nhận xóa tất cả thông báo',
+    'Bạn có chắc chắn muốn xóa tất cả thông báo?',
+    async () => {
+      try {
+        loading.value = true
+        const token = localStorage.getItem('access_token') || useCookie('access_token')?.value
+        if (!token) throw new Error('Không tìm thấy token')
+        const response = await secureFetch(`${apiBase}/notifications/destroy-all`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+          cache: 'no-store'
+        }, ['admin'])
+        showNotificationMessage(response.message || 'Xóa tất cả thông báo thành công', 'success')
+        selectedIds.value = []
+        await fetchNotifications(currentPage.value)
+      } catch (err) {
+        console.error('Lỗi khi xóa tất cả thông báo:', err)
+        showNotificationMessage(err.message || 'Xóa tất cả thông báo thất bại', 'error')
+      } finally {
+        loading.value = false
+      }
+    }
+  )
+}
+
+// Gửi các thông báo đã chọn
+const sendSelected = async () => {
+  if (selectedIds.value.length === 0) {
+    showNotificationMessage('Vui lòng chọn ít nhất một thông báo', 'error')
+    return
+  }
+  showConfirmationDialog(
+    'Xác nhận gửi thông báo',
+    `Bạn có chắc chắn muốn gửi ${selectedIds.value.length} thông báo đã chọn?`,
+    async () => {
+      try {
+        loading.value = true
+        const token = localStorage.getItem('access_token') || useCookie('access_token')?.value
+        if (!token) throw new Error('Không tìm thấy token')
+        const response = await secureFetch(`${apiBase}/notifications/send-multiple`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({ ids: selectedIds.value }),
+          cache: 'no-store'
+        }, ['admin'])
+        showNotificationMessage(response.message || 'Gửi các thông báo thành công', 'success')
+        selectedIds.value = []
+        await fetchNotifications(currentPage.value)
+      } catch (err) {
+        console.error('Lỗi khi gửi các thông báo:', err)
+        showNotificationMessage(err.message || 'Gửi các thông báo thất bại', 'error')
+      } finally {
+        loading.value = false
+      }
+    }
+  )
+}
+
+// Gửi tất cả thông báo
+const sendAllNotifications = async () => {
+  showConfirmationDialog(
+    'Xác nhận gửi tất cả thông báo',
+    'Bạn có chắc chắn muốn gửi tất cả thông báo chưa gửi?',
+    async () => {
+      try {
+        loading.value = true
+        const token = localStorage.getItem('access_token') || useCookie('access_token')?.value
+        if (!token) throw new Error('Không tìm thấy token')
+        const response = await secureFetch(`${apiBase}/notifications/send-all`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          cache: 'no-store'
+        }, ['admin'])
+        showNotificationMessage(response.message || 'Gửi tất cả thông báo thành công', 'success')
+        await fetchNotifications(currentPage.value)
+      } catch (err) {
+        console.error('Lỗi khi gửi tất cả thông báo:', err)
+        showNotificationMessage(err.message || 'Gửi tất cả thông báo thất bại', 'error')
+      } finally {
+        loading.value = false
+      }
+    }
+  )
+}
+
+// Áp dụng hành động hàng loạt
+const applyBulkAction = async () => {
+  if (!selectedAction.value || selectedIds.value.length === 0) {
+    showNotificationMessage('Vui lòng chọn hành động và ít nhất một thông báo', 'error')
+    return
+  }
+  if (selectedAction.value === 'delete') {
+    await deleteSelected()
+  } else if (selectedAction.value === 'send') {
+    await sendSelected()
+  }
+}
+
+// Hiển thị dialog xác nhận
+const showConfirmationDialog = (title, message, action) => {
+  confirmDialogTitle.value = title
+  confirmDialogMessage.value = message
+  confirmAction.value = action
+  showConfirmDialog.value = true
+}
+
+// Đóng dialog xác nhận
+const closeConfirmDialog = () => {
+  showConfirmDialog.value = false
+  confirmAction.value = null
+}
+
+// Xử lý hành động xác nhận
+const handleConfirmAction = async () => {
+  if (confirmAction.value) {
+    await confirmAction.value()
+  }
+  closeConfirmDialog()
+}
 
 onMounted(() => {
-  fetchNotifications();
-  document.addEventListener('click', closeDropdown);
-});
+  fetchNotifications()
+  document.addEventListener('click', closeDropdown)
+})
 
 onUnmounted(() => {
-  document.removeEventListener('click', closeDropdown);
-  clearTimeout(debounceTimeout);
-  clearTimeout(notificationTimeout);
-});
+  document.removeEventListener('click', closeDropdown)
+})
 </script>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+button {
+  position: relative;
+  overflow: hidden;
+}
+button::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  background-image: radial-gradient(circle, #000 10%, transparent 10.01%);
+  background-repeat: no-repeat;
+  background-position: 50%;
+  transform: scale(10, 10);
+  opacity: 0;
+  transition: transform .5s, opacity 1s;
+}
+button:active::after {
+  transform: scale(0, 0);
+  opacity: .2;
+  transition: 0s;
+}
+
+/* Đảm bảo container không ẩn toast */
+.bg-gray-100 {
+  overflow: visible !important;
+}
+</style>

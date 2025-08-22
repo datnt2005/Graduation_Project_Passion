@@ -1,4 +1,5 @@
 import { checkoutPerformance, shippingPerformance } from '~/utils/performance';
+import { nextTick, watch } from 'vue';
 
 export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress, storeNotes) {
   const config = useRuntimeConfig();
@@ -91,6 +92,30 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
     }, 0);
   };
 
+  const getUserInfo = async () => {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      throw new Error('Vui lòng đăng nhập để tiếp tục.');
+    }
+
+    const userRes = await fetch(`${config.public.apiBaseUrl}/me`, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+    });
+    
+    if (!userRes.ok) {
+      if (userRes.status === 401) {
+        localStorage.removeItem('access_token');
+        window.dispatchEvent(new CustomEvent('openLoginModal'));
+        throw new Error('Phiên đăng nhập hết hạn');
+      }
+      throw new Error('Không thể lấy thông tin người dùng');
+    }
+    
+    const { data: userData } = await userRes.json();
+    if (!userData?.id) throw new Error('Không tìm thấy thông tin người dùng');
+    return userData;
+  };
+
   const getCacheKey = (payload) => {
     return `${payload.seller_id}_${payload.from_district_id}_${payload.from_ward_code}_${payload.service_id}_${payload.to_district_id}_${payload.to_ward_code}_${payload.weight}_${payload.height}_${payload.length}_${payload.width}`;
   };
@@ -135,6 +160,69 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
     }
     serviceCache.value.delete(cacheKey);
     return null;
+  };
+
+  // Kiểm tra trạng thái seller có bị cấm hay không
+  const checkSellerStatus = async (sellerId) => {
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        throw new Error('Thiếu access token');
+      }
+
+      const response = await fetch(`${config.public.apiBaseUrl}/sellers/${sellerId}/status`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          toast('error', 'Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.');
+          await logout();
+          await navigateTo('/login');
+          throw new Error('Phiên đăng nhập hết hạn');
+        }
+        throw new Error('Không thể kiểm tra trạng thái seller');
+      }
+
+      const { data } = await response.json();
+      return {
+        is_banned: data.is_banned || false,
+        ban_reason: data.ban_reason || '',
+        status: data.status || 'active'
+      };
+    } catch (err) {
+      console.error(`Lỗi khi kiểm tra trạng thái seller ${sellerId}:`, err);
+      // Nếu không thể kiểm tra, giả sử seller vẫn hoạt động
+      return { is_banned: false, ban_reason: '', status: 'active' };
+    }
+  };
+
+  // Kiểm tra tất cả sellers trong giỏ hàng
+  const checkAllSellersStatus = async () => {
+    const items = isBuyNow.value ? buyNowItems.value : cartItems.value;
+    const sellerIds = [...new Set(items.map(store => store.seller_id).filter(id => id))];
+    
+    const sellerStatuses = {};
+    const bannedSellers = [];
+
+    for (const sellerId of sellerIds) {
+      const status = await checkSellerStatus(sellerId);
+      sellerStatuses[sellerId] = status;
+      
+      if (status.is_banned) {
+        bannedSellers.push({
+          seller_id: sellerId,
+          store_name: items.find(store => store.seller_id === sellerId)?.store_name || 'Cửa hàng',
+          ban_reason: status.ban_reason
+        });
+      }
+    }
+
+    return { sellerStatuses, bannedSellers };
   };
 
   const setCachedServices = (sellerId, fromDistrictId, toDistrictId, services) => {
@@ -518,7 +606,12 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
 
       console.time('calculate-shipping-fees');
       const shippingFeePromises = items.map(async (store) => {
-        if (!store.seller_id || store.shipping_fee > 0) return;
+        if (!store.seller_id) return;
+
+        // Với Buy Now, luôn tính toán phí ship để đảm bảo cập nhật
+        // Với Cart, chỉ tính toán nếu chưa có phí ship
+        const shouldCalculate = isBuyNow.value || store.shipping_fee <= 0;
+        if (!shouldCalculate) return;
 
         const { fee, service_id } = await calculateShippingFee(store.seller_id, sellerAddresses.value[store.seller_id], selectedAddress.value);
 
@@ -602,15 +695,21 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
         } else {
           buyNowData.value = data;
           if (data.seller_id) {
-            fetchSellerAddress(data.seller_id);
-            console.time('[BUY_NOW] fetchSellerAddress');
+            // Fetch seller address và tự động tính phí ship
             fetchSellerAddress(data.seller_id).then(addr => {
+              // Sau khi có địa chỉ seller, luôn gọi loadShippingFees
+              // Nếu có selectedAddress, tính phí ship ngay
+              // Nếu không có, sẽ được tính khi selectedAddress được set
+              if (addr) {
+                nextTick(() => {
+                  if (selectedAddress.value && selectedAddress.value.province_id && selectedAddress.value.district_id) {
+                    loadShippingFees();
+                  }
+                });
+              }
             }).catch(e => {
               console.warn('[BUY_NOW] fetchSellerAddress error:', e);
             });
-            if (data.seller_id) {
-              fetchSellerAddress(data.seller_id);
-            }
           }
         }
       } catch (error) {
@@ -675,6 +774,30 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
       }
     }
 
+    // Khi áp dụng mã giảm giá theo shop, huỷ các mã giảm giá sản phẩm của admin (percentage/fixed)
+    if (discountId) {
+      try {
+        const adminProductDiscounts = selectedDiscounts.value
+          ? selectedDiscounts.value.filter(d => !d.seller_id && (d.discount_type === 'percentage' || d.discount_type === 'fixed'))
+          : [];
+        if (adminProductDiscounts.length > 0) {
+          selectedDiscounts.value = selectedDiscounts.value.filter(
+            d => d.seller_id || d.discount_type === 'shipping_fee'
+          );
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('adminDiscountRemoved', {
+              detail: {
+                discountId: adminProductDiscounts.map(d => d.id),
+                discount: adminProductDiscounts
+              }
+            }));
+          }
+        }
+      } catch (e) {
+        console.warn('Không thể huỷ admin discount khi áp dụng mã shop:', e);
+      }
+    }
+
     shopDiscounts.value[sellerId] = discount;
     if (discountId) {
       shopDiscountIds.value[sellerId] = discountId;
@@ -726,7 +849,7 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
   const getShippingDiscountPerShop = (total, shopCount) => {
     const discount = getShippingDiscount(total);
     if (!discount || !shopCount) return 0;
-    return Math.floor(discount / shopCount);
+    return discount / shopCount; // Bỏ Math.floor để giữ nguyên giá trị thập phân
   };
 
   const getProductDiscountPerShop = (total, shopCount) => {
@@ -813,6 +936,14 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
     const sellerId = buyNowData.value.seller_id;
     const sellerAddress = sellerAddresses.value[sellerId] || {};
     const shippingDiscount = getShippingDiscountPerShop(total.value, 1); // Chỉ 1 shop cho Buy Now
+    
+    // Sử dụng phí ship đã được tính toán từ loadShippingFees
+    // Nếu có service_id trong shopServiceIds, sử dụng phí ship đã tính
+    // Nếu không, sử dụng phí ship từ buyNowData (có thể là 0)
+    const hasCalculatedShipping = shopServiceIds.value[sellerId];
+    const calculatedShippingFee = hasCalculatedShipping ? 
+      (buyNowData.value.shipping_fee || 0) : 0;
+    
     return [{
       seller_id: sellerId || null,
       store_name: buyNowData.value.store_name || '',
@@ -844,9 +975,9 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
       store_total: price * buyNowData.value.quantity,
       discount: getShopDiscount(sellerId),
       selectedDiscountId: getShopDiscountId(sellerId),
-      shipping_fee: buyNowData.value.shipping_fee || 0,
-      original_shipping_fee: buyNowData.value.shipping_fee || 0,
-      service_id: buyNowData.value.service_id || null,
+      shipping_fee: calculatedShippingFee,
+      original_shipping_fee: calculatedShippingFee,
+      service_id: shopServiceIds.value[sellerId] || buyNowData.value.service_id || null,
       shipping_discount: shippingDiscount, // Áp dụng mã giảm giá vận chuyển
     }];
   });
@@ -944,33 +1075,21 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
     if (isPlacingOrder.value) return;
 
     if (isAccountBanned.value) {
-      toast('error', 'Tài khoản của bạn đã bị khóa do có quá nhiều đơn hàng bị từ chối nhận.');
-      return;
+      throw new Error('Tài khoản của bạn đã bị khóa do có quá nhiều đơn hàng bị từ chối nhận.');
     }
 
-    const items = isBuyNow.value ? buyNowItems.value : cartItems.value;
-    if (!items || !items.length) {
-      toast('error', 'Giỏ hàng trống hoặc chưa chọn sản phẩm.');
-      return;
-    }
-    if (!selectedPaymentMethod.value) {
-      toast('error', 'Vui lòng chọn phương thức thanh toán.');
-      return;
+    // Kiểm tra role của user
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      window.dispatchEvent(new CustomEvent('openLoginModal'));
+      throw new Error('Vui lòng đăng nhập để tiếp tục.');
     }
 
-    isPlacingOrder.value = true;
     try {
-      const token = localStorage.getItem('access_token');
-      if (!token) {
-        toast('error', 'Vui lòng đăng nhập để tiếp tục.');
-        window.dispatchEvent(new CustomEvent('openLoginModal'));
-        return;
-      }
-
-      // Lấy thông tin user
       const userRes = await fetch(`${config.public.apiBaseUrl}/me`, {
         headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
       });
+      
       if (!userRes.ok) {
         if (userRes.status === 401) {
           localStorage.removeItem('access_token');
@@ -979,8 +1098,59 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
         }
         throw new Error('Không thể lấy thông tin người dùng');
       }
+      
       const { data: userData } = await userRes.json();
       if (!userData?.id) throw new Error('Không tìm thấy thông tin người dùng');
+
+      // Kiểm tra role - không cho phép admin hoặc seller đặt hàng
+      if (userData.role === 'admin' || userData.role === 'seller') {
+        throw new Error('Tài khoản admin và seller không thể đặt hàng. Vui lòng sử dụng tài khoản khách hàng.');
+      }
+    } catch (err) {
+      if (err.message.includes('admin và seller không thể đặt hàng')) {
+        throw err;
+      }
+      console.error('Lỗi khi kiểm tra role user:', err);
+      throw new Error('Không thể xác thực quyền đặt hàng');
+    }
+
+    const items = isBuyNow.value ? buyNowItems.value : cartItems.value;
+    if (!items || !items.length) {
+      throw new Error('Giỏ hàng trống hoặc chưa chọn sản phẩm.');
+    }
+    if (!selectedPaymentMethod.value) {
+      throw new Error('Vui lòng chọn phương thức thanh toán.');
+    }
+    
+    if (!selectedAddress.value || !selectedAddress.value.district_id || !selectedAddress.value.ward_code) {
+      throw new Error('Vui lòng chọn địa chỉ giao hàng.');
+    }
+
+    // Kiểm tra trạng thái tất cả sellers trước khi đặt hàng
+    const { bannedSellers } = await checkAllSellersStatus();
+    if (bannedSellers.length > 0) {
+      const bannedStoreNames = bannedSellers.map(s => s.store_name).join(', ');
+      const banReasons = bannedSellers.map(s => s.ban_reason).filter(r => r).join('; ');
+      
+      let errorMessage = `Không thể đặt hàng vì các cửa hàng sau đã bị cấm: ${bannedStoreNames}`;
+      if (banReasons) {
+        errorMessage += `. Lý do: ${banReasons}`;
+      }
+      
+      throw new Error(errorMessage);
+    }
+    
+    // Kiểm tra xem tất cả các shop đã có phí ship chưa
+    for (const store of items) {
+      if (!store.shipping_fee || !store.service_id) {
+        throw new Error('Vui lòng chờ phí vận chuyển được tính toán hoàn tất.');
+      }
+    }
+
+    isPlacingOrder.value = true;
+    try {
+      // Lấy thông tin user (đã được kiểm tra ở đầu function)
+      const userData = await getUserInfo();
 
       // Xử lý phí ship trước
       if (isBuyNow.value) {
@@ -1018,6 +1188,19 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
       const storeShippingFees = {};
       const storeServiceIds = {};
       const storeDiscounts = {};
+      
+      // Chuẩn hoá danh sách discount_ids: ưu tiên shop voucher nếu có, vẫn cho phép mã phí ship admin
+      const adminProductDiscountIds = selectedDiscounts.value
+        .filter(d => !d.seller_id && (d.discount_type === 'percentage' || d.discount_type === 'fixed'))
+        .map(d => d.id);
+      const adminShippingDiscountIds = selectedDiscounts.value
+        .filter(d => !d.seller_id && d.discount_type === 'shipping_fee')
+        .map(d => d.id);
+      const shopProductDiscountIds = Object.values(shopDiscountIds.value || {});
+      const productDiscountIdsToSend = (shopProductDiscountIds && shopProductDiscountIds.length > 0)
+        ? shopProductDiscountIds
+        : adminProductDiscountIds;
+      const discountIds = Array.from(new Set([...(productDiscountIdsToSend || []), ...(adminShippingDiscountIds || [])]));
 
       if (isBuyNow.value) {
         const store = buyNowItems.value?.[0];
@@ -1056,7 +1239,7 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
           seller_id: store.seller_id,
           shipping_fee: store.shipping_fee,
           service_id: store.service_id,
-          shipping_discount: store.shipping_discount || 0, // Thêm shipping_discount
+          // Bỏ shipping_discount vì đã được tính vào shipping_fee rồi
         });
 
         storeShippingFees[store.seller_id] = store.shipping_fee;
@@ -1076,7 +1259,7 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
               seller_id: store.seller_id,
               shipping_fee: shippingFee,
               service_id: serviceId,
-              shipping_discount: store.shipping_discount || 0, // Thêm shipping_discount
+              // Bỏ shipping_discount vì đã được tính vào shipping_fee rồi
             });
           });
           storeShippingFees[store.seller_id] = shippingFee;
@@ -1094,7 +1277,7 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
         receiver_name: selectedAddress.value?.name || userData.name,
         receiver_phone: selectedAddress.value?.phone || '',
         payment_method: selectedPaymentMethod.value,
-        discount_ids: selectedDiscounts.value.map(d => d.id),
+        discount_ids: discountIds,
         items: allItems,
         ward_id: selectedAddress.value?.ward_code || null,
         district_id: selectedAddress.value?.district_id || null,
@@ -1108,6 +1291,17 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
       };
 
       console.log('Dữ liệu đơn hàng gửi API:', orderData); // Log để debug
+      console.log('Shipping discount debug - Frontend:', {
+        'selectedDiscounts': selectedDiscounts.value,
+        'shippingDiscounts': selectedDiscounts.value.filter(d => d.discount_type === 'shipping_fee'),
+        'total': total.value,
+        'shopCount': items.length,
+        'itemsShippingDiscounts': items.map(store => ({
+          seller_id: store.seller_id,
+          shipping_discount: store.shipping_discount,
+          discount: store.discount
+        }))
+      });
 
       const orderResponse = await fetch(`${config.public.apiBaseUrl}/orders`, {
         method: 'POST',
@@ -1219,6 +1413,16 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
   loadBuyNowData();
   checkCodEligibility();
 
+  // Watch selectedAddress để tự động tính phí ship cho Buy Now
+  watch(selectedAddress, async (newAddress) => {
+    if (isBuyNow.value && buyNowData.value && newAddress && newAddress.province_id && newAddress.district_id) {
+      console.log('[BUY_NOW] Address changed, triggering loadShippingFees');
+      // Đợi một chút để đảm bảo sellerAddresses đã được cập nhật
+      await nextTick();
+      await loadShippingFees();
+    }
+  });
+
   return {
     cartItems,
     buyNowItems,
@@ -1278,6 +1482,9 @@ export function useCheckout(shippingRef, selectedShippingMethod, selectedAddress
     isPlacingOrder,
     isCheckoutCalculatingShipping,
     removeShopDiscount,
-    recalculateAllShopDiscounts
+    recalculateAllShopDiscounts,
+    getUserInfo,
+    checkSellerStatus,
+    checkAllSellersStatus
   };
 }

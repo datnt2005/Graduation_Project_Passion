@@ -47,23 +47,23 @@
             <div class="mt-4 text-left text-sm space-y-1">
               <div class="flex justify-between">
                 <span>Tổng tiền hàng:</span>
-                <span>{{ formatPrice(order.total_price) }}</span>
+                <span>{{ formatPrice(order.total_price) }}đ</span>
               </div>
               <div class="flex justify-between" v-if="order.discount_price > 0">
                 <span>Giảm giá sản phẩm:</span>
-                <span class="text-green-600">- {{ formatPrice(order.discount_price) }}</span>
+                <span class="text-green-600">- {{ formatPrice(order.discount_price) }}đ</span>
               </div>
               <div class="flex justify-between">
                 <span>Phí vận chuyển:</span>
-                <span>{{ formatPrice(order.shipping?.shipping_fee) }}</span>
+                <span>{{ formatPrice(order.shipping?.shipping_fee) }}đ</span>
               </div>
               <div class="flex justify-between" v-if="order.shipping && order.shipping.shipping_discount > 0">
                 <span>Giảm giá phí ship:</span>
-                <span class="text-green-600">- {{ formatPrice(order.shipping.shipping_discount) }}</span>
+                <span class="text-green-600">- {{ formatPrice(order.shipping.shipping_discount) }}đ</span>
               </div>
               <div class="flex justify-between font-bold border-t pt-2 mt-2">
                 <span>Tổng thanh toán:</span>
-                <span class="text-blue-700">{{ formatPrice(order.final_price || 0) }}</span>
+                <span class="text-blue-700">{{ formatPrice(order.final_price || 0) }}đ</span>
               </div>
             </div>
             <!-- Danh sách sản phẩm đã đặt (nếu có) -->
@@ -82,9 +82,9 @@
                   <div class="flex-1">
                     <div class="font-semibold text-gray-900">{{ item.product?.name || '-' }}</div>
                     <div v-if="item.variant && item.variant.name" class="text-xs text-gray-500">Phân loại: {{ item.variant.name }}</div>
-                    <div class="text-xs text-gray-500">Số lượng: {{ item.quantity }} × {{ formatPrice(item.price) }}</div>
+                    <div class="text-xs text-gray-500">Số lượng: {{ item.quantity }} × {{ formatPrice(item.price) }}đ</div>
                   </div>
-                  <div class="font-bold text-blue-700">{{ formatPrice(item.total) }}</div>
+                  <div class="font-bold text-blue-700">{{ formatPrice(item.total) }}đ</div>
                 </div>
               </div>
             </div>
@@ -128,6 +128,7 @@
             Xem Chi Tiết Đơn Hàng
           </NuxtLink>
         </div>
+        <p class="mt-4 text-sm text-gray-500">Trang sẽ tự chuyển về trang chủ sau <span class="font-semibold">{{ countdown }}</span>s.</p>
       </div>
 
       <!-- Thất bại -->
@@ -141,6 +142,7 @@
         <NuxtLink to="/checkout" class="mt-6 inline-block bg-gradient-to-r from-gray-500 to-gray-600 text-white px-8 py-3 rounded-full font-semibold text-lg hover:from-gray-600 hover:to-gray-700 transition-all duration-300 shadow-md hover:shadow-lg">
           Thử Lại
         </NuxtLink>
+        <p class="mt-4 text-sm text-gray-500">Trang sẽ tự chuyển về trang chủ sau <span class="font-semibold">{{ countdown }}</span>s.</p>
       </div>
     </div>
   </div>
@@ -180,6 +182,20 @@ const provinces = ref([])
 const districts = ref([])
 const wards = ref([])
 let countdownInterval = null
+
+const processedKey = ref('')
+
+const startRedirectCountdown = () => {
+  try { clearInterval(countdownInterval) } catch {}
+  countdown.value = 10
+  countdownInterval = setInterval(() => {
+    countdown.value -= 1
+    if (countdown.value <= 0) {
+      clearInterval(countdownInterval)
+      router.push('/')
+    }
+  }, 1000)
+}
 
 const formatPrice = (price) => {
   if (!price) return '0'
@@ -338,6 +354,18 @@ onMounted(async () => {
     // Kiểm tra resultCode từ MoMo
     const resultCode = route.query.resultCode;
     console.log('MoMo resultCode:', resultCode);
+
+    // Ngăn reload spam (đã xử lý giao dịch này rồi thì bỏ qua và chuyển hướng sau 10s)
+    const keyParts = ['momo', resultCode || '', (orderIds && orderIds.length ? orderIds.join('_') : ''), route.query.transId || route.query.orderId || route.query.requestId || '']
+    processedKey.value = `payment_processed_${keyParts.filter(Boolean).join('_')}`
+    if (processedKey.value && sessionStorage.getItem(processedKey.value)) {
+      console.log('Momo return already processed, skipping API calls.')
+      loading.value = false
+      success.value = (resultCode === '0')
+      message.value = success.value ? 'Thanh toán đã được xử lý.' : (route.query.message || 'Thanh toán thất bại')
+      startRedirectCountdown()
+      return
+    }
     
     if (resultCode === '0') {
       // Thanh toán thành công
@@ -444,18 +472,24 @@ onMounted(async () => {
       }
       
       loading.value = false;
+      if (processedKey.value) sessionStorage.setItem(processedKey.value, '1')
+      startRedirectCountdown()
     } else {
       // Thanh toán thất bại
       success.value = false;
       message.value = route.query.message || 'Thanh toán thất bại';
       console.log('Payment failed:', route.query.message);
       loading.value = false;
+      if (processedKey.value) sessionStorage.setItem(processedKey.value, '1')
+      startRedirectCountdown()
     }
   } catch (error) {
     console.error('Error processing MoMo payment:', error);
     success.value = false;
     loading.value = false;
     message.value = error.message || 'Có lỗi xảy ra khi xác minh thanh toán';
+    if (processedKey.value) sessionStorage.setItem(processedKey.value, '1')
+    startRedirectCountdown()
   }
 })
 

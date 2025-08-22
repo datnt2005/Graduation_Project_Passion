@@ -118,7 +118,7 @@
                         <span v-if="errors.variants" class="text-red-500 text-xs mt-1 block">
                           {{ errors.variants }}
                         </span>
-                        <div v-for="(variant, index) in formData.variants" :key="index" class="border p-4 rounded">
+                        <div v-for="(variant, index) in formData.variants" :key="variant.id || index" class="border p-4 rounded">
                           <div class="flex justify-between items-center mb-2">
                             <h3 class="font-semibold">Biến thể {{ index + 1 }}</h3>
                             <button v-if="formData.variants.length > 1" @click="removeVariant(index)"
@@ -219,12 +219,12 @@
 
                     <!-- Inventory Tab -->
                     <div v-if="activeTab === 'inventory'">
-                      <div v-for="(variant, index) in formData.variants" :key="index" class="border p-4 rounded mb-4">
+                      <div v-for="(variant, index) in formData.variants" :key="variant.id || index" class="border p-4 rounded mb-4">
                         <h3 class="font-semibold mb-2">Biến thể {{ index + 1 }}</h3>
                         <span v-if="errors[`variants.${index}.inventory`]" class="text-red-500 text-xs mb-2 block">{{
                           errors[`variants.${index}.inventory`]
                         }}</span>
-                        <div v-for="(inv, invIndex) in variant.inventory" :key="invIndex" class="space-y-2 mb-4">
+                        <div v-for="(inv, invIndex) in variant.inventory" :key="inv.id || invIndex" class="space-y-2 mb-4">
                           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <!-- Số lượng -->
                             <div class="flex-1">
@@ -284,7 +284,7 @@
                           </button>
                         </div>
                         <button type="button" class="text-blue-700 underline text-xs"
-                          @click="variant.inventory.push({ quantity: 0, location: '', batch_number: '', import_source: '', note: '' })">
+                          @click="variant.inventory.push({ id: null, quantity: 0, location: '', batch_number: '', import_source: '', note: '' })">
                           Thêm kho
                         </button>
                       </div>
@@ -319,7 +319,7 @@
                     </div>
                   </div>
                   <div v-if="formData.images.length" class="grid grid-cols-2 gap-2 mt-2">
-                    <div v-for="(img, index) in formData.images" :key="index" class="relative">
+                    <div v-for="(img, index) in formData.images" :key="img.id || index" class="relative">
                       <img :src="img.url" alt="Hình ảnh sản phẩm" class="w-full h-20 object-cover rounded" />
                       <button type="button"
                         class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
@@ -498,7 +498,7 @@
     <!-- Notification Popup -->
     <Teleport to="body">
       <Transition enter-active-class="transition ease-out duration-200" enter-from-class="transform opacity-0 scale-95"
-        enter-to-class="transform opacity-100 scale-100" leave-active-class="transition ease-in duration-200"
+        enter-to-class="transform opacity-100 scale-100" leave-active-class="transition ease-in duration-100"
         leave-from-class="transform opacity-100 scale-100" leave-to-class="transform opacity-0 scale-95">
         <div v-if="showNotification"
           class="fixed bottom-4 right-4 rounded-lg shadow-xl border p-4 flex items-center space-x-3 z-50"
@@ -541,8 +541,8 @@ import { useRouter, useRoute } from 'vue-router';
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
 import { library } from '@fortawesome/fontawesome-svg-core';
 import { faChevronUp, faChevronDown } from '@fortawesome/free-solid-svg-icons';
-import { secureFetch } from '@/utils/secureFetch' 
-import TiptapEditor from '@/components/TiptapEditor.vue'
+import { secureFetch } from '@/utils/secureFetch';
+import TiptapEditor from '@/components/TiptapEditor.vue';
 
 library.add(faChevronUp, faChevronDown);
 
@@ -561,21 +561,21 @@ const activeDropdown = ref(null);
 const categorySearch = ref('');
 const tagSearch = ref('');
 const errors = reactive({});
-const apiErrors = reactive({
-  products: null,
-  categories: null,
-  tags: null,
-  attributes: null,
-});
-const showAddAttributeModal = ref(false);
 const fileInput = ref(null);
 const removedImages = ref([]);
 const config = useRuntimeConfig();
 const apiBase = config.public.apiBaseUrl;
 const mediaBase = config.public.mediaBaseUrl;
+
+const apiErrors = reactive({
+  categories: null,
+  tags: null,
+  attributes: null,
+});
+const showAddAttributeModal = ref(false);
 const newAttribute = reactive({
   name: '',
-  values: [''],
+  values: ['']
 });
 const newAttributeErrors = reactive({});
 
@@ -599,7 +599,7 @@ const formData = reactive({
       thumbnailFile: null
     }
   ],
-  images: [],
+  images: []
 });
 
 const panels = ref({
@@ -624,70 +624,58 @@ const extractArray = (data, key) => {
 const fetchProduct = async () => {
   try {
     loading.value = true;
-    const data = await secureFetch(`${apiBase}/products/${route.params.id}`, {
-      headers: {
-        Accept: 'application/json',
-      }
-    } , ['seller']);
-    if (!data) {
-      throw new Error('Invalid product data');
-    }
-    const product = data.data || data || {};
-
-    if (!product.id) {
-      throw new Error('Invalid product data');
-    }
-
-    // Populate formData
+    const response = await secureFetch(`${apiBase}/products/${route.params.id}`, {
+      headers: { Accept: 'application/json' }
+    }, ['seller']);
+    if (!response.success) throw new Error(`HTTP error! status: ${response.status}`);
+    const product = response.data || response;
+    
     formData.id = product.id;
     formData.name = product.name || '';
     formData.slug = product.slug || '';
     formData.description = product.description || '';
     formData.status = product.status || 'active';
-    formData.categories = product.categories?.map(c => c.id) || [];
-    formData.tags = product.tags?.map(t => t.id) || [];
-    formData.images = product.product_pic?.length ?
-      product.product_pic.map(img => ({
-        id: img.id,
-        url: `${mediaBase}${img.imagePath}`,
-        file: null
-      })) : [];
+    formData.categories = Array.isArray(product.categories) ? product.categories.map(c => c.id) : [];
+    formData.tags = Array.isArray(product.tags) ? product.tags.map(t => t.id) : [];
+    formData.images = Array.isArray(product.product_pic) ? product.product_pic.map(img => ({
+      id: img.id,
+      url: img.imagePath.startsWith('http') ? img.imagePath : `${mediaBase}${img.imagePath}`,
+      file: null
+    })) : [];
+    
+    formData.variants = Array.isArray(product.product_variants) && product.product_variants.length ? product.product_variants.map(variant => ({
+      id: variant.id,
+      price: parseFloat(variant.price) || 0,
+      sale_price: variant.sale_price !== null ? parseFloat(variant.sale_price) : null,
+      cost_price: parseFloat(variant.cost_price) || 0,
+      thumbnail: variant.thumbnail ? (variant.thumbnail.startsWith('http') ? variant.thumbnail : `${mediaBase}${variant.thumbnail}`) : null,
+      thumbnailFile: null,
+      attributes: Array.isArray(variant.attributes) ? variant.attributes.map(attr => ({
+        attribute_id: attr.id,
+        value_id: attr.pivot?.value_id || ''
+      })) : [{ attribute_id: '', value_id: '' }],
+      inventory: Array.isArray(variant.inventories) ? variant.inventories.map(inv => ({
+        id: inv.id,
+        quantity: parseInt(inv.quantity) || 0,
+        location: inv.location || '',
+        batch_number: inv.batch_number || '',
+        import_source: inv.import_source || '',
+        note: inv.note || ''
+      })) : [{ id: null, quantity: 0, location: '', batch_number: '', import_source: '', note: '' }]
+    })) : [{
+      id: null,
+      price: 0,
+      sale_price: null,
+      cost_price: 0,
+      attributes: [{ attribute_id: '', value_id: '' }],
+      inventory: [{ id: null, quantity: 0, location: '', batch_number: '', import_source: '', note: '' }],
+      thumbnail: null,
+      thumbnailFile: null
+    }];
 
-    formData.variants = product.product_variants?.length ?
-      product.product_variants.map(variant => ({
-        id: variant.id,
-        price: parseFloat(variant.price) || 0,
-        sale_price: variant.sale_price !== null ? parseFloat(variant.sale_price) : null,
-        cost_price: parseFloat(variant.cost_price) || 0,
-        thumbnail: variant.thumbnail ? `${mediaBase}${variant.thumbnail}` : null,
-        thumbnailFile: null,
-        attributes: variant.attributes?.map(attr => ({
-          attribute_id: attr.id,
-          value_id: attr.pivot.value_id,
-        })) || [{ attribute_id: '', value_id: '' }],
-        inventory: variant.inventories?.map(inv => ({
-          id: inv.id,
-          quantity: inv.quantity || 0,
-          location: inv.location || '',
-          batch_number: inv.batch_number || '',
-          import_source: inv.import_source || '',
-          note: inv.note || ''
-        })) || [{ id: null, quantity: 0, location: '', batch_number: '', import_source: '', note: '' }],
-      })) : [
-        {
-          id: null,
-          price: 0,
-          sale_price: null,
-          cost_price: 0,
-          thumbnail: null,
-          thumbnailFile: null,
-          attributes: [{ attribute_id: '', value_id: '' }],
-          inventory: [{ id: null, quantity: 0, location: '', batch_number: '', import_source: '', note: '' }],
-        }
-      ];
   } catch (error) {
     console.error('Error fetching product:', error);
-    showNotificationMessage('Không thể tải sản phẩm.', 'error');
+    showNotificationMessage('Không thể tải dữ liệu sản phẩm. Vui lòng thử lại.', 'error');
     router.push('/seller/products/list-product');
   } finally {
     loading.value = false;
@@ -697,13 +685,11 @@ const fetchProduct = async () => {
 // Fetch data with error handling
 const fetchCategories = async () => {
   try {
-    const data = await secureFetch(`${apiBase}/categories`, {
-      headers: {
-        Accept: 'application/json',
-      }
-    } , ['seller']);
-    if (!data.success) throw new Error(`HTTP error! status: ${data.status}`);
-    const categoryArray = extractArray(data, 'data');
+    const response = await secureFetch(`${apiBase}/categories`, {
+      headers: { Accept: 'application/json' }
+    }, ['seller']);
+    if (!response.success) throw new Error(`HTTP error! status: ${response.status}`);
+    const categoryArray = extractArray(response, 'data');
     if (categoryArray.length) {
       categories.value = categoryArray.map(item => ({
         id: item.id,
@@ -715,19 +701,17 @@ const fetchCategories = async () => {
     }
   } catch (error) {
     console.error('Error fetching categories:', error);
-    apiErrors.categories = 'Không thể tải danh sách danh mục. Vui lòng kiểm tra kết nối hoặc API.';
+    apiErrors.categories = 'Không thể tải danh sách danh mục. Vui lòng thử lại.';
   }
 };
 
 const fetchTags = async () => {
   try {
-    const data = await secureFetch(`${apiBase}/tags`, {
-      headers: {
-        Accept: 'application/json',
-      }
-    } , ['seller']);
-    if (!data.success) throw new Error(`HTTP error! status: ${data.status}`);
-    const tagArray = extractArray(data, 'tags');
+    const response = await secureFetch(`${apiBase}/tags`, {
+      headers: { Accept: 'application/json' }
+    }, ['seller']);
+    if (!response.success) throw new Error(`HTTP error! status: ${response.status}`);
+    const tagArray = extractArray(response, 'tags');
     if (tagArray.length) {
       tags.value = tagArray.map(item => ({
         id: item.id,
@@ -739,28 +723,26 @@ const fetchTags = async () => {
     }
   } catch (error) {
     console.error('Error fetching tags:', error);
-    apiErrors.tags = 'Không thể tải danh sách thẻ. Vui lòng kiểm tra kết nối hoặc API.';
+    apiErrors.tags = 'Không thể tải danh sách thẻ. Vui lòng thử lại.';
   }
 };
 
 const fetchAttributes = async () => {
   try {
-    const data = await secureFetch(`${apiBase}/attributes`, {
-      headers: {
-        Accept: 'application/json',
-      }
-    } , ['seller']);
-    if (!data.success) throw new Error(`HTTP error! status: ${data.status}`);
-    const attributeArray = extractArray(data, 'data');
+    const response = await secureFetch(`${apiBase}/attributes`, {
+      headers: { Accept: 'application/json' }
+    }, ['seller']);
+    if (!response.success) throw new Error(`HTTP error! status: ${response.status}`);
+    const attributeArray = extractArray(response, 'data');
     if (attributeArray.length) {
       attributes.value = attributeArray.map(attr => ({
         id: attr.id,
         name: attr.name || attr.title || 'Không có tên',
         values: Array.isArray(attr.values)
           ? attr.values.map(val => ({
-            id: val.id,
-            name: val.value || val.name || 'Không có giá trị'
-          }))
+              id: val.id,
+              name: val.value || val.name || 'Không có giá trị'
+            }))
           : []
       }));
       apiErrors.attributes = null;
@@ -769,7 +751,7 @@ const fetchAttributes = async () => {
     }
   } catch (error) {
     console.error('Error fetching attributes:', error);
-    apiErrors.attributes = 'Không thể tải danh sách thuộc tính. Vui lòng kiểm tra kết nối hoặc API.';
+    apiErrors.attributes = 'Không thể tải danh sách thuộc tính. Vui lòng thử lại.';
   }
 };
 
@@ -807,40 +789,40 @@ const createAttribute = async () => {
 
   try {
     loading.value = true;
-    const data = await secureFetch(`${apiBase}/attributes`, {
+    const response = await secureFetch(`${apiBase}/attributes`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Accept: 'application/json',
+        Accept: 'application/json'
       },
       body: JSON.stringify(attributeData)
-    } , ['seller']);
+    }, ['seller']);
 
-    if (data.success) {
-      const newAttr = data.data || data;
+    if (response.success) {
+      const newAttr = response.data || response;
       attributes.value.push({
         id: newAttr.id,
         name: newAttr.name,
         values: Array.isArray(newAttr.values)
           ? newAttr.values.map(val => ({
-            id: val.id,
-            name: val.value
-          }))
+              id: val.id,
+              name: val.value
+            }))
           : []
       });
       showNotificationMessage('Tạo thuộc tính thành công!', 'success');
       closeAddAttributeModal();
     } else {
-      showNotificationMessage(data.message || 'Có lỗi khi tạo thuộc tính.', 'error');
-      if (data.errors) {
-        Object.entries(data.errors).forEach(([key, value]) => {
+      showNotificationMessage(response.message || 'Có lỗi khi tạo thuộc tính.', 'error');
+      if (response.errors) {
+        Object.entries(response.errors).forEach(([key, value]) => {
           newAttributeErrors[key] = Array.isArray(value) ? value[0] : value;
         });
       }
     }
   } catch (error) {
     console.error('Error creating attribute:', error);
-    showNotificationMessage('Có lỗi kết nối khi tạo thuộc tính.', 'error');
+    showNotificationMessage(error.message || 'Có lỗi kết nối khi tạo thuộc tính.', 'error');
   } finally {
     loading.value = false;
   }
@@ -876,21 +858,25 @@ const getAttributeValues = (attributeId) => {
   return attribute ? attribute.values : [];
 };
 
+const thumbnailCount = computed(() => formData.variants.filter(v => v.thumbnailFile).length);
+
+const totalFileCount = computed(() => formData.images.filter(img => img.file).length + thumbnailCount.value);
+
 // Vietnamese tone removal
 const removeVietnameseTones = (str) => {
-  str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ệ|Ậ|Ẫ|ă|ă|ắ|ặ|ẳ|Ắ/g, "a");
+  str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ệ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, "a");
   str = str.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g, "e");
   str = str.replace(/ì|í|ị|ỉ|ĩ/g, "i");
   str = str.replace(/ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ/g, "o");
   str = str.replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g, "u");
   str = str.replace(/ỳ|ý|ỵ|ỷ|ỹ/g, "y");
   str = str.replace(/đ/g, "d");
-  str = str.replace(/À|Á|Ạ|Ả|Ã|Â|Ầ|Ẩ|Ẫ|Ă|Ằ|Ắ|Ặ|Ẳ|Ẵ/g, "A");
+  str = str.replace(/À|Á|Ạ|Ả|Ã|Â|Ầ|Ấ|Ậ|Ẩ|Ẫ|Ă|Ằ|Ắ|Ặ|Ẳ|Ẵ/g, "A");
   str = str.replace(/È|É|Ẹ|Ẻ|Ẽ|Ê|Ề|Ế|Ệ|Ể|Ẽ/g, "E");
-  str = str.replace(/Ì|Í|Ị|Í|Ĩ/g, "I");
-  str = str.replace(/Ò|Ó|Ọ|Ỏ|Õ|Ô|Ồ|Ố|Ộ|Ổ|Ỗ|Ờ|Ớ|Ợ|Ở|Ợ/g, "O");
+  str = str.replace(/Ì|Í|Ị|Ĩ|Í/g, "I");
+  str = str.replace(/Ò|Ó|Ọ|Ỏ|Õ|Ô|Ồ|Ố|Ộ|Ổ|Ỗ|Ơ|Ờ|Ớ|Ợ|Ở|Ỡ/g, "O");
   str = str.replace(/Ù|Ú|Ụ|Ủ|Ũ|Ư|Ừ|Ứ|Ự|Ử|Ữ/g, "U");
-  str = str.replace(/Ỳ|Ý|Ỵ|Ỷ|Ỹ/g, "Y");
+  str = str.replace(/Ý|Ỳ|ỵ|Ỷ|Ỹ/g, "Y");
   str = str.replace(/Đ/g, "D");
   return str;
 };
@@ -910,7 +896,7 @@ const processFiles = (files) => {
   files.forEach((file) => {
     if (['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'image/svg+xml', 'image/webp'].includes(file.type) && file.size <= 4048 * 1024) {
       const url = URL.createObjectURL(file);
-      formData.images.push({ file, url, id: '' });
+      formData.images.push({ file, url, id: null });
       delete errors.images;
     } else {
       errors.images = 'Hình ảnh không hợp lệ hoặc vượt quá 4MB.';
@@ -984,111 +970,245 @@ const toggleTag = (tag) => {
 };
 
 // Form validation
+const errorsList = ref([]);
 const validateFormData = () => {
+  errorsList.value = [];
   Object.keys(errors).forEach(key => delete errors[key]);
 
   let isValid = true;
 
   if (!formData.name.trim()) {
     errors.name = 'Tên sản phẩm là bắt buộc.';
+    errorsList.value.push('Tên sản phẩm là bắt buộc.');
     isValid = false;
   } else if (formData.name.length > 255) {
     errors.name = 'Tên sản phẩm không được vượt quá 255 ký tự.';
+    errorsList.value.push('Tên sản phẩm không được vượt quá 255 ký tự.');
     isValid = false;
   }
 
-  if (formData.slug && formData.slug.length > 255) {
-    errors.slug = 'Slug không được vượt quá 255 ký tự.';
+  if (formData.slug) {
+    if (formData.slug.length > 255) {
+      errors.slug = 'Slug không được vượt quá 255 ký tự.';
+      errorsList.value.push('Slug không được vượt quá 255 ký tự.');
+      isValid = false;
+    } else if (!/^[a-zA-Z0-9-]+$/.test(formData.slug)) {
+      errors.slug = 'Slug chỉ được chứa chữ cái, số và dấu gạch ngang.';
+      errorsList.value.push('Slug chỉ được chứa chữ cái, số và dấu gạch ngang.');
+      isValid = false;
+    }
+  }
+
+  if (formData.description && typeof formData.description !== 'string') {
+    errors.description = 'Mô tả phải là chuỗi ký tự.';
+    errorsList.value.push('Mô tả phải là chuỗi ký tự.');
     isValid = false;
   }
 
   if (formData.status && !['active', 'inactive', 'trash'].includes(formData.status)) {
     errors.status = 'Trạng thái không hợp lệ.';
+    errorsList.value.push('Trạng thái không hợp lệ.');
     isValid = false;
   }
 
-  formData.variants.forEach((variant, index) => {
-    const attrIds = variant.attributes.map(attr => attr.attribute_id).filter(Boolean);
-    const duplicateAttr = attrIds.length !== new Set(attrIds).size;
-    if (duplicateAttr) {
-      errors[`variants.${index}.attributes`] = 'Không được chọn trùng thuộc tính trong một biến thể.';
-      isValid = false;
-    }
-    if (!Number.isFinite(variant.price) || variant.price < 0) {
-      errors[`variants.${index}.price`] = 'Giá phải là số dương.';
-      isValid = false;
-    }
-
-    if (
-      variant.sale_price !== null &&
-      (!Number.isFinite(variant.sale_price) || variant.sale_price < 0)
-    ) {
-      errors[`variants.${index}.sale_price`] = 'Giá khuyến mãi phải là số dương hoặc bằng 0.';
-      isValid = false;
-    } else if (
-      variant.sale_price !== null &&
-      variant.sale_price >= variant.price
-    ) {
-      errors[`variants.${index}.sale_price`] = 'Giá khuyến mãi phải nhỏ hơn giá gốc.';
-      isValid = false;
-    }
-
-    if (!Number.isFinite(variant.cost_price) || variant.cost_price < 0) {
-      errors[`variants.${index}.cost_price`] = 'Giá vốn phải là số dương hoặc bằng 0.';
-      isValid = false;
-    }
-
- // Validate inventory
-    const inventoryCombinations = variant.inventory
-      .map(inv => `${inv.location || ''}|${inv.batch_number || ''}`)
-      .filter(comb => comb !== '|');
-    const uniqueCombinations = new Set(inventoryCombinations);
-    if (inventoryCombinations.length !== uniqueCombinations.size) {
-      errors[`variants.${index}.inventory`] = 'Tổ hợp vị trí và mã lô không được trùng lặp trong cùng một biến thể.';
-      isValid = false;
-    }
-
-    variant.inventory.forEach((inv, invIndex) => {
-      if (!Number.isFinite(inv.quantity) || inv.quantity < 0) {
-        errors[`variants.${index}.inventory.${invIndex}.quantity`] = 'Số lượng phải là số nguyên không âm.';
-        isValid = false;
-      }
-      if (inv.location && inv.location.length > 255) {
-        errors[`variants.${index}.inventory.${invIndex}.location`] = 'Vị trí không được vượt quá 255 ký tự.';
-        isValid = false;
-      }
-      if (inv.batch_number && inv.batch_number.length > 255) {
-        errors[`variants.${index}.inventory.${invIndex}.batch_number`] = 'Mã lô không được vượt quá 255 ký tự.';
-        isValid = false;
-      }
-      if (inv.import_source && inv.import_source.length > 255) {
-        errors[`variants.${index}.inventory.${invIndex}.import_source`] = 'Nguồn nhập không được vượt quá 255 ký tự.';
-        isValid = false;
-      }
-      if (inv.note && inv.note.length > 255) {
-        errors[`variants.${index}.inventory.${invIndex}.note`] = 'Ghi chú không được vượt quá 255 ký tự.';
+  if (formData.categories && Array.isArray(formData.categories)) {
+    formData.categories.forEach((categoryId, index) => {
+      if (!categories.value.some(cat => cat.id === categoryId)) {
+        errors.categories = `Danh mục tại vị trí ${index + 1} không hợp lệ.`;
+        errorsList.value.push(`Danh mục tại vị trí ${index + 1} không hợp lệ.`);
         isValid = false;
       }
     });
-  });
+  } else if (formData.categories && !Array.isArray(formData.categories)) {
+    errors.categories = 'Danh mục phải là một mảng.';
+    errorsList.value.push('Danh mục phải là một mảng.');
+    isValid = false;
+  }
 
-  const attributeSets = formData.variants.map((variant, index) => ({
-    index,
-    attributes: variant.attributes
-      .sort((a, b) => a.attribute_id - b.attribute_id)
-      .map(attr => `${attr.attribute_id}:${attr.value_id}`)
-      .join(',')
-  }));
+  if (formData.tags && Array.isArray(formData.tags)) {
+    formData.tags.forEach((tagId, index) => {
+      if (!tags.value.some(tag => tag.id === tagId)) {
+        errors.tags = `Thẻ tại vị trí ${index + 1} không hợp lệ.`;
+        errorsList.value.push(`Thẻ tại vị trí ${index + 1} không hợp lệ.`);
+        isValid = false;
+      }
+    });
+  } else if (formData.tags && !Array.isArray(formData.tags)) {
+    errors.tags = 'Thẻ phải là một mảng.';
+    errorsList.value.push('Thẻ phải là một mảng.');
+    isValid = false;
+  }
 
-  const duplicates = attributeSets.reduce((acc, curr, i, arr) => {
-    if (arr.some((other, j) => i !== j && other.attributes === curr.attributes && curr.attributes)) {
-      acc.push(curr.index);
+  if (formData.variants && Array.isArray(formData.variants)) {
+    formData.variants.forEach((variant, index) => {
+      if (!Number.isFinite(variant.price) || variant.price < 0) {
+        errors[`variants.${index}.price`] = 'Giá phải là số dương.';
+        errorsList.value.push(`Biến thể ${index + 1}: Giá phải là số dương.`);
+        isValid = false;
+      }
+
+      if (variant.sale_price !== null) {
+        if (!Number.isFinite(variant.sale_price) || variant.sale_price < 0) {
+          errors[`variants.${index}.sale_price`] = 'Giá khuyến mãi phải là số dương hoặc bằng 0.';
+          errorsList.value.push(`Biến thể ${index + 1}: Giá khuyến mãi phải là số dương hoặc bằng 0.`);
+          isValid = false;
+        } else if (variant.sale_price >= variant.price) {
+          errors[`variants.${index}.sale_price`] = 'Giá khuyến mãi phải nhỏ hơn giá gốc.';
+          errorsList.value.push(`Biến thể ${index + 1}: Giá khuyến mãi phải nhỏ hơn giá gốc.`);
+          isValid = false;
+        }
+      }
+
+      if (!Number.isFinite(variant.cost_price) || variant.cost_price < 0) {
+        errors[`variants.${index}.cost_price`] = 'Giá vốn phải là số dương hoặc bằng 0.';
+        errorsList.value.push(`Biến thể ${index + 1}: Giá vốn phải là số dương hoặc bằng 0.`);
+        isValid = false;
+      }
+
+      if (variant.attributes && Array.isArray(variant.attributes)) {
+        const attrIds = variant.attributes.map(attr => attr.attribute_id).filter(Boolean);
+        const duplicateAttr = attrIds.length !== new Set(attrIds).size;
+        if (duplicateAttr) {
+          errors[`variants.${index}.attributes`] = 'Không được chọn trùng thuộc tính.';
+          errorsList.value.push(`Biến thể ${index + 1}: Không được chọn trùng thuộc tính.`);
+          isValid = false;
+        }
+
+        variant.attributes.forEach((attr, attrIndex) => {
+          if (attr.attribute_id && !attributes.value.some(a => a.id === attr.attribute_id)) {
+            errors[`variants.${index}.attributes.${attrIndex}.attribute_id`] = 'Thuộc tính không hợp lệ.';
+            errorsList.value.push(`Biến thể ${index + 1}, Thuộc tính ${attrIndex + 1}: Thuộc tính không hợp lệ.`);
+            isValid = false;
+          }
+          if (attr.attribute_id && attr.value_id) {
+            const attribute = attributes.value.find(a => a.id === attr.attribute_id);
+            if (!attribute || !attribute.values.some(v => v.id === attr.value_id)) {
+              errors[`variants.${index}.attributes.${attrIndex}.value_id`] = 'Giá trị thuộc tính không hợp lệ.';
+              errorsList.value.push(`Biến thể ${index + 1}, Thuộc tính ${attrIndex + 1}: Giá trị thuộc tính không hợp lệ.`);
+              isValid = false;
+            }
+          } else if (attr.attribute_id || attr.value_id) {
+            errors[`variants.${index}.attributes.${attrIndex}.attribute_id`] = 'Cả ID thuộc tính và giá trị thuộc tính đều phải được cung cấp.';
+            errorsList.value.push(`Biến thể ${index + 1}, Thuộc tính ${attrIndex + 1}: Cả ID thuộc tính và giá trị thuộc tính đều phải được cung cấp.`);
+            isValid = false;
+          }
+        });
+      } else if (variant.attributes && !Array.isArray(variant.attributes)) {
+        errors[`variants.${index}.attributes`] = 'Thuộc tính phải là một mảng.';
+        errorsList.value.push(`Biến thể ${index + 1}: Thuộc tính phải là một mảng.`);
+        isValid = false;
+      }
+
+      if (variant.inventory && Array.isArray(variant.inventory)) {
+        variant.inventory.forEach((inv, invIndex) => {
+          if (!Number.isFinite(inv.quantity) || inv.quantity < 0 || !Number.isInteger(inv.quantity)) {
+            errors[`variants.${index}.inventory.${invIndex}.quantity`] = 'Số lượng phải là số nguyên không âm.';
+            errorsList.value.push(`Biến thể ${index + 1}, Kho ${invIndex + 1}: Số lượng phải là số nguyên không âm.`);
+            isValid = false;
+          }
+          if (inv.location && inv.location.length > 255) {
+            errors[`variants.${index}.inventory.${invIndex}.location`] = 'Vị trí không được vượt quá 255 ký tự.';
+            errorsList.value.push(`Biến thể ${index + 1}, Kho ${invIndex + 1}: Vị trí không được vượt quá 255 ký tự.`);
+            isValid = false;
+          }
+          if (inv.batch_number && inv.batch_number.length > 255) {
+            errors[`variants.${index}.inventory.${invIndex}.batch_number`] = 'Mã lô không được vượt quá 255 ký tự.';
+            errorsList.value.push(`Biến thể ${index + 1}, Kho ${invIndex + 1}: Mã lô không được vượt quá 255 ký tự.`);
+            isValid = false;
+          }
+          if (inv.import_source && inv.import_source.length > 255) {
+            errors[`variants.${index}.inventory.${invIndex}.import_source`] = 'Nguồn nhập không được vượt quá 255 ký tự.';
+            errorsList.value.push(`Biến thể ${index + 1}, Kho ${invIndex + 1}: Nguồn nhập không được vượt quá 255 ký tự.`);
+            isValid = false;
+          }
+          if (inv.note && inv.note.length > 255) {
+            errors[`variants.${index}.inventory.${invIndex}.note`] = 'Ghi chú không được vượt quá 255 ký tự.';
+            errorsList.value.push(`Biến thể ${index + 1}, Kho ${invIndex + 1}: Ghi chú không được vượt quá 255 ký tự.`);
+            isValid = false;
+          }
+        });
+
+        const inventoryCombinations = variant.inventory
+          .map(inv => `${inv.location || ''}|${inv.batch_number || ''}`)
+          .filter(Boolean);
+        if (inventoryCombinations.length > 1 && new Set(inventoryCombinations).size !== inventoryCombinations.length) {
+          errors[`variants.${index}.inventory`] = 'Có tổ hợp vị trí + mã lô trùng lặp.';
+          errorsList.value.push(`Biến thể ${index + 1}: Có tổ hợp vị trí + mã lô trùng lặp.`);
+          isValid = false;
+        }
+      } else if (variant.inventory && !Array.isArray(variant.inventory)) {
+        errors[`variants.${index}.inventory`] = 'Kho phải là một mảng.';
+        errorsList.value.push(`Biến thể ${index + 1}: Kho phải là một mảng.`);
+        isValid = false;
+      }
+
+      if (variant.thumbnailFile) {
+        const validMimes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'image/svg+xml', 'image/webp'];
+        if (!validMimes.includes(variant.thumbnailFile.type)) {
+          errors[`variants.${index}.thumbnail`] = 'Thumbnail phải có định dạng jpeg, png, jpg, gif, svg hoặc webp.';
+          errorsList.value.push(`Biến thể ${index + 1}: Thumbnail phải có định dạng jpeg, png, jpg, gif, svg hoặc webp.`);
+          isValid = false;
+        } else if (variant.thumbnailFile.size > 4048 * 1024) {
+          errors[`variants.${index}.thumbnail`] = 'Thumbnail không được vượt quá 4MB.';
+          errorsList.value.push(`Biến thể ${index + 1}: Thumbnail không được vượt quá 4MB.`);
+          isValid = false;
+        }
+      }
+    });
+
+    const attributeSets = formData.variants.map((variant, index) => ({
+      index: index,
+      attributes: variant.attributes
+        .filter(attr => attr.attribute_id && attr.value_id)
+        .sort((a, b) => a.attribute_id - b.attribute_id)
+        .map(attr => `${attr.attribute_id}:${attr.value_id}`)
+        .join(',')
+    }));
+    const duplicates = attributeSets.reduce((acc, curr, i, arr) => {
+      if (arr.some((other, j) => i !== j && other.attributes === curr.attributes && curr.attributes)) {
+        acc.push(curr.index);
+      }
+      return acc;
+    }, []);
+    if (duplicates.length) {
+      errors.variants = `Các biến thể tại vị trí ${duplicates.map(i => i + 1).join(', ')} có thuộc tính trùng nhau.`;
+      errorsList.value.push(`Các biến thể tại vị trí ${duplicates.map(i => i + 1).join(', ')} có thuộc tính trùng nhau.`);
+      isValid = false;
     }
-    return acc;
-  }, []);
+  } else if (formData.variants && !Array.isArray(formData.variants)) {
+    errors.variants = 'Biến thể phải là một mảng.';
+    errorsList.value.push('Biến thể phải là một mảng.');
+    isValid = false;
+  }
 
-  if (duplicates.length) {
-    errors.variants = `Các biến thể tại vị trí ${duplicates.map(i => i + 1).join(', ')} có thuộc tính trùng nhau. Vui lòng sửa đổi các thuộc tính để đảm bảo mỗi biến thể là duy nhất.`;
+  if (formData.images && Array.isArray(formData.images)) {
+    formData.images.forEach((img, index) => {
+      if (img.file) {
+        const validMimes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'image/svg+xml', 'image/webp'];
+        if (!validMimes.includes(img.file.type)) {
+          errors.images = `Hình ảnh tại vị trí ${index + 1} phải có định dạng jpeg, png, jpg, gif, svg hoặc webp.`;
+          errorsList.value.push(`Hình ảnh tại vị trí ${index + 1} phải có định dạng jpeg, png, jpg, gif, svg hoặc webp.`);
+          isValid = false;
+        } else if (img.file.size > 4048 * 1024) {
+          errors.images = `Hình ảnh tại vị trí ${index + 1} không được vượt quá 4MB.`;
+          errorsList.value.push(`Hình ảnh tại vị trí ${index + 1} không được vượt quá 4MB.`);
+          isValid = false;
+        }
+      }
+    });
+  } else if (formData.images && !Array.isArray(formData.images)) {
+    errors.images = 'Hình ảnh phải là một mảng.';
+    errorsList.value.push('Hình ảnh phải là một mảng.');
+    isValid = false;
+  }
+
+  const imageFiles = formData.images.filter(img => img.file).length;
+  const thumbnailFiles = formData.variants.filter(v => v.thumbnailFile).length;
+  const totalFiles = imageFiles + thumbnailFiles;
+  const maxFiles = 20;
+  if (totalFiles > maxFiles) {
+    errors.images = `Số lượng tệp ảnh (${totalFiles}) vượt quá giới hạn cho phép (${maxFiles}).`;
+    errorsList.value.push(`Số lượng tệp ảnh (${totalFiles}) vượt quá giới hạn cho phép (${maxFiles}).`);
     isValid = false;
   }
 
@@ -1098,8 +1218,22 @@ const validateFormData = () => {
 // Form submission
 const updateProduct = async () => {
   if (!validateFormData()) {
-    showNotificationMessage('Vui lòng kiểm tra lại dữ liệu.', 'error');
-    console.error('Form validation errors:', errors);
+    errorsList.value.slice(0, 5).forEach(msg => showNotificationMessage(msg, 'error'));
+    console.error('Form validation failed:', errorsList.value);
+    return;
+  }
+
+  const imageFiles = formData.images.filter(img => img.file).length;
+  const thumbnailFiles = formData.variants.filter(v => v.thumbnailFile).length;
+  const totalFiles = imageFiles + thumbnailFiles;
+  const maxFiles = 20;
+
+  if (totalFiles > maxFiles) {
+    showNotificationMessage(
+      `Số lượng tệp ảnh (${totalFiles}) vượt quá giới hạn cho phép (${maxFiles}). Vui lòng giảm số lượng ảnh.`,
+      'error'
+    );
+    console.error(`Too many files: ${totalFiles} (images: ${imageFiles}, thumbnails: ${thumbnailFiles})`);
     return;
   }
 
@@ -1118,8 +1252,7 @@ const updateProduct = async () => {
   });
 
   const validVariants = formData.variants.filter(variant =>
-    variant.price !== null && Number.isFinite(variant.price) &&
-    variant.cost_price !== null && Number.isFinite(variant.cost_price)
+    variant.price !== null && Number.isFinite(variant.price) && variant.cost_price !== null && Number.isFinite(variant.cost_price)
   );
 
   validVariants.forEach((variant, index) => {
@@ -1140,9 +1273,7 @@ const updateProduct = async () => {
       });
     }
 
-    const validInventory = variant.inventory.filter(inv =>
-      Number.isFinite(inv.quantity) && inv.quantity >= 0
-    );
+    const validInventory = variant.inventory.filter(inv => Number.isFinite(inv.quantity) && inv.quantity >= 0);
     validInventory.forEach((inv, i) => {
       if (inv.id) {
         formDataToSend.append(`variants[${index}][inventory][${i}][id]`, inv.id);
@@ -1167,48 +1298,80 @@ const updateProduct = async () => {
     }
   });
 
-  formData.images.forEach((img, index) => {
-    if (img.file) {
-      formDataToSend.append(`images[]`, img.file);
-    }
+  formData.images.filter(img => img.file).forEach((img, index) => {
+    formDataToSend.append(`images[${index}]`, img.file);
   });
 
-  removedImages.value.forEach(imageId => {
-    formDataToSend.append('removed_images[]', imageId);
+  removedImages.value.forEach((imageId, index) => {
+    formDataToSend.append(`removed_images[${index}]`, imageId);
   });
 
   formDataToSend.append('_method', 'PUT');
 
   try {
     loading.value = true;
-    const data = await secureFetch(`${apiBase}/products/${formData.id}`, {
+    const response = await secureFetch(`${apiBase}/products/${formData.id}`, {
       method: 'POST',
       body: formDataToSend,
       headers: {
         Accept: 'application/json',
       }
-    } , ['seller']);
+    }, ['seller'], true);
 
-    if ( data.success) {
+    console.log('Backend response:', response);
+
+    if (response.success) {
       showNotificationMessage('Cập nhật sản phẩm thành công!', 'success');
       setTimeout(() => router.push('/seller/products/list-product'), 1500);
     } else {
-      if (data.errors) {
-        Object.entries(data.errors).forEach(([key, value]) => {
+      if (response.errors) {
+        Object.entries(response.errors).forEach(([key, value]) => {
           errors[key] = Array.isArray(value) ? value[0] : value;
         });
+        Object.values(response.errors).slice(0, 5).forEach((value) => {
+          showNotificationMessage(Array.isArray(value) ? value[0] : value, 'error');
+        });
       }
-      showNotificationMessage(data.message || 'Có lỗi xảy ra khi cập nhật sản phẩm.', 'error');
-      if (data.errors && Object.keys(data.errors).some(key => key.startsWith('removed_images'))) {
+      if (response.message) {
+        showNotificationMessage(response.message, 'error');
+        if (response.message.includes('Slug đã tồn tại')) {
+          errors.slug = response.message;
+        }
+      } else {
+        showNotificationMessage('Có lỗi xảy ra khi cập nhật sản phẩm.', 'error');
+      }
+      if (response.errors && Object.keys(response.errors).some(key => key.startsWith('removed_images'))) {
         removedImages.value = [];
-        fetchProduct();
+        await fetchProduct();
       }
     }
   } catch (error) {
     console.error('Error updating product:', error);
-    showNotificationMessage('Có lỗi kết nối khi cập nhật sản phẩm.', 'error');
-    removedImages.value = [];
-    fetchProduct();
+    let errorMessage = 'Có lỗi kết nối khi cập nhật sản phẩm.';
+    if (error.response && error.response.data) {
+      const data = error.response.data;
+      if (data.message) {
+        errorMessage = data.message;
+        showNotificationMessage(data.message, 'error');
+        if (data.message.includes('Slug đã tồn tại')) {
+          errors.slug = data.message;
+        }
+      }
+      if (data.errors) {
+        Object.entries(data.errors).forEach(([key, value]) => {
+          errors[key] = Array.isArray(value) ? value[0] : value;
+        });
+        Object.values(data.errors).slice(0, 5).forEach((value) => {
+          showNotificationMessage(Array.isArray(value) ? value[0] : value, 'error');
+        });
+      }
+    } else {
+      showNotificationMessage(errorMessage, 'error');
+    }
+    if (error.response?.data?.errors && Object.keys(error.response.data.errors).some(key => key.startsWith('removed_images'))) {
+      removedImages.value = [];
+      await fetchProduct();
+    }
   } finally {
     loading.value = false;
   }
@@ -1235,7 +1398,6 @@ const showNotificationMessage = (message, type) => {
     showNotification.value = false;
   }, 5000);
 };
-
 // Lifecycle hooks
 onMounted(async () => {
   if (!route.params.id) {

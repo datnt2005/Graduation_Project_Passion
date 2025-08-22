@@ -22,7 +22,7 @@ class DiscountController extends Controller
     public function index()
     {
         try {
-            $discounts = Discount::with(['products', 'categories', 'users', 'flashSales'])->get();
+            $discounts = Discount::with(['products', 'categories', 'users'])->get();
             return response()->json([
                 'success' => true,
                 'message' => 'Lấy danh sách mã giảm giá thành công',
@@ -94,7 +94,7 @@ class DiscountController extends Controller
     public function show($id)
     {
         try {
-            $discount = Discount::with(['products', 'categories', 'users', 'flashSales'])->findOrFail($id);
+            $discount = Discount::with(['products', 'categories', 'users'])->findOrFail($id);
             return response()->json([
                 'success' => true,
                 'message' => 'Lấy thông tin mã giảm giá thành công',
@@ -852,6 +852,151 @@ public function getStoreDiscounts($slug)
             'message' => 'Mã voucher có thể sử dụng',
             'data' => $discount
         ], 200);
+    }
+
+    // Phương thức mới để kiểm tra nhiều mã giảm giá (product + shipping)
+    public function checkMultipleVouchers(Request $request)
+    {
+        try {
+            $request->validate([
+                'discount_ids' => 'required|array',
+                'discount_ids.*' => 'exists:discounts,id',
+                'user_id' => 'required|exists:users,id',
+                'total_amount' => 'required|numeric|min:0',
+                'shipping_fee' => 'nullable|numeric|min:0',
+            ], [
+                'discount_ids.required' => 'Danh sách mã giảm giá không được để trống',
+                'discount_ids.array' => 'Danh sách mã giảm giá phải là mảng',
+                'discount_ids.*.exists' => 'Mã giảm giá không tồn tại',
+                'user_id.required' => 'ID người dùng không được để trống',
+                'user_id.exists' => 'Người dùng không tồn tại',
+                'total_amount.required' => 'Tổng tiền không được để trống',
+                'total_amount.numeric' => 'Tổng tiền phải là số',
+                'total_amount.min' => 'Tổng tiền phải lớn hơn hoặc bằng 0',
+                'shipping_fee.numeric' => 'Phí vận chuyển phải là số',
+                'shipping_fee.min' => 'Phí vận chuyển phải lớn hơn hoặc bằng 0',
+            ]);
+
+            $discounts = Discount::whereIn('id', $request->discount_ids)->get();
+            $user = User::findOrFail($request->user_id);
+
+            $productDiscount = null;
+            $shippingDiscount = null;
+            $totalProductDiscount = 0;
+            $totalShippingDiscount = 0;
+
+            foreach ($discounts as $discount) {
+                // Kiểm tra trạng thái discount
+                if ($discount->status !== 'active') {
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Mã giảm giá {$discount->code} không còn hoạt động"
+                    ], 400);
+                }
+
+                // Kiểm tra thời gian hiệu lực
+                if ($discount->start_date && now() < $discount->start_date) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Mã giảm giá {$discount->code} chưa có hiệu lực"
+                    ], 400);
+                }
+
+                if ($discount->end_date && now() > $discount->end_date) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Mã giảm giá {$discount->code} đã hết hạn"
+                    ], 400);
+                }
+
+                // Kiểm tra giới hạn sử dụng
+                if ($discount->usage_limit && $discount->used_count >= $discount->usage_limit) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Mã giảm giá {$discount->code} đã hết lượt sử dụng"
+                    ], 400);
+                }
+
+                // Kiểm tra người dùng đã sử dụng discount này chưa
+                $usedDiscount = DiscountUser::where('discount_id', $discount->id)
+                    ->where('user_id', $user->id)
+                    ->where('is_used', true)
+                    ->first();
+
+                if ($usedDiscount) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Bạn đã sử dụng mã giảm giá {$discount->code} rồi"
+                    ], 400);
+                }
+
+                // Phân loại discount
+                if ($discount->discount_type === 'shipping_fee') {
+                    $shippingDiscount = $discount;
+                    
+                    // Tính toán shipping discount
+                    if ($discount->discount_type === 'percentage') {
+                        $totalShippingDiscount += ($request->shipping_fee ?? 0) * ($discount->discount_value / 100);
+                    } else {
+                        $totalShippingDiscount += $discount->discount_value;
+                    }
+                } else {
+                    $productDiscount = $discount;
+                    
+                    // Kiểm tra giá trị đơn hàng tối thiểu cho product discount
+                    if ($discount->min_order_value && $request->total_amount < $discount->min_order_value) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => "Giá trị đơn hàng chưa đạt mức tối thiểu để sử dụng mã giảm giá {$discount->code}"
+                        ], 400);
+                    }
+
+                    // Tính toán product discount
+                    if ($discount->discount_type === 'percentage') {
+                        $totalProductDiscount += $request->total_amount * ($discount->discount_value / 100);
+                    } else {
+                        $totalProductDiscount += $discount->discount_value;
+                    }
+                }
+            }
+
+            // Đảm bảo discount không vượt quá giá trị tương ứng
+            $totalProductDiscount = min($totalProductDiscount, $request->total_amount);
+            $totalShippingDiscount = min($totalShippingDiscount, $request->shipping_fee ?? 0);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Mã giảm giá hợp lệ',
+                'data' => [
+                    'product_discount' => $productDiscount ? [
+                        'id' => $productDiscount->id,
+                        'code' => $productDiscount->code,
+                        'discount_type' => $productDiscount->discount_type,
+                        'discount_value' => $productDiscount->discount_value,
+                        'discount_amount' => $totalProductDiscount,
+                        'min_order_value' => $productDiscount->min_order_value,
+                        'seller_id' => $productDiscount->seller_id,
+                    ] : null,
+                    'shipping_discount' => $shippingDiscount ? [
+                        'id' => $shippingDiscount->id,
+                        'code' => $shippingDiscount->code,
+                        'discount_type' => $shippingDiscount->discount_type,
+                        'discount_value' => $shippingDiscount->discount_value,
+                        'discount_amount' => $totalShippingDiscount,
+                        'seller_id' => $shippingDiscount->seller_id,
+                    ] : null,
+                    'total_product_discount' => $totalProductDiscount,
+                    'total_shipping_discount' => $totalShippingDiscount,
+                    'total_discount' => $totalProductDiscount + $totalShippingDiscount,
+                ]
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra khi kiểm tra mã giảm giá: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     // Thêm method mới để kiểm tra discount cho shop cụ thể

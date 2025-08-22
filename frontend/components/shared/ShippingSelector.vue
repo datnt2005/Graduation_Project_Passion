@@ -79,7 +79,7 @@
               <div class="flex items-center gap-2">
                 <span class="text-green-600 font-semibold">-{{ formatPrice(shop.discount) }} đ</span>
                 <button 
-                  v-if="!isShopDiscountFromAdmin(shop)" 
+                  v-if="isShopDiscountCancelable(shop)" 
                   @click="removeDiscount(shop)" 
                   class="text-red-500 text-xs hover:underline"
                 >
@@ -94,7 +94,7 @@
               <span>Giảm giá phí ship:</span>
               <div class="flex items-center gap-2">
                 <span class="text-green-600 font-semibold">-{{ formatPrice(shop.shipping_discount) }} đ</span>
-                <button @click="removeShippingDiscount(shop)" class="text-red-500 text-xs hover:underline">Huỷ</button>
+                <button v-if="isShippingDiscountCancelable(shop)" @click="removeShippingDiscount(shop)" class="text-red-500 text-xs hover:underline">Huỷ</button>
               </div>
             </div>
             <div class="flex justify-between gap-4 pt-2 border-t border-gray-200">
@@ -133,7 +133,7 @@
 
           <div v-else-if="filteredVouchersSearched.length === 0" class="text-center py-4 text-gray-500">
             Không có mã giảm giá khả dụng
-            <div v-if="userVouchers.value.length > 0 && new Date() > new Date(userVouchers.value[0]?.end_date)">
+            <div v-if="userVouchers.length > 0 && new Date() > new Date(userVouchers[0]?.end_date)">
               (Một số mã đã hết hạn)
             </div>
           </div>
@@ -423,15 +423,27 @@ const removeShippingDiscount = (shop) => {
 
 // discount của shop có phải từ admin không?
 const isShopDiscountFromAdmin = (shop) => {
-  if (!shop.discount || shop.discount <= 0) return false;
-  const shopDiscountId = getShopDiscountId(shop.seller_id);
-  const adminDiscount = selectedDiscounts.value?.find(
-    (d) =>
-      d.id === shopDiscountId &&
-      !d.seller_id &&
-      (d.discount_type === 'percentage' || d.discount_type === 'fixed')
+  if (!shop || !shop.discount || shop.discount <= 0) return false;
+  // Nếu có admin_product_discount flag, coi là admin
+  if (Number(shop.admin_product_discount || 0) > 0) return true;
+  const shopDiscountId = getShopDiscountId(shop.seller_id) || shop.discount_id || null;
+  const adminDiscount = (selectedDiscounts.value || []).find(
+    d => d.id === shopDiscountId && !d.seller_id && (d.discount_type === 'percentage' || d.discount_type === 'fixed')
   );
+  // Nếu không khớp id nhưng không có discount_id thì cũng coi là admin
+  if (!adminDiscount && !shopDiscountId) return true;
   return !!adminDiscount;
+};
+
+// Có thể huỷ discount sản phẩm ở shop? Chỉ cho huỷ khi không phải admin discount
+const isShopDiscountCancelable = (shop) => {
+  return shop && shop.discount > 0 && !isShopDiscountFromAdmin(shop);
+};
+
+// Với shipping fee: chỉ cho huỷ nếu nó đến từ shop (có code), không phải admin shipping
+const isShippingDiscountCancelable = (shop) => {
+  if (!shop || !shop.shipping_discount || shop.shipping_discount <= 0) return false;
+  return !!shop.shipping_discount_code; // admin share thường không có code theo shop
 };
 
 // ====== SHIPPING ======

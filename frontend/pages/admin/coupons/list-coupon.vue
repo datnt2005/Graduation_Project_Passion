@@ -91,6 +91,7 @@
             <option value="">Tất cả loại giảm giá</option>
             <option value="fixed">Giảm giá cố định</option>
             <option value="percentage">Giảm giá phần trăm</option>
+            <option value="shipping_fee">Giảm giá vận chuyển</option>
           </select>
           <select
             v-model="filterStatus"
@@ -155,7 +156,10 @@
                 {{ coupon.code }}
               </td>
               <td class="border border-gray-300 px-3 py-2 text-left text-gray-500">
-                {{ coupon.discount_type === 'fixed' ? 'Giảm giá cố định' : 'Giảm giá phần trăm' }}
+                {{ coupon.discount_type === 'fixed' ? 'Giảm giá cố định' : 
+                  coupon.discount_type === 'percentage' ? 'Giảm giá phần trăm' : 
+                  coupon.discount_type === 'shipping_fee' ? 'Giảm giá vận chuyển' : 
+                  'Không xác định' }} 
               </td>
               <td class="border border-gray-300 px-3 py-2 text-left">
                 {{ formatNumber(coupon.discount_value) }}{{ coupon.discount_type === 'percentage' ? '%' : 'đ' }}

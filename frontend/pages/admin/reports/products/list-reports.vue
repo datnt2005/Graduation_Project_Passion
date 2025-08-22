@@ -222,40 +222,6 @@
           </div>
         </Transition>
       </Teleport>
-
-      <!-- Notification Display -->
-      <Teleport to="body">
-        <Transition enter-active-class="transition ease-out duration-200" enter-from-class="transform opacity-0 scale-95"
-          enter-to-class="transform opacity-100 scale-100" leave-active-class="transition ease-in duration-100"
-          leave-from-class="transform opacity-100 scale-100" leave-to-class="transform opacity-0 scale-95">
-          <div v-if="showNotification"
-            class="fixed bottom-4 right-4 bg-white rounded-lg shadow-xl border border-gray-200 p-4 flex items-center space-x-3 z-50">
-            <div class="flex-shrink-0">
-              <svg class="h-6 w-6" :class="notificationType === 'success' ? 'text-green-400' : 'text-red-500'"
-                xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path v-if="notificationType === 'success'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                <path v-if="notificationType === 'error'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-            </div>
-            <div class="flex-1">
-              <p class="text-sm font-medium text-gray-900">
-                {{ notificationMessage }}
-              </p>
-            </div>
-            <div class="flex-shrink-0">
-              <button @click="showNotification = false"
-                class="inline-flex text-gray-400 hover:text-gray-500 focus:outline-none">
-                <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                  stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-          </div>
-        </Transition>
-      </Teleport>
     </div>
   </div>
 </template>
@@ -270,7 +236,7 @@ import Pagination from '~/components/Pagination.vue';
 import Swal from 'sweetalert2';
 
 // Initialize notification and router
-const { showNotification, notificationMessage, notificationType, setNotification } = useNotification();
+const {showMessage}  = useNotification();
 const router = useRouter();
 
 // Define page metadata
@@ -351,17 +317,17 @@ const deleteReport = async (id) => {
       closeReportDetails();
     }
 
-    showNotificationMessage('Đã xóa báo cáo thành công', 'success');
+    showMessage('Đã xóa báo cáo thành công', 'success');
   } catch (err) {
     console.error('Error in deleteReport:', err);
-    showNotificationMessage(`Không thể xóa báo cáo: ${err.message}`, 'error');
+    showMessage(`Không thể xóa báo cáo: ${err.message}`, 'error');
   }
 };
 
 // Hàm xử lý hành động xóa hàng loạt
 const applyBulkDelete = async () => {
   if (selectedReports.value.length === 0) {
-    showNotificationMessage('Vui lòng chọn ít nhất một báo cáo', 'error');
+    showMessage('Vui lòng chọn ít nhất một báo cáo', 'error');
     return;
   }
 
@@ -395,7 +361,7 @@ const applyBulkDelete = async () => {
     const failed = results.filter(r => !r.success);
     if (failed.length > 0) {
       const errorMessages = failed.map(r => `Báo cáo ID ${r.id}: ${r.message}`).join('; ');
-      showNotificationMessage(`Có lỗi khi xóa một số báo cáo: ${errorMessages}`, 'error');
+      showMessage(`Có lỗi khi xóa một số báo cáo: ${errorMessages}`, 'error');
       return;
     }
 
@@ -406,13 +372,13 @@ const applyBulkDelete = async () => {
       closeReportDetails();
     }
 
-    showNotificationMessage(`Đã xóa ${selectedReports.value.length} báo cáo thành công`, 'success');
+    showMessage(`Đã xóa ${selectedReports.value.length} báo cáo thành công`, 'success');
     selectedReports.value = [];
     selectAll.value = false;
     selectedAction.value = '';
   } catch (err) {
     console.error('Error in applyBulkDelete:', err);
-    showNotificationMessage(`Không thể xóa báo cáo: ${err.message}`, 'error');
+    showMessage(`Không thể xóa báo cáo: ${err.message}`, 'error');
   } finally {
     loading.value = false;
   }
@@ -448,14 +414,6 @@ const truncateText = (text, maxLength) => {
   return text.length > maxLength ? text.slice(0, maxLength) + '…' : text;
 };
 
-const showNotificationMessage = (message, type = 'success') => {
-  notificationMessage.value = message;
-  notificationType.value = type;
-  showNotification.value = true;
-  setTimeout(() => {
-    showNotification.value = false;
-  }, 3000);
-};
 
 const fetchReports = async (page = 1) => {
   try {
@@ -516,7 +474,7 @@ const fetchReports = async (page = 1) => {
     pendingReports.value = 0;
     resolvedReports.value = 0;
     dismissedReports.value = 0;
-    showNotificationMessage(`Lỗi khi tải báo cáo sản phẩm: ${err.message || 'Lỗi hệ thống'}`, 'error');
+    showMessage(`Lỗi khi tải báo cáo sản phẩm: ${err.message || 'Lỗi hệ thống'}`, 'error');
   } finally {
     loading.value = false;
   }
@@ -524,7 +482,7 @@ const fetchReports = async (page = 1) => {
 
 const updateStatus = async (id, status) => {
   if (!['resolved', 'dismissed'].includes(status)) {
-    showNotificationMessage('Trạng thái không hợp lệ. Chỉ chấp nhận "resolved" hoặc "dismissed".', 'error');
+    showMessage('Trạng thái không hợp lệ. Chỉ chấp nhận "resolved" hoặc "dismissed".', 'error');
     return;
   }
 
@@ -583,25 +541,25 @@ const updateStatus = async (id, status) => {
       selectedReport.value = { ...selectedReport.value, status };
     }
 
-    showNotificationMessage(`Đã ${label} báo cáo thành công`, 'success');
+    showMessage(`Đã ${label} báo cáo thành công`, 'success');
 
     if (showReportDetails.value && selectedReport.value?.report_id === id) {
       closeReportDetails();
     }
   } catch (err) {
     console.error('Error in updateStatus:', err);
-    showNotificationMessage(`Không thể ${label} báo cáo: ${err.message}`, 'error');
+    showMessage(`Không thể ${label} báo cáo: ${err.message}`, 'error');
   }
 };
 
 const applyBulkAction = async () => {
   if (!selectedAction.value || selectedReports.value.length === 0) {
-    showNotificationMessage('Vui lòng chọn hành động và ít nhất một báo cáo', 'error');
+    showMessage('Vui lòng chọn hành động và ít nhất một báo cáo', 'error');
     return;
   }
 
   if (!['resolved', 'dismissed', 'delete'].includes(selectedAction.value)) {
-    showNotificationMessage('Hành động không hợp lệ.', 'error');
+    showMessage('Hành động không hợp lệ.', 'error');
     return;
   }
 
@@ -649,7 +607,7 @@ const applyBulkAction = async () => {
         .map(res => res.data?.message || res.data?.errors?.status?.[0] || `Lỗi không xác định cho báo cáo ID ${res.id}`)
         .join('; ');
       console.error('Bulk Action Errors:', failedResponses);
-      showNotificationMessage(`Có lỗi khi ${label} một số báo cáo: ${errorMessages}`, 'error');
+      showMessage(`Có lỗi khi ${label} một số báo cáo: ${errorMessages}`, 'error');
       return;
     }
 
@@ -666,7 +624,7 @@ const applyBulkAction = async () => {
     await nextTick();
     applyFilters();
 
-    showNotificationMessage(`Đã ${label} ${selectedReports.value.length} báo cáo thành công`, 'success');
+    showMessage(`Đã ${label} ${selectedReports.value.length} báo cáo thành công`, 'success');
 
     selectedReports.value = [];
     selectAll.value = false;
@@ -677,7 +635,7 @@ const applyBulkAction = async () => {
     }
   } catch (err) {
     console.error('Error in applyBulkAction:', err);
-    showNotificationMessage(`Không thể ${label}: ${err.message}`, 'error');
+    showMessage(`Không thể ${label}: ${err.message}`, 'error');
   } finally {
     loading.value = false;
   }
@@ -693,7 +651,7 @@ const toggleSelectAll = () => {
 
 const viewProduct = (id) => {
   if (!id) {
-    showNotificationMessage('ID sản phẩm không hợp lệ', 'error');
+    showMessage('ID sản phẩm không hợp lệ', 'error');
     return;
   }
   router.push(`/admin/products/edit-product/${id}`);
@@ -739,7 +697,7 @@ const openReportDetails = async (id) => {
     showReportDetails.value = true;
   } catch (err) {
     console.error('Error in openReportDetails:', err);
-    showNotificationMessage(`Lỗi khi tải chi tiết báo cáo: ${err.message || 'Lỗi hệ thống'}`, 'error');
+    showMessage(`Lỗi khi tải chi tiết báo cáo: ${err.message || 'Lỗi hệ thống'}`, 'error');
   }
 };
 

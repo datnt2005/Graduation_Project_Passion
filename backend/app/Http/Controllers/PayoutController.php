@@ -26,7 +26,7 @@ class PayoutController extends Controller
         ]);
         try {
             $query = Payout::with(['order.shipping', 'seller.user'])
-                ->where('status', 'completed')
+                ->whereIn('status', ['completed', 'failed'])
                 ->latest('transferred_at');
 
             if ($user && $user->role === 'seller') {
@@ -150,6 +150,12 @@ class PayoutController extends Controller
             $monthlyAmount = $monthlyStats->sum('amount');
             $monthlyCommission = $monthlyAmount * 5 / 95;
 
+            // Thống kê duyệt tự động vs thủ công
+            $autoApprovedPayouts = $query->where('note', 'like', '%Duyệt tự động%')->count();
+            $manualApprovedPayouts = $totalPayouts - $autoApprovedPayouts;
+            $autoApprovedAmount = $query->where('note', 'like', '%Duyệt tự động%')->sum('amount');
+            $manualApprovedAmount = $totalAmount - $autoApprovedAmount;
+
             return response()->json([
                 'success' => true,
                 'data' => [
@@ -158,7 +164,12 @@ class PayoutController extends Controller
                     'total_commission' => $totalCommission,
                     'monthly_payouts' => $monthlyPayouts,
                     'monthly_amount' => $monthlyAmount,
-                    'monthly_commission' => $monthlyCommission
+                    'monthly_commission' => $monthlyCommission,
+                    'auto_approved_payouts' => $autoApprovedPayouts,
+                    'manual_approved_payouts' => $manualApprovedPayouts,
+                    'auto_approved_amount' => $autoApprovedAmount,
+                    'manual_approved_amount' => $manualApprovedAmount,
+                    'auto_approval_rate' => $totalPayouts > 0 ? round(($autoApprovedPayouts / $totalPayouts) * 100, 2) : 0
                 ],
                 'message' => 'Lấy thống kê payout thành công'
             ]);
@@ -329,6 +340,69 @@ class PayoutController extends Controller
     }
 
     /**
+     * Duyệt payout tự động khi seller cập nhật trạng thái thành delivered
+     * 
+     * Logic: 
+     * - 80% payout sẽ được duyệt tự động để tăng tốc độ thanh toán
+     * - 20% còn lại cần admin duyệt thủ công để đảm bảo an toàn và kiểm soát
+     * - Tỷ lệ này có thể điều chỉnh bằng cách thay đổi giá trị rand(1, 100) <= 80
+     */
+    public function autoApprovePayout($orderId, $sellerId)
+    {
+        try {
+            // Tìm payout cho order và seller này
+            $payout = Payout::where('order_id', $orderId)
+                ->where('seller_id', $sellerId)
+                ->where('status', 'pending')
+                ->first();
+
+            if (!$payout) {
+                Log::info('Không tìm thấy payout pending để duyệt tự động', [
+                    'order_id' => $orderId,
+                    'seller_id' => $sellerId
+                ]);
+                return false;
+            }
+
+            // Duyệt payout tự động với xác suất 80% (để vẫn có 20% cần admin duyệt thủ công)
+            $shouldAutoApprove = rand(1, 100) <= 80;
+            
+            if ($shouldAutoApprove) {
+                $payout->status = 'completed';
+                $payout->transferred_at = now();
+                $payout->note = $payout->note ? $payout->note . ' (Duyệt tự động)' : 'Duyệt tự động';
+                $payout->save();
+
+                Log::info('Payout được duyệt tự động thành công', [
+                    'payout_id' => $payout->id,
+                    'order_id' => $orderId,
+                    'seller_id' => $sellerId,
+                    'amount' => $payout->amount,
+                    'transferred_at' => $payout->transferred_at
+                ]);
+
+                return true;
+            } else {
+                Log::info('Payout được giữ lại để admin duyệt thủ công', [
+                    'payout_id' => $payout->id,
+                    'order_id' => $orderId,
+                    'seller_id' => $sellerId,
+                    'amount' => $payout->amount
+                ]);
+
+                return false;
+            }
+        } catch (\Exception $e) {
+            Log::error('Lỗi khi duyệt payout tự động: ' . $e->getMessage(), [
+                'order_id' => $orderId,
+                'seller_id' => $sellerId,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return false;
+        }
+    }
+
+    /**
      * Admin duyệt payout thủ công
      */
     public function approve($id)
@@ -405,5 +479,57 @@ class PayoutController extends Controller
         }
         $payout->save();
         return response()->json(['success' => true, 'message' => 'Tạo payout thành công!', 'data' => $payout]);
+    }
+
+    /**
+     * Xử lý khi đơn hàng bị hoàn tiền/hủy
+     * Cập nhật trạng thái payout và ghi log
+     */
+    public function handleOrderRefund($orderId, $sellerId, $reason = 'Đơn hàng bị hoàn tiền')
+    {
+        try {
+            DB::beginTransaction();
+            
+            // Tìm payout của đơn hàng này (bất kể trạng thái nào)
+            $payout = Payout::where('order_id', $orderId)
+                ->where('seller_id', $sellerId)
+                ->first();
+            
+            if (!$payout) {
+                Log::info('Không tìm thấy payout để xử lý hoàn tiền', [
+                    'order_id' => $orderId,
+                    'seller_id' => $sellerId
+                ]);
+                DB::rollBack();
+                return false;
+            }
+            
+            // Cập nhật trạng thái payout thành 'failed'
+            $payout->status = 'failed';
+            $payout->note = $payout->note ? $payout->note . ' | ' . $reason . ' - ' . now()->format('d/m/Y H:i:s') : $reason . ' - ' . now()->format('d/m/Y H:i:s');
+            $payout->save();
+            
+            Log::info('Đã xử lý hoàn tiền payout', [
+                'payout_id' => $payout->id,
+                'order_id' => $orderId,
+                'seller_id' => $sellerId,
+                'amount' => $payout->amount,
+                'old_status' => $payout->getOriginal('status'),
+                'new_status' => 'failed',
+                'reason' => $reason
+            ]);
+            
+            DB::commit();
+            return true;
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Lỗi khi xử lý hoàn tiền payout', [
+                'order_id' => $orderId,
+                'seller_id' => $sellerId,
+                'error' => $e->getMessage()
+            ]);
+            return false;
+        }
     }
 }

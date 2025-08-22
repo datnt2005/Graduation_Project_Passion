@@ -40,5 +40,6 @@ export async function secureAxios<T = any>(
       Authorization: `Bearer ${token}`,
       Accept: 'application/json',
     },
+    
   })
 }

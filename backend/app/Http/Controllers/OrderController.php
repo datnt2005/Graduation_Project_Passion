@@ -12,6 +12,8 @@ use App\Models\Refund;
 use App\Models\Seller;
 use App\Models\User;
 use App\Models\Discount;
+use App\Models\Cart;
+use App\Models\CartItem;
 use App\Models\DiscountUser;
 use App\Models\Shipping;
 use App\Models\ShippingMethod;
@@ -25,6 +27,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\PDF;
 use Illuminate\Support\Facades\Cache;
 use App\Mail\WarningRejectedOrder;
 use App\Mail\OrderStatusUpdatedMail;
@@ -35,6 +38,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
 use App\Models\Notification;
 use App\Models\NotificationRecipient;
+use App\Models\StockMovement;
+
 
 
 class OrderController extends Controller
@@ -383,21 +388,11 @@ class OrderController extends Controller
                         'name' => $order->user->name,
                         'email' => $order->user->email
                     ],
-                    'items' => $order->orderItems->map(function ($item) {
-                            return [
-                                'name' => $item->productVariant?->product?->name,
-                                'variant' => $item->productVariant?->name,
-                                'quantity' => $item->quantity,
-                                'price' => $item->price
-                            ];
-                        }),
                     'shipping' => $order->shipping ? [
                         'tracking_code' => $order->shipping->tracking_code,
                         'shipping_method' => $order->shipping->shipping_method,
                         'shipping_fee' => $order->shipping->shipping_fee,
                         'estimated_delivery_date' => $order->shipping->estimated_delivery_date,
-                         'address' => $order->shipping->address,
-                        'phone' => $order->shipping->phone,
                     ] : null,
                     'status' => $order->status,
                     'payment_method' => $order->payments->first()?->paymentMethod?->name ?? null,
@@ -409,7 +404,6 @@ class OrderController extends Controller
                             'status' => $payment->status,
                             'created_at' => $payment->created_at,
                         ];
-
                     }),
                     'payment_status' => $order->payment_status,
                     'subtotal' => $order->subtotal,
@@ -675,7 +669,7 @@ class OrderController extends Controller
                 }
 
                 $discountPrice = 0;
-                $appliedDiscountId = null;
+                $appliedDiscountIds = [];
                 $shopDiscount = null;
                 $adminDiscount = null;
                 $shippingDiscount = null;
@@ -713,7 +707,7 @@ class OrderController extends Controller
                     $usedDiscount = $adminDiscount;
                 }
 
-                // Tính toán discount price
+                // Tính toán discount price cho sản phẩm
                 if ($usedDiscount) {
                     if ($usedDiscount->discount_type === 'percentage') {
                         $discountPrice = $totalPrice * ($usedDiscount->discount_value / 100);
@@ -734,22 +728,33 @@ class OrderController extends Controller
                         'seller_id' => $usedDiscount->seller_id
                     ]);
 
-                    DiscountUser::create([
-                        'discount_id' => $usedDiscount->id,
-                        'user_id' => $request->user()->id,
-                        'is_used' => true,
-                    ]);
                     // Tăng used_count cho discount
                     if ($usedDiscount) {
                         $usedDiscount->increment('used_count');
                     }
-                    $order->discount_id = $usedDiscount->id;
+                    $appliedDiscountIds['product'] = $usedDiscount->id;
+                }
+
+                // Xử lý shipping discount
+                if ($shippingDiscount) {
+                    $shippingDiscount->increment('used_count');
+                    $appliedDiscountIds['shipping'] = $shippingDiscount->id;
                 }
 
                 // Frontend đã tính và gửi discount, backend chỉ cần sử dụng
+                // Tính shopDiscount chỉ từ product discount (không bao gồm shipping discount)
                 $shopDiscount = 0;
-                if ($request->has('store_discounts') && isset($request->store_discounts[$sellerId])) {
-                    $shopDiscount = floatval($request->store_discounts[$sellerId]);
+                if (isset($appliedDiscountIds['product'])) {
+                    $productDiscountId = $appliedDiscountIds['product'];
+                    $productDiscountObj = Discount::find($productDiscountId);
+                    if ($productDiscountObj) {
+                        if ($productDiscountObj->discount_type === 'percentage') {
+                            $shopDiscount = $totalPrice * ($productDiscountObj->discount_value / 100);
+                        } else {
+                            $shopDiscount = $productDiscountObj->discount_value;
+                        }
+                        $shopDiscount = min($shopDiscount, $totalPrice);
+                    }
                 }
                 $finalPrice = $totalPrice - $shopDiscount;
                 $finalPrice = max($finalPrice, 0);
@@ -776,12 +781,64 @@ class OrderController extends Controller
                 }
 
                 $shippingDiscountValue = 0;
-                if ($request->has('store_shipping_discounts') && isset($request->store_shipping_discounts[$sellerId])) {
-                    $shippingDiscountValue = floatval($request->store_shipping_discounts[$sellerId]);
+                // Lấy shipping discount từ items của seller này
+                $sellerItems = collect($request->items)->where('seller_id', $sellerId);
+                if ($sellerItems->count() > 0) {
+                    // Lấy shipping_discount từ item đầu tiên (tất cả items của cùng seller sẽ có cùng shipping_discount)
+                    $shippingDiscountValue = floatval($sellerItems->first()['shipping_discount'] ?? 0);
                 }
-                $shippingFee = $request->store_shipping_fees[$sellerId] ?? 0;
-                // Trừ discount phí ship đã chia đều cho shop này
-                $shippingFee = max(0, $shippingFee - $shippingDiscountValue);
+
+                // Nếu không có shipping_discount trong items, thử lấy từ store_shipping_discounts
+                if ($shippingDiscountValue == 0 && $request->has('store_shipping_discounts') && isset($request->store_shipping_discounts[$sellerId])) {
+                    $shippingDiscountValue = floatval($request->store_shipping_discounts[$sellerId]);
+                } elseif ($shippingDiscountValue == 0 && $request->has('store_discounts') && isset($request->store_discounts[$sellerId])) {
+                    // Nếu có store_discounts, cần tách riêng shipping discount
+                    $totalStoreDiscount = floatval($request->store_discounts[$sellerId]);
+                    $productDiscount = 0;
+
+                    // Tính product discount từ appliedDiscountIds
+                    if (isset($appliedDiscountIds['product'])) {
+                        $productDiscountId = $appliedDiscountIds['product'];
+                        $productDiscountObj = Discount::find($productDiscountId);
+                        if ($productDiscountObj) {
+                            if ($productDiscountObj->discount_type === 'percentage') {
+                                $productDiscount = $totalPrice * ($productDiscountObj->discount_value / 100);
+                            } else {
+                                $productDiscount = $productDiscountObj->discount_value;
+                            }
+                            $productDiscount = min($productDiscount, $totalPrice);
+                        }
+                    }
+
+                    // Shipping discount = total store discount - product discount
+                    $shippingDiscountValue = max(0, $totalStoreDiscount - $productDiscount);
+                }
+
+                $originalShippingFee = $request->store_shipping_fees[$sellerId] ?? 0;
+
+                // Đảm bảo shipping_discount không vượt quá shipping_fee
+                // Nếu shipping_discount > shipping_fee thì chỉ giảm về 0, không âm
+                $actualShippingDiscount = min($shippingDiscountValue, $originalShippingFee);
+                $shippingFee = max(0, $originalShippingFee - $actualShippingDiscount);
+
+                // Debug log để kiểm tra shipping discount
+                Log::info("Shipping fee debug", [
+                    'order_id' => $order->id,
+                    'seller_id' => $sellerId,
+                    'request_has_store_shipping_discounts' => $request->has('store_shipping_discounts'),
+                    'request_has_store_discounts' => $request->has('store_discounts'),
+                    'store_shipping_discounts' => $request->store_shipping_discounts ?? 'not_set',
+                    'store_discounts' => $request->store_discounts ?? 'not_set',
+                    'seller_items_count' => collect($request->items)->where('seller_id', $sellerId)->count(),
+                    'first_item_shipping_discount' => collect($request->items)->where('seller_id', $sellerId)->first()['shipping_discount'] ?? 'not_found',
+                    'applied_discount_ids' => $appliedDiscountIds,
+                    'shipping_discount_value' => $shippingDiscountValue,
+                    'original_shipping_fee' => $originalShippingFee,
+                    'actual_shipping_discount' => $actualShippingDiscount,
+                    'final_shipping_fee' => $shippingFee,
+                    'note' => 'Đã đảm bảo shipping_discount không vượt quá shipping_fee'
+                ]);
+
                 // Bỏ kiểm tra khớp với shippingMethod->cost
                 Log::info("Sử dụng phí vận chuyển từ request cho seller_id: {$sellerId}", [
                     'shipping_fee' => $shippingFee,
@@ -829,15 +886,9 @@ class OrderController extends Controller
                     }
                 }
 
-                if ($shippingDiscount) {
-                    // FE đã trừ discount rồi, BE chỉ cần ghi nhận việc sử dụng discount
-                    DiscountUser::create([
-                        'discount_id' => $shippingDiscount->id,
-                        'user_id' => $request->user()->id,
-                        'is_used' => true,
-                    ]);
-                    // Tăng used_count cho shipping discount
-                    $shippingDiscount->increment('used_count');
+                // Lưu discount IDs dưới dạng JSON
+                if (!empty($appliedDiscountIds)) {
+                    $order->discount_id = $appliedDiscountIds;
                 }
 
                 $shipping = Shipping::create([
@@ -845,6 +896,7 @@ class OrderController extends Controller
                     'shipping_method_id' => $shippingMethod->id,
                     'estimated_delivery' => $estimatedDelivery,
                     'shipping_fee' => $shippingFee,
+                    'shipping_discount' => $actualShippingDiscount, // Sử dụng shipping discount thực tế
                     'tracking_code' => $trackingCode,
                     'status' => 'pending',
                 ]);
@@ -852,8 +904,9 @@ class OrderController extends Controller
                 $order->update([
                     'total_price' => $totalPrice,
                     'discount_price' => $shopDiscount,
-                    'final_price' => $finalPrice + $shippingFee,
-                    'discount_id' => $order->discount_id,
+                    'final_price' => $finalPrice + $shippingFee, // shippingFee đã được trừ discount rồi
+                    // Lưu mapping discount đã áp dụng (product/shipping)
+                    'discount_id' => !empty($appliedDiscountIds) ? $appliedDiscountIds : null,
                 ]);
 
                 $paymentMethod = PaymentMethod::firstOrCreate(
@@ -861,7 +914,7 @@ class OrderController extends Controller
                     ['status' => 'active']
                 );
 
-                $totalPaymentAmount = $finalPrice + $shippingFee;
+                $totalPaymentAmount = $finalPrice + $shippingFee; // shippingFee đã được trừ discount rồi
 
                 Payment::create([
                     'order_id' => $order->id,
@@ -1267,6 +1320,75 @@ class OrderController extends Controller
                 'warning_email_sent' => $order->user ? $order->user->warning_email_sent : null
             ]);
 
+            // Tự động trừ kho khi chuyển sang trạng thái "processing" với đơn hàng COD
+            try {
+                if ($oldStatus !== 'processing' && $request->input('status') === 'processing') {
+                    // Kiểm tra phương thức thanh toán là COD
+                    $order->load(['payments.paymentMethod', 'orderItems.productVariant.inventories']);
+                    $firstPaymentMethod = optional($order->payments->first())->paymentMethod->name ?? null;
+                    $isCod = strtolower((string) $firstPaymentMethod) === 'cod';
+
+                    if ($isCod) {
+                        // Tránh trừ kho nhiều lần cho cùng một đơn: kiểm tra lịch sử xuất kho theo note
+                        $variantIds = $order->orderItems->pluck('product_variant_id')->filter()->values();
+                        $alreadyDeducted = $variantIds->isNotEmpty() && StockMovement::whereIn('product_variant_id', $variantIds)
+                            ->where('action_type', 'export')
+                            ->where('note', 'like', '%#' . $order->id . '%')
+                            ->exists();
+
+                        if (!$alreadyDeducted) {
+                            // Dùng logic sẵn có để trừ kho theo từng inventory
+                            foreach ($order->orderItems as $item) {
+                                $variant = $item->productVariant;
+                                if (!$variant) {
+                                    continue;
+                                }
+                                $quantityToDeduct = (int) $item->quantity;
+                                $inventories = $variant->inventories()->orderBy('id')->get();
+                                foreach ($inventories as $inventory) {
+                                    if ($quantityToDeduct <= 0) {
+                                        break;
+                                    }
+                                    $deduct = (int) min($inventory->quantity, $quantityToDeduct);
+                                    if ($deduct > 0) {
+                                        $inventory->quantity -= $deduct;
+                                        $inventory->last_updated = now();
+                                        $inventory->save();
+                                        $quantityToDeduct -= $deduct;
+                                    }
+                                }
+                                // Cập nhật lại tổng quantity cho variant
+                                $totalQuantity = $variant->inventories()->sum('quantity');
+                                $variant->quantity = $totalQuantity;
+                                $variant->save();
+
+                                // Ghi lịch sử xuất kho
+                                StockMovement::create([
+                                    'product_variant_id' => $variant->id,
+                                    'action_type' => 'export',
+                                    'quantity' => (int) $item->quantity,
+                                    'note' => 'Xuất kho cho đơn hàng #' . $order->id,
+                                    'created_by' => 'system',
+                                    'created_by_type' => 'system',
+                                ]);
+                            }
+                            Log::info('Đã trừ kho cho đơn hàng COD khi vào processing', [
+                                'order_id' => $order->id
+                            ]);
+                        } else {
+                            Log::info('Bỏ qua trừ kho vì đã trừ trước đó', [
+                                'order_id' => $order->id
+                            ]);
+                        }
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::warning('Lỗi khi tự trừ kho cho đơn COD ở trạng thái processing', [
+                    'order_id' => $id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
             // Kiểm tra dữ liệu trong cơ sở dữ liệu sau khi cập nhật
             $dbCheck = DB::table('orders')->where('id', $id)->first(['status', 'failure_reason', 'note']);
             Log::info('Dữ liệu từ cơ sở dữ liệu sau khi cập nhật', [
@@ -1395,15 +1517,61 @@ class OrderController extends Controller
                             return $item->price * $item->quantity;
                         });
                         $amount = max($totalPrice * 0.95, 0); // 5% admin fee
-                        \App\Models\Payout::create([
+                        $payout = \App\Models\Payout::create([
                             'order_id' => $order->id,
                             'seller_id' => $sellerId,
                             'amount' => $amount,
                             'status' => 'pending',
                             'note' => 'Payout tự động cho đơn hàng ' . ($order->shipping?->tracking_code ?? $order->id),
                         ]);
+
+                        // Thử duyệt payout tự động
+                        $payoutController = new \App\Http\Controllers\PayoutController();
+                        $autoApproved = $payoutController->autoApprovePayout($order->id, $sellerId);
+                        
+                        if ($autoApproved) {
+                            Log::info('Payout được duyệt tự động sau khi admin cập nhật trạng thái delivered', [
+                                'order_id' => $order->id,
+                                'seller_id' => $sellerId,
+                                'payout_id' => $payout->id,
+                                'amount' => $amount
+                            ]);
+                        } else {
+                            Log::info('Payout được giữ lại để admin duyệt thủ công', [
+                                'order_id' => $order->id,
+                                'seller_id' => $sellerId,
+                                'payout_id' => $payout->id,
+                                'amount' => $amount
+                            ]);
+                        }
                     }
                 }
+            }
+
+            // Xử lý hoàn tiền khi đơn hàng chuyển sang trạng thái hoàn tiền/hủy
+            if (in_array($request->input('status'), ['refunded', 'cancelled', 'failed', 'returned'])) {
+                $payoutController = new \App\Http\Controllers\PayoutController();
+                $reason = match($request->input('status')) {
+                    'refunded' => 'Đơn hàng bị hoàn tiền',
+                    'cancelled' => 'Đơn hàng bị hủy',
+                    'failed' => 'Đơn hàng thất bại',
+                    'returned' => 'Đơn hàng bị trả lại',
+                    default => 'Đơn hàng bị hoàn tiền'
+                };
+                
+                // Lấy tất cả seller_id trong order để xử lý hoàn tiền
+                $sellerIds = $order->orderItems->pluck('product.seller_id')->unique()->filter();
+                foreach ($sellerIds as $sellerId) {
+                    $payoutController->handleOrderRefund($order->id, $sellerId, $reason);
+                }
+                
+                Log::info('Đã xử lý hoàn tiền payout khi admin cập nhật trạng thái', [
+                    'order_id' => $order->id,
+                    'old_status' => $oldStatus,
+                    'new_status' => $request->input('status'),
+                    'reason' => $reason,
+                    'seller_ids' => $sellerIds->toArray()
+                ]);
             }
 
             $statusMessages = [
@@ -1928,9 +2096,6 @@ class OrderController extends Controller
                 'message' => 'Lấy danh sách sellers thành công'
             ]);
         } catch (\Exception $e) {
-            \Log::error('Error in adminSellerList: ' . $e->getMessage());
-            \Log::error($e->getTraceAsString());
-
             return response()->json([
                 'success' => false,
                 'message' => 'Lỗi khi lấy danh sách sellers: ' . $e->getMessage()
@@ -1938,200 +2103,133 @@ class OrderController extends Controller
         }
     }
 
+    public function printInvoice($id)
+    {
+        try {
+            // Fetch the order with related data
+            $order = Order::with(['user', 'address', 'orderItems.product', 'payments', 'shipping'])
+                ->where('id', $id)
+                // Ensure the order belongs to the authenticated seller
+                ->first();
 
- public function reorderDetail($id)
-{
-    try {
-        $user = auth()->user();
+            if (!$order) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không tìm thấy đơn hàng hoặc bạn không có quyền truy cập'
+                ], 404);
+            }
 
-        $order = Order::with([
-            'orderItems.product:id,name,slug',
-            'orderItems.productVariant:id,product_id,thumbnail,quantity,sku,price,sale_price'
-        ])
-        ->where('id', $id)
-        ->where('user_id', $user->id)
-        ->firstOrFail();
+            // Prepare customer data
+            $customer = [
+                'name' => $order->user ? $order->user->name : null,
+                'phone' => $order->address ? $order->address->phone : null,
+                'address_detail' => $order->address ? $order->address->detail : null,
+                'ward_code' => $order->address->ward_code ?? null,
+                'district_id' => $order->address->district_id ?? null,
+                'province_id' => $order->address->province_id ?? null,
+            ];
 
-        $item = $order->orderItems->first();
-
-        if (!$item) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Không tìm thấy sản phẩm trong đơn hàng!'
-            ], 404);
-        }
-
-        $product = optional($item->product);
-        $variant = optional($item->productVariant);
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'product_id'         => $product->id,
-                'product_name'       => $product->name,
-                'product_slug'       => $product->slug,
-                'product_thumbnail'  => $product->thumbnail,
-                'variant_id'         => $variant->id,
-                'variant_name'       => $variant->name,
-                'variant_thumbnail'  => $variant->thumbnail,
-                'variant_stock'      => (int) $variant->quantity,
-                'variant_sku'        => $variant->sku,
-                'variant_price'      => $variant->price,
-                'variant_sale_price' => $variant->sale_price,
-                'quantity'           => $item->quantity
-            ]
-        ], 200);
-
-    } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Không tìm thấy đơn hàng!'
-        ], 404);
-
-    } catch (\Exception $e) {
-        \Log::error('Reorder detail error', [
-            'order_id' => $id,
-            'user_id' => auth()->id(),
-            'error' => $e->getMessage(),
-            'trace' => $e->getTraceAsString()
-        ]);
-
-        return response()->json([
-            'success' => false,
-            'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
-        ], 500);
-    }
-}
-
-public function printInvoice($id)
-{
-    try {
-        $user = auth()->user();
-
-        $query = Order::with([
-            'orderItems.product',
-            'orderItems.productVariant',
-            'user',
-            'address',
-            'payments.paymentMethod',
-            'shipping'
-        ])->where('id', $id);
-
-        if ($user->role === 'user') {
-            $query->where('user_id', $user->id);
-        }
-
-        $order = $query->firstOrFail();
-
-       $token = env('GHN_TOKEN');
-$apiUrl = rtrim(env('GHN_API_URL'), '/');
-
-// Hàm tiện ích để gọi GHN API
-function ghnGet($url, $params = [])
-{
-    return Http::withHeaders([
-        'Token' => env('GHN_TOKEN')
-    ])->get($url, $params);
-}
-
-// Lấy tên tỉnh
-$provinceName = null;
-if (!empty($order->address?->province_id)) {
-    $res = ghnGet("$apiUrl/master-data/province");
-    if ($res->successful()) {
-        $province = collect($res->json('data'))
-            ->firstWhere('ProvinceID', (int)$order->address->province_id);
-        $provinceName = $province['ProvinceName'] ?? null;
-    }
-}
-
-// Lấy tên quận/huyện
-$districtName = null;
-if (!empty($order->address?->district_id)) {
-    $res = Http::withHeaders([
-        'Token' => $token
-    ])->post("$apiUrl/master-data/district", [
-        'province_id' => (int)$order->address->province_id
-    ]);
-    if ($res->successful()) {
-        $district = collect($res->json('data'))
-            ->firstWhere('DistrictID', (int)$order->address->district_id);
-        $districtName = $district['DistrictName'] ?? null;
-    }
-}
-
-// Lấy tên phường/xã
-$wardName = null;
-if (!empty($order->address?->ward_code)) {
-    $res = Http::withHeaders([
-        'Token' => $token
-    ])->post("$apiUrl/master-data/ward", [
-        'district_id' => (int)$order->address->district_id
-    ]);
-    if ($res->successful()) {
-        $ward = collect($res->json('data'))
-            ->firstWhere('WardCode', (string)$order->address->ward_code);
-        $wardName = $ward['WardName'] ?? null;
-    }
-}
-
-// Gắn vào dữ liệu trả về
-$invoiceData['customer']['province_name'] = $provinceName;
-$invoiceData['customer']['district_name'] = $districtName;
-$invoiceData['customer']['ward_name'] = $wardName;
-
-
-
-        $invoiceData = [
-            'order_id' => $order->id,
-            'customer' => [
-                'name' => $order->user->name,
-                'phone' => $order->address->phone ?? $order->user->phone ?? null,
-                'address_detail' => $order->address->detail ?? null,
-                'province_name' => $provinceName,
-                'district_name' => $districtName,
-                'ward_name' => $wardName,
-            ],
-            'items' => $order->orderItems->map(function ($item) {
+            // Prepare order items
+            $items = $order->orderItems->map(function ($item) {
                 return [
-                    'product_name' => $item->product->name,
-                    'variant' => $item->productVariant->name ?? null,
+                    'product_name' => $item->product ? $item->product->name : null,
                     'quantity' => $item->quantity,
                     'price' => $item->price,
-                    'total' => $item->price * $item->quantity,
+                    'variant' => $item->productVariant ? [
+                        'id' => $item->productVariant->id,
+                        'name' => $item->productVariant->name,
+                        'thumbnail' => $item->productVariant->thumbnail ?? null,
+                        //   lấy thuộc tính đã mua
+                        'attributes' => $item->productVariant->attributes->map(function ($attribute) {
+                            return [
+                                'id' => $attribute->id,
+                                'name' => $attribute->name,
+                                'value' => $attribute->pivot->value
+                            ];
+                        })->toArray()
+                    ] : null,
+                    'total' => $item->total,
+                    'store_name' => $item->product->seller->store_name ?? 'Shop #' . $item->product->seller_id,
+                    'store_address' => $item->product->seller->pickup_address ?? 'Địa chỉ shop chưa được cập nhật',
+                    'store_phone' => $item->product->seller->phone_number ?? 'Sđt shop chưa được cập nhật',
                 ];
-            }),
-            'subtotal' => $order->subtotal,
-            'shipping_fee' => $order->shipping_fee,
-            'discount' => $order->discount_price,
-            'final_price' => $order->final_price,
-            'payment_method' => $order->payments->first()?->paymentMethod?->name ?? null,
-            'status' => $order->status,
-            'created_at' => $order->created_at->format('d/m/Y H:i'),
-        ];
+            })->toArray();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Lấy thông tin hóa đơn thành công',
-            'data' => $invoiceData
-        ], 200);
+            // Prepare response data
+            $data = [
+                'tracking_code' => $order->shipping ? $order->shipping->tracking_code : null,
+                'created_at' => $order->created_at ? $order->created_at->format('d/m/Y H:i:s') : null,
+                'status' => $order->status,
+                'customer' => $customer,
+                'items' => $items,
+                'subtotal' => $order->total_price,
+                'discount' => $order->discount_price ?? 0,
+                'shipping_fee' => $order->shipping ? $order->shipping->shipping_fee : 0,
+                'final_price' => $order->final_price,
+                'payment_method' => $order->payments->first() ? $order->payments->first()->method : null
+            ];
 
-    } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Không tìm thấy đơn hàng'
-        ], 404);
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Có lỗi xảy ra khi lấy hóa đơn',
-            'error' => env('APP_DEBUG', false) ? $e->getMessage() : null
-        ], 500);
+            return response()->json([
+                'success' => true,
+                'data' => $data
+            ], 200);
+        } catch (\Exception $e) {
+            \Log::error('Error in printInvoice: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi khi tạo hóa đơn: ' . $e->getMessage()
+            ], 500);
+        }
     }
-}
 
 
+    public function reorderDetail($id)
+    {
+        try {
+            $user = auth()->user();
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Bạn chưa đăng nhập!'
+                ], 401);
+            }
 
+            // Tìm đơn hàng theo id và user
+            $order = Order::where('id', $id)
+                ->where('user_id', $user->id)
+                ->with('orderItems.product', 'orderItems.productVariant')
+                ->first();
 
+            if (!$order) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không tìm thấy đơn hàng!'
+                ], 404);
+            }
+            $detail = $order->orderItems->first();
+            if (!$detail) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Đơn hàng không có sản phẩm!'
+                ], 400);
+            }
 
+            $data = [
+                'product_id'     => $detail->product_id,
+                'variant_id'     => $detail->product_variant_id,
+                'quantity'       => $detail->quantity,
+                'price'          => $detail->price,
+            ];
+
+            return response()->json([
+                'success' => true,
+                'data'    => $data,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi server: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
 }

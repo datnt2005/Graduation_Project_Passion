@@ -34,8 +34,8 @@ class Order extends Model
         'shipping_discount' => 'decimal:2',
         'final_price' => 'decimal:2',
         'failure_reason' => 'string',
+        'discount_id' => 'array', // Cast discount_id thành array để lưu JSON
     ];
-
 
     public const STATUSES = [
         'pending',
@@ -44,10 +44,10 @@ class Order extends Model
         'delivered',
         'cancelled',
         'failed',
+        'refunded',
         'failed_delivery',
         'rejected_by_customer',
     ];
-
 
     public function getStatusText(): string
     {
@@ -59,12 +59,12 @@ class Order extends Model
             'delivered' => 'Đã giao hàng',
             'cancelled' => 'Đã hủy',
             'failed' => 'Giao thất bại',
+            'refunded' => 'Đã hoàn tiền',
             'failed_delivery' => 'Giao không thành công',
             'rejected_by_customer' => 'Khách từ chối nhận',
         ];
         return $statusMap[$this->status] ?? $this->status;
     }
-
 
     // Relationships
     public function user()
@@ -77,9 +77,25 @@ class Order extends Model
         return $this->belongsTo(Address::class);
     }
 
+    // Sửa relationship discount để hỗ trợ nhiều discount
+    public function discounts()
+    {
+        if (!$this->discount_id || !is_array($this->discount_id)) {
+            return collect();
+        }
+        
+        return Discount::whereIn('id', $this->discount_id)->get();
+    }
+
+    // Giữ lại relationship cũ để tương thích ngược
     public function discount()
     {
-        return $this->belongsTo(Discount::class)->withDefault();
+        if (!$this->discount_id || !is_array($this->discount_id)) {
+            return $this->belongsTo(Discount::class)->withDefault();
+        }
+        
+        $firstDiscountId = is_array($this->discount_id) ? ($this->discount_id['product'] ?? $this->discount_id['shipping'] ?? null) : $this->discount_id;
+        return $this->belongsTo(Discount::class, 'discount_id')->withDefault();
     }
 
     public function orderItems()
@@ -107,7 +123,116 @@ class Order extends Model
         return $this->hasOne(Shipping::class);
     }
 
-    // Phương thức kiểm tra và áp dụng mã giảm giá
+    // Phương thức mới để lấy shipping discount
+    public function getShippingDiscount()
+    {
+        if (!$this->discount_id || !is_array($this->discount_id)) {
+            return null;
+        }
+        
+        $shippingDiscountId = $this->discount_id['shipping'] ?? null;
+        if (!$shippingDiscountId) {
+            return null;
+        }
+        
+        return Discount::find($shippingDiscountId);
+    }
+
+    // Phương thức mới để lấy product discount
+    public function getProductDiscount()
+    {
+        if (!$this->discount_id || !is_array($this->discount_id)) {
+            return null;
+        }
+        
+        $productDiscountId = $this->discount_id['product'] ?? null;
+        if (!$productDiscountId) {
+            return null;
+        }
+        
+        return Discount::find($productDiscountId);
+    }
+
+    // Phương thức mới để áp dụng nhiều discount
+    public function applyMultipleDiscounts($discountIds)
+    {
+        $discounts = Discount::whereIn('id', $discountIds)
+            ->where('status', 'active')
+            ->where(function ($query) {
+                $query->whereNull('start_date')
+                    ->orWhere('start_date', '<=', now());
+            })
+            ->where(function ($query) {
+                $query->whereNull('end_date')
+                    ->orWhere('end_date', '>=', now());
+            })
+            ->get();
+
+        if ($discounts->isEmpty()) {
+            throw new \Exception('Không tìm thấy mã giảm giá hợp lệ');
+        }
+
+        $productDiscount = null;
+        $shippingDiscount = null;
+        $totalDiscountAmount = 0;
+
+        foreach ($discounts as $discount) {
+            // Kiểm tra giới hạn sử dụng
+            if ($discount->usage_limit && $discount->used_count >= $discount->usage_limit) {
+                throw new \Exception("Mã giảm giá {$discount->code} đã hết lượt sử dụng");
+            }
+
+            if ($discount->discount_type === 'shipping_fee') {
+                $shippingDiscount = $discount;
+            } else {
+                $productDiscount = $discount;
+            }
+        }
+
+        // Tính toán discount cho sản phẩm
+        if ($productDiscount) {
+            if ($productDiscount->min_order_value && $this->total_price < $productDiscount->min_order_value) {
+                throw new \Exception('Giá trị đơn hàng chưa đạt mức tối thiểu để sử dụng mã giảm giá sản phẩm');
+            }
+
+            if ($productDiscount->discount_type === 'percentage') {
+                $totalDiscountAmount += $this->total_price * ($productDiscount->discount_value / 100);
+            } else {
+                $totalDiscountAmount += $productDiscount->discount_value;
+            }
+        }
+
+        // Lưu discount IDs dưới dạng JSON
+        $discountData = [];
+        if ($productDiscount) {
+            $discountData['product'] = $productDiscount->id;
+        }
+        if ($shippingDiscount) {
+            $discountData['shipping'] = $shippingDiscount->id;
+        }
+
+        // Cập nhật thông tin đơn hàng
+        $this->discount_id = $discountData;
+        $this->discount_price = $totalDiscountAmount;
+        $this->final_price = $this->total_price - $totalDiscountAmount;
+        $this->save();
+
+        // Tăng số lần sử dụng của các mã giảm giá
+        foreach ($discounts as $discount) {
+            $discount->increment('used_count');
+        }
+
+        return [
+            'success' => true,
+            'message' => 'Áp dụng mã giảm giá thành công',
+            'discount_amount' => $totalDiscountAmount,
+            'final_price' => $this->final_price,
+            'product_discount' => $productDiscount,
+            'shipping_discount' => $shippingDiscount
+        ];
+    }
+
+    // Phương thức kiểm tra và áp dụng mã giảm giá (giữ lại để tương thích)
     public function applyDiscount($discountCode)
     {
         // Tìm mã giảm giá
@@ -154,14 +279,6 @@ class Order extends Model
         // Tăng số lần sử dụng của mã giảm giá
         $discount->increment('used_count');
 
-        // Lưu lịch sử sử dụng mã giảm giá
-        DiscountUser::create([
-            'discount_id' => $discount->id,
-            'user_id' => $this->user_id,
-            'is_used' => true,
-            'redeemed_at' => now()
-        ]);
-
         return [
             'success' => true,
             'message' => 'Áp dụng mã giảm giá thành công',
@@ -202,6 +319,7 @@ class Order extends Model
             'shipped',
             'delivered',
             'cancelled',
+            'refunded',
             'failed',
             'failed_delivery',
             'rejected_by_customer'
@@ -219,8 +337,8 @@ class Order extends Model
             'failed' => ['rejected_by_customer', 'failed_delivery', 'cancelled'],
             'failed_delivery' => ['rejected_by_customer', 'cancelled'],
             'rejected_by_customer' => ['cancelled'],
-            'delivered' => [],
-            'cancelled' => [],
+            'delivered' => [ 'cancelled', 'refunded', 'failed', 'rejected_by_customer','pending'],
+            'cancelled' => ['refunded', 'failed', 'rejected_by_customer'],
         ];
 
         return in_array($newStatus, $transitions[$this->status] ?? []);

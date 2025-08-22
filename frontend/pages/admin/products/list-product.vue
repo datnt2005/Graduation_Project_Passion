@@ -17,21 +17,21 @@
       <!-- Filter Bar -->
       <div class="bg-gray-200 px-4 py-3 flex flex-wrap items-center gap-3 text-sm text-gray-700">
         <div class="flex items-center gap-2">
-          <button @click="filterStatus = ''; filterTrash = ''; fetchProducts()" :class="[
+          <button @click="filterStatus = ''; filterTrash = ''; currentPage = 1" :class="[
             'text-blue-600 hover:underline',
             filterStatus === '' && filterTrash === '' ? 'font-semibold' : ''
           ]">
             Tất cả
           </button>
           <span>({{ totalProducts }})</span>
-          <button @click="filterStatus = 'instock'; filterTrash = ''; fetchProducts()" :class="[
+          <button @click="filterStatus = 'instock'; filterTrash = ''; currentPage = 1" :class="[
             'text-blue-600 hover:underline',
             filterStatus === 'instock' && filterTrash === '' ? 'font-semibold' : ''
           ]">
             Còn hàng
           </button>
           <span>({{ inStockProducts }})</span>
-          <button @click="filterTrash = 'trash'; filterStatus = ''; fetchProducts()" :class="[
+          <button @click="filterTrash = 'trash'; filterStatus = ''; currentPage = 1" :class="[
             'text-blue-600 hover:underline',
             filterTrash === 'trash' ? 'font-semibold' : ''
           ]">
@@ -43,7 +43,6 @@
           ]">
             Lịch sử duyệt
           </button>
-
         </div>
         <div class="flex flex-wrap gap-2 items-center">
           <!-- Sort by Date -->
@@ -158,7 +157,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="product in filteredProducts" :key="product.id" :class="{ 'bg-gray-50': product.id % 2 === 0 }"
+          <tr v-for="product in paginatedProducts" :key="product.id" :class="{ 'bg-gray-50': product.id % 2 === 0 }"
             class="border-b border-gray-300">
             <td class="border border-gray-300 px-3 py-2 text-left w-10">
               <input type="checkbox" v-model="selectedProducts" :value="product.id" />
@@ -179,10 +178,10 @@
               </span>
             </td>
             <td class="border border-gray-300 px-3 py-2 text-left">
-              {{product.categories?.length ? product.categories.map(c => c.name).join(', ') : '–'}}
+              {{ product.categories?.length ? product.categories.map(c => c.name).join(', ') : '–' }}
             </td>
             <td class="border border-gray-300 px-3 py-2 text-left">
-              {{product.tags?.length ? product.tags.map(t => t.name).join(', ') : '–'}}
+              {{ product.tags?.length ? product.tags.map(t => t.name).join(', ') : '–' }}
             </td>
             <td class="border border-gray-300 px-3 py-2 text-left">
               {{ formatDate(product.created_at) }}
@@ -190,7 +189,6 @@
             <td class="border border-gray-300 px-3 py-2 text-left">
               {{ product.seller?.store_name || '–' }}
               <span v-if="product.is_admin_added === 1" class="text-xs text-gray-500">(Admin thêm sản phẩm)</span>
-
             </td>
             <td class="border border-gray-300 px-3 py-2 text-left">
               <span class="inline-block px-3 py-1 text-xs rounded-full font-medium" :class="{
@@ -217,272 +215,334 @@
           </tr>
         </tbody>
       </table>
-    </div>
-  </div>
-  <Pagination :currentPage="currentPage" :lastPage="lastPage" @change="fetchProducts" />
 
-  <!-- Dropdown Portal -->
-  <Teleport to="body">
-    <Transition enter-active-class="transition duration-100 ease-out" enter-from-class="transform scale-95 opacity-0"
-      enter-to-class="transform scale-100 opacity-100" leave-active-class="transition duration-75 ease-in"
-      leave-from-class="transform scale-100 opacity-100" leave-to-class="transform scale-95 opacity-0">
-      <div v-if="activeDropdown !== null" class="fixed inset-0 z-50" @click="closeDropdown">
-        <div v-for="product in products" :key="product.id" v-show="activeDropdown === product.id"
-          class="absolute bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50 origin-top-right"
-          :style="dropdownPosition">
-          <div class="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
-            <button v-if="product.status !== 'trash'" @click="editProduct(product.id)"
-              class="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-150"
-              role="menuitem">
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24"
-                stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
-              Sửa
+      <!-- Pagination -->
+      <div class="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+        <div class="flex-1 flex items-center justify-between">
+          <div>
+            <p class="text-sm text-gray-700">
+              Hiển thị
+              <select v-model="itemsPerPage" @change="currentPage = 1"
+                class="ml-2 inline-flex items-center px-2 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                <option :value="5">5</option>
+                <option :value="10">10</option>
+                <option :value="20">20</option>
+                <option :value="50">50</option>
+              </select>
+              trên tổng số {{ filteredProducts.length }} sản phẩm
+            </p>
+          </div>
+          <div class="flex justify-end items-center gap-1 py-4 flex-wrap">
+            <!-- Previous Button -->
+            <button
+              @click="currentPage = currentPage - 1"
+              :disabled="currentPage === 1"
+              class="px-3 py-1 border rounded-md text-sm font-medium bg-white hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Trước
             </button>
-            <button v-if="product.status !== 'trash' && product.admin_status !== 'rejected'"
-              @click="changeApprovalStatus(product)"
-              class="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-150"
-              role="menuitem">
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24"
-                stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M8 7h12m0 0l-4-4m4 4l-4 4m-12 5h12m0 0l-4 4m4-4l-4-4" />
-              </svg>
-              Bỏ duyệt
+            <!-- First Page -->
+            <button
+              v-if="startPage > 1"
+              @click="currentPage = 1"
+              class="px-3 py-1 border rounded-md text-sm bg-white hover:bg-gray-100"
+            >
+              1
             </button>
-            <button v-if="product.status !== 'trash'" @click="moveToTrash(product)"
-              class="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors duration-150"
-              role="menuitem">
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24"
-                stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-              Thêm vào thùng rác
+            <span v-if="startPage > 2" class="px-2 text-gray-500">...</span>
+            <!-- Middle Pages -->
+            <button
+              v-for="page in visiblePages"
+              :key="page"
+              @click="currentPage = page"
+              :class="[
+                'px-3 py-1 border rounded-md text-sm font-medium transition-colors duration-150',
+                page === currentPage
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-gray-700 hover:bg-gray-100'
+              ]"
+            >
+              {{ page }}
             </button>
-            <button v-if="product.status === 'trash'" @click="restoreProduct(product)"
-              class="flex items-center w-full px-4 py-2 text-sm text-green-600 hover:bg-green-50 transition-colors duration-150"
-              role="menuitem">
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24"
-                stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              Khôi phục
+            <!-- Last Page -->
+            <span v-if="endPage < totalPages - 1" class="px-2 text-gray-500">...</span>
+            <button
+              v-if="endPage < totalPages"
+              @click="currentPage = totalPages"
+              class="px-3 py-1 border rounded-md text-sm bg-white hover:bg-gray-100"
+            >
+              {{ totalPages }}
             </button>
-            <button v-if="product.status === 'trash'" @click="confirmDelete(product)"
-              class="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors duration-150"
-              role="menuitem">
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24"
-                stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-              Xóa vĩnh viễn
+            <!-- Next Button -->
+            <button
+              @click="currentPage = currentPage + 1"
+              :disabled="currentPage === totalPages"
+              class="px-3 py-1 border rounded-md text-sm font-medium bg-white hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Sau
             </button>
           </div>
         </div>
       </div>
-    </Transition>
-  </Teleport>
 
-  <!-- Notification Popup -->
-  <Teleport to="body">
-    <Transition enter-active-class="transition ease-out duration-200" enter-from-class="transform opacity-0 scale-95"
-      enter-to-class="transform opacity-100 scale-100" leave-active-class="transition ease-in duration-100"
-      leave-from-class="transform opacity-100 scale-100" leave-to-class="transform opacity-0 scale-95">
-      <div v-if="showNotification"
-        class="fixed bottom-4 right-4 bg-white rounded-lg shadow-xl border border-gray-200 p-4 flex items-center space-x-3 z-50">
-        <div class="flex-shrink-0">
-          <svg class="h-6 w-6" :class="notificationType === 'success' ? 'text-green-400' : 'text-red-500'"
-            xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path v-if="notificationType === 'success'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            <path v-if="notificationType === 'error'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
-        </div>
-        <div class="flex-1">
-          <p class="text-sm font-medium text-gray-900">
-            {{ notificationMessage }}
-          </p>
-        </div>
-        <div class="flex-shrink-0">
-          <button @click="showNotification = false"
-            class="inline-flex text-gray-400 hover:text-gray-500 focus:outline-none">
-            <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-              stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-      </div>
-    </Transition>
-  </Teleport>
-
-  <!-- Confirmation Dialog -->
-  <Teleport to="body">
-    <Transition enter-active-class="transition ease-out duration-200" enter-from-class="opacity-0"
-      enter-to-class="opacity-100" leave-active-class="transition ease-in duration-100" leave-from-class="opacity-100"
-      leave-to-class="opacity-0">
-      <div v-if="showConfirmDialog" class="fixed inset-0 z-50 overflow-y-auto">
-        <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-          <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="closeConfirmDialog"></div>
-
-          <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true"></span>
-
-          <div
-            class="relative inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-              <div class="sm:flex sm:items-start">
-                <div
-                  class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
-                  <svg class="h-6 w-6 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+      <!-- Dropdown Portal -->
+      <Teleport to="body">
+        <Transition enter-active-class="transition duration-100 ease-out" enter-from-class="transform scale-95 opacity-0"
+          enter-to-class="transform scale-100 opacity-100" leave-active-class="transition duration-75 ease-in"
+          leave-from-class="transform scale-100 opacity-100" leave-to-class="transform scale-95 opacity-0">
+          <div v-if="activeDropdown !== null" class="fixed inset-0 z-50" @click="closeDropdown">
+            <div v-for="product in products" :key="product.id" v-show="activeDropdown === product.id"
+              class="absolute bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50 origin-top-right"
+              :style="dropdownPosition">
+              <div class="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
+                <button v-if="product.status !== 'trash'" @click="editProduct(product.id)"
+                  class="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-150"
+                  role="menuitem">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24"
                     stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                   </svg>
-                </div>
-                <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-                  <h3 class="text-lg leading-6 font-medium text-gray-900">
-                    {{ confirmDialogTitle }}
-                  </h3>
-                  <div class="mt-2">
-                    <p class="text-sm text-gray-500">
-                      {{ confirmDialogMessage }}
-                    </p>
+                  Sửa
+                </button>
+                <button v-if="product.status !== 'trash' && product.admin_status !== 'rejected'"
+                  @click="changeApprovalStatus(product)"
+                  class="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-150"
+                  role="menuitem">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M8 7h12m0 0l-4-4m4 4l-4 4m-12 5h12m0 0l-4 4m4-4l-4-4" />
+                  </svg>
+                  Bỏ duyệt
+                </button>
+                <button v-if="product.status !== 'trash'" @click="moveToTrash(product)"
+                  class="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors duration-150"
+                  role="menuitem">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  Thêm vào thùng rác
+                </button>
+                <button v-if="product.status === 'trash'" @click="restoreProduct(product)"
+                  class="flex items-center w-full px-4 py-2 text-sm text-green-600 hover:bg-green-50 transition-colors duration-150"
+                  role="menuitem">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Khôi phục
+                </button>
+                <button v-if="product.status === 'trash'" @click="confirmDelete(product)"
+                  class="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors duration-150"
+                  role="menuitem">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  Xóa vĩnh viễn
+                </button>
+              </div>
+            </div>
+          </div>
+        </Transition>
+      </Teleport>
+
+      <!-- Notification Popup -->
+      <Teleport to="body">
+        <Transition enter-active-class="transition ease-out duration-200" enter-from-class="transform opacity-0 scale-95"
+          enter-to-class="transform opacity-100 scale-100" leave-active-class="transition ease-in duration-100"
+          leave-from-class="transform opacity-100 scale-100" leave-to-class="transform opacity-0 scale-95">
+          <div v-if="showNotification"
+            class="fixed bottom-4 right-4 bg-white rounded-lg shadow-xl border border-gray-200 p-4 flex items-center space-x-3 z-50">
+            <div class="flex-shrink-0">
+              <svg class="h-6 w-6" :class="notificationType === 'success' ? 'text-green-400' : 'text-red-500'"
+                xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path v-if="notificationType === 'success'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <path v-if="notificationType === 'error'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <div class="flex-1">
+              <p class="text-sm font-medium text-gray-900">
+                {{ notificationMessage }}
+              </p>
+            </div>
+            <div class="flex-shrink-0">
+              <button @click="showNotification = false"
+                class="inline-flex text-gray-400 hover:text-gray-500 focus:outline-none">
+                <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                  stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </Transition>
+      </Teleport>
+
+      <!-- Confirmation Dialog -->
+      <Teleport to="body">
+        <Transition enter-active-class="transition ease-out duration-200" enter-from-class="opacity-0"
+          enter-to-class="opacity-100" leave-active-class="transition ease-in duration-100"
+          leave-from-class="opacity-100" leave-to-class="opacity-0">
+          <div v-if="showConfirmDialog" class="fixed inset-0 z-50 overflow-y-auto">
+            <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+              <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="closeConfirmDialog"></div>
+              <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true"></span>
+              <div
+                class="relative inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                  <div class="sm:flex sm:items-start">
+                    <div
+                      class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                      <svg class="h-6 w-6 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                    </div>
+                    <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                      <h3 class="text-lg leading-6 font-medium text-gray-900">
+                        {{ confirmDialogTitle }}
+                      </h3>
+                      <div class="mt-2">
+                        <p class="text-sm text-gray-500">
+                          {{ confirmDialogMessage }}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
-            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-              <button type="button"
-                class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm"
-                @click="handleConfirmAction">
-                Xác nhận
-              </button>
-              <button type="button"
-                class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-                @click="closeConfirmDialog">
-                Hủy
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </Transition>
-  </Teleport>
-
-  <!-- Approval History Modal -->
-  <Teleport to="body">
-    <Transition enter-active-class="transition ease-out duration-200" enter-from-class="opacity-0"
-      enter-to-class="opacity-100" leave-active-class="transition ease-in duration-100" leave-from-class="opacity-100"
-      leave-to-class="opacity-0">
-      <div v-if="showApprovalHistory" class="fixed inset-0 z-50 overflow-y-auto">
-        <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-          <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="closeApprovalHistory"></div>
-          <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true"></span>
-          <div
-            class="relative inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
-            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-              <h3 class="text-lg leading-6 font-medium text-gray-900">Lịch sử xét duyệt sản phẩm</h3>
-              <div class="mt-4">
-                <table class="min-w-full border-collapse border border-gray-300 text-sm">
-                  <thead class="bg-white border-b border-gray-300">
-                    <tr>
-                      <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">ID</th>
-                      <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Tên sản phẩm
-                      </th>
-                      <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Quản trị viên
-                      </th>
-                      <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Trạng thái</th>
-                      <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Lý do</th>
-                      <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Ngày xét duyệt
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="history in approvalHistory" :key="history.id"
-                      :class="{ 'bg-gray-50': history.id % 2 === 0 }" class="border-b border-gray-300">
-                      <td class="border border-gray-300 px-3 py-2 text-left">{{ history.id }}</td>
-                      <td class="border border-gray-300 px-3 py-2 text-left">
-                        {{ truncateText(history.product_name, 30) }}
-
-                      </td>
-                      <td class="border border-gray-300 px-3 py-2 text-left">
-                        {{ history.admin_name || '–' }}
-                      </td>
-                      <td class="border border-gray-300 px-3 py-2 text-left">
-                        <span class="inline-block px-3 py-1 text-xs rounded-full font-medium" :class="{
-                          'bg-green-100 text-green-700': history.status === 'approved',
-                          'bg-red-100 text-red-600': history.status === 'rejected',
-                        }">
-                          {{ history.status === 'approved' ? 'Đã duyệt' : 'Từ chối' }}
-                        </span>
-                      </td>
-                      <td class="border border-gray-300 px-3 py-2 text-left">
-                        {{ history.reason || '–' }}
-                      </td>
-                      <td class="border border-gray-300 px-3 py-2 text-left">
-                        {{ formatDate(history.created_at) }}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-                <div v-if="!approvalHistory.length" class="text-center text-gray-500 py-4">
-                  Không có lịch sử xét duyệt nào.
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                  <button type="button"
+                    class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm"
+                    @click="handleConfirmAction">
+                    Xác nhận
+                  </button>
+                  <button type="button"
+                    class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                    @click="closeConfirmDialog">
+                    Hủy
+                  </button>
                 </div>
               </div>
             </div>
-            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-              <button type="button"
-                class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-                @click="closeApprovalHistory">
-                Đóng
-              </button>
+          </div>
+        </Transition>
+      </Teleport>
+
+      <!-- Approval History Modal -->
+      <Teleport to="body">
+        <Transition enter-active-class="transition ease-out duration-200" enter-from-class="opacity-0"
+          enter-to-class="opacity-100" leave-active-class="transition ease-in duration-100"
+          leave-from-class="opacity-100" leave-to-class="opacity-0">
+          <div v-if="showApprovalHistory" class="fixed inset-0 z-50 overflow-y-auto">
+            <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+              <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="closeApprovalHistory"></div>
+              <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true"></span>
+              <div
+                class="relative inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                  <h3 class="text-lg leading-6 font-medium text-gray-900">Lịch sử xét duyệt sản phẩm</h3>
+                  <div class="mt-4">
+                    <table class="min-w-full border-collapse border border-gray-300 text-sm">
+                      <thead class="bg-white border-b border-gray-300">
+                        <tr>
+                          <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">ID</th>
+                          <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Tên sản phẩm</th>
+                          <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Quản trị viên</th>
+                          <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Trạng thái</th>
+                          <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Lý do</th>
+                          <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Ngày xét duyệt</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="history in approvalHistory" :key="history.id" :class="{ 'bg-gray-50': history.id % 2 === 0 }" class="border-b border-gray-300">
+                          <td class="border border-gray-300 px-3 py-2 text-left">{{ history.id }}</td>
+                          <td class="border border-gray-300 px-3 py-2 text-left">
+                            {{ truncateText(history.product_name, 30) }}
+                          </td>
+                          <td class="border border-gray-300 px-3 py-2 text-left">
+                            {{ history.admin_name || '–' }}
+                          </td>
+                          <td class="border border-gray-300 px-3 py-2 text-left">
+                            <span class="inline-block px-3 py-1 text-xs rounded-full font-medium" :class="{
+                              'bg-green-100 text-green-700': history.status === 'approved',
+                              'bg-red-100 text-red-600': history.status === 'rejected',
+                            }">
+                              {{ history.status === 'approved' ? 'Đã duyệt' : 'Từ chối' }}
+                            </span>
+                          </td>
+                          <td class="border border-gray-300 px-3 py-2 text-left">
+                            {{ history.reason || '–' }}
+                          </td>
+                          <td class="border border-gray-300 px-3 py-2 text-left">
+                            {{ formatDate(history.created_at) }}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                    <div v-if="!approvalHistory.length" class="text-center text-gray-500 py-4">
+                      Không có lịch sử xét duyệt nào.
+                    </div>
+                  </div>
+                </div>
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                  <button type="button"
+                    class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                    @click="closeApprovalHistory">
+                    Đóng
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
-    </Transition>
-  </Teleport>
+        </Transition>
+      </Teleport>
 
-  <Teleport to="body">
-  <Transition enter-active-class="transition ease-out duration-200" enter-from-class="opacity-0"
-    enter-to-class="opacity-100" leave-active-class="transition ease-in duration-100" leave-from-class="opacity-100"
-    leave-to-class="opacity-0">
-    <div v-if="reasonModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 backdrop-blur-sm">
-      <div class="bg-white w-full max-w-md rounded-xl shadow-xl p-6">
-        <h3 class="text-lg font-semibold mb-3 text-gray-800">
-          {{ pendingAction === 'reject' ? 'Từ chối sản phẩm' : 'Duyệt sản phẩm' }}
-        </h3>
-        <div v-if="pendingAction === 'reject'">
-          <label class="text-sm text-gray-600 mb-1 block">Lý do từ chối</label>
-          <textarea v-model="reasonText" rows="4"
-            class="w-full border rounded p-2 text-sm focus:outline-blue-500 resize-none"
-            placeholder="Nhập lý do từ chối (ví dụ: sản phẩm bị báo cáo hàng giả)..."></textarea>
-        </div>
-        <p v-else class="text-sm text-gray-700">Bạn chắc chắn muốn <strong>duyệt</strong> sản phẩm này?</p>
-        <div class="flex justify-end mt-5 gap-2">
-          <button @click="reasonModal = false"
-            class="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm">Hủy</button>
-          <button @click="submitApprovalStatus" class="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white text-sm">
-            {{ pendingAction === 'reject' ? 'Xác nhận từ chối' : 'Xác nhận duyệt' }}
-          </button>
-        </div>
-      </div>
+      <Teleport to="body">
+        <Transition enter-active-class="transition ease-out duration-200" enter-from-class="opacity-0"
+          enter-to-class="opacity-100" leave-active-class="transition ease-in duration-100"
+          leave-from-class="opacity-100" leave-to-class="opacity-0">
+          <div v-if="reasonModal"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 backdrop-blur-sm">
+            <div class="bg-white w-full max-w-md rounded-xl shadow-xl p-6">
+              <h3 class="text-lg font-semibold mb-3 text-gray-800">
+                {{ pendingAction === 'reject' ? 'Từ chối sản phẩm' : 'Duyệt sản phẩm' }}
+              </h3>
+              <div v-if="pendingAction === 'reject'">
+                <label class="text-sm text-gray-600 mb-1 block">Lý do từ chối</label>
+                <textarea v-model="reasonText" rows="4"
+                  class="w-full border rounded p-2 text-sm focus:outline-blue-500 resize-none"
+                  placeholder="Nhập lý do từ chối (ví dụ: sản phẩm bị báo cáo hàng giả)..."></textarea>
+              </div>
+              <p v-else class="text-sm text-gray-700">Bạn chắc chắn muốn <strong>duyệt</strong> sản phẩm này?</p>
+              <div class="flex justify-end mt-5 gap-2">
+                <button @click="reasonModal = false"
+                  class="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm">Hủy</button>
+                <button @click="submitApprovalStatus"
+                  class="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white text-sm">
+                  {{ pendingAction === 'reject' ? 'Xác nhận từ chối' : 'Xác nhận duyệt' }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </Transition>
+      </Teleport>
     </div>
-  </Transition>
-</Teleport>
+  </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue';
+import { ref, onMounted, onUnmounted, computed, nextTick, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import Pagination from '~/components/Pagination.vue';
-import { secureFetch } from '@/utils/secureFetch'
+import { secureFetch } from '@/utils/secureFetch';
 
 definePageMeta({
   layout: 'default-admin'
@@ -490,6 +550,8 @@ definePageMeta({
 
 const router = useRouter();
 const products = ref([]);
+const allProducts = ref([]);
+const trashProductsList = ref([]);
 const selectedProducts = ref([]);
 const selectAll = ref(false);
 const searchQuery = ref('');
@@ -503,9 +565,6 @@ const filterTag = ref('');
 const categories = ref([]);
 const brands = ref([]);
 const tags = ref([]);
-const totalProducts = ref(0);
-const inStockProducts = ref(0);
-const trashProducts = ref(0);
 const activeDropdown = ref(null);
 const dropdownPosition = ref({ top: '0px', left: '0px', width: '192px' });
 const loading = ref(false);
@@ -519,64 +578,40 @@ const confirmAction = ref(null);
 const config = useRuntimeConfig();
 const apiBase = config.public.apiBaseUrl;
 const mediaBase = config.public.mediaBaseUrl;
-const currentPage = ref(1);
-const lastPage = ref(1);
-const perPage = 10;
 const showApprovalHistory = ref(false);
 const approvalHistory = ref([]);
-// Thêm các biến cho modal thay đổi trạng thái
 const reasonModal = ref(false);
 const reasonText = ref('');
 const pendingAction = ref(null);
 const pendingProductId = ref(null);
+const currentPage = ref(1);
+const itemsPerPage = ref(10);
 
-// Fetch product counts (total, instock, trash)
-const fetchProductCounts = async () => {
-  try {
-    const productsResponse = await fetch(`${apiBase}/products`, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' }
-    });
-    const productsData = await productsResponse.json();
-    const allProducts = productsData.data?.data || productsData.data || [];
-    totalProducts.value = productsData.data?.total || allProducts.length || 0;
-    inStockProducts.value = allProducts.filter(p => getStockStatus(p) === 'instock').length;
-    const trashData = await secureFetch(`${apiBase}/products/trash`, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' }
-    }, ['admin']);
-    const trashProductsList = trashData.data?.data || trashData.data || [];
-    trashProducts.value = trashData.data?.total || trashProductsList.length || 0;
-  } catch (error) {
-    console.error('Error fetching product counts:', error);
-    showNotificationMessage('Có lỗi xảy ra khi tải số lượng sản phẩm', 'error');
-  }
-};
+// Calculate product counts on frontend
+const totalProducts = computed(() => allProducts.value.length);
+const inStockProducts = computed(() => allProducts.value.filter(p => getStockStatus(p) === 'instock').length);
+const trashProducts = computed(() => trashProductsList.value.length);
 
-// Fetch products from API
-const fetchProducts = async (page = 1) => {
+// Fetch all products and trash
+const fetchAllData = async () => {
   try {
     loading.value = true;
-    currentPage.value = page;
-    const endpoint = filterTrash.value === 'trash'
-      ? `${apiBase}/products/trash?page=${page}&per_page=${perPage}`
-      : `${apiBase}/products?page=${page}&per_page=${perPage}`;
-    const data = await secureFetch(endpoint, {
+    const nonTrashData = await secureFetch(`${apiBase}/products?per_page=1000000`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' }
     }, ['admin']);
-    if (!data.success) throw new Error(`HTTP error! status: ${data.status}`);
-    products.value = data.data?.data || data.data || data || [];
-    lastPage.value = data.data?.last_page || 1;
-    currentPage.value = data.data?.current_page || page;
-    if (!products.value.length) {
-      showNotificationMessage(filterTrash.value === 'trash' ? 'Không có sản phẩm nào trong thùng rác' : 'Không có sản phẩm nào');
-    }
-    await fetchProductCounts();
+    allProducts.value = nonTrashData.data?.data || nonTrashData.data || nonTrashData || [];
+
+    const trashData = await secureFetch(`${apiBase}/products/trash?per_page=1000000`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
+    }, ['admin']);
+    trashProductsList.value = trashData.data?.data || trashData.data || trashData || [];
+
+    products.value = filterTrash.value === 'trash' ? trashProductsList.value : allProducts.value;
   } catch (error) {
-    console.error('Error fetching products:', error);
-    showNotificationMessage(`Có lỗi xảy ra khi tải sản phẩm: ${error.message}`, 'error');
-    products.value = [];
+    console.error('Error fetching data:', error);
+    showNotificationMessage(`Có lỗi xảy ra khi tải dữ liệu: ${error.message}`, 'error');
   } finally {
     loading.value = false;
   }
@@ -639,12 +674,11 @@ const getProductImage = (product) => {
 
 // Get stock status
 const getStockStatus = (product) => {
-  const totalQuantity = product.product_variants?.reduce((sum, variant) => {
-    return sum + (variant.quantity || 0);
-  }, 0) || 0;
+  const totalQuantity = product.product_variants?.reduce((sum, variant) => sum + (variant.quantity || 0), 0) || 0;
   return totalQuantity > 0 ? 'instock' : 'outofstock';
 };
 
+// Get status label
 const getStatusLabel = (status) => {
   switch (status) {
     case 'approved':
@@ -663,16 +697,17 @@ const getStatusLabel = (status) => {
 // Toggle select all
 const toggleSelectAll = () => {
   if (selectAll.value) {
-    selectedProducts.value = filteredProducts.value.map(p => p.id);
+    selectedProducts.value = paginatedProducts.value.map(p => p.id);
   } else {
     selectedProducts.value = [];
   }
 };
 
-function truncateText(text, maxLength) {
+// Truncate text
+const truncateText = (text, maxLength) => {
   if (!text) return '';
   return text.length > maxLength ? text.slice(0, maxLength) + '…' : text;
-}
+};
 
 // Apply bulk action
 const applyBulkAction = async () => {
@@ -702,7 +737,7 @@ const applyBulkAction = async () => {
           selectedProducts.value = [];
           selectAll.value = false;
           selectedAction.value = '';
-          await fetchProducts();
+          await fetchAllData();
         } catch (error) {
           console.error('Error deleting products:', error);
           showNotificationMessage('Có lỗi xảy ra khi xóa sản phẩm', 'error');
@@ -737,7 +772,7 @@ const applyBulkAction = async () => {
       selectedProducts.value = [];
       selectAll.value = false;
       selectedAction.value = '';
-      await fetchProducts();
+      await fetchAllData();
     } catch (error) {
       console.error('Error updating status:', error);
       showNotificationMessage('Có lỗi xảy ra khi cập nhật trạng thái', 'error');
@@ -766,7 +801,7 @@ const moveToTrash = async (product) => {
         }, ['admin']);
         if (data.success) {
           showNotificationMessage('Đã chuyển sản phẩm vào thùng rác!', 'success');
-          await fetchProducts();
+          await fetchAllData();
         } else {
           showNotificationMessage(data.message || 'Có lỗi xảy ra khi chuyển vào thùng rác', 'error');
         }
@@ -792,7 +827,7 @@ const restoreProduct = async (product) => {
         }, ['admin']);
         if (data.success) {
           showNotificationMessage('Khôi phục sản phẩm thành công!', 'success');
-          await fetchProducts();
+          await fetchAllData();
         } else {
           showNotificationMessage(data.message || 'Có lỗi xảy ra khi khôi phục sản phẩm', 'error');
         }
@@ -817,7 +852,7 @@ const confirmDelete = async (product) => {
         }, ['admin']);
         if (data.success) {
           showNotificationMessage('Xóa vĩnh viễn sản phẩm thành công!', 'success');
-          await fetchProducts();
+          await fetchAllData();
         } else {
           showNotificationMessage(data.message || 'Có lỗi xảy ra khi xóa sản phẩm', 'error');
         }
@@ -832,15 +867,9 @@ const confirmDelete = async (product) => {
 // Change approval status
 const changeApprovalStatus = (product) => {
   pendingProductId.value = product.id;
-  if (product.admin_status === 'approved') {
-    pendingAction.value = 'reject';
-    reasonText.value = '';
-    reasonModal.value = true;
-  } else if (product.admin_status === 'rejected' || product.admin_status === 'pending') {
-    pendingAction.value = 'approve';
-    reasonText.value = '';
-    reasonModal.value = true;
-  }
+  pendingAction.value = product.admin_status === 'approved' ? 'reject' : 'approve';
+  reasonText.value = '';
+  reasonModal.value = true;
 };
 
 // Submit approval status
@@ -864,8 +893,8 @@ const submitApprovalStatus = async () => {
         pendingAction.value === 'approve' ? 'Duyệt sản phẩm thành công!' : 'Từ chối sản phẩm thành công!',
         'success'
       );
-      await fetchProducts();
-      await fetchApprovalHistory(); // Cập nhật lịch sử xét duyệt
+      await fetchAllData();
+      await fetchApprovalHistory();
     } else {
       showNotificationMessage(data.message || 'Có lỗi xảy ra khi cập nhật trạng thái duyệt', 'error');
     }
@@ -921,11 +950,6 @@ const closeDropdown = (event) => {
 // Filtered products
 const filteredProducts = computed(() => {
   let result = [...products.value];
-  if (filterTrash.value === 'trash') {
-    result = result.filter(product => product.status === 'trash');
-  } else {
-    result = result.filter(product => product.status !== 'trash');
-  }
   if (filterStatus.value && filterTrash.value !== 'trash') {
     result = result.filter(product => getStockStatus(product) === filterStatus.value);
   }
@@ -958,6 +982,29 @@ const filteredProducts = computed(() => {
     result.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
   }
   return result;
+});
+
+// Pagination logic
+const totalPages = computed(() => Math.ceil(filteredProducts.value.length / itemsPerPage.value));
+
+const paginatedProducts = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage.value;
+  const end = start + itemsPerPage.value;
+  return filteredProducts.value.slice(start, end);
+});
+
+const maxButtons = 5;
+
+const startPage = computed(() => Math.max(1, currentPage.value - Math.floor(maxButtons / 2)));
+
+const endPage = computed(() => Math.min(totalPages.value, startPage.value + maxButtons - 1));
+
+const visiblePages = computed(() => {
+  const pages = [];
+  for (let i = startPage.value; i <= endPage.value; i++) {
+    pages.push(i);
+  }
+  return pages;
 });
 
 // Show notification
@@ -1020,9 +1067,15 @@ const closeApprovalHistory = () => {
   approvalHistory.value = [];
 };
 
+// Watch filterTrash to switch products
+watch(filterTrash, () => {
+  currentPage.value = 1;
+  products.value = filterTrash.value === 'trash' ? trashProductsList.value : allProducts.value;
+});
+
 // Lifecycle hooks
 onMounted(() => {
-  fetchProducts();
+  fetchAllData();
   fetchCategories();
   fetchBrands();
   fetchTags();

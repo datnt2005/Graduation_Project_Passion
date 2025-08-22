@@ -86,115 +86,217 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, reactive, watchEffect } from 'vue'
-import { useRuntimeConfig, useHead } from '#app'
-import SidebarProfile from '~/components/shared/layouts/Sidebar-profile.vue'
-import { useAuthHeaders } from '~/composables/useAuthHeaders'
-import { useToast } from '~/composables/useToast'
-import Swal from 'sweetalert2'
-import axios from 'axios'
+import { ref, onMounted, computed, reactive } from 'vue';
+import { useRuntimeConfig, useHead } from '#app';
+import SidebarProfile from '~/components/shared/layouts/Sidebar-profile.vue';
+import { useAuthHeaders } from '~/composables/useAuthHeaders';
+import { useToast } from '~/composables/useToast';
+import Swal from 'sweetalert2';
+import axios from 'axios';
 
 useHead({
   title: 'Sổ địa chỉ | Tài khoản của bạn',
   meta: [
     { name: 'description', content: 'Trang quản lý địa chỉ giao hàng của bạn trên hệ thống.' },
-]
-})
+    { name: 'robots', content: 'index, follow' },
+    { property: 'og:title', content: 'Sổ địa chỉ giao hàng' },
+    { property: 'og:description', content: 'Xem và chỉnh sửa địa chỉ giao hàng của bạn.' },
+  ],
+});
 
+const { showSuccess, showError } = useToast();
+const config = useRuntimeConfig();
+const apiBase = config.public.apiBaseUrl;
 
-const { showSuccess, showError } = useToast()
-const config = useRuntimeConfig()
-const apiBase = config.public.apiBaseUrl
-
-const addresses = ref([])
-const loading = ref(true)
-
-const provinces = ref([])
-const districts = ref([])
-const wards = ref([])
-
-const resolved = reactive({})
+const addresses = ref([]);
+const loading = ref(true);
+const provinces = ref([]);
+const districts = ref([]);
+const wards = ref([]);
+const resolved = reactive({});
 
 const loadProvinces = async () => {
-  const cache = localStorage.getItem('ghn_provinces')
-  if (cache) {
-    provinces.value = JSON.parse(cache)
-  } else {
-    const res = await axios.get(`${apiBase}/ghn/provinces`)
-    provinces.value = res.data.data || []
-    localStorage.setItem('ghn_provinces', JSON.stringify(provinces.value))
+  const key = 'ghn_provinces';
+  localStorage.removeItem(key); // Clear cache to ensure fresh data
+  console.log('Cleared ghn_provinces cache');
+
+  try {
+    console.log('Calling API /api/ghn/provinces');
+    const res = await axios.get(`${apiBase}/ghn/provinces`);
+    console.log('Response from /api/ghn/provinces:', res.data);
+
+    provinces.value = Array.isArray(res.data.data) ? res.data.data : [];
+    if (provinces.value.length === 0) {
+      console.warn('API /api/ghn/provinces returned empty array:', res.data);
+      provinces.value = [
+        { ProvinceID: 202, ProvinceName: 'TP. Hồ Chí Minh' },
+        { ProvinceID: 210, ProvinceName: 'Đắk Lắk' },
+        { ProvinceID: 253, ProvinceName: 'Bạc Liêu' },
+        { ProvinceID: 266, ProvinceName: 'Sơn La' },
+      ];
+      console.log('Using default provinces:', provinces.value);
+    } else {
+      console.log('Provinces from API:', provinces.value);
+    }
+    localStorage.setItem(key, JSON.stringify({ data: provinces.value, timestamp: Date.now() }));
+  } catch (e) {
+    console.error('Error calling /api/ghn/provinces:', e);
+    provinces.value = [
+      { ProvinceID: 202, ProvinceName: 'TP. Hồ Chí Minh' },
+      { ProvinceID: 210, ProvinceName: 'Đắk Lắk' },
+      { ProvinceID: 253, ProvinceName: 'Bạc Liêu' },
+      { ProvinceID: 266, ProvinceName: 'Sơn La' },
+    ];
+    console.log('Using default provinces due to API error:', provinces.value);
+    localStorage.setItem(key, JSON.stringify({ data: provinces.value, timestamp: Date.now() }));
   }
-}
+};
 
 const loadDistrictsAppend = async (provinceId) => {
-  const key = `ghn_districts_${provinceId}`
-  const cache = localStorage.getItem(key)
+  const key = `ghn_districts_${provinceId}`;
+  const cache = localStorage.getItem(key);
+  let data = [];
+
   if (cache) {
-    const parsed = JSON.parse(cache)
-    const ids = parsed.map(d => d.DistrictID)
-    if (!districts.value.some(d => ids.includes(d.DistrictID))) {
-      districts.value.push(...parsed)
+    try {
+      const parsed = JSON.parse(cache);
+      if (parsed.data && Array.isArray(parsed.data)) {
+        data = parsed.data;
+        console.log(`Loaded districts from cache for province ${provinceId}:`, data);
+      } else {
+        console.warn(`Data in localStorage at ${key} is not an array:`, parsed);
+      }
+    } catch (e) {
+      console.error(`Error parsing localStorage at ${key}:`, e);
     }
   } else {
-    const res = await axios.post(`${apiBase}/ghn/districts`, { province_id: provinceId })
-    const data = res.data.data || []
-    localStorage.setItem(key, JSON.stringify(data))
-    districts.value.push(...data)
+    try {
+      const res = await axios.post(`${apiBase}/ghn/districts`, { province_id: provinceId });
+      data = Array.isArray(res.data.data) ? res.data.data : [];
+      localStorage.setItem(key, JSON.stringify({ data, timestamp: Date.now() }));
+      console.log(`Saved districts to localStorage for province ${provinceId}:`, data);
+    } catch (e) {
+      console.error(`Error fetching districts for province ${provinceId}:`, e);
+      data = [];
+    }
   }
-}
+
+  const ids = data.map((d) => d.DistrictID);
+  if (!districts.value.some((d) => ids.includes(d.DistrictID))) {
+    districts.value.push(...data);
+  }
+};
 
 const loadWardsAppend = async (districtId) => {
-  const key = `ghn_wards_${districtId}`
-  const cache = localStorage.getItem(key)
+  const key = `ghn_wards_${districtId}`;
+  const cache = localStorage.getItem(key);
+  let data = [];
+
   if (cache) {
-    const parsed = JSON.parse(cache)
-    const codes = parsed.map(w => w.WardCode)
-    if (!wards.value.some(w => codes.includes(w.WardCode))) {
-      wards.value.push(...parsed)
+    try {
+      const parsed = JSON.parse(cache);
+      if (parsed.data && Array.isArray(parsed.data)) {
+        data = parsed.data;
+        console.log(`Loaded wards from cache for district ${districtId}:`, data);
+      } else {
+        console.warn(`Data in localStorage at ${key} is not an array:`, parsed);
+      }
+    } catch (e) {
+      console.error(`Error parsing localStorage at ${key}:`, e);
     }
   } else {
-    const res = await axios.post(`${apiBase}/ghn/wards`, { district_id: districtId })
-    const data = res.data.data || []
-    localStorage.setItem(key, JSON.stringify(data))
-    wards.value.push(...data)
+    try {
+      const res = await axios.post(`${apiBase}/ghn/wards`, { district_id: districtId });
+      data = Array.isArray(res.data.data) ? res.data.data : [];
+      localStorage.setItem(key, JSON.stringify({ data, timestamp: Date.now() }));
+      console.log(`Saved wards to localStorage for district ${districtId}:`, data);
+    } catch (e) {
+      console.error(`Error fetching wards for district ${districtId}:`, e);
+      data = [];
+    }
   }
-}
 
-const provinceMap = computed(() => new Map(provinces.value.map(p => [p.ProvinceID, p.ProvinceName])))
-const districtMap = computed(() => new Map(districts.value.map(d => [d.DistrictID, d.DistrictName])))
-const wardMap = computed(() => new Map(wards.value.map(w => [`${w.WardCode}-${w.DistrictID}`, w.WardName])))
+  const codes = data.map((w) => w.WardCode);
+  if (!wards.value.some((w) => codes.includes(w.WardCode))) {
+    wards.value.push(...data);
+  }
+};
 
-const getProvinceName = (id) => id ? provinceMap.value.get(id) || '' : ''
-const getDistrictName = (id) => id ? districtMap.value.get(id) || '' : ''
-const getWardName = (code, did) => (code && did) ? wardMap.value.get(`${code}-${did}`) || '' : ''
+const provinceMap = computed(() => {
+  if (!Array.isArray(provinces.value)) {
+    console.warn('provinces.value is not an array:', provinces.value);
+    return new Map();
+  }
+  const map = new Map(provinces.value.map((p) => [Number(p.ProvinceID), p.ProvinceName]));
+  console.log('provinceMap:', Object.fromEntries(map));
+  return map;
+});
+
+const districtMap = computed(() =>
+  new Map(Array.isArray(districts.value) ? districts.value.map((d) => [d.DistrictID, d.DistrictName]) : [])
+);
+const wardMap = computed(() =>
+  new Map(Array.isArray(wards.value) ? wards.value.map((w) => [`${w.WardCode}-${w.DistrictID}`, w.WardName]) : [])
+);
+
+const getProvinceName = (id) => {
+  if (!id) {
+    console.warn('Invalid province_id:', id);
+    return 'Không xác định';
+  }
+  const name = provinceMap.value.get(Number(id));
+  if (!name) {
+    console.warn(`Province name not found for province_id: ${id}`);
+    return 'Không xác định';
+  }
+  return name;
+};
+
+const getDistrictName = (id) => (id ? districtMap.value.get(id) || 'Không xác định' : 'Không xác định');
+const getWardName = (code, did) => (code && did ? wardMap.value.get(`${code}-${did}`) || 'Không xác định' : 'Không xác định');
 
 const resolveAddressText = async (address) => {
-  await loadDistrictsAppend(address.province_id)
-  await loadWardsAppend(address.district_id)
+  try {
+    console.log('Processing address:', address);
+    await loadDistrictsAppend(address.province_id);
+    await loadWardsAppend(address.district_id);
 
-  const ward = getWardName(address.ward_code, address.district_id)
-  const district = getDistrictName(address.district_id)
-  const province = getProvinceName(address.province_id)
-  return `${address.detail}, ${ward}, ${district}, ${province}`
-}
+    const ward = getWardName(address.ward_code, address.district_id);
+    const district = getDistrictName(address.district_id);
+    const province = getProvinceName(address.province_id);
+    const addressText = `${address.detail}, ${ward}, ${district}, ${province}`;
+    console.log('Resolved address:', addressText);
+    return addressText;
+  } catch (e) {
+    console.error('Error resolving address:', e, 'for address:', address);
+    return `${address.detail}, Không xác định`;
+  }
+};
 
 const loadAddresses = async () => {
-  loading.value = true
+  loading.value = true;
   try {
-    const res = await axios.get(`${apiBase}/address`, useAuthHeaders())
-    addresses.value = res.data.data || []
+    const res = await axios.get(`${apiBase}/address`, useAuthHeaders());
+    addresses.value = Array.isArray(res.data.data) ? res.data.data : [];
 
     for (const addr of addresses.value) {
-      resolveAddressText(addr).then(text => {
-        resolved[addr.id] = text
-      })
+      if (!addr.province_id || !addr.district_id || !addr.ward_code) {
+        console.warn('Invalid address:', addr);
+        resolved[addr.id] = `${addr.detail}, Không xác định`;
+        continue;
+      }
+      resolveAddressText(addr).then((text) => {
+        resolved[addr.id] = text;
+      }).catch((e) => {
+        resolved[addr.id] = `${addr.detail}, Không xác định`;
+      });
     }
   } catch (e) {
-    showError('Không thể tải địa chỉ')
+    showError('Không thể tải địa chỉ');
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
+};
 
 const deleteAddress = async (id) => {
   const confirm = await Swal.fire({
@@ -204,23 +306,23 @@ const deleteAddress = async (id) => {
     showCancelButton: true,
     confirmButtonText: 'Xoá',
     cancelButtonText: 'Huỷ',
-  })
+  });
 
-  if (!confirm.isConfirmed) return
+  if (!confirm.isConfirmed) return;
 
   try {
-    await axios.delete(`${apiBase}/address/${id}`, useAuthHeaders())
-    showSuccess('Đã xoá thành công')
-    await loadAddresses()
+    await axios.delete(`${apiBase}/address/${id}`, useAuthHeaders());
+    showSuccess('Đã xoá thành công');
+    await loadAddresses();
   } catch (e) {
-    showError('Không thể xoá địa chỉ')
+    showError('Không thể xoá địa chỉ');
   }
-}
+};
 
 onMounted(async () => {
-  await loadProvinces()
-  await loadAddresses()
-})
+  await loadProvinces();
+  await loadAddresses();
+});
 </script>
 
 <style scoped>

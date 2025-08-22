@@ -50,7 +50,15 @@
                     <span v-if="errors.email" class="text-red-500 text-xs mt-1">{{ errors.email }}</span>
                   </div>
                   <div class="mt-4">
-                    <label for="user-password" class="block text-sm text-gray-700 mb-1">Đổi mật khẩu (bỏ trống nếu không đổi)</label>
+                    <label for="user-old-password" class="block text-sm text-gray-700 mb-1">Mật khẩu cũ (bắt buộc nếu đổi mật khẩu)</label>
+                    <input id="user-old-password" v-model="formData.old_password" type="password"
+                      :disabled="loading"
+                      class="w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-sm placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      placeholder="Nhập mật khẩu cũ" />
+                    <span v-if="errors.old_password" class="text-red-500 text-xs mt-1">{{ errors.old_password }}</span>
+                  </div>
+                  <div class="mt-4">
+                    <label for="user-password" class="block text-sm text-gray-700 mb-1">Mật khẩu mới (bỏ trống nếu không đổi)</label>
                     <input id="user-password" v-model="formData.password" type="password"
                       :disabled="loading"
                       class="w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-sm placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
@@ -74,6 +82,7 @@
                       :disabled="loading"
                       class="w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-sm placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                       placeholder="Nhập số điện thoại" />
+                    <p class="text-xs text-gray-500 mt-1">Số điện thoại phải là số hợp lệ (bắt đầu bằng +84 hoặc 0).</p>
                     <span v-if="errors.phone" class="text-red-500 text-xs mt-1">{{ errors.phone }}</span>
                   </div>
                   <div class="mt-4">
@@ -124,7 +133,7 @@
                           d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
                       <p class="text-sm">Kéo ảnh vào đây hoặc <span class="text-blue-500 underline">chọn từ máy</span></p>
-                      <p class="text-xs text-gray-400 mt-1">Kích thước tối đa: 2MB, định dạng: JPG, PNG</p>
+                      <p class="text-xs text-gray-400 mt-1">Kích thước tối đa: 2MB, định dạng: JPG, PNG, GIF, SVG, WEBP</p>
                     </div>
                   </div>
                   <span v-if="errors.avatar" class="text-red-500 text-xs mt-1 block">{{ errors.avatar }}</span>
@@ -224,6 +233,7 @@ const fileInput = ref(null)
 const formData = reactive({
   name: '',
   email: '',
+  old_password: '',
   password: '',
   passwordConfirm: '',
   phone: '',
@@ -239,10 +249,17 @@ const validateForm = () => {
   Object.keys(errors).forEach(key => delete errors[key])
 
   let isValid = true
+  // Define field order for client-side validation errors
+  const fieldOrder = ['name', 'email', 'password', 'passwordConfirm', 'old_password', 'phone', 'role', 'status', 'avatar']
+  
   if (!formData.name.trim()) {
     errors.name = 'Họ và tên là bắt buộc'
     isValid = false
+  } else if (formData.name.length > 255) {
+    errors.name = 'Tên không được vượt quá 255 ký tự'
+    isValid = false
   }
+  
   if (formData.password) {
     const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{6,}$/
     if (!passwordRegex.test(formData.password)) {
@@ -253,26 +270,45 @@ const validateForm = () => {
       errors.passwordConfirm = 'Mật khẩu xác nhận không khớp'
       isValid = false
     }
+    if (!formData.old_password) {
+      errors.old_password = 'Vui lòng nhập mật khẩu cũ để đổi mật khẩu'
+      isValid = false
+    }
   }
-  if (formData.phone && !/^\d{10,11}$/.test(formData.phone)) {
-    errors.phone = 'Số điện thoại không hợp lệ (10-11 số)'
+  
+  if (formData.phone && !/^(\+84|0)(3|5|7|8|9)[0-9]{8}$/.test(formData.phone)) {
+    errors.phone = 'Số điện thoại phải là số hợp lệ (bắt đầu bằng +84 hoặc 0)'
     isValid = false
   }
+  
   if (!formData.role) {
     errors.role = 'Vui lòng chọn phân quyền'
     isValid = false
   }
+  
+  if (!['active', 'inactive', 'banned'].includes(formData.status)) {
+    errors.status = 'Trạng thái không hợp lệ'
+    isValid = false
+  }
+  
   if (formData.avatar) {
     const maxSize = 2 * 1024 * 1024 // 2MB
     if (formData.avatar.size > maxSize) {
       errors.avatar = 'Ảnh đại diện không được vượt quá 2MB'
       isValid = false
     }
-    if (!['image/jpeg', 'image/png'].includes(formData.avatar.type)) {
-      errors.avatar = 'Chỉ hỗ trợ định dạng JPG hoặc PNG'
+    if (!['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'image/svg+xml', 'image/webp'].includes(formData.avatar.type)) {
+      errors.avatar = 'Ảnh phải có định dạng JPG, PNG, GIF, SVG hoặc WEBP'
       isValid = false
     }
   }
+
+  if (!isValid) {
+    const firstErrorField = fieldOrder.find(field => errors[field])
+    const errorMessage = firstErrorField ? errors[firstErrorField] : 'Vui lòng kiểm tra lại các trường thông tin'
+    showNotificationMessage(errorMessage, 'error')
+  }
+  
   return isValid
 }
 
@@ -280,25 +316,29 @@ const validateForm = () => {
 const fetchUser = async () => {
   try {
     loading.value = true
-    const data = await secureFetch(`${apiBase}/users/${userId}`, {}, ['admin'])
-    if (data && data.data) {
+    const response = await secureFetch(`${apiBase}/users/${userId}`, {}, ['admin'], true)
+    
+    console.log('Fetch user response:', response) // Debug response
+    
+    if (response.success && response.data) {
       Object.assign(formData, {
-        name: data.data.name || '',
-        email: data.data.email || '',
-        phone: data.data.phone || '',
-        role: data.data.role || '',
-        status: data.data.status || 'active',
+        name: response.data.name || '',
+        email: response.data.email || '',
+        phone: response.data.phone || '',
+        role: response.data.role || '',
+        status: response.data.status || 'active',
         avatar: null,
-        avatar_url: data.data.avatar_url || null,
+        avatar_url: response.data.avatar_url || null,
+        old_password: '',
         password: '',
         passwordConfirm: ''
       })
     } else {
-      showNotificationMessage('Không lấy được thông tin người dùng', 'error')
+      showNotificationMessage(response.message || 'Không lấy được thông tin người dùng', 'error')
     }
   } catch (error) {
     console.error('Error fetching user:', error)
-    showNotificationMessage('Lỗi kết nối máy chủ khi lấy thông tin người dùng', 'error')
+    showNotificationMessage(error.message || 'Lỗi kết nối máy chủ khi lấy thông tin người dùng', 'error')
   } finally {
     loading.value = false
   }
@@ -340,7 +380,7 @@ const removeImage = () => {
   formData.avatar_url = null
   imagePreview.value = null
   errors.avatar = ''
-  fileInput.value.value = '' // Reset input file
+  fileInput.value.value = ''
 }
 
 // Show notification
@@ -355,18 +395,21 @@ const showNotificationMessage = (message, type = 'success') => {
 
 // Handle form submission
 const handleSubmit = async () => {
+  // Clear previous errors
+  Object.keys(errors).forEach(key => delete errors[key])
+
+  // Perform client-side validation
   if (!validateForm()) {
-    const errorMessages = Object.values(errors).join('; ')
-    showNotificationMessage(errorMessages || 'Vui lòng kiểm tra lại các trường thông tin', 'error')
     return
   }
 
   const payload = new FormData()
-  const fieldsToSend = ['name', 'phone', 'role', 'status', 'password', 'passwordConfirm', 'avatar']
+  const fieldsToSend = ['name', 'old_password', 'password', 'passwordConfirm', 'phone', 'role', 'status', 'avatar']
   fieldsToSend.forEach(key => {
     if (key === 'avatar' && !formData.avatar) return
     if (key === 'password' && !formData.password) return
     if (key === 'passwordConfirm' && !formData.passwordConfirm) return
+    if (key === 'old_password' && !formData.old_password) return
     if (formData[key] !== undefined && formData[key] !== null) {
       payload.append(key, formData[key])
     }
@@ -380,31 +423,50 @@ const handleSubmit = async () => {
 
   try {
     loading.value = true
-    const data = await secureFetch(`${apiBase}/users/${userId}`, {
+    const response = await secureFetch(`${apiBase}/users/${userId}`, {
       method: 'POST',
       body: payload
-    }, ['admin'])
+    }, ['admin'], true)
 
-    console.log('API response:', data) // Debug API response
+    console.log('API response:', response) // Debug response
 
-    if (data && data.data) {
+    if (response.success) {
       showNotificationMessage('Cập nhật người dùng thành công!', 'success')
       setTimeout(() => {
         router.push('/admin/users/list-user')
-      }, 2000)
+      }, 1000)
     } else {
-      if (data && data.errors) {
-        Object.keys(data.errors).forEach(key => {
-          errors[key] = Array.isArray(data.errors[key]) ? data.errors[key][0] : data.errors[key]
+      // Handle validation errors or other failures
+      if (response.errors) {
+        // Define field order for server-side validation errors
+        const fieldOrder = ['name', 'email', 'password', 'passwordConfirm', 'old_password', 'phone', 'role', 'status', 'avatar']
+        const firstErrorField = fieldOrder.find(field => response.errors[field])
+        const errorMessages = []
+        
+        // Assign all errors to display under input fields
+        Object.entries(response.errors).forEach(([key, messages]) => {
+          const message = Array.isArray(messages) ? messages[0] : messages
+          errors[key] = message
+          errorMessages.push(message)
         })
-        const errorMessages = Object.values(errors).join('; ')
-        showNotificationMessage(errorMessages || 'Có lỗi xảy ra khi cập nhật người dùng', 'error')
+
+        // Show only the first error in toast based on field order
+        const firstErrorMessage = firstErrorField 
+          ? response.errors[firstErrorField][0] 
+          : response.message || 'Có lỗi xảy ra khi cập nhật người dùng'
+        showNotificationMessage(firstErrorMessage, 'error')
       } else {
-        showNotificationMessage(data && data.message ? data.message : 'Có lỗi xảy ra khi cập nhật người dùng', 'error')
+        showNotificationMessage(response.message || 'Có lỗi xảy ra khi cập nhật người dùng', 'error')
       }
     }
   } catch (error) {
     console.error('Error updating user:', error)
+    console.log('Error details:', {
+      message: error.message,
+      status: error.status,
+      data: error.data,
+      errors: error.data?.errors,
+    })
     showNotificationMessage(error.message || 'Lỗi kết nối máy chủ khi cập nhật người dùng', 'error')
   } finally {
     loading.value = false

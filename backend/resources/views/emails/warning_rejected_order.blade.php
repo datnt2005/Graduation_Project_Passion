@@ -90,14 +90,20 @@
             margin: 20px 0;
         }
 
+
         .btn {
             background-color: #2563eb;
-            color: white;
+            color: #fff !important;
             padding: 12px 24px;
             border-radius: 5px;
             text-decoration: none;
             font-size: 14px;
             display: inline-block;
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+        .btn:hover {
+            background-color: #1d4ed8;
+            box-shadow: 0 2px 8px rgba(37,99,235,0.15);
         }
 
         .footer {
@@ -116,7 +122,7 @@
         <!-- Logo section -->
         <div class="logo-container">
             <img src="https://pub-3fc809b4396849cba1c342a5b9f50be9.r2.dev/logo_passion_white.png"
-                alt="Logo Passion"
+alt="Logo Passion"
                 style="max-width: 120px; height: auto; filter: brightness(0) invert(1);">
         </div>
 
@@ -153,4 +159,3 @@
 </body>
 
 </html>
-```

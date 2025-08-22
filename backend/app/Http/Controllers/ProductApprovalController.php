@@ -358,4 +358,68 @@ class ProductApprovalController extends Controller
             ], 500);
         }
     }
+    public function getHistoryApprovalBySeller(Request $request)
+    {
+        try {
+            $user = Auth::user();
+            if (!$user || $user->role !== 'seller') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Bạn không có quyền truy cập vào lịch sử xét duyệt.',
+                ], 403);
+            }
+
+            $perPage = $request->get('per_page', 10);
+            $search = trim($request->get('search', ''));
+
+            $query = ProductApproval::with(['product', 'admin'])
+                ->whereHas('product', function ($q) use ($user) {
+                    $q->where('seller_id', $user->id);
+                })
+                ->orderBy('created_at', 'desc');
+
+            if ($search) {
+                $query->whereHas('product', function ($q) use ($search) {
+                    $q->where('name', 'like', '%' . $search . '%');
+                })->orWhereHas('admin', function ($q) use ($search) {
+                    $q->where('name', 'like', '%' . $search . '%')
+                        ->orWhere('email', 'like', '%' . $search . '%');
+                });
+            }
+
+            $approvals = $query->paginate($perPage);
+
+            // Transform data
+            $data = $approvals->getCollection()->map(function ($approval) {
+                return [
+                    'id' => $approval->id,
+                    'product_id' => $approval->product_id,
+                    'product_name' => $approval->product ? $approval->product->name : '–',
+                    'admin_id' => $approval->admin_id,
+                    'admin_name' => $approval->admin ? ($approval->admin->name ?? $approval->admin->email) : '–',
+                    'status' => $approval->status,
+                    'reason' => $approval->reason ?? '–',
+                    'created_at' => optional($approval->created_at)->toIso8601String(),
+                    'updated_at' => optional($approval->updated_at)->toIso8601String(),
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => $data,
+                'pagination' => [
+                    'current_page' => $approvals->currentPage(),
+                    'last_page' => $approvals->lastPage(),
+                    'per_page' => $approvals->perPage(),
+                    'total' => $approvals->total(),
+                ],
+                'message' => 'Lấy lịch sử xét duyệt thành công.',
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi khi lấy lịch sử xét duyệt: ' . $e->getMessage(),
+            ], 500);
+        }
+    }    
 }

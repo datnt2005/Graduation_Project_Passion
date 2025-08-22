@@ -53,22 +53,20 @@
                 <span>{{ formatPrice(order.total_price) }} đ</span>
               </div>
               <div class="flex justify-between" v-if="order.discount_price > 0">
-                <span>Giảm giá sản phẩm:</span>
+                <span>Tổng giảm giá:</span>
                 <span class="text-green-600">- {{ formatPrice(order.discount_price) }} đ</span>
               </div>
               <div class="flex justify-between">
                 <span>Phí vận chuyển:</span>
-                <span>{{ formatPrice(order.shipping?.shipping_fee || (parseInt(order.final_price) - parseInt(order.total_price)) || 0) }} đ</span>
+                <span>{{ formatPrice(Math.max(0, (parseInt(order.shipping?.shipping_fee) || 0) - (parseInt(order.shipping?.shipping_discount) || 0))) }} đ</span>
               </div>
-              <div class="flex justify-between" v-if="order.shipping && order.shipping.shipping_discount > 0">
+              <div class="flex justify-between" v-if="order.shipping && parseInt(order.shipping.shipping_discount) > 0">
                 <span>Giảm giá phí ship:</span>
                 <span class="text-green-600">- {{ formatPrice(order.shipping.shipping_discount) }} đ</span>
               </div>
               <div class="flex justify-between font-bold border-t pt-2 mt-2">
                 <span>Tổng thanh toán:</span>
-                <span class="text-blue-700">
-                  {{ formatPrice((parseInt(order.final_price) || 0) - (parseInt(order.shipping?.shipping_discount) || 0)) }} đ
-                </span>
+                <span class="text-blue-700">{{ formatPrice(parseInt(order.final_price) || 0) }} đ</span>
               </div>
             </div>
             <!-- Danh sách sản phẩm đã đặt (nếu có) -->
@@ -205,16 +203,21 @@ const loadWards = async (district_id) => {
 
 function enrichAddress(address) {
   if (!address) return
-  if (address.province_id && !address.province_name) {
-    const province = provinces.value.find(p => p.ProvinceID == address.province_id)
+  // Province by id (number or string)
+  if ((address.province_id || address.province) && !address.province_name) {
+    const pid = address.province_id || address.province
+    const province = provinces.value.find(p => String(p.ProvinceID) == String(pid))
     address.province_name = province?.ProvinceName || 'Tỉnh/TP không xác định'
   }
+  // District by id (number or string)
   if (address.district_id && !address.district_name) {
-    const district = districts.value.find(d => d.DistrictID == address.district_id)
+    const district = districts.value.find(d => String(d.DistrictID) == String(address.district_id))
     address.district_name = district?.DistrictName || 'Quận/Huyện không xác định'
   }
-  if (address.ward_code && !address.ward_name) {
-    const ward = wards.value.find(w => w.WardCode == address.ward_code)
+  // Ward can come as ward_code or ward_id. GHN list exposes WardCode (string)
+  if ((address.ward_code || address.ward_id) && !address.ward_name) {
+    const code = String(address.ward_code || address.ward_id)
+    const ward = wards.value.find(w => String(w.WardCode) === code || String(w.WardCode).includes(code))
     address.ward_name = ward?.WardName || 'Phường/Xã không xác định'
   }
   console.log('Enriched address:', address)
@@ -260,7 +263,7 @@ onMounted(async () => {
 
       if (!orderRes.ok || !orderData) throw new Error(orderData.message || 'Không thể lấy thông tin đơn hàng')
 
-      const shippingFee = orderData.shipping?.shipping_fee || (parseInt(orderData.final_price) - parseInt(orderData.total_price)) || 0
+      const shippingFee = orderData.shipping?.shipping_fee || 0
       const enrichedOrder = {
         ...orderData,
         order_items: orderData.order_items || [],
@@ -279,18 +282,14 @@ onMounted(async () => {
 
       // Làm giàu địa chỉ cho từng đơn hàng
       if (enrichedOrder.address) {
-        enrichAddress(enrichedOrder.address)
-        if (enrichedOrder.address.province_id) {
-          await loadDistricts(enrichedOrder.address.province_id)
-          if (enrichedOrder.address.district_id) {
-            await loadWards(enrichedOrder.address.district_id)
-            enrichAddress(enrichedOrder.address) // Cập nhật lại sau khi tải wards
-          } else {
-            console.warn('No district_id found for order ID:', id)
-          }
-        } else {
-          console.warn('No province_id found for order ID:', id)
+        // Load lists and enrich progressively based on available IDs
+        if (enrichedOrder.address.province_id || enrichedOrder.address.province) {
+          await loadDistricts(enrichedOrder.address.province_id || enrichedOrder.address.province)
         }
+        if (enrichedOrder.address.district_id) {
+          await loadWards(enrichedOrder.address.district_id)
+        }
+        enrichAddress(enrichedOrder.address)
       } else {
         console.warn('No address found for order ID:', id)
       }
