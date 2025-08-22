@@ -34,16 +34,16 @@ class SupportController extends Controller
             // Không trả lỗi cho user, chỉ log lại
         }
         // Gửi thông báo đến admin\
-
-        $user = auth()->user();
-        $admins = User::where('role', 'admin')->get();
+        // lấy id của admin đầu tiên trong bảng user
+        $admins = User::where('role', 'admin')->first();
+        $admin_id = $admins ? $admins->id : 2; // fallback to user_id 2 if no admin found
         $notification = Notification::create([
             'title' => 'Yêu cầu hỗ trợ mới',
             'content' => "Người dùng {$support->name} ({$support->email}) đã gửi yêu cầu hỗ trợ vào " . now()->format('d/m/Y H:i'),
             'type' => 'system',
             'to_roles' => json_encode(['admin']),
-            'link' => "/admin/supports",
-            'user_id' => 2,
+            'link' => "/admin/supports/list-support",
+            'user_id' => $admin_id,
             'from_role' => 'system',
             'status' => 'sent',
             'channels' => json_encode(['dashboard']),

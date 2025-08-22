@@ -690,7 +690,7 @@ async function fetchProduct() {
     product.value.image =
       data.data?.product?.images && data.data?.product?.images.length > 0
         ? data.data.product.images[0].src
-        : data.data?.product?.image || "/default-product.jpg";
+        : data.data?.product?.image || "products/default.png";
     product.value.images = data.data?.product?.images || [];
 
     seller.value = {
@@ -722,7 +722,7 @@ async function fetchProduct() {
     }));
 
     const productImages = (data.data?.product?.images || []).map((img) => ({
-      src: img.src || "/default-product.jpg",
+      src: img.src || "products/default.png",
       alt: img.alt || "Product image",
       type: "product",
     }));
@@ -785,7 +785,7 @@ async function fetchProduct() {
       name: item.name || "Unknown Product",
       slug: item.slug || "unknown-product",
       price: String(item.price || "0.00"),
-      image: String(item.image || "/default-product.jpg"),
+      image: String(item.image || "products/default.png"),
     }));
 
     // Fetch shop products
@@ -870,7 +870,7 @@ async function fetchShopProducts() {
 
         // Lấy ảnh đầu tiên
         const image =
-          item.product_pic?.[0]?.imagePath || "/default-product.jpg";
+          item.product_pic?.[0]?.imagePath || "products/default.png";
 
         return {
           id: Number(item.id || 0),
@@ -933,7 +933,7 @@ const chatWithShop = async () => {
     slug: product.value.slug || "san-pham-khong-xac-dinh",
     price:
       selectedVariant.value?.price || product.value.originalPrice || "0.00",
-    image: product.value.image || "/default-product.jpg",
+    image: product.value.image || "products/default.png",
     id: product.value.id,
     variantId: selectedVariant.value?.id || null,
     link: window.location.href,

@@ -8,7 +8,8 @@
         <span v-if="isSearchMode" class="text-gray-600 font-semibold">
           Kết quả tìm kiếm: “{{ searchQuery }}”
         </span>
-        <span v-else class="text-gray-600 font-semibold capitalize">{{ currentCategoryName || route.params.slug }}</span>
+        <span v-else class="text-gray-600 font-semibold capitalize">{{ currentCategoryName || route.params.slug
+          }}</span>
       </div>
 
       <!-- Related Shop (Show only in shop mode or when shops are available in search mode) -->
@@ -18,8 +19,8 @@
           class="block shadow hover:-translate-y-1 transition-transform duration-200 ease-in-out">
           <div class="mb-6 bg-white p-4 rounded shadow">
             <div class="flex items-center">
-              <img :src="(isSearchMode ? shops[0]?.avatar : shop?.avatar) || `${mediaBase}/default-avatar.jpg`"
-                alt="Shop Avatar" class="w-16 h-16 rounded-full object-cover mr-4 bg-gray-200" />
+              <img :src="getAvatarUrl(isSearchMode ? shops[0]?.avatar : shop?.avatar)" alt="Shop Avatar"
+                class="w-16 h-16 rounded-full object-cover mr-4 bg-gray-200" />
               <div>
                 <h2 class="text-md font-bold">
                   {{ isSearchMode ? shops[0]?.store_name : (shop?.store_name || 'Tên cửa hàng') }}
@@ -32,10 +33,12 @@
                 </p>
                 <div class="flex items-center text-sm text-gray-700 mt-2">
                   <span class="mr-4">
-                    <strong>{{ isSearchMode ? (shops[0]?.total_products ?? 0) : (shop?.total_products ?? 0) }}</strong> Sản Phẩm
+                    <strong>{{ isSearchMode ? (shops[0]?.total_products ?? 0) : (shop?.total_products ?? 0) }}</strong>
+                    Sản Phẩm
                   </span>
                   <span>
-                    <strong>{{ isSearchMode ? (shops[0]?.rating ?? '0.0') : (shop?.rating_value ?? '0.0') }}</strong> Đánh Giá
+                    <strong>{{ isSearchMode ? (shops[0]?.rating ?? '0.0') : (shop?.rating_value ?? '0.0') }}</strong>
+                    Đánh Giá
                   </span>
                 </div>
               </div>
@@ -55,7 +58,8 @@
               <span class="text-sm font-medium text-gray-800 text-center">{{ shop.store_name }}</span>
               <span class="text-xs text-gray-500">@{{ shop.store_slug }}</span>
               <span class="text-xs text-gray-500">👥 {{ shop.followers ?? 0 }} theo dõi</span>
-              <span class="text-xs text-gray-500">🛒 {{ shop.total_products ?? 0 }} SP | ⭐ {{ shop.rating ?? '0.0' }}</span>
+              <span class="text-xs text-gray-500">🛒 {{ shop.total_products ?? 0 }} SP | ⭐ {{ shop.rating ?? '0.0'
+                }}</span>
             </nuxt-link>
           </div>
         </div>
@@ -357,7 +361,11 @@ const labelMap = {
 function toggleCategory(catId) {
   expandedCategories.value[catId] = !expandedCategories.value[catId];
 }
-
+function getAvatarUrl(avatar) {
+  if (!avatar) return `${mediaBase}default-avatar.jpg`;
+  if (avatar.startsWith('http')) return avatar;
+  return `${mediaBase}${avatar}`;
+}
 async function fetchProducts(page = 1) {
   loading.value = true;
   error.value = null;

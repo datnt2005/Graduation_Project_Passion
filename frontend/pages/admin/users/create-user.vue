@@ -47,6 +47,7 @@
                       :disabled="loading"
                       class="w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-sm placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                       placeholder="Nhập email" />
+                    <p class="text-xs text-gray-500 mt-1">Email phải thuộc các domain gmail.com, edu.vn hoặc yahoo.com.</p>
                     <span v-if="errors.email" class="text-red-500 text-xs mt-1">{{ errors.email }}</span>
                   </div>
                   <div class="mt-4">
@@ -64,6 +65,7 @@
                       :disabled="loading"
                       class="w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-sm placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                       placeholder="Nhập số điện thoại" />
+                    <p class="text-xs text-gray-500 mt-1">Số điện thoại phải là số hợp lệ (bắt đầu bằng +84 hoặc 0).</p>
                     <span v-if="errors.phone" class="text-red-500 text-xs mt-1">{{ errors.phone }}</span>
                   </div>
                   <div class="mt-4">
@@ -96,7 +98,6 @@
                   <h2 class="font-semibold">Ảnh đại diện (có thể để trống)</h2>
                 </header>
                 <div v-if="activeTab === 'overview'" class="space-y-3">
-                  <!-- Drag & Drop + Click Upload Box -->
                   <div
                     class="relative flex items-center justify-center w-full max-w-xs p-4 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 transition"
                     :class="{ 'pointer-events-none opacity-50': loading }"
@@ -113,7 +114,7 @@
                           d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
                       <p class="text-sm">Kéo ảnh vào đây hoặc <span class="text-blue-500 underline">chọn từ máy</span></p>
-                      <p class="text-xs text-gray-400 mt-1">Kích thước tối đa: 2MB, định dạng: JPG, PNG</p>
+                      <p class="text-xs text-gray-400 mt-1">Kích thước tối đa: 2MB, định dạng: JPG, PNG, GIF, SVG, WEBP</p>
                     </div>
                   </div>
                   <span v-if="errors.avatar" class="text-red-500 text-xs mt-1 block">{{ errors.avatar }}</span>
@@ -178,24 +179,24 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
-import { useRouter, useRuntimeConfig } from '#app'
-import { secureFetch } from '@/utils/secureFetch'
+import { ref, reactive } from 'vue';
+import { useRouter, useRuntimeConfig } from '#app';
+import { secureFetch } from '@/utils/secureFetch';
 
-definePageMeta({ layout: 'default-admin' })
+definePageMeta({ layout: 'default-admin' });
 
-const router = useRouter()
-const config = useRuntimeConfig()
-const apiBase = config.public.apiBaseUrl
+const router = useRouter();
+const config = useRuntimeConfig();
+const apiBase = config.public.apiBaseUrl;
 
-const activeTab = ref('overview')
-const loading = ref(false)
-const errors = reactive({})
-const showNotification = ref(false)
-const notificationMessage = ref('')
-const notificationType = ref('success')
-const imagePreview = ref(null)
-const fileInput = ref(null)
+const activeTab = ref('overview');
+const loading = ref(false);
+const errors = reactive({});
+const showNotification = ref(false);
+const notificationMessage = ref('');
+const notificationType = ref('success');
+const imagePreview = ref(null);
+const fileInput = ref(null);
 
 const formData = reactive({
   name: '',
@@ -205,152 +206,180 @@ const formData = reactive({
   role: '',
   status: 'active',
   avatar: null
-})
+});
 
 // Validate form data before submission
 const validateForm = () => {
-  Object.keys(errors).forEach(key => delete errors[key])
+  Object.keys(errors).forEach(key => delete errors[key]);
 
-  let isValid = true
+  let isValid = true;
   if (!formData.name.trim()) {
-    errors.name = 'Họ và tên là bắt buộc'
-    isValid = false
+    errors.name = 'Tên không được để trống';
+    isValid = false;
+  } else if (formData.name.length > 255) {
+    errors.name = 'Tên không được vượt quá 255 ký tự';
+    isValid = false;
   }
   if (!formData.email.trim()) {
-    errors.email = 'Email là bắt buộc'
-    isValid = false
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-    errors.email = 'Email không hợp lệ'
-    isValid = false
+    errors.email = 'Email không được để trống';
+    isValid = false;
+  } else if (!/^[a-zA-Z0-9._%+-]+@((gmail\.com)|(edu\.vn)|(yahoo\.com))$/.test(formData.email)) {
+    errors.email = 'Email phải thuộc các domain gmail.com, edu.vn hoặc yahoo.com';
+    isValid = false;
   }
   if (!formData.password.trim()) {
-    errors.password = 'Mật khẩu là bắt buộc'
-    isValid = false
-  } else {
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{6,}$/
-    if (!passwordRegex.test(formData.password)) {
-      errors.password = 'Mật khẩu phải chứa ít nhất 1 chữ hoa, 1 chữ thường, 1 số và 1 ký tự đặc biệt'
-      isValid = false
-    }
+    errors.password = 'Mật khẩu không được để trống';
+    isValid = false;
+  } else if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{6,}$/.test(formData.password)) {
+    errors.password = 'Mật khẩu phải chứa ít nhất 1 chữ hoa, 1 chữ thường, 1 số và 1 ký tự đặc biệt';
+    isValid = false;
   }
-  if (formData.phone && !/^\d{10,11}$/.test(formData.phone)) {
-    errors.phone = 'Số điện thoại không hợp lệ (10-11 số)'
-    isValid = false
+  if (formData.phone && !/^(\+84|0)(3|5|7|8|9)[0-9]{8}$/.test(formData.phone)) {
+    errors.phone = 'Số điện thoại phải là số hợp lệ (bắt đầu bằng +84 hoặc 0)';
+    isValid = false;
   }
   if (!formData.role) {
-    errors.role = 'Vui lòng chọn phân quyền'
-    isValid = false
+    errors.role = 'Vui lòng chọn phân quyền';
+    isValid = false;
   }
   if (formData.avatar) {
-    const maxSize = 2 * 1024 * 1024 // 2MB
+    const maxSize = 2 * 1024 * 1024; // 2MB
     if (formData.avatar.size > maxSize) {
-      errors.avatar = 'Ảnh đại diện không được vượt quá 2MB'
-      isValid = false
+      errors.avatar = 'Ảnh đại diện không được vượt quá 2MB';
+      isValid = false;
     }
-    if (!['image/jpeg', 'image/png'].includes(formData.avatar.type)) {
-      errors.avatar = 'Chỉ hỗ trợ định dạng JPG hoặc PNG'
-      isValid = false
+    if (!['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'image/svg+xml', 'image/webp'].includes(formData.avatar.type)) {
+      errors.avatar = 'Ảnh phải có định dạng jpeg, png, jpg, gif, svg hoặc webp';
+      isValid = false;
     }
   }
-  return isValid
-}
+  return isValid;
+};
 
 // Trigger file input click
 const triggerFileInput = () => {
   if (!loading.value) {
-    fileInput.value.click()
+    fileInput.value.click();
   }
-}
+};
 
 // Handle drag-and-drop
 const handleDrop = (event) => {
-  if (loading.value) return
-  const file = event.dataTransfer.files[0]
-  if (file) handleImageUpload({ target: { files: [file] } })
-}
+  if (loading.value) return;
+  const file = event.dataTransfer.files[0];
+  if (file) handleImageUpload({ target: { files: [file] } });
+};
 
 // Handle image upload
 const handleImageUpload = (event) => {
-  const file = event.target.files[0] || event.dataTransfer?.files[0]
+  const file = event.target.files[0] || event.dataTransfer?.files[0];
   if (file) {
-    formData.avatar = file
-    errors.avatar = ''
-    const reader = new FileReader()
+    formData.avatar = file;
+    errors.avatar = '';
+    const reader = new FileReader();
     reader.onload = (e) => {
-      imagePreview.value = e.target.result
-    }
-    reader.readAsDataURL(file)
+      imagePreview.value = e.target.result;
+    };
+    reader.readAsDataURL(file);
   } else {
-    formData.avatar = null
-    imagePreview.value = null
-    errors.avatar = ''
+    formData.avatar = null;
+    imagePreview.value = null;
+    errors.avatar = '';
   }
-}
+};
 
 // Remove uploaded image
 const removeImage = () => {
-  if (loading.value) return
-  formData.avatar = null
-  imagePreview.value = null
-  errors.avatar = ''
-  fileInput.value.value = '' // Reset input file
-}
+  if (loading.value) return;
+  formData.avatar = null;
+  imagePreview.value = null;
+  errors.avatar = '';
+  fileInput.value.value = '';
+};
 
 // Show notification
 const showNotificationMessage = (message, type = 'success') => {
-  notificationMessage.value = message
-  notificationType.value = type
-  showNotification.value = true
+  notificationMessage.value = message;
+  notificationType.value = type;
+  showNotification.value = true;
   setTimeout(() => {
-    showNotification.value = false
-  }, 4000)
-}
+    showNotification.value = false;
+  }, 4000);
+};
 
 // Create user
 const createUser = async () => {
+  // Clear previous errors
+  Object.keys(errors).forEach(key => delete errors[key]);
+
+  // Perform client-side validation
   if (!validateForm()) {
-    const errorMessages = Object.values(errors).join('; ')
-    showNotificationMessage(errorMessages || 'Vui lòng kiểm tra lại các trường thông tin', 'error')
-    return
+    // Define field order for client-side validation errors
+    const fieldOrder = ['name', 'email', 'password', 'phone', 'role', 'status', 'avatar'];
+    const firstErrorField = fieldOrder.find(field => errors[field]);
+    const errorMessage = firstErrorField ? errors[firstErrorField] : 'Vui lòng kiểm tra lại các trường thông tin';
+    showNotificationMessage(errorMessage, 'error');
+    return;
   }
 
-  const form = new FormData()
-  form.append('name', formData.name.trim())
-  form.append('email', formData.email.trim())
-  form.append('password', formData.password)
-  form.append('phone', formData.phone.trim())
-  form.append('role', formData.role)
-  form.append('status', formData.status)
-  if (formData.avatar) form.append('avatar', formData.avatar)
+  const form = new FormData();
+  form.append('name', formData.name.trim());
+  form.append('email', formData.email.trim());
+  form.append('password', formData.password);
+  form.append('phone', formData.phone.trim());
+  form.append('role', formData.role);
+  form.append('status', formData.status);
+  if (formData.avatar) form.append('avatar', formData.avatar);
 
   try {
-    loading.value = true
-    const data = await secureFetch(`${apiBase}/users`, {
+    loading.value = true;
+    const response = await secureFetch(`${apiBase}/users`, {
       method: 'POST',
-      body: form
-    }, ['admin'])
+      body: form,
+    }, ['admin'], true); // Set returnOnError: true
 
-    if (data.success) {
-      showNotificationMessage('Tạo người dùng thành công!', 'success')
+    console.log('API response:', response); // Debug response
+
+    if (response.success) {
+      showNotificationMessage('Tạo người dùng thành công!', 'success');
       setTimeout(() => {
-        router.push('/admin/users/list-user')
-      }, 1000)
+        router.push('/admin/users/list-user');
+      }, 1000);
     } else {
-      if (data.errors) {
-        Object.keys(data.errors).forEach(key => {
-          errors[key] = Array.isArray(data.errors[key]) ? data.errors[key][0] : data.errors[key]
-        })
-        const errorMessages = Object.values(errors).join('; ')
-        showNotificationMessage(errorMessages || 'Có lỗi xảy ra khi tạo người dùng', 'error')
+      // Handle validation errors or other failures
+      if (response.errors) {
+        // Define field order for server-side validation errors
+        const fieldOrder = ['name', 'email', 'password', 'phone', 'role', 'status', 'avatar'];
+        const firstErrorField = fieldOrder.find(field => response.errors[field]);
+        const errorMessages = [];
+        
+        // Assign all errors to display under input fields
+        Object.entries(response.errors).forEach(([key, messages]) => {
+          const message = Array.isArray(messages) ? messages[0] : messages;
+          errors[key] = message;
+          errorMessages.push(message);
+        });
+
+        // Show only the first error in toast based on field order
+        const firstErrorMessage = firstErrorField 
+          ? response.errors[firstErrorField][0] 
+          : response.message || 'Có lỗi xảy ra khi tạo người dùng';
+        showNotificationMessage(firstErrorMessage, 'error');
       } else {
-        showNotificationMessage(data.message || 'Có lỗi xảy ra khi tạo người dùng', 'error')
+        showNotificationMessage(response.message || 'Có lỗi xảy ra khi tạo người dùng', 'error');
       }
     }
   } catch (error) {
-    console.error('Error creating user:', error)
-    showNotificationMessage(error.message || 'Có lỗi xảy ra khi tạo người dùng', 'error')
+    console.error('Error creating user:', error);
+    console.log('Error details:', {
+      message: error.message,
+      status: error.status,
+      data: error.data,
+      errors: error.data?.errors,
+    });
+    showNotificationMessage(error.message || 'Có lỗi xảy ra khi tạo người dùng', 'error');
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
+};
 </script>

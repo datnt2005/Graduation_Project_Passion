@@ -208,6 +208,10 @@
                         GHN</button>
                       <button @click="deleteOrder(order.id); activeDropdown = null"
                         class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50">Xóa</button>
+                        <button @click.prevent="openInvoicePrinter(order)"
+                          class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" title="In hóa đơn">
+                            In hóa đơn
+                        </button>
                     </div>
                   </div>
                 </div>
@@ -1151,6 +1155,9 @@
       </Teleport>
     </div>
   </div>
+    <Teleport to="body">
+      <InvoicePrinter v-if="showInvoiceModal" :order-id="orderForInvoice.id" @close="showInvoiceModal = false" />
+    </Teleport>
 </template>
 
 <script setup>
@@ -1159,6 +1166,7 @@ import { useRouter } from 'vue-router';
 import { useAuthStore } from '~/stores/auth';
 import { useRuntimeConfig } from '#app';
 import Swal from 'sweetalert2';
+import InvoicePrinter from '@/components/shared/InvoicePrinter.vue'; 
 
 definePageMeta({
   layout: 'default-admin'
@@ -2678,7 +2686,13 @@ function applyWithdrawFilters() {
   // Logic này sẽ được xử lý tự động bởi computed property withdrawListFiltered
   showNotification('Đã áp dụng bộ lọc', true);
 }
+const showInvoiceModal = ref(false);
+const orderForInvoice = ref(null);
 
+const openInvoicePrinter = (order) => {
+  orderForInvoice.value = order;
+  showInvoiceModal.value = true;
+};
 // Lifecycle hooks
 onMounted(async () => {
   await authStore.fetchUser?.();

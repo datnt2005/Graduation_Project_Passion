@@ -7,7 +7,8 @@ type SecureFetchOptions = RequestInit & {
 export async function secureFetch(
   apiUrl: string,
   fetchOptions: SecureFetchOptions = {},
-  allowedRoles: string[] = []
+  allowedRoles: string[] = [],
+  returnOnError: boolean = false
 ): Promise<any> {
   const config = useRuntimeConfig() // ✅ Gọi ở đây
   const apiBaseUrl = config.public.apiBaseUrl
@@ -52,12 +53,23 @@ export async function secureFetch(
       Accept: 'application/json',
     },
   })
-
-  if (!response.ok) {
+  let data;
+  try {
+    data = await response.json();
+  } catch (e) {
+    // Nếu response không phải JSON, trả về object với thông tin lỗi
+    data = { success: false, status: response.status, message: 'Invalid JSON response' };
+  }
+  if (!response.ok && !returnOnError) {
     console.error('secureFetch HTTP error:', response.status, response.statusText);
     throw new Error(`HTTP error! status: ${response.status}`);
   }
 
-  const data = await response.json(); // Đảm bảo parse JSON
-  return data; // Trả về toàn bộ dữ liệu JSON
+  return {
+    success: response.ok,
+    status: response.status,
+    data: data.data || data,
+    message: data.message || '',
+    errors: data.errors || null,
+  };
 }

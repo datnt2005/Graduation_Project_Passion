@@ -712,39 +712,56 @@ class SearchService
 
     public function getTrendingProducts($limit = 32)
     {
-        // Lấy top N sản phẩm theo tổng search_count + click_count
-        $topProducts = DB::table('trends')
+        // 1) Lấy danh sách ID theo click_count giảm dần
+        $ids = DB::table('trends')
             ->where('entity_type', 'product')
-            ->orderByDesc(DB::raw('search_count + click_count'))
+            ->select('entity_id', DB::raw('COALESCE(click_count,0) as clicks'), DB::raw('COALESCE(search_count,0) as searches'))
+            ->orderByDesc('clicks')          // ✅ ưu tiên lượt click
+            ->orderByDesc('searches')        // tie-breaker (tuỳ)
             ->limit($limit)
-            ->pluck('entity_id') // lấy danh sách id sản phẩm
+            ->pluck('entity_id')
+            ->map(fn($id) => (int) $id)
             ->toArray();
 
-        // Nếu không có sản phẩm thì trả mảng rỗng
-        if (empty($topProducts)) return [];
+        if (empty($ids)) {
+            return collect(); // hoặc []
+        }
 
-        // Ép kiểu entity_id về int nếu cần
-        $productIds = array_map('intval', $topProducts);
+        // 2) Giữ nguyên thứ tự ID khi query Product
+        $idList = implode(',', $ids);
 
-        // Lấy dữ liệu sản phẩm tương ứng
-        return Product::whereIn('id', $productIds)
-            ->select('id', 'name', 'slug')
+        $products = Product::query()
+            ->whereIn('id', $ids)
             ->where('status', 'active')
             ->where('admin_status', 'approved')
-            ->with(['productPic' => function ($query) {
-                $query->select('product_id', 'imagePath')->latest();
-            }])
+            ->select('id', 'name', 'slug')
+            ->with([
+                // lấy ảnh sản phẩm mới nhất
+                'productPic' => function ($q) {
+                    $q->select('product_id', 'imagePath')->latest();
+                },
+                // phòng khi không có productPic thì fallback thumbnail của biến thể
+                'productVariants:id,product_id,thumbnail',
+            ])
+            ->orderByRaw("FIELD(id, $idList)")  // ✅ giữ thứ tự theo click DESC
             ->get()
-            ->map(function ($product) {
+            ->map(function ($p) {
+                $image = optional($p->productPic->first())->imagePath
+                    ?? optional($p->productVariants->first())->thumbnail
+                    ?? 'products/default.png';
+
                 return [
-                    'id' => $product->id,
-                    'name' => $product->name,
-                    'image' => $product->productPic->first()->imagePath ?? 'products/default.png',
-                    'slug' => $product->slug,
+                    'id'    => $p->id,
+                    'name'  => $p->name,
+                    'slug'  => $p->slug,
+                    'image' => $image,
                 ];
             })
             ->values();
+
+        return $products;
     }
+
 
     public function trackCategoryClick($categoryId)
     {
@@ -758,24 +775,39 @@ class SearchService
     }
     public function getTrendingCategories($limit = 20)
     {
-        $topCategories = DB::table('trends')
+        // 1) Lấy ID category theo lượt click giảm dần
+        $ids = DB::table('trends')
             ->where('entity_type', 'category')
-            ->orderByDesc(DB::raw('search_count + click_count'))
+            ->select(
+                'entity_id',
+                DB::raw('COALESCE(click_count, 0)  AS clicks'),
+                DB::raw('COALESCE(search_count, 0) AS searches')
+            )
+            ->orderByDesc('clicks')    // ✅ ưu tiên theo click
+            ->orderByDesc('searches')  // tie-breaker khi click bằng nhau
             ->limit($limit)
             ->pluck('entity_id')
+            ->map(fn($id) => (int) $id)
             ->toArray();
 
-        if (empty($topCategories)) return [];
+        if (empty($ids)) {
+            return collect(); // hoặc []
+        }
 
-        return Category::whereIn('id', $topCategories)
-            ->select('id', 'name', 'slug', 'image') // giả sử có trường `image`
+        // 2) Giữ nguyên thứ tự ID khi query Category
+        $idList = implode(',', $ids);
+
+        return Category::query()
+            ->whereIn('id', $ids)
+            ->select('id', 'name', 'slug', 'image')
+            ->orderByRaw("FIELD(id, $idList)")   // ✅ giữ thứ tự theo click DESC
             ->get()
-            ->map(function ($category) {
+            ->map(function ($c) {
                 return [
-                    'id' => $category->id,
-                    'name' => $category->name,
-                    'slug' => $category->slug,
-                    'image' => $category->image ?? 'products/default.png',
+                    'id'    => $c->id,
+                    'name'  => $c->name,
+                    'slug'  => $c->slug,
+                    'image' => $c->image ?? 'products/default.png',
                 ];
             })
             ->values();

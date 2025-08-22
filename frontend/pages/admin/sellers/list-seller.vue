@@ -1,11 +1,9 @@
 <template>
   <div class="bg-gray-100 text-gray-700 font-sans">
     <div class="max-w-full overflow-x-auto">
-
       <!-- Header -->
       <div class="bg-white px-4 py-4 flex items-center justify-between border-b border-gray-200">
-        <h1 class="text-xl font-semibold text-gray-800">Danh sách Seller</h1>
-
+        <h1 class="text-xl font-semibold text-gray-800">Danh sách cửa hàng</h1>
       </div>
 
       <!-- Filter -->
@@ -36,7 +34,7 @@
           <option value="pending">Chờ xác minh</option>
           <option value="verified">Đã xác minh</option>
           <option value="rejected">Đã từ chối</option>
-          <option value="banned"> Đã bị cấm</option>
+          <option value="banned">Đã bị cấm</option>
         </select>
       </div>
 
@@ -54,8 +52,8 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(seller, idx) in filteredSellers" :key="seller.id" class="border-b group hover:bg-[#f5f6fa]">
-              <td class="py-3 px-4 text-gray-600 font-semibold">{{ idx + 1 }}</td>
+            <tr v-for="(seller, idx) in paginatedSellers" :key="seller.id" class="border-b group hover:bg-[#f5f6fa]">
+              <td class="py-3 px-4 text-gray-600 font-semibold">{{ idx + 1 + (currentPage - 1) * itemsPerPage }}</td>
               <td class="py-3 px-4">{{ seller.store_name || '-' }}</td>
               <td class="py-3 px-4">{{ seller.user?.email || '-' }}</td>
               <td class="py-3 px-4">{{ seller.phone_number || '-' }}</td>
@@ -75,11 +73,84 @@
                 </button>
               </td>
             </tr>
-            <tr v-if="filteredSellers.length === 0">
-              <td colspan="6" class="text-center py-6 text-gray-400">Không có seller nào!</td>
+            <tr v-if="paginatedSellers.length === 0">
+              <td colspan="6" class="text-center py-6 text-gray-400">Không có cửa hàng nào!</td>
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <!-- Pagination -->
+      <div class="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+        <div class="flex-1 flex items-center justify-between">
+          <div>
+            <p class="text-sm text-gray-700">
+              Hiển thị
+              <select v-model="itemsPerPage" @change="currentPage = 1"
+                class="ml-2 inline-flex items-center px-2 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                <option :value="5">5</option>
+                <option :value="10">10</option>
+                <option :value="20">20</option>
+                <option :value="50">50</option>
+              </select>
+              trên tổng số {{ filteredSellers.length }} cửa hàng
+            </p>
+          </div>
+          <div class="flex justify-end items-center gap-1 py-4 flex-wrap">
+            <!-- Nút Prev -->
+            <button
+              @click="currentPage = currentPage - 1"
+              :disabled="currentPage === 1"
+              class="px-3 py-1 border rounded-md text-sm font-medium bg-white hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Trước
+            </button>
+
+            <!-- Trang đầu -->
+            <button
+              v-if="startPage > 1"
+              @click="currentPage = 1"
+              class="px-3 py-1 border rounded-md text-sm bg-white hover:bg-gray-100"
+            >
+              1
+            </button>
+            <span v-if="startPage > 2" class="px-2 text-gray-500">...</span>
+
+            <!-- Các trang chính giữa -->
+            <button
+              v-for="page in visiblePages"
+              :key="page"
+              @click="currentPage = page"
+              :class="[
+                'px-3 py-1 border rounded-md text-sm font-medium transition-colors duration-150',
+                page === currentPage
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-gray-700 hover:bg-gray-100'
+              ]"
+            >
+              {{ page }}
+            </button>
+
+            <!-- Trang cuối -->
+            <span v-if="endPage < totalPages - 1" class="px-2 text-gray-500">...</span>
+            <button
+              v-if="endPage < totalPages"
+              @click="currentPage = totalPages"
+              class="px-3 py-1 border rounded-md text-sm bg-white hover:bg-gray-100"
+            >
+              {{ totalPages }}
+            </button>
+
+            <!-- Nút Next -->
+            <button
+              @click="currentPage = currentPage + 1"
+              :disabled="currentPage === totalPages"
+              class="px-3 py-1 border rounded-md text-sm font-medium bg-white hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Sau
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- Modal chi tiết -->
@@ -87,13 +158,12 @@
         class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 font-sans backdrop-blur-sm">
         <div
           class="bg-white rounded-xl shadow-xl w-full max-w-3xl relative animate-fadeIn p-6 md:p-8 overflow-y-auto max-h-screen">
-
           <!-- Header -->
           <div class="border-b border-gray-200 pb-4">
             <div class="flex items-center justify-between">
               <div>
                 <h3 class="text-2xl font-bold text-[#1564ff]">Chi tiết Seller</h3>
-                <p class="text-gray-500 text-sm mt-1">Xem thông tin chi tiết & xác minh seller</p>
+                <p class="text-gray-500 text-sm mt-1">Xem thông tin chi tiết & xác minh cửa hàng</p>
               </div>
               <button @click="closeDetail"
                 class="text-gray-400 hover:text-black text-xl transition-colors duration-200">✕</button>
@@ -110,55 +180,53 @@
             </div>
           </div>
 
-         <!-- Tab info -->
-<div v-if="tab === 'info'" class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-  <!-- Bên trái: Thông tin tổng quan + thống kê -->
-  <div class="flex flex-col items-center border rounded-lg p-6">
-    <div class="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center text-xl font-bold">
-      {{ getInitials(currentDetail.user?.name) }}
-    </div>
-    <div class="mt-3 text-lg font-semibold text-gray-800">{{ currentDetail.user?.name || '-' }}</div>
-    <div class="mt-1 text-sm">
-   
-    </div>
-    <div class="mt-1 text-sm text-gray-500">
-      🏪 {{ currentDetail.store_name || '-' }}
-    </div>
+          <!-- Tab info -->
+          <div v-if="tab === 'info'" class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+            <!-- Bên trái: Thông tin tổng quan + thống kê -->
+            <div class="flex flex-col items-center border rounded-lg p-6">
+              <div class="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center text-xl font-bold">
+                {{ getInitials(currentDetail.user?.name) }}
+              </div>
+              <div class="mt-3 text-lg font-semibold text-gray-800">{{ currentDetail.user?.name || '-' }}</div>
+              <div class="mt-1 text-sm">
+              </div>
+              <div class="mt-1 text-sm text-gray-500">
+                🏪 {{ currentDetail.store_name || '-' }}
+              </div>
 
-    <!-- Thống kê -->
-    <hr class="w-full my-4 border-gray-300" />
-    <div class="w-full text-sm space-y-1">
-      <div><strong>Tổng sản phẩm:</strong> {{ currentDetail.total_products }}</div>
-      <div><strong>Tổng đơn hàng:</strong> {{ currentDetail.total_orders }}</div>
-      <div><strong>Đơn hoàn thành:</strong> {{ currentDetail.completed_orders }}</div>
-      <div><strong>Doanh thu:</strong>
-        <span class="text-green-600 font-semibold">{{ formatCurrency(currentDetail.total_revenue) }}</span>
-      </div>
-      <div><strong>Lợi nhuận:</strong>
-        <span class="text-green-600 font-semibold">{{ formatCurrency(currentDetail.total_profit) }}</span>
-      </div>
-      <div><strong>Thua lỗ:</strong>
-        <span class="text-red-600 font-semibold">{{ formatCurrency(currentDetail.total_loss) }}</span>
-      </div>
-    </div>
-  </div>
+              <!-- Thống kê -->
+              <hr class="w-full my-4 border-gray-300" />
+              <div class="w-full text-sm space-y-1">
+                <div><strong>Tổng sản phẩm:</strong> {{ currentDetail.total_products }}</div>
+                <div><strong>Tổng đơn hàng:</strong> {{ currentDetail.total_orders }}</div>
+                <div><strong>Đơn hoàn thành:</strong> {{ currentDetail.completed_orders }}</div>
+                <div><strong>Doanh thu: </strong>
+                  <span class="text-green-600 font-semibold"> {{ formatCurrency(currentDetail.total_revenue) }}</span>
+                </div>
+                <div><strong>Lợi nhuận: </strong>
+                  <span class="text-green-600 font-semibold"> {{ formatCurrency(currentDetail.total_profit) }}</span>
+                </div>
+                <div><strong>Thua lỗ: </strong>
+                  <span class="text-red-600 font-semibold"> {{ formatCurrency(currentDetail.total_loss) }}</span>
+                </div>
+              </div>
+            </div>
 
-  <!-- Bên phải: Thông tin chi tiết -->
-  <div class="md:col-span-2 border rounded-lg p-6 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
-    <div><strong>CCCD:</strong> {{ currentDetail.identity_card_number || '-' }}</div>
-    <div><strong>Ngày sinh:</strong> {{ currentDetail.date_of_birth || '-' }}</div>
-    <div><strong>Số điện thoại:</strong> {{ currentDetail.phone_number || '-' }}</div>
-    <div><strong>Email:</strong> {{ currentDetail.user?.email || '-' }}</div>
-    <div><strong>Địa chỉ:</strong> {{ currentDetail.personal_address || '-' }}</div>
-    <div><strong>Giới thiệu:</strong> {{ currentDetail.bio || '-' }}</div>
-    <div><strong>Mã số thuế:</strong> {{ currentDetail.tax_code || '-' }}</div>
-    <div><strong>Tên doanh nghiệp:</strong> {{ currentDetail.business_name || '-' }}</div>
-    <div><strong>Email doanh nghiệp:</strong> {{ currentDetail.business_email || '-' }}</div>
-    <div><strong>Giao hàng nhanh:</strong> {{ currentDetail.shipping_options?.express ? 'Có' : 'Không' }}</div>
-    <div><strong>Giao hàng tiêu chuẩn:</strong> {{ currentDetail.shipping_options?.standard ? 'Có' : 'Không' }}</div>
-  </div>
-</div>
-
+            <!-- Bên phải: Thông tin chi tiết -->
+            <div class="md:col-span-2 border rounded-lg p-6 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+              <div><strong>CCCD:</strong> {{ currentDetail.identity_card_number || '-' }}</div>
+              <div><strong>Ngày sinh:</strong> {{ currentDetail.date_of_birth || '-' }}</div>
+              <div><strong>Số điện thoại:</strong> {{ currentDetail.phone_number || '-' }}</div>
+              <div><strong>Email:</strong> {{ currentDetail.user?.email || '-' }}</div>
+              <div><strong>Địa chỉ:</strong> {{ currentDetail.personal_address || '-' }}</div>
+              <div><strong>Giới thiệu:</strong> {{ currentDetail.bio || '-' }}</div>
+              <div><strong>Mã số thuế:</strong> {{ currentDetail.tax_code || '-' }}</div>
+              <div><strong>Tên doanh nghiệp:</strong> {{ currentDetail.business_name || '-' }}</div>
+              <div><strong>Email doanh nghiệp:</strong> {{ currentDetail.business_email || '-' }}</div>
+              <div><strong>Giao hàng nhanh:</strong> {{ currentDetail.shipping_options?.express ? 'Có' : 'Không' }}</div>
+              <div><strong>Giao hàng tiêu chuẩn:</strong> {{ currentDetail.shipping_options?.standard ? 'Có' : 'Không' }}</div>
+            </div>
+          </div>
 
           <!-- Tab giấy tờ -->
           <div v-else-if="tab === 'verify'" class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
@@ -213,7 +281,7 @@
                   Seller này đã bị từ chối.
                 </div>
                 <div v-else-if="currentDetail.verification_status === 'banned'"
-                  class="bg-gray-100 text-gray-700 text-sm border border-gray-300 rounded p-3">
+                  class="bg-gray-100 text-gray-600 text-sm border border-gray-300 rounded p-3">
                   Seller này đã bị cấm khỏi hệ thống.
                 </div>
                 <div v-else-if="currentDetail.verification_status === 'pending'"
@@ -229,7 +297,7 @@
                   <button @click="approveSeller(currentDetail.id)" :disabled="loadingApprove"
                     class="flex-1 py-2 rounded bg-blue-700 hover:bg-blue-900 text-white font-semibold text-sm transition"
                     :class="{ 'opacity-60 cursor-not-allowed': loadingApprove }">
-                    {{ loadingApprove ? 'Đang duyệt...' : 'Duyệt seller' }}
+                    {{ loadingApprove ? 'Đang duyệt...' : 'Duyệt yêu cầu' }}
                   </button>
 
                   <button @click="openReject(currentDetail)"
@@ -242,20 +310,19 @@
                 <template v-else-if="currentDetail.verification_status === 'verified'">
                   <button @click="banSeller(currentDetail.id)"
                     class="flex-1 py-2 rounded bg-red-600 hover:bg-red-700 text-white font-semibold text-sm transition">
-                    🚫 Cấm seller
+                    🚫 Cấm cửa hàng
                   </button>
                 </template>
-
               </div>
             </div>
-
           </div>
+
           <!-- Modal từ chối -->
           <div v-if="rejectModal"
             class="fixed inset-0 z-60 bg-black bg-opacity-40 backdrop-blur-sm flex items-center justify-center px-4">
             <div class="bg-white rounded-lg shadow-lg w-full max-w-md p-6 animate-fadeIn">
-              <h2 class="text-lg font-semibold text-red-600 mb-2">Từ chối seller</h2>
-              <p class="text-sm text-gray-600 mb-4">Vui lòng nhập lý do từ chối xác minh seller này.</p>
+              <h2 class="text-lg font-semibold text-red-600 mb-2">Từ chối cửa hàng</h2>
+              <p class="text-sm text-gray-600 mb-4">Vui lòng nhập lý do từ chối xác minh cửa hàng này.</p>
               <textarea v-model="rejectReason" rows="4" placeholder="Nhập lý do..."
                 class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-red-500"></textarea>
 
@@ -272,18 +339,11 @@
               </div>
             </div>
           </div>
-
         </div>
       </div>
-
-
-
-      <!-- end modal -->
     </div>
   </div>
 </template>
-
-
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
@@ -294,7 +354,6 @@ definePageMeta({
   layout: 'default-admin'
 });
 import { secureAxios } from '@/utils/secureAxios'
-
 import { useNotification } from '~/composables/useNotification'
 const { showNotification } = useNotification()
 
@@ -309,19 +368,16 @@ const rejectModal = ref(false)
 const rejectSellerId = ref(null)
 const rejectReason = ref('')
 const imagePreview = ref(null)
-const loadingApprove = ref(false);
-const loadingReject = ref(false);
-const getSellerId = (user) => user?.seller?.id
+const loadingApprove = ref(false)
+const loadingReject = ref(false)
 const filterVerifyStatus = ref('')
 const rejectSeller = ref(null)
+const currentPage = ref(1)
+const itemsPerPage = ref(10)
 
-
-
-const config = useRuntimeConfig();
-const API = config.public.apiBaseUrl;
-const mediaBaseUrl = config.public.mediaBaseUrl;
-
-//  lấy link ảnh
+const config = useRuntimeConfig()
+const API = config.public.apiBaseUrl
+const mediaBaseUrl = config.public.mediaBaseUrl
 
 // Lấy danh sách sellers
 const fetchSellers = async () => {
@@ -341,43 +397,11 @@ const fetchSellers = async () => {
 }
 
 const formatCurrency = (value) => {
-  if (typeof value !== 'number') return '-';
-  return value.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
-};
-
-
-
+  if (typeof value !== 'number') return '-'
+  return value.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })
+}
 
 onMounted(fetchSellers)
-
-const banSeller = async (sellerId) => {
-  const result = await Swal.fire({
-    title: 'Cấm seller này?',
-    text: 'Hành động này sẽ vô hiệu hóa seller và họ không thể bán hàng.',
-    icon: 'warning',
-    showCancelButton: true,
-    confirmButtonText: 'Cấm',
-    cancelButtonText: 'Huỷ',
-    buttonsStyling: false,
-    customClass: {
-      confirmButton: 'bg-red-600 hover:bg-red-700 text-white font-semibold px-4 py-2 rounded mr-2',
-      cancelButton: 'bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold px-4 py-2 rounded',
-    }
-  });
-
-  if (!result.isConfirmed) return;
-
-  try {
-    await secureAxios(`${API}/admin/sellers/${sellerId}/ban`, {
-      method: 'POST'
-    }, ['admin']);
-    await fetchSellers();
-    detailModal.value = false;
-    showNotification('Seller đã bị cấm thành công!', 'success');
-  } catch (error) {
-    showNotification('Không thể cấm seller. Vui lòng thử lại sau!', 'error');
-  }
-};
 
 const filteredSellers = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
@@ -397,7 +421,31 @@ const filteredSellers = computed(() => {
   })
 })
 
+const totalPages = computed(() => Math.ceil(filteredSellers.value.length / itemsPerPage.value))
 
+const paginatedSellers = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage.value
+  const end = start + itemsPerPage.value
+  return filteredSellers.value.slice(start, end)
+})
+
+const maxButtons = 5
+
+const startPage = computed(() =>
+  Math.max(1, currentPage.value - Math.floor(maxButtons / 2))
+)
+
+const endPage = computed(() =>
+  Math.min(totalPages.value, startPage.value + maxButtons - 1)
+)
+
+const visiblePages = computed(() => {
+  const pages = []
+  for (let i = startPage.value; i <= endPage.value; i++) {
+    pages.push(i)
+  }
+  return pages
+})
 
 // Modal chi tiết
 const openDetail = (user) => {
@@ -405,6 +453,7 @@ const openDetail = (user) => {
   detailModal.value = true
   tab.value = 'info'
 }
+
 const closeDetail = () => {
   detailModal.value = false
   currentDetail.value = null
@@ -423,6 +472,7 @@ const getInitials = (str) => {
     .slice(0, 2)
     .toUpperCase()
 }
+
 // Helper avatar màu random ổn định
 const colors = ['#FFD6D6', '#FFE9B5', '#C6EEFF', '#D8D1FF', '#FFD8F4', '#E3FFCB', '#FAD6FF', '#A4C9FF', '#E4FFF4']
 const getColor = (name) => {
@@ -430,12 +480,14 @@ const getColor = (name) => {
   for (let i = 0; i < (name || '').length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash)
   return colors[Math.abs(hash) % colors.length]
 }
+
 const getVerifyText = (status) => {
   if (status === 'verified') return 'Đã xác minh'
   if (status === 'rejected') return 'Đã từ chối'
   if (status === 'banned') return 'Đã bị cấm'
   return 'Chờ xác minh'
 }
+
 // Duyệt seller
 const approveSeller = async (sellerId) => {
   const result = await Swal.fire({
@@ -469,8 +521,10 @@ const approveSeller = async (sellerId) => {
     showNotification('Lỗi khi duyệt seller! Vui lòng thử lại sau!', 'error')
   } finally {
     loadingApprove.value = false
+    loading.value = false
   }
 }
+
 // Từ chối seller
 const openReject = (seller) => {
   rejectSeller.value = seller
@@ -484,10 +538,9 @@ const closeReject = () => {
   rejectReason.value = ''
 }
 
-
 const submitReject = async () => {
   if (!rejectReason.value.trim()) {
-    showNotification('error', 'Vui lòng nhập lý do từ chối!')
+    showNotification('Vui lòng nhập lý do từ chối!', 'error')
     return
   }
 
@@ -504,15 +557,46 @@ const submitReject = async () => {
     detailModal.value = false
     showNotification('Seller đã bị từ chối!', 'success')
   } catch (e) {
-    showNotification('Lỗi khi duyệt seller! Vui lòng thử lại sau!', 'error')
+    showNotification('Lỗi khi từ chối seller! Vui lòng thử lại sau!', 'error')
   } finally {
     loadingReject.value = false
   }
 }
+
+const banSeller = async (sellerId) => {
+  const result = await Swal.fire({
+    title: 'Cấm seller này?',
+    text: 'Hành động này sẽ vô hiệu hóa seller và họ không thể bán hàng.',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: 'Cấm',
+    cancelButtonText: 'Huỷ',
+    buttonsStyling: false,
+    customClass: {
+      confirmButton: 'bg-red-600 hover:bg-red-700 text-white font-semibold px-4 py-2 rounded mr-2',
+      cancelButton: 'bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold px-4 py-2 rounded',
+    }
+  })
+
+  if (!result.isConfirmed) return
+
+  try {
+    await secureAxios(`${API}/admin/sellers/${sellerId}/ban`, {
+      method: 'POST'
+    }, ['admin'])
+    await fetchSellers()
+    detailModal.value = false
+    showNotification('Seller đã bị cấm thành công!', 'success')
+  } catch (error) {
+    showNotification('Không thể cấm seller. Vui lòng thử lại sau!', 'error')
+  }
+}
+
 const getDocUrl = (url) => {
   if (!url) return ''
   return url.startsWith('http') ? url : `${mediaBaseUrl}${url}`
 }
+
 const enlargeImage = (imgUrl) => {
   if (imgUrl) imagePreview.value = getDocUrl(imgUrl)
 }
@@ -524,7 +608,6 @@ const enlargeImage = (imgUrl) => {
     opacity: 0;
     transform: scale(0.95);
   }
-
   to {
     opacity: 1;
     transform: scale(1);
@@ -562,7 +645,7 @@ table {
     font-size: 0.875rem;
   }
 
-  .w-24.h-24 {
+  .w-20.h-20 {
     width: 4rem;
     height: 4rem;
     font-size: 1.5rem;
@@ -591,7 +674,6 @@ table {
   .px-8 {
     padding-left: 1rem;
     padding-right: 1rem;
-    /* Reduced padding */
   }
 
   .py-8 {

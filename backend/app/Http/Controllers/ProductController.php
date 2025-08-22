@@ -117,7 +117,20 @@ class ProductController extends Controller
                 ], 403);
             }
         }
+        // Kiểm tra số lượng tệp ảnh
+        $imageFiles = $request->file('images', []);
+        $variantFiles = collect($request->file('variants', []))->flatMap(function ($variant) {
+            return isset($variant['thumbnail']) ? [$variant['thumbnail']] : [];
+        })->toArray();
+        $totalFiles = count($imageFiles) + count($variantFiles);
+        $maxFiles = ini_get('max_file_uploads') ?: 20; 
 
+        if ($totalFiles > $maxFiles) {
+            return response()->json([
+                'success' => false,
+                'message' => "Số lượng tệp ảnh tải lên ($totalFiles) vượt quá giới hạn cho phép ($maxFiles). Vui lòng giảm số lượng ảnh hoặc .",
+            ], 422);
+        }
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'slug' => 'nullable|string|max:255|unique:products,slug|regex:/^[a-zA-Z0-9-]+$/',
@@ -1427,7 +1440,7 @@ class ProductController extends Controller
                 'search' => 'nullable|string|max:255',
                 'price_min' => 'nullable|numeric|min:0',
                 'price_max' => 'nullable|numeric|min:0',
-                'brands' => 'nullable|string', // Chấp nhận chuỗi dạng "Samsung,Apple"
+                'brands' => 'nullable|string',
                 'category_id' => 'nullable|integer|exists:categories,id',
             ], [
                 'brands.string' => 'Danh sách thương hiệu không hợp lệ.',
