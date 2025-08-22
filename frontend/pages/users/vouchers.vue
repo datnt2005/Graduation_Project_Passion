@@ -287,7 +287,7 @@ const handleDeleteVoucher = (id) => {
 
 function goToCheckout(code) {
   if (!code) return
-  router.push({ path: '/checkout', query: { voucher: code } })
+  router.push({ path: '/cart', query: { voucher: code } })
 }
 
 onMounted(() => {
