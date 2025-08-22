@@ -37,13 +37,17 @@ class SupportController extends Controller
 
         $user = auth()->user();
         $admins = User::where('role', 'admin')->get();
+
+        $checkUser = User::find(2);
+$userId = $checkUser ? 2 : 1;
+
         $notification = Notification::create([
             'title' => 'Yêu cầu hỗ trợ mới',
             'content' => "Người dùng {$support->name} ({$support->email}) đã gửi yêu cầu hỗ trợ vào " . now()->format('d/m/Y H:i'),
             'type' => 'system',
             'to_roles' => json_encode(['admin']),
             'link' => "/admin/supports",
-            'user_id' => 2,
+            'user_id' => $userId,
             'from_role' => 'system',
             'status' => 'sent',
             'channels' => json_encode(['dashboard']),
