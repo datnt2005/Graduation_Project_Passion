@@ -78,4 +78,27 @@ class AdminSellerController extends Controller
     return response()->json(['message' => 'Đã cấm seller thành công.']);
 }
 
+public function unban($id)
+{
+    $seller = Seller::with('user')->where('id', $id)->first();
+
+    if (!$seller) {
+        return response()->json(['message' => 'Seller không tồn tại.'], 404);
+    }
+
+    // Nếu seller đang bị cấm thì mở khóa lại
+    if ($seller->verification_status === 'banned') {
+        $seller->verification_status = 'verified';
+        $seller->save();
+
+        $user = $seller->user;
+        $user->role = 'seller';
+        $user->save();
+
+        return response()->json(['message' => 'Đã gỡ cấm seller thành công.']);
+    }
+
+    return response()->json(['message' => 'Seller hiện không bị cấm, không cần gỡ cấm.']);
+}
+
 }
