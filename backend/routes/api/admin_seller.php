@@ -12,6 +12,7 @@ Route::prefix('admin')->group(function () {
    Route::post('/sellers/{id}/reject', [AdminSellerController::class, 'reject']);
 
     Route::post('/sellers/{id}/ban', [AdminSellerController::class, 'ban']);
+    Route::post('/sellers/{id}/unban', [AdminSellerController::class, 'unban']);
 });
 
 Route::middleware(['auth:sanctum', 'checkRole:seller'])->get('/orders/seller', [SellerOrderController::class, 'index']);

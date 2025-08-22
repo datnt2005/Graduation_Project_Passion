@@ -11,6 +11,7 @@ use App\Mail\ReturnRequestStatusUpdatedMail;
 use Illuminate\Support\Facades\Mail;
 use App\Models\Notification;
 use App\Models\NotificationRecipient;
+use Illuminate\Support\Facades\Log;
 
 class ReturnController extends Controller
 {
@@ -88,6 +89,7 @@ class ReturnController extends Controller
         }
 
         $seller = optional($item->product)->seller;
+ 
         if ($seller && $seller->user_id) {
             try {
                 $notification = \App\Models\Notification::create([
@@ -171,6 +173,7 @@ class ReturnController extends Controller
         $notification = Notification::create([
             'title' => 'Cập nhật yêu cầu đổi/trả',
             'content' => "Yêu cầu đổi/trả sản phẩm \"{$returnRequest->orderItem->product->name}\" của bạn đã {$statusText}.",
+>>>>>>> cfc0cdf00e223ed8ad70af4576ee0d18cb0e2c2f
             'type' => 'system',
             'link' => 'users/orders',
             'user_id' => $returnRequest->user_id,

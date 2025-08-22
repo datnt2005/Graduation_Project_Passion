@@ -34,6 +34,7 @@ class SupportController extends Controller
             // Không trả lỗi cho user, chỉ log lại
         }
         // Gửi thông báo đến admin\
+
         // lấy id của admin đầu tiên trong bảng user
         $admins = User::where('role', 'admin')->first();
         $admin_id = $admins ? $admins->id : 2; // fallback to user_id 2 if no admin found

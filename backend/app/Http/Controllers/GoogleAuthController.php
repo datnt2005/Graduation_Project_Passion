@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
+
+
 class GoogleAuthController extends Controller
 {
     public function redirectToGoogle()
