@@ -430,8 +430,12 @@
                     </span>
                     <span v-else class="text-gray-500">---</span>
                   </p>
+                  <p v-if="selectedOrder.payout_note && selectedOrder.payout_note.includes('Duyệt tự động')" class="text-xs text-blue-600 mt-2">
+                    <i class="fas fa-robot mr-1"></i> Thanh toán này được duyệt tự động bởi hệ thống
+                  </p>
                   <p class="text-xs text-gray-500 mt-2">
-                    Lưu ý: Số tiền nhận được là 95% tổng giá trị tiền hàng (đã trừ giảm giá nếu có, không bao gồm phí vận chuyển). Nếu có điều chỉnh khác, admin sẽ ghi chú riêng.
+                    Lưu ý: Số tiền nhận được là 95% tổng giá trị tiền hàng (đã trừ giảm giá nếu có, không bao gồm phí vận chuyển). 
+                    Hệ thống sẽ tự động duyệt 80% payout, 20% còn lại cần admin duyệt thủ công để đảm bảo an toàn.
                   </p>
                 </div>
               </div>
@@ -582,6 +586,44 @@
           <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
             <span>💸</span> Danh sách thanh toán đã được duyệt
           </h2>
+          <!-- Thông báo về duyệt tự động -->
+          <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+            <div class="flex items-start">
+              <div class="flex-shrink-0">
+                <svg class="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                </svg>
+              </div>
+              <div class="ml-3">
+                <h3 class="text-sm font-medium text-blue-800">Tính năng duyệt tự động</h3>
+                <div class="mt-2 text-sm text-blue-700">
+                  <p>Khi bạn cập nhật trạng thái đơn hàng thành "Đã giao", hệ thống sẽ:</p>
+                  <ul class="list-disc list-inside mt-1 space-y-1">
+                    <li>Tự động tạo payout cho đơn hàng</li>
+                    <li>Duyệt tự động 80% payout (để đảm bảo an toàn)</li>
+                    <li>20% còn lại cần admin duyệt thủ công</li>
+                  </ul>
+                  <p class="mt-2 text-xs">Payout được duyệt tự động sẽ có ghi chú "(Duyệt tự động)" và biểu tượng robot 🤖</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- Thông báo về payout thất bại -->
+          <div v-if="hasFailedPayouts" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+            <div class="flex items-start">
+              <div class="flex-shrink-0">
+                <svg class="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                </svg>
+              </div>
+              <div class="ml-3">
+                <h3 class="text-sm font-medium text-red-800">Thông báo quan trọng</h3>
+                <div class="mt-2 text-sm text-red-700">
+                  <p>Có một số thanh toán đã thất bại do đơn hàng bị hủy hoặc hoàn tiền. Số tiền này không còn khả dụng cho việc rút tiền.</p>
+                </div>
+              </div>
+            </div>
+          </div>
           <!-- UI filter payout -->
           <div class="flex flex-wrap gap-2 mb-4 items-end">
             <input v-model="payoutSearch" placeholder="Tìm mã payout hoặc ghi chú" class="border rounded px-2 py-1" />
@@ -620,6 +662,12 @@
                     <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ formatDate(item.transferred_at) }}</td>
                     <td class="px-4 py-3 whitespace-nowrap text-sm">
                       <span :class="payoutStatusClass(item.status)">{{ payoutStatusLabel(item.status) }}</span>
+                      <div v-if="item.note && item.note.includes('Duyệt tự động')" class="text-xs text-blue-600 mt-1">
+                        <i class="fas fa-robot mr-1"></i> Tự động
+                      </div>
+                      <div v-if="item.status === 'failed'" class="text-xs text-red-600 mt-1">
+                        <i class="fas fa-exclamation-triangle mr-1"></i> Đã hoàn lại cho khách hàng
+                      </div>
                     </td>
                     <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.note }}</td>
                   </tr>
@@ -1588,6 +1636,7 @@ const payoutStatusLabel = (status) => {
   if (status === 'completed') return 'Đã chuyển khoản';
   if (status === 'pending') return 'Chờ duyệt';
   if (status === 'rejected') return 'Từ chối';
+  if (status === 'failed') return 'Thất bại';
   return status;
 };
 
@@ -1595,6 +1644,7 @@ const payoutStatusClass = (status) => {
   if (status === 'completed') return 'text-green-600 font-bold';
   if (status === 'pending') return 'text-yellow-600 font-bold';
   if (status === 'rejected') return 'text-red-600 font-bold';
+  if (status === 'failed') return 'text-red-600 font-bold';
   return '';
 };
 
@@ -1737,6 +1787,11 @@ definePageMeta({
 const totalApprovedPayout = computed(() => {
   // Tổng tất cả payout đã duyệt (không phân trang, không filter)
   return payoutData.value.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+});
+
+// Kiểm tra có payout nào có status 'failed' không
+const hasFailedPayouts = computed(() => {
+  return payoutData.value.some(item => item.status === 'failed');
 });
 
 const fetchWithdrawHistory = async () => {

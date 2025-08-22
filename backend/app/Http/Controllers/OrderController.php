@@ -1513,15 +1513,61 @@ class OrderController extends Controller
                             return $item->price * $item->quantity;
                         });
                         $amount = max($totalPrice * 0.95, 0); // 5% admin fee
-                        \App\Models\Payout::create([
+                        $payout = \App\Models\Payout::create([
                             'order_id' => $order->id,
                             'seller_id' => $sellerId,
                             'amount' => $amount,
                             'status' => 'pending',
                             'note' => 'Payout tự động cho đơn hàng ' . ($order->shipping?->tracking_code ?? $order->id),
                         ]);
+
+                        // Thử duyệt payout tự động
+                        $payoutController = new \App\Http\Controllers\PayoutController();
+                        $autoApproved = $payoutController->autoApprovePayout($order->id, $sellerId);
+                        
+                        if ($autoApproved) {
+                            Log::info('Payout được duyệt tự động sau khi admin cập nhật trạng thái delivered', [
+                                'order_id' => $order->id,
+                                'seller_id' => $sellerId,
+                                'payout_id' => $payout->id,
+                                'amount' => $amount
+                            ]);
+                        } else {
+                            Log::info('Payout được giữ lại để admin duyệt thủ công', [
+                                'order_id' => $order->id,
+                                'seller_id' => $sellerId,
+                                'payout_id' => $payout->id,
+                                'amount' => $amount
+                            ]);
+                        }
                     }
                 }
+            }
+
+            // Xử lý hoàn tiền khi đơn hàng chuyển sang trạng thái hoàn tiền/hủy
+            if (in_array($request->input('status'), ['refunded', 'cancelled', 'failed', 'returned'])) {
+                $payoutController = new \App\Http\Controllers\PayoutController();
+                $reason = match($request->input('status')) {
+                    'refunded' => 'Đơn hàng bị hoàn tiền',
+                    'cancelled' => 'Đơn hàng bị hủy',
+                    'failed' => 'Đơn hàng thất bại',
+                    'returned' => 'Đơn hàng bị trả lại',
+                    default => 'Đơn hàng bị hoàn tiền'
+                };
+                
+                // Lấy tất cả seller_id trong order để xử lý hoàn tiền
+                $sellerIds = $order->orderItems->pluck('product.seller_id')->unique()->filter();
+                foreach ($sellerIds as $sellerId) {
+                    $payoutController->handleOrderRefund($order->id, $sellerId, $reason);
+                }
+                
+                Log::info('Đã xử lý hoàn tiền payout khi admin cập nhật trạng thái', [
+                    'order_id' => $order->id,
+                    'old_status' => $oldStatus,
+                    'new_status' => $request->input('status'),
+                    'reason' => $reason,
+                    'seller_ids' => $sellerIds->toArray()
+                ]);
             }
 
             $statusMessages = [

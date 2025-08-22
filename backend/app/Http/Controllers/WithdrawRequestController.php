@@ -46,9 +46,10 @@ class WithdrawRequestController extends Controller
 
         // Tính số dư khả dụng
         $totalPayout = Payout::where('seller_id', $seller->id)->where('status', 'completed')->sum('amount');
+        $failedPayouts = Payout::where('seller_id', $seller->id)->where('status', 'failed')->sum('amount');
         $totalWithdrawCompleted = WithdrawRequest::where('seller_id', $seller->id)->where('status', 'completed')->sum('amount');
         $totalWithdrawPending = WithdrawRequest::where('seller_id', $seller->id)->where('status', 'pending')->sum('amount');
-        $available = $totalPayout - $totalWithdrawCompleted - $totalWithdrawPending;
+        $available = $totalPayout - $failedPayouts - $totalWithdrawCompleted - $totalWithdrawPending;
 
         if ($amount > $available) {
             return response()->json([
@@ -149,13 +150,37 @@ class WithdrawRequestController extends Controller
     {
         $user = Auth::user();
         $seller = Seller::where('user_id', $user->id)->firstOrFail();
-        $totalPayout = Payout::where('seller_id', $seller->id)->where('status', 'completed')->sum('amount');
-        $totalWithdrawCompleted = WithdrawRequest::where('seller_id', $seller->id)->where('status', 'completed')->sum('amount');
-        $totalWithdrawPending = WithdrawRequest::where('seller_id', $seller->id)->where('status', 'pending')->sum('amount');
-        $available = $totalPayout - $totalWithdrawCompleted - $totalWithdrawPending;
+        
+        // Tính tổng payout đã hoàn thành
+        $totalPayout = Payout::where('seller_id', $seller->id)
+            ->where('status', 'completed')
+            ->sum('amount');
+        
+        // Tính tổng payout đã bị thất bại (status = 'failed')
+        $failedPayouts = Payout::where('seller_id', $seller->id)
+            ->where('status', 'failed')
+            ->sum('amount');
+        
+        // Tính tổng rút tiền đã hoàn thành
+        $totalWithdrawCompleted = WithdrawRequest::where('seller_id', $seller->id)
+            ->where('status', 'completed')
+            ->sum('amount');
+        
+        // Tính tổng rút tiền đang chờ
+        $totalWithdrawPending = WithdrawRequest::where('seller_id', $seller->id)
+            ->where('status', 'pending')
+            ->sum('amount');
+        
+        // Số dư khả dụng = Tổng payout - Payout đơn hàng bị thất bại - Tổng rút tiền
+        $available = $totalPayout - $failedPayouts - $totalWithdrawCompleted - $totalWithdrawPending;
+        
         return response()->json([
             'success' => true,
-            'available' => $available
+            'available' => max(0, $available), // Đảm bảo không âm
+            'total_payout' => $totalPayout,
+            'failed_payouts' => $failedPayouts,
+            'total_withdraw_completed' => $totalWithdrawCompleted,
+            'total_withdraw_pending' => $totalWithdrawPending
         ]);
     }
 }

@@ -250,13 +250,55 @@ class SellerOrderController extends Controller
             // Chỉ tạo payout nếu chưa có payout cho seller này và order này
             $existingPayout = Payout::where('order_id', $order->id)->where('seller_id', $seller->id)->first();
             if (!$existingPayout && $amount > 0) {
-                Payout::create([
+                $payout = Payout::create([
                     'seller_id' => $seller->id,
                     'order_id' => $order->id,
                     'amount' => $amount,
                     'status' => 'pending',
                 ]);
+
+                // Thử duyệt payout tự động
+                $payoutController = new \App\Http\Controllers\PayoutController();
+                $autoApproved = $payoutController->autoApprovePayout($order->id, $seller->id);
+                
+                if ($autoApproved) {
+                    \Log::info('Payout được duyệt tự động sau khi seller cập nhật trạng thái delivered', [
+                        'order_id' => $order->id,
+                        'seller_id' => $seller->id,
+                        'payout_id' => $payout->id,
+                        'amount' => $amount
+                    ]);
+                } else {
+                    \Log::info('Payout được giữ lại để admin duyệt thủ công', [
+                        'order_id' => $order->id,
+                        'seller_id' => $seller->id,
+                        'payout_id' => $payout->id,
+                        'amount' => $amount
+                    ]);
+                }
             }
+        }
+
+        // Xử lý hoàn tiền khi đơn hàng chuyển sang trạng thái hoàn tiền/hủy
+        if (in_array($status, ['refunded', 'cancelled', 'failed', 'returned'])) {
+            $payoutController = new \App\Http\Controllers\PayoutController();
+            $reason = match($status) {
+                'refunded' => 'Đơn hàng bị hoàn tiền',
+                'cancelled' => 'Đơn hàng bị hủy',
+                'failed' => 'Đơn hàng thất bại',
+                'returned' => 'Đơn hàng bị trả lại',
+                default => 'Đơn hàng bị hoàn tiền'
+            };
+            
+            $payoutController->handleOrderRefund($order->id, $seller->id, $reason);
+            
+            \Log::info('Đã xử lý hoàn tiền payout khi seller cập nhật trạng thái', [
+                'order_id' => $order->id,
+                'seller_id' => $seller->id,
+                'old_status' => $oldStatus,
+                'new_status' => $status,
+                'reason' => $reason
+            ]);
         }
 
         // Gửi mail thông báo cập nhật trạng thái
