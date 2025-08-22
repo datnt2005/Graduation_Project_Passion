@@ -214,6 +214,47 @@ export function useCart() {
       return;
     }
 
+    // Kiểm tra trạng thái sellers trước khi chuyển đến checkout
+    try {
+      const sellerIds = [...new Set(cart.value.stores.map(store => store.seller_id).filter(id => id))];
+      const bannedSellers = [];
+
+      for (const sellerId of sellerIds) {
+        try {
+          const response = await fetch(`${apiBaseUrl}/sellers/${sellerId}/status`, {
+            method: 'GET',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              Accept: 'application/json',
+            },
+          });
+
+          if (response.ok) {
+            const { data } = await response.json();
+            if (data.is_banned) {
+              const store = cart.value.stores.find(s => s.seller_id === sellerId);
+              bannedSellers.push({
+                seller_id: sellerId,
+                store_name: store?.store_name || 'Cửa hàng',
+                ban_reason: data.ban_reason || ''
+              });
+            }
+          }
+        } catch (err) {
+          console.error(`Error checking seller ${sellerId} status:`, err);
+        }
+      }
+
+      if (bannedSellers.length > 0) {
+        const bannedStoreNames = bannedSellers.map(s => s.store_name).join(', ');
+        toast('error', `Không thể thanh toán vì các cửa hàng sau đã bị cấm: ${bannedStoreNames}`);
+        return;
+      }
+    } catch (err) {
+      console.error('Error checking sellers status:', err);
+      // Nếu không thể kiểm tra, vẫn cho phép chuyển đến checkout
+    }
+
     loading.value = true;
     try {
       await syncSelectedItemsToBackend();

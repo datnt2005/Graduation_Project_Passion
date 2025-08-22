@@ -326,7 +326,7 @@ text-align: center;
 
         <!-- Action Section -->
         <div class="action-section">
-            <a href="{{ url('/orders/' . $order->id) }}" class="button">Xem chi tiết đơn hàng</a>
+            <a href="https://passionfpt.shop/order" class="button">Xem chi tiết đơn hàng</a>
             <div style="margin-top: 14px; color: #888; font-size: 0.97rem;">Bạn sẽ sớm nhận được thông báo khi đơn hàng được xác nhận và giao cho đơn vị vận chuyển.</div>
         </div>
 
@@ -337,7 +337,7 @@ text-align: center;
                 <small>Chuyển hoàn sau 3 lần phát; Lưu kho tối đa 5 ngày</small>
             </div>
             Nếu có thắc mắc, vui lòng liên hệ bộ phận CSKH của chúng tôi.<br>
-            <a href="mailto:support@passion.com">support@passion.com</a> | <a href="{{ config('app.url') }}">Website</a>
+            <a href="mailto:support@passion.com">support@passion.com</a> | <a href="https://passionfpt.shop/">Website</a>
             <div style="margin-top: 10px;">&copy; {{ date('Y') }} <strong>PASSION</strong>. Mọi quyền được bảo lưu.</div>
         </div>
     </div>

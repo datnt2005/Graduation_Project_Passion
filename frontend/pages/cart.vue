@@ -18,6 +18,23 @@
           {{ error }}
         </div>
 
+        <!-- Warning message for banned sellers -->
+        <div v-if="bannedSellers.length > 0" class="bg-red-50 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          <div class="flex items-center">
+            <i class="fas fa-exclamation-triangle mr-2"></i>
+            <div>
+              <strong>Cảnh báo:</strong> Các cửa hàng sau đã bị cấm và không thể thanh toán:
+              <ul class="mt-2 ml-4 list-disc">
+                <li v-for="seller in bannedSellers" :key="seller.seller_id" class="text-sm">
+                  <strong>{{ seller.store_name }}</strong>
+                  <span v-if="seller.ban_reason"> - {{ seller.ban_reason }}</span>
+                </li>
+              </ul>
+              <p class="text-sm mt-2">Vui lòng xóa các sản phẩm của cửa hàng bị cấm khỏi giỏ hàng để tiếp tục.</p>
+            </div>
+          </div>
+        </div>
+
         <!-- Skeleton loading for cart -->
         <div v-if="!isCartReady"
           class="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row md:space-x-4 animate-pulse">
@@ -250,9 +267,15 @@
           <button type="button"
             class="block w-full bg-[#ff3b30] text-white font-semibold text-[16px] rounded-md py-3 text-center" :class="{
               'opacity-50 cursor-not-allowed':
-                selectedItems.size === 0 || loading,
-            }" :disabled="selectedItems.size === 0 || loading" @click="navigateToCheckout">
-            Mua Hàng ({{ selectedItems.size }})
+                selectedItems.size === 0 || loading || hasBannedSellers,
+            }" :disabled="selectedItems.size === 0 || loading || hasBannedSellers" @click="navigateToCheckout">
+            <span v-if="hasBannedSellers" class="flex items-center justify-center">
+              <i class="fas fa-ban mr-2"></i>
+              Có cửa hàng bị cấm
+            </span>
+            <span v-else>
+              Mua Hàng ({{ selectedItems.size }})
+            </span>
           </button>
         </div>
       </div>
@@ -312,7 +335,7 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, onMounted, watch } from "vue";
 import { useCart } from "~/composables/useCart";
 import { useToast } from "~/composables/useToast";
 import { useHead } from '#imports'
@@ -324,6 +347,7 @@ useHead({
   ]
 })
 const { toast } = useToast();
+const config = useRuntimeConfig();
 const {
   cart,
   loading,
@@ -351,6 +375,8 @@ const showConfirmDialog = ref(false);
 const confirmDialogTitle = ref("");
 const confirmDialogMessage = ref("");
 const confirmAction = ref(null);
+const bannedSellers = ref([]);
+const hasBannedSellers = ref(false);
 
 const showRemoveItemDialog = (itemId) => {
   showConfirmationDialog(
@@ -402,6 +428,63 @@ const handleConfirmAction = async () => {
   }
   closeConfirmDialog();
 };
+
+// Kiểm tra trạng thái sellers
+const checkSellersStatus = async () => {
+  try {
+    const token = localStorage.getItem('access_token');
+    if (!token) return;
+
+    const sellerIds = [...new Set(cart.value.stores.map(store => store.seller_id).filter(id => id))];
+    const banned = [];
+
+    for (const sellerId of sellerIds) {
+      try {
+        const response = await fetch(`${config.public.apiBaseUrl}/sellers/${sellerId}/status`, {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          const { data } = await response.json();
+          if (data.is_banned) {
+            const store = cart.value.stores.find(s => s.seller_id === sellerId);
+            banned.push({
+              seller_id: sellerId,
+              store_name: store?.store_name || 'Cửa hàng',
+              ban_reason: data.ban_reason || ''
+            });
+          }
+        }
+      } catch (err) {
+        console.error(`Error checking seller ${sellerId} status:`, err);
+      }
+    }
+
+    bannedSellers.value = banned;
+    hasBannedSellers.value = banned.length > 0;
+
+    if (hasBannedSellers.value) {
+      const bannedStoreNames = banned.map(s => s.store_name).join(', ');
+      toast('warning', `Các cửa hàng sau đã bị cấm: ${bannedStoreNames}. Không thể thanh toán.`);
+    }
+  } catch (err) {
+    console.error('Error checking sellers status:', err);
+  }
+};
+
+// Thêm onMounted để kiểm tra seller status
+onMounted(async () => {
+  await checkSellersStatus();
+});
+
+// Watch cart để kiểm tra lại khi có thay đổi
+watch(cart, async () => {
+  await checkSellersStatus();
+}, { deep: true });
 </script>
 
 <style scoped>

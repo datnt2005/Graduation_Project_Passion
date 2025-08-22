@@ -10,6 +10,40 @@
     <div class="max-w-7xl mx-auto md:pt-6 md:pb-6 p-4">
       <div class="mx-auto">
         <h2 class="text-2xl text-center sm:text-3xl font-extrabold text-gray-900 mb-2 text-left">Kho Voucher</h2>
+        <!-- Hiệu ứng cánh rơi + chip nổi tạo sinh động -->
+        <div class="relative my-3 flex justify-center items-center select-none">
+          <div class="absolute inset-0 pointer-events-none overflow-hidden petal-layer">
+            <span
+              v-for="(p, i) in petals"
+              :key="'p'+i"
+              class="petal"
+              :style="{
+                left: p.left + '%',
+                animationDuration: p.duration + 's',
+                animationDelay: p.delay + 's',
+                transform: `scale(${p.scale})`
+              }"
+            />
+          </div>
+          <div class="inline-flex gap-2 relative z-10">
+            <span class="floating-chip">Voucher Hot 🔥</span>
+            <span class="floating-chip delay-1">Freeship 🚚</span>
+            <span class="floating-chip delay-2">Giảm sâu 💯</span>
+          </div>
+        </div>
+        <!-- Lớp confetti khi thao tác thành công -->
+        <div v-if="showConfetti" class="confetti-layer">
+          <span v-for="(c, idx) in confettiBits" :key="'c'+idx" class="confetti"
+            :style="{
+              left: c.left + '%',
+              background: c.color,
+              animationDuration: c.duration + 's',
+              width: c.size + 'px', height: c.size + 'px',
+              animationDelay: c.delay + 's',
+              transform: `rotate(${c.rotation}deg)`
+            }"
+          />
+        </div>
                  <div class="flex flex-col sm:flex-row sm:items-center gap-2 mb-4">
            <div class="flex-1 flex items-center bg-white rounded border border-gray-200 px-3 py-2">
              <span class="text-gray-500 text-sm mr-2 whitespace-nowrap">Mã Voucher</span>
@@ -43,66 +77,75 @@
          <div v-if="loading" class="flex flex-col items-center justify-center bg-white border border-gray-200 p-8 rounded-lg shadow-md mt-6">
            <span class="text-gray-500 text-sm">Đang tải voucher...</span>
          </div>
-         <div v-else-if="allVouchers.length > 0" class="grid grid-cols-1 md:grid-cols-3 gap-4">
-           <div
-             v-for="voucher in paginatedAllVouchers"
-             :key="voucher.id"
-             class="relative flex items-center bg-white rounded-lg shadow border border-gray-200 px-4 py-3 gap-4 hover:shadow-md transition min-h-[90px]"
-           >
-             <!-- Nút xoá chỉ hiện khi voucher đã lưu -->
-             <button
-               v-if="isVoucherSaved(voucher.id)"
-               @click="handleDeleteVoucher(voucher.id)"
-               title="Xoá mã giảm giá"
-               class="absolute top-2 right-2 text-gray-400 hover:text-red-500 transition z-10"
-               style="font-size: 16px;"
-             >
-               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-               </svg>
-             </button>
-             <!-- Logo -->
-             <div class="flex flex-col items-center justify-center min-w-[60px]">
-               <img
-                 :src="imageVoucher" alt="Voucher Logo"
-                 class="w-12 h-12 object-contain mb-1"
-               />
-               <div v-if="voucher.seller && voucher.seller.store_name" class="text-[10px] font-bold text-blue-700 bg-blue-100 rounded px-1 py-0.5">{{ voucher.seller.store_name }} </div>
-               <div v-else class="text-[10px] font-bold text-blue-700 bg-blue-100 rounded px-1 py-0.5">PASSION VIP</div>
-             </div>
-             <!-- Nội dung -->
-             <div class="flex-1 flex flex-col justify-between min-w-0">
-               <div class="flex flex-wrap items-center gap-1 mb-1">
-                 <span v-if="voucher.level" class="bg-blue-100 text-blue-700 text-xs px-1.5 py-0.5 rounded font-semibold">{{ voucher.level }}</span>
-                 <span v-if="voucher.level2" class="bg-blue-100 text-blue-700 text-xs px-1.5 py-0.5 rounded font-semibold">{{ voucher.level2 }}</span>
-               </div>
-               <div class="font-semibold text-sm text-gray-900 truncate">{{ voucher.name || 'Không có tên' }}</div>
-               <div class="text-xs text-gray-600 truncate">{{ voucher.description || '' }}</div>
-               <div class="flex flex-wrap items-center gap-2 text-xs text-gray-500 mt-1">
-                 <span v-if="voucher.discount_type === 'percentage'">Giảm {{ formatDiscountValue(voucher.discount_value) }}% tối đa {{ formatCurrency(voucher.max_discount || 0) }}</span>
-                 <span v-else>Giảm {{ formatCurrency(voucher.discount_value) }}</span>
-                 <span>Đơn từ {{ formatCurrency(voucher.min_order_value) }}</span>
-               </div>
-               <div v-if="voucher.products && voucher.products.length > 0" class="text-xs text-blue-500 mt-1 w-full">Sản phẩm nhất định</div>
-               <div class="text-xs text-gray-500 w-full mb-1 mt-3">HSD: {{ formatDate(voucher.end_date) }}</div>
-               <!-- Nút thông minh -->
-               <div class="flex justify-end mt-2">
-                 <button
-                   v-if="!isVoucherSaved(voucher.id)"
-                   @click="handleSaveAvailableVoucher(voucher.code)"
-                   class="bg-blue-500 text-white px-3 py-1 rounded text-xs font-semibold hover:bg-blue-600 transition w-full sm:w-auto"
-                   style="min-width: 80px;"
-                 >Lưu</button>
-                 <button
-                   v-else
-                   @click="goToCheckout(voucher.code)"
-                   class="bg-green-500 text-white px-3 py-1 rounded text-xs font-semibold hover:bg-green-600 transition w-full sm:w-auto"
-                   style="min-width: 80px;"
-                 >Dùng ngay</button>
-               </div>
-             </div>
-           </div>
-         </div>
+         <div v-else-if="allVouchers.length > 0" class="relative min-h-[260px]">
+          <!-- Wavy animated background behind the list -->
+          <div class="waves-bg pointer-events-none absolute inset-0 overflow-hidden">
+            <div class="wave layer1"></div>
+            <div class="wave layer2"></div>
+            <div class="wave layer3"></div>
+          </div>
+          <div class="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div
+              v-for="(voucher, idx) in paginatedAllVouchers"
+              :key="voucher.id"
+              class="voucher-anim-card relative flex items-center bg-white rounded-lg shadow border border-gray-200 px-4 py-3 gap-4 transition min-h-[90px]"
+              :style="{ animationDelay: (idx * 0.06) + 's' }"
+            >
+              <!-- Nút xoá chỉ hiện khi voucher đã lưu -->
+              <button
+                v-if="isVoucherSaved(voucher.id)"
+                @click="handleDeleteVoucher(voucher.id)"
+                title="Xoá mã giảm giá"
+                class="absolute top-2 right-2 text-gray-400 hover:text-red-500 transition z-10"
+                style="font-size: 16px;"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+              <!-- Logo -->
+              <div class="flex flex-col items-center justify-center min-w-[60px]">
+                <img
+                  :src="imageVoucher" alt="Voucher Logo"
+                  class="w-12 h-12 object-contain mb-1"
+                />
+                <div v-if="voucher.seller && voucher.seller.store_name" class="text-[10px] font-bold text-blue-700 bg-blue-100 rounded px-1 py-0.5">{{ voucher.seller.store_name }} </div>
+                <div v-else class="text-[10px] font-bold text-blue-700 bg-blue-100 rounded px-1 py-0.5">PASSION VIP</div>
+              </div>
+              <!-- Nội dung -->
+              <div class="flex-1 flex flex-col justify-between min-w-0">
+                <div class="flex flex-wrap items-center gap-1 mb-1">
+                  <span v-if="voucher.level" class="bg-blue-100 text-blue-700 text-xs px-1.5 py-0.5 rounded font-semibold">{{ voucher.level }}</span>
+                  <span v-if="voucher.level2" class="bg-blue-100 text-blue-700 text-xs px-1.5 py-0.5 rounded font-semibold">{{ voucher.level2 }}</span>
+                </div>
+                <div class="font-semibold text-sm text-gray-900 truncate">{{ voucher.name || 'Không có tên' }}</div>
+                <div class="text-xs text-gray-600 truncate">{{ voucher.description || '' }}</div>
+                <div class="flex flex-wrap items-center gap-2 text-xs text-gray-500 mt-1">
+                  <span v-if="voucher.discount_type === 'percentage'">Giảm {{ formatDiscountValue(voucher.discount_value) }}% tối đa {{ formatCurrency(voucher.max_discount || 0) }}</span>
+                  <span v-else>Giảm {{ formatCurrency(voucher.discount_value) }}</span>
+                  <span>Đơn từ {{ formatCurrency(voucher.min_order_value) }}</span>
+                </div>
+                <div v-if="voucher.products && voucher.products.length > 0" class="text-xs text-blue-500 mt-1 w-full">Sản phẩm nhất định</div>
+                <div class="text-xs text-gray-500 w-full mb-1 mt-3">HSD: {{ formatDate(voucher.end_date) }}</div>
+                <!-- Nút thông minh -->
+                <div class="flex justify-end mt-2">
+                  <button
+                    v-if="!isVoucherSaved(voucher.id)"
+                    @click="handleSaveAvailableVoucher(voucher.code)"
+                    class="bg-blue-500 text-white px-3 py-1 rounded text-xs font-semibold hover:bg-blue-600 transition w-full sm:w-auto"
+                    style="min-width: 80px;"
+                  >Lưu</button>
+                  <button
+                    v-else
+                    @click="goToCheckout(voucher.code)"
+                    class="bg-green-500 text-white px-3 py-1 rounded text-xs font-semibold hover:bg-green-600 transition w-full sm:w-auto"
+                    style="min-width: 80px;"
+                  >Dùng ngay</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
                  <div v-else class="flex flex-col items-center justify-center bg-white border border-gray-200 p-8 rounded-lg shadow-md mt-6">
            <img src="https://cdn-icons-png.flaticon.com/512/4076/4076549.png" alt="No vouchers" class="w-24 sm:w-32 h-24 sm:h-32 mb-4" />
            <h3 class="text-lg sm:text-xl font-semibold text-gray-700 mb-2">Chưa có voucher</h3>
@@ -238,6 +281,29 @@ useHead({
     { name: 'description', content: 'Kho Voucher, tràn ngập mã giảm giá, miễn phí vận chuyển. Nhận ngay!' }
   ]
 })
+// Hiệu ứng cánh rơi
+const petals = Array.from({ length: 20 }).map(() => ({
+  left: Math.random() * 100,
+  duration: 8 + Math.random() * 8,
+  delay: Math.random() * 4,
+  scale: 0.6 + Math.random() * 0.8
+}))
+
+// Confetti state
+const showConfetti = ref(false)
+const confettiBits = ref([])
+const triggerConfetti = () => {
+  confettiBits.value = Array.from({ length: 30 }).map(() => ({
+    left: Math.random() * 100,
+    duration: 1.2 + Math.random() * 0.8,
+    delay: Math.random() * 0.2,
+    size: 6 + Math.floor(Math.random() * 5),
+    rotation: Math.floor(Math.random() * 360),
+    color: ['#FF6B6B', '#FFD93D', '#6BCB77', '#4D96FF', '#B983FF'][Math.floor(Math.random() * 5)]
+  }))
+  showConfetti.value = true
+  setTimeout(() => (showConfetti.value = false), 1600)
+}
 // Chỉ giữ lại tab 'Tất cả'
 const tabs = [
   { label: 'Tất cả', value: 'all' },
@@ -256,32 +322,44 @@ const sortOptions = [
 ]
 const selectedSort = ref('newest')
 
-const { discounts, saveVoucherByCode, loading, error, fetchMyVouchers, deleteUserCoupon } = useDiscount()
+const { discounts, saveVoucherByCode, loading, error, fetchMyVouchers, deleteUserCoupon, fetchSellerDiscounts } = useDiscount()
 const { showNotification } = useNotification()
 const { toast } = useToast()
 
 const vouchers = computed(() => discounts.value)
 
-// Danh sách tất cả voucher (đã lưu + có sẵn)
+// Dữ liệu seller và voucher của seller
+const availableSellerDiscounts = ref([])
+const verifiedSellers = ref([])
+const sellersMap = ref({})
+
+// Danh sách tất cả voucher (đã lưu + có sẵn admin + có sẵn từ seller)
 const allVouchers = computed(() => {
   const savedVouchers = vouchers.value || []
-  const availableVouchers = availableDiscounts.value || []
-  
-  // Gộp 2 danh sách và loại bỏ trùng lặp
+  const adminAvailable = availableDiscounts.value || []
+  const sellerAvailable = availableSellerDiscounts.value || []
+
   const allVouchersMap = new Map()
-  
-  // Thêm voucher đã lưu trước
+
+  // Ưu tiên voucher đã lưu
   savedVouchers.forEach(voucher => {
     allVouchersMap.set(voucher.id, { ...voucher, isSaved: true })
   })
-  
-  // Thêm voucher có sẵn (nếu chưa có trong danh sách đã lưu)
-  availableVouchers.forEach(voucher => {
+
+  // Thêm voucher admin công khai
+  adminAvailable.forEach(voucher => {
     if (!allVouchersMap.has(voucher.id)) {
       allVouchersMap.set(voucher.id, { ...voucher, isSaved: false })
     }
   })
-  
+
+  // Thêm voucher seller công khai
+  sellerAvailable.forEach(voucher => {
+    if (!allVouchersMap.has(voucher.id)) {
+      allVouchersMap.set(voucher.id, { ...voucher, isSaved: false })
+    }
+  })
+
   return Array.from(allVouchersMap.values())
 })
 
@@ -317,7 +395,7 @@ const filteredAllVouchers = computed(() => {
 })
 
 // Pagination cho tất cả voucher
-const pageSize = 6
+const pageSize = 9
 const currentPage = ref(1)
 const totalPages = computed(() => Math.ceil(filteredAllVouchers.value.length / pageSize))
 const paginatedAllVouchers = computed(() => {
@@ -362,6 +440,7 @@ const handleSaveVoucher = async () => {
     await fetchAvailableDiscounts()
     currentPage.value = 1 // reset về trang đầu khi thêm mới
     toast('success', res.message || 'Lưu voucher thành công')
+    triggerConfetti()
   } else {
     alertMsg.value = res.message
     alertType.value = 'error'
@@ -400,6 +479,7 @@ function goToCheckout(code) {
 onMounted(() => {
   fetchMyVouchers()
   fetchAvailableDiscounts()
+  fetchAvailableSellerDiscounts()
 })
 
 function formatDate(dateStr) {
@@ -452,6 +532,62 @@ const fetchAvailableDiscounts = async () => {
     availableDiscounts.value = []
   } finally {
     availableLoading.value = false
+  }
+}
+
+// Lấy danh sách seller xác thực và voucher của họ (công khai)
+const fetchVerifiedSellers = async () => {
+  try {
+    const res = await fetch(`${useRuntimeConfig().public.apiBaseUrl}/sellers/verified`, {
+      headers: { 'Accept': 'application/json' }
+    })
+    const data = await res.json()
+    if (res.ok && data.data) {
+      verifiedSellers.value = data.data
+      const map = {}
+      data.data.forEach((s) => { map[s.id] = s })
+      sellersMap.value = map
+    } else {
+      verifiedSellers.value = []
+      sellersMap.value = {}
+    }
+  } catch (e) {
+    verifiedSellers.value = []
+    sellersMap.value = {}
+  }
+}
+
+const fetchAvailableSellerDiscounts = async () => {
+  await fetchVerifiedSellers()
+  if (!verifiedSellers.value.length) {
+    availableSellerDiscounts.value = []
+    return
+  }
+  try {
+    const lists = await Promise.all(
+      verifiedSellers.value.map(async (seller) => {
+        const list = await fetchSellerDiscounts(seller.id)
+        // Gắn thông tin seller để hiển thị
+        return (list || []).map(d => ({
+          ...d,
+          seller: {
+            id: seller.id,
+            store_name: seller.store_name,
+            store_slug: seller.store_slug,
+          },
+        }))
+      })
+    )
+    // Nối và loại bỏ trùng id
+    const flat = lists.flat()
+    const seen = new Set()
+    availableSellerDiscounts.value = flat.filter(d => {
+      if (seen.has(d.id)) return false
+      seen.add(d.id)
+      return true
+    })
+  } catch (e) {
+    availableSellerDiscounts.value = []
   }
 }
 
@@ -521,5 +657,90 @@ function isVoucherSaved(voucherId) {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* Petal falling */
+@keyframes petalFall {
+  0% { transform: translateY(-40px) rotate(0deg); opacity: 0 }
+  10% { opacity: .95 }
+  100% { transform: translateY(120vh) rotate(360deg); opacity: 0 }
+}
+.petal-layer { pointer-events: none; }
+.petal {
+  position: absolute;
+  top: -20px;
+  width: 16px;
+  height: 12px;
+  background: radial-gradient(circle at 30% 30%, #ffb3c7 0%, #ff6f91 60%, #ff4274 100%);
+  border-radius: 60% 40% 60% 40%/60% 40% 60% 40%;
+  filter: blur(.2px);
+  animation: petalFall linear infinite;
+}
+
+/* Floating chips */
+.floating-chip {
+  background: #fff;
+  color: #1f2937;
+  border: 1px solid #e5e7eb;
+  border-radius: 9999px;
+  font-size: 12px;
+  padding: 4px 10px;
+  box-shadow: 0 1px 2px rgba(0,0,0,.06);
+  animation: floatY 4s ease-in-out infinite;
+}
+.floating-chip.delay-1 { animation-delay: .8s }
+.floating-chip.delay-2 { animation-delay: 1.6s }
+@keyframes floatY {
+  0%,100% { transform: translateY(0) }
+  50% { transform: translateY(-6px) }
+}
+
+/* Confetti burst */
+.confetti-layer {
+  position: relative;
+}
+.confetti {
+  position: absolute;
+  top: -6px;
+  border-radius: 2px;
+  animation: confettiFall ease-out forwards;
+}
+@keyframes confettiFall {
+  to { transform: translateY(120px); opacity: 0 }
+}
+
+/* Voucher card animation */
+@keyframes voucherEntry {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.voucher-anim-card {
+  animation: voucherEntry 0.5s ease-out;
+}
+
+/* Wavy animated background */
+.waves-bg { filter: blur(0.8px); opacity: .6 }
+.wave {
+  position: absolute;
+  left: -20%;
+  right: -20%;
+  height: 220px;
+  border-radius: 100% 0 100% 0/60% 40% 60% 40%;
+  transform: rotate(-2deg);
+}
+/* Sky blue tones */
+.wave.layer1 { bottom: -10px; background: radial-gradient(100% 100% at 0% 0%, rgba(96,165,250,0.65) 0%, transparent 65%); animation: waveMove 12s linear infinite; }
+.wave.layer2 { bottom: -40px; background: radial-gradient(100% 100% at 0% 0%, rgba(147,197,253,0.5) 0%, transparent 65%); animation: waveMove 18s linear infinite reverse; }
+.wave.layer3 { bottom: -70px; background: radial-gradient(100% 100% at 0% 0%, rgba(219,234,254,0.35) 0%, transparent 65%); animation: waveMove 24s linear infinite; }
+@keyframes waveMove {
+  0% { transform: translateX(0) rotate(-2deg); }
+  50% { transform: translateX(10%) rotate(-2deg); }
+  100% { transform: translateX(0) rotate(-2deg); }
 }
 </style>

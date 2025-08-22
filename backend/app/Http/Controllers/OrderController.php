@@ -38,6 +38,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
 use App\Models\Notification;
 use App\Models\NotificationRecipient;
+use App\Models\StockMovement;
 
 
 
@@ -904,6 +905,8 @@ class OrderController extends Controller
                     'total_price' => $totalPrice,
                     'discount_price' => $shopDiscount,
                     'final_price' => $finalPrice + $shippingFee, // shippingFee đã được trừ discount rồi
+                    // Lưu mapping discount đã áp dụng (product/shipping)
+                    'discount_id' => !empty($appliedDiscountIds) ? $appliedDiscountIds : null,
                 ]);
 
                 $paymentMethod = PaymentMethod::firstOrCreate(
@@ -1317,6 +1320,75 @@ class OrderController extends Controller
                 'warning_email_sent' => $order->user ? $order->user->warning_email_sent : null
             ]);
 
+            // Tự động trừ kho khi chuyển sang trạng thái "processing" với đơn hàng COD
+            try {
+                if ($oldStatus !== 'processing' && $request->input('status') === 'processing') {
+                    // Kiểm tra phương thức thanh toán là COD
+                    $order->load(['payments.paymentMethod', 'orderItems.productVariant.inventories']);
+                    $firstPaymentMethod = optional($order->payments->first())->paymentMethod->name ?? null;
+                    $isCod = strtolower((string) $firstPaymentMethod) === 'cod';
+
+                    if ($isCod) {
+                        // Tránh trừ kho nhiều lần cho cùng một đơn: kiểm tra lịch sử xuất kho theo note
+                        $variantIds = $order->orderItems->pluck('product_variant_id')->filter()->values();
+                        $alreadyDeducted = $variantIds->isNotEmpty() && StockMovement::whereIn('product_variant_id', $variantIds)
+                            ->where('action_type', 'export')
+                            ->where('note', 'like', '%#' . $order->id . '%')
+                            ->exists();
+
+                        if (!$alreadyDeducted) {
+                            // Dùng logic sẵn có để trừ kho theo từng inventory
+                            foreach ($order->orderItems as $item) {
+                                $variant = $item->productVariant;
+                                if (!$variant) {
+                                    continue;
+                                }
+                                $quantityToDeduct = (int) $item->quantity;
+                                $inventories = $variant->inventories()->orderBy('id')->get();
+                                foreach ($inventories as $inventory) {
+                                    if ($quantityToDeduct <= 0) {
+                                        break;
+                                    }
+                                    $deduct = (int) min($inventory->quantity, $quantityToDeduct);
+                                    if ($deduct > 0) {
+                                        $inventory->quantity -= $deduct;
+                                        $inventory->last_updated = now();
+                                        $inventory->save();
+                                        $quantityToDeduct -= $deduct;
+                                    }
+                                }
+                                // Cập nhật lại tổng quantity cho variant
+                                $totalQuantity = $variant->inventories()->sum('quantity');
+                                $variant->quantity = $totalQuantity;
+                                $variant->save();
+
+                                // Ghi lịch sử xuất kho
+                                StockMovement::create([
+                                    'product_variant_id' => $variant->id,
+                                    'action_type' => 'export',
+                                    'quantity' => (int) $item->quantity,
+                                    'note' => 'Xuất kho cho đơn hàng #' . $order->id,
+                                    'created_by' => 'system',
+                                    'created_by_type' => 'system',
+                                ]);
+                            }
+                            Log::info('Đã trừ kho cho đơn hàng COD khi vào processing', [
+                                'order_id' => $order->id
+                            ]);
+                        } else {
+                            Log::info('Bỏ qua trừ kho vì đã trừ trước đó', [
+                                'order_id' => $order->id
+                            ]);
+                        }
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::warning('Lỗi khi tự trừ kho cho đơn COD ở trạng thái processing', [
+                    'order_id' => $id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
             // Kiểm tra dữ liệu trong cơ sở dữ liệu sau khi cập nhật
             $dbCheck = DB::table('orders')->where('id', $id)->first(['status', 'failure_reason', 'note']);
             Log::info('Dữ liệu từ cơ sở dữ liệu sau khi cập nhật', [
@@ -1445,15 +1517,61 @@ class OrderController extends Controller
                             return $item->price * $item->quantity;
                         });
                         $amount = max($totalPrice * 0.95, 0); // 5% admin fee
-                        \App\Models\Payout::create([
+                        $payout = \App\Models\Payout::create([
                             'order_id' => $order->id,
                             'seller_id' => $sellerId,
                             'amount' => $amount,
                             'status' => 'pending',
                             'note' => 'Payout tự động cho đơn hàng ' . ($order->shipping?->tracking_code ?? $order->id),
                         ]);
+
+                        // Thử duyệt payout tự động
+                        $payoutController = new \App\Http\Controllers\PayoutController();
+                        $autoApproved = $payoutController->autoApprovePayout($order->id, $sellerId);
+                        
+                        if ($autoApproved) {
+                            Log::info('Payout được duyệt tự động sau khi admin cập nhật trạng thái delivered', [
+                                'order_id' => $order->id,
+                                'seller_id' => $sellerId,
+                                'payout_id' => $payout->id,
+                                'amount' => $amount
+                            ]);
+                        } else {
+                            Log::info('Payout được giữ lại để admin duyệt thủ công', [
+                                'order_id' => $order->id,
+                                'seller_id' => $sellerId,
+                                'payout_id' => $payout->id,
+                                'amount' => $amount
+                            ]);
+                        }
                     }
                 }
+            }
+
+            // Xử lý hoàn tiền khi đơn hàng chuyển sang trạng thái hoàn tiền/hủy
+            if (in_array($request->input('status'), ['refunded', 'cancelled', 'failed', 'returned'])) {
+                $payoutController = new \App\Http\Controllers\PayoutController();
+                $reason = match($request->input('status')) {
+                    'refunded' => 'Đơn hàng bị hoàn tiền',
+                    'cancelled' => 'Đơn hàng bị hủy',
+                    'failed' => 'Đơn hàng thất bại',
+                    'returned' => 'Đơn hàng bị trả lại',
+                    default => 'Đơn hàng bị hoàn tiền'
+                };
+                
+                // Lấy tất cả seller_id trong order để xử lý hoàn tiền
+                $sellerIds = $order->orderItems->pluck('product.seller_id')->unique()->filter();
+                foreach ($sellerIds as $sellerId) {
+                    $payoutController->handleOrderRefund($order->id, $sellerId, $reason);
+                }
+                
+                Log::info('Đã xử lý hoàn tiền payout khi admin cập nhật trạng thái', [
+                    'order_id' => $order->id,
+                    'old_status' => $oldStatus,
+                    'new_status' => $request->input('status'),
+                    'reason' => $reason,
+                    'seller_ids' => $sellerIds->toArray()
+                ]);
             }
 
             $statusMessages = [

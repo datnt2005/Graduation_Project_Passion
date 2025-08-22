@@ -188,21 +188,32 @@
             <div class="tracking-box">
                 <div><strong>Trạng thái cũ:</strong>
                     @php
-                    $statusMap = [
-                    'pending' => 'Chờ xác nhận',
-                    'processing' => 'Đang xử lý',
-                    'shipped' => 'Đang giao',
-                    'delivered' => 'Đã giao',
-                    'cancelled' => 'Đã hủy',
-                    'completed' => 'Hoàn thành',
-                    ];
-                    echo $statusMap[$oldStatus] ?? ucfirst($oldStatus);
+                        $statusMap = [
+                            'pending'    => 'Chờ xác nhận',
+                            'confirmed'  => 'Đã xác nhận',
+                            'processing' => 'Đang xử lý',
+                            'shipping'   => 'Đang giao',
+                            'shipped'    => 'Đang giao',
+                            'delivered'  => 'Đã giao',
+                            'cancelled'  => 'Đã hủy',
+                            'completed'  => 'Hoàn thành',
+                            'returned'   => 'Đã trả hàng',
+                            'refunded'   => 'Đã hoàn tiền',
+                            'failed'     => 'Thất bại',
+                            'success'    => 'Thành công',
+                            'paid'       => 'Đã thanh toán',
+                            'unpaid'     => 'Chưa thanh toán',
+                            'waiting'    => 'Đang chờ',
+                            'error'      => 'Lỗi',
+                        ];
+                        $old = strtolower($oldStatus ?? '');
+                        echo $statusMap[$old] ?? ucfirst(strtolower(str_replace('_',' ', (string)$oldStatus)));
                     @endphp
                 </div>
                 <div><strong>Trạng thái mới:</strong>
                     @php
-                    $status = $order->status;
-                    echo $statusMap[$status] ?? ucfirst($status);
+                        $status = strtolower($order->status ?? '');
+                        echo $statusMap[$status] ?? ucfirst(strtolower(str_replace('_',' ', (string)$order->status)));
                     @endphp
                 </div>
             </div>
@@ -211,13 +222,13 @@
                 <div><strong>Tổng tiền:</strong> {{ number_format($order->final_price, 0, '', ',') }} đ</div>
             </div>
             <div class="note">Bạn có thể kiểm tra chi tiết đơn hàng hoặc liên hệ CSKH nếu cần hỗ trợ thêm.</div>
-            <a href="{{ url('/orders/' . $order->id) }}" class="button">Xem chi tiết đơn hàng</a>
+            <a href="https://passionfpt.shop/order" class="button">Xem chi tiết đơn hàng</a>
         </div>
         <div class="footer">
             Nếu có thắc mắc, vui lòng liên hệ bộ phận CSKH của chúng tôi.<br><br>
             Trân trọng,<br>
             Đội ngũ <strong>PASSION</strong><br>
-            <a href="{{ config('app.url') }}">Website</a> |
+            <a href="https://passionfpt.shop/">Website</a> |
             <a href="mailto:support@passion.com">Liên hệ hỗ trợ</a>
             <div style="margin-top: 10px;">&copy; {{ date('Y') }} <strong>PASSION</strong>. Mọi quyền được bảo lưu.</div>
         </div>

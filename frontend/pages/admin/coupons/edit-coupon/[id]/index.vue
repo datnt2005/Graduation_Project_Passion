@@ -145,7 +145,7 @@
                         </label>
                         <input
                           id="discount-amount"
-                          v-model="formData.discount_value"
+                          v-model.number="formData.discount_value"
                           type="number"
                           min="0"
                           class="w-full md:w-60 rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
@@ -180,7 +180,7 @@
                         </label>
                         <input
                           id="min-spend"
-                          v-model="formData.min_order_value"
+                          v-model.number="formData.min_order_value"
                           type="number"
                           min="0"
                           placeholder="Không có tối thiểu"
@@ -321,7 +321,7 @@
                         </label>
                         <input
                           id="limit-per-coupon"
-                          v-model="formData.usage_limit"
+                          v-model.number="formData.usage_limit"
                           type="number"
                           min="0"
                           placeholder="Không giới hạn"
@@ -505,7 +505,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed, onUnmounted } from 'vue';
+import { ref, reactive, onMounted, computed, onUnmounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useRuntimeConfig } from '#imports'
 import { secureFetch } from '@/utils/secureFetch'
@@ -665,6 +665,19 @@ const formData = reactive({
   start_date: '',
   end_date: '',
   status: 'active'
+});
+// Chặn nhập âm cho các trường số
+watch(() => formData.discount_value, (value) => {
+  if (value === null || value === undefined) return;
+  if (Number(value) < 0) formData.discount_value = 0;
+});
+watch(() => formData.min_order_value, (value) => {
+  if (value === null || value === undefined) return;
+  if (Number(value) < 0) formData.min_order_value = 0;
+});
+watch(() => formData.usage_limit, (value) => {
+  if (value === null || value === undefined) return;
+  if (Number(value) < 0) formData.usage_limit = 0;
 });
 
 const fetchCouponData = async () => {

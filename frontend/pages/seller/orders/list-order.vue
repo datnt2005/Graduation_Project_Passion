@@ -22,7 +22,7 @@
         <div class="bg-gray-200 px-4 py-3 flex flex-wrap items-center gap-3 text-sm text-gray-700">
           <div class="flex items-center gap-2">
             <span class="font-bold">Tất cả</span>
-            <span>({{ orders.length }} đơn hàng)</span>
+            <span>({{ orderTotalItems || orders.length }} đơn hàng)</span>
           </div>
           <div class="flex gap-2">
             <select v-model="filters.status"
@@ -175,7 +175,22 @@
           </tbody>
         </table>
 
-        <!-- Dropdown Portal -->
+        <!-- Pagination (giống admin) -->
+        <div class="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
+          <div class="flex justify-between items-center">
+            <div class="text-sm text-gray-700">
+              Hiển thị {{ Math.min(((orderPage - 1) * orderPageSize) + (orderPaginatedData.length > 0 ? 1 : 0), orderTotalItems) }} đến {{ Math.min(orderPage * orderPageSize, orderTotalItems) }} trong tổng số {{ orderTotalItems }} đơn hàng
+            </div>
+            <div class="flex space-x-2">
+              <button @click="changeOrderPage(orderPage - 1)" :disabled="orderPage === 1" class="px-3 py-1 border rounded-md disabled:opacity-50">Trước</button>
+              <button v-for="p in orderTotalPages" :key="p" @click="changeOrderPage(p)"
+                :class="['px-3 py-1 border rounded-md', orderPage === p ? 'bg-blue-600 text-white' : 'bg-white text-gray-700']">{{ p }}</button>
+              <button @click="changeOrderPage(orderPage + 1)" :disabled="orderPage === orderTotalPages" class="px-3 py-1 border rounded-md disabled:opacity-50">Sau</button>
+            </div>
+          </div>
+        </div>
+
+   <!-- Dropdown Portal -->
         <Teleport to="body">
           <Transition enter-active-class="transition duration-100 ease-out"
             enter-from-class="transform scale-95 opacity-0" enter-to-class="transform scale-100 opacity-100"
@@ -474,10 +489,12 @@
                     </span>
                     <span v-else class="text-gray-500">---</span>
                   </p>
+                  <p v-if="selectedOrder.payout_note && selectedOrder.payout_note.includes('Duyệt tự động')" class="text-xs text-blue-600 mt-2">
+                    <i class="fas fa-robot mr-1"></i> Thanh toán này được duyệt tự động bởi hệ thống
+                  </p>
                   <p class="text-xs text-gray-500 mt-2">
-                    Lưu ý: Số tiền nhận được là 95% tổng giá trị tiền hàng (đã trừ giảm giá nếu có, không bao gồm phí
-                    vận
-                    chuyển). Nếu có điều chỉnh khác, admin sẽ ghi chú riêng.
+                    Lưu ý: Số tiền nhận được là 95% tổng giá trị tiền hàng (đã trừ giảm giá nếu có, không bao gồm phí vận chuyển). 
+                    Hệ thống sẽ tự động duyệt 80% thanh toán, 20% còn lại cần admin duyệt thủ công để đảm bảo an toàn.
                   </p>
                 </div>
               </div>
@@ -487,158 +504,109 @@
 
         <!-- Modal cập nhật trạng thái -->
         <Teleport to="body">
-          <div v-if="showUpdateModal"
-            class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-            <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 relative border border-gray-100">
-              <button @click="closeUpdateModal"
-                class="absolute top-3 right-3 text-gray-400 hover:text-red-500 transition-colors">
-                <svg class="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-              <div class="flex flex-col items-center mb-6">
-                <div class="bg-blue-100 rounded-full p-3 mb-2">
-                  <svg v-if="orderToUpdate?.status === 'pending'" class="w-8 h-8 text-yellow-500" fill="none"
-                    stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3" />
-                    <circle cx="12" cy="12" r="10" />
-                  </svg>
-                  <svg v-else-if="orderToUpdate?.status === 'confirmed'" class="w-8 h-8 text-blue-500" fill="none"
-                    stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round"
-                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <svg v-else-if="orderToUpdate?.status === 'processing'" class="w-8 h-8 text-blue-500" fill="none"
-                    stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round"
-                      d="M9.75 17L8.5 21m7-4l1.25 4m-7-4h7m-7 0a2.25 2.25 0 01-2.25-2.25V11.5a2.25 2.25 0 012.25-2.25h7A2.25 2.25 0 0117 11.5v3.25A2.25 2.25 0 0114.75 17h-7z" />
-                  </svg>
-                  <svg v-else-if="orderToUpdate?.status === 'shipping'" class="w-8 h-8 text-purple-500" fill="none"
-                    stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round"
-                      d="M3 13l2-2m0 0l7-7 7 7M5 11v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0h6" />
-                  </svg>
-                  <svg v-else-if="orderToUpdate?.status === 'delivered'" class="w-8 h-8 text-green-500" fill="none"
-                    stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round"
-                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <svg v-else-if="orderToUpdate?.status === 'cancelled'" class="w-8 h-8 text-red-500" fill="none"
-                    stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                  <svg v-else-if="orderToUpdate?.status === 'refunded'" class="w-8 h-8 text-orange-500" fill="none"
-                    stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round"
-                      d="M3 10h3.5L3 6.5m0 0L6.5 3H3m18 7h-3.5l3.5 3.5m0 0L17 17h3.5M12 3v18" />
-                  </svg>
-                  <svg v-else-if="orderToUpdate?.status === 'failed'" class="w-8 h-8 text-red-500" fill="none"
-                    stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round"
-                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                  <svg v-else-if="orderToUpdate?.status === 'failed_delivery'" class="w-8 h-8 text-red-500" fill="none"
-                    stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round"
-                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                  <svg v-else-if="orderToUpdate?.status === 'rejected_by_customer'" class="w-8 h-8 text-red-500"
-                    fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                  <svg v-else class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" stroke-width="2"
-                    viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="10" />
-                  </svg>
-                </div>
-                <h2 class="text-xl font-bold text-gray-800 mb-1">Cập nhật trạng thái đơn hàng</h2>
-                <div class="text-sm text-gray-500">Mã vận đơn: <span class="font-semibold text-gray-700">{{
-                  orderToUpdate?.shipping?.tracking_code || 'Chưa có' }}</span></div>
-                <div v-if="orderToUpdate?.shipping?.status" class="text-sm text-gray-500 mt-1">
-                  Trạng thái GHN: <span
-                    :class="statusClass(orderToUpdate.shipping.status) + ' px-2 py-1 rounded-full text-xs font-semibold'">{{
-                      statusText(orderToUpdate.shipping.status) }}</span>
-                </div>
-              </div>
-              <div class="mb-5 flex flex-col items-center">
-                <div class="mb-2 text-base">Trạng thái hiện tại:</div>
-                <span :class="statusClass(orderToUpdate?.status) + ' px-3 py-1 rounded-full text-xs font-semibold'">
-                  {{ statusText(orderToUpdate?.status) }}
-                </span>
-              </div>
-              <div class="mb-6">
-                <label class="block mb-2 text-gray-700 font-medium">Chọn trạng thái mới:</label>
-                <select v-model="newStatus" @change="validateInputs"
-                  class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition">
-                  <option v-for="status in availableStatuses" :key="status.value" :value="status.value">{{ status.label
-                  }}
-                  </option>
-                </select>
-              </div>
-              <div v-if="newStatus === 'shipping'" class="mb-6">
-                <label class="block mb-2 text-gray-700 font-medium">Mã vận đơn:</label>
-                <input v-model="trackingCode" type="text"
-                  class="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition"
-                  :class="{ 'border-red-500': trackingCodeError }" placeholder="Nhập mã vận đơn (6 ký tự)" maxlength="6"
-                  @input="validateTrackingCode">
-                <p v-if="trackingCodeError" class="text-red-500 text-xs mt-1">{{ trackingCodeError }}</p>
-              </div>
-              <div v-if="['failed', 'failed_delivery', 'rejected_by_customer'].includes(newStatus)" class="mb-6">
-                <label class="block mb-2 text-gray-700 font-medium">Lý do thất bại:</label>
-                <input v-model="failureReason" type="text"
-                  class="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition"
-                  :class="{ 'border-red-500': failureReasonError }" placeholder="Nhập lý do thất bại (tối đa 255 ký tự)"
-                  maxlength="255" @input="validateFailureReason">
-                <p v-if="failureReasonError" class="text-red-500 text-xs mt-1">{{ failureReasonError }}</p>
-              </div>
-              <div class="flex justify-between gap-2 mt-6">
-                <button v-if="orderToUpdate?.status === 'shipping' && orderToUpdate?.shipping?.tracking_code"
-                  @click="syncGHNStatus(orderToUpdate)" :disabled="loading"
-                  class="px-5 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition flex items-center gap-2">
-                  <svg v-if="loading" class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg"
-                    fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
-                  </svg>
-                  Đồng bộ GHN
-                </button>
-                <div class="flex gap-2">
-                  <button @click="closeUpdateModal"
-                    class="px-5 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition">Hủy</button>
-                  <button @click="confirmUpdateStatus"
-                    :disabled="loading || (newStatus === 'shipping' && (trackingCodeError || !trackingCode)) || (['failed', 'failed_delivery', 'rejected_by_customer'].includes(newStatus) && (failureReasonError || !failureReason.trim()))"
-                    class="px-5 py-2 bg-blue-600 text-white rounded-lg font-semibold shadow hover:bg-blue-700 transition flex items-center gap-2">
-                    <svg v-if="loading" class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg"
-                      fill="none" viewBox="0 0 24 24">
-                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
-                    </svg>
-                    Cập nhật
-                  </button>
-                </div>
-              </div>
-              <div v-if="loading"
-                class="absolute inset-0 bg-white bg-opacity-70 flex items-center justify-center z-50 rounded-2xl">
-                <svg class="animate-spin h-10 w-10 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none"
-                  viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
-                </svg>
-              </div>
-            </div>
+    <div v-if="showUpdateModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+      <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 relative border border-gray-100">
+        <button @click="closeUpdateModal" class="absolute top-3 right-3 text-gray-400 hover:text-red-500 transition-colors">
+          <svg class="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+        <div class="flex flex-col items-center mb-6">
+          <div class="bg-blue-100 rounded-full p-3 mb-2">
+            <svg v-if="orderToUpdate?.status === 'pending'" class="w-8 h-8 text-yellow-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg>
+            <svg v-else-if="orderToUpdate?.status === 'confirmed'" class="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <svg v-else-if="orderToUpdate?.status === 'processing'" class="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L8.5 21m7-4l1.25 4m-7-4h7m-7 0a2.25 2.25 0 01-2.25-2.25V11.5a2.25 2.25 0 012.25-2.25h7A2.25 2.25 0 0117 11.5v3.25A2.25 2.25 0 0114.75 17h-7z"/></svg>
+            <svg v-else-if="orderToUpdate?.status === 'shipping'" class="w-8 h-8 text-purple-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13l2-2m0 0l7-7 7 7M5 11v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0h6"/></svg>
+            <svg v-else-if="orderToUpdate?.status === 'delivered'" class="w-8 h-8 text-green-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <svg v-else-if="orderToUpdate?.status === 'cancelled'" class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            <svg v-else-if="orderToUpdate?.status === 'refunded'" class="w-8 h-8 text-orange-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h3.5L3 6.5m0 0L6.5 3H3m18 7h-3.5l3.5 3.5m0 0L17 17h3.5M12 3v18"/></svg>
+            <svg v-else-if="orderToUpdate?.status === 'failed'" class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            <svg v-else-if="orderToUpdate?.status === 'failed_delivery'" class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            <svg v-else-if="orderToUpdate?.status === 'rejected_by_customer'" class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            <svg v-else class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>
           </div>
-        </Teleport>
-
-        <!-- Phân trang -->
-        <div v-if="orderTotalPages > 1" class="flex justify-center mt-4">
-          <button @click="changeOrderPage(orderPage - 1)" :disabled="orderPage === 1"
-            class="px-3 py-1 mx-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50">&lt;</button>
-          <button v-for="page in orderTotalPages" :key="page" @click="changeOrderPage(page)"
-            :class="['px-3 py-1 mx-1 rounded border', orderPage === page ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-gray-700 border-gray-300']">{{
-              page }}</button>
-          <button @click="changeOrderPage(orderPage + 1)" :disabled="orderPage === orderTotalPages"
-            class="px-3 py-1 mx-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50">&gt;</button>
+          <h2 class="text-xl font-bold text-gray-800 mb-1">Cập nhật trạng thái đơn hàng</h2>
+          <div class="text-sm text-gray-500">Mã vận đơn: <span class="font-semibold text-gray-700">{{ orderToUpdate?.shipping?.tracking_code || 'Chưa có' }}</span></div>
+          <div v-if="orderToUpdate?.shipping?.status" class="text-sm text-gray-500 mt-1">
+            Trạng thái GHN: <span :class="statusClass(orderToUpdate.shipping.status) + ' px-2 py-1 rounded-full text-xs font-semibold'">{{ statusText(orderToUpdate.shipping.status) }}</span>
+          </div>
         </div>
+        <div class="mb-5 flex flex-col items-center">
+          <div class="mb-2 text-base">Trạng thái hiện tại:</div>
+          <span :class="statusClass(orderToUpdate?.status) + ' px-3 py-1 rounded-full text-xs font-semibold'">
+            {{ statusText(orderToUpdate?.status) }}
+          </span>
+        </div>
+        <div class="mb-6">
+          <label class="block mb-2 text-gray-700 font-medium">Chọn trạng thái mới:</label>
+          <select v-model="newStatus" @change="validateInputs" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition">
+            <option v-for="status in availableStatuses" :key="status.value" :value="status.value">{{ status.label }}</option>
+          </select>
+          <div class="mt-2 text-xs text-gray-500 leading-5 bg-gray-50 border border-gray-200 rounded p-3">
+            <div class="font-medium text-gray-700 mb-1">Lưu ý khi cập nhật trạng thái:</div>
+            <ul class="list-disc pl-4 space-y-1">
+              <li>Không thể chuyển ngược về "Chờ xử lý" sau khi đơn đã sang "Đang xử lý".</li>
+              <li>Chuỗi chuyển trạng thái hợp lệ thường là: "Chờ xử lý" → "Đã xác nhận" → "Đang xử lý" → "Đang giao" → "Đã giao".</li>
+              <li>Khi chọn "Đang giao" cần nhập mã vận đơn gồm 6 ký tự chữ hoặc số.</li>
+              <li>Khi chọn "Giao thất bại", "Giao không thành công" hoặc "Khách từ chối nhận" cần nhập lý do.</li>
+            </ul>
+          </div>
+        </div>
+        <div v-if="newStatus === 'shipping'" class="mb-6">
+          <label class="block mb-2 text-gray-700 font-medium">Mã vận đơn:</label>
+          <input
+            v-model="trackingCode"
+            type="text"
+            class="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition"
+            :class="{ 'border-red-500': trackingCodeError }"
+            placeholder="Nhập mã vận đơn (6 ký tự)"
+            maxlength="6"
+            @input="validateTrackingCode"
+          >
+          <p v-if="trackingCodeError" class="text-red-500 text-xs mt-1">{{ trackingCodeError }}</p>
+        </div>
+        <div v-if="['failed', 'failed_delivery', 'rejected_by_customer'].includes(newStatus)" class="mb-6">
+          <label class="block mb-2 text-gray-700 font-medium">Lý do thất bại:</label>
+          <input
+            v-model="failureReason"
+            type="text"
+            class="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition"
+            :class="{ 'border-red-500': failureReasonError }"
+            placeholder="Nhập lý do thất bại (tối đa 255 ký tự)"
+            maxlength="255"
+            @input="validateFailureReason"
+          >
+          <p v-if="failureReasonError" class="text-red-500 text-xs mt-1">{{ failureReasonError }}</p>
+        </div>
+        <div class="flex justify-between gap-2 mt-6">
+          <button v-if="orderToUpdate?.status === 'shipping' && orderToUpdate?.shipping?.tracking_code" @click="syncGHNStatus(orderToUpdate)" :disabled="loading" class="px-5 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition flex items-center gap-2">
+            <svg v-if="loading" class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+            </svg>
+            Đồng bộ GHN
+          </button>
+          <div class="flex gap-2">
+            <button @click="closeUpdateModal" class="px-5 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition">Hủy</button>
+            <button @click="confirmUpdateStatus" :disabled="loading || (newStatus === 'shipping' && (trackingCodeError || !trackingCode)) || (['failed', 'failed_delivery', 'rejected_by_customer'].includes(newStatus) && (failureReasonError || !failureReason.trim()))" class="px-5 py-2 bg-blue-600 text-white rounded-lg font-semibold shadow hover:bg-blue-700 transition flex items-center gap-2">
+              <svg v-if="loading" class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+              </svg>
+              Cập nhật
+            </button>
+          </div>
+        </div>
+        <div v-if="loading" class="absolute inset-0 bg-white bg-opacity-70 flex items-center justify-center z-50 rounded-2xl">
+          <svg class="animate-spin h-10 w-10 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </Teleport>
+
       </div>
       <div v-else-if="activeTab === 'payouts'">
         <!-- Bảng đơn hàng đã giao, chờ admin duyệt payout -->
@@ -681,6 +649,44 @@
           <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
             <span>💸</span> Danh sách thanh toán đã được duyệt
           </h2>
+          <!-- Thông báo về duyệt tự động -->
+          <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+            <div class="flex items-start">
+              <div class="flex-shrink-0">
+                <svg class="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                </svg>
+              </div>
+              <div class="ml-3">
+                <h3 class="text-sm font-medium text-blue-800">Tính năng duyệt tự động</h3>
+                <div class="mt-2 text-sm text-blue-700">
+                  <p>Khi bạn cập nhật trạng thái đơn hàng thành "Đã giao", hệ thống sẽ:</p>
+                  <ul class="list-disc list-inside mt-1 space-y-1">
+                    <li>Tự động tạo payout cho đơn hàng</li>
+                    <li>Duyệt tự động 80% payout (để đảm bảo an toàn)</li>
+                    <li>20% còn lại cần admin duyệt thủ công</li>
+                  </ul>
+                  <p class="mt-2 text-xs">Payout được duyệt tự động sẽ có ghi chú "(Duyệt tự động)" và biểu tượng robot 🤖</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- Thông báo về payout thất bại -->
+          <div v-if="hasFailedPayouts" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+            <div class="flex items-start">
+              <div class="flex-shrink-0">
+                <svg class="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                </svg>
+              </div>
+              <div class="ml-3">
+                <h3 class="text-sm font-medium text-red-800">Thông báo quan trọng</h3>
+                <div class="mt-2 text-sm text-red-700">
+                  <p>Có một số thanh toán đã thất bại do đơn hàng bị hủy hoặc hoàn tiền. Số tiền này không còn khả dụng cho việc rút tiền.</p>
+                </div>
+              </div>
+            </div>
+          </div>
           <!-- UI filter payout -->
           <div class="flex flex-wrap gap-2 mb-4 items-end">
             <input v-model="payoutSearch" placeholder="Tìm mã payout hoặc ghi chú" class="border rounded px-2 py-1" />
@@ -721,6 +727,12 @@
                     </td>
                     <td class="px-4 py-3 whitespace-nowrap text-sm">
                       <span :class="payoutStatusClass(item.status)">{{ payoutStatusLabel(item.status) }}</span>
+                      <div v-if="item.note && item.note.includes('Duyệt tự động')" class="text-xs text-blue-600 mt-1">
+                        <i class="fas fa-robot mr-1"></i> Tự động
+                      </div>
+                      <div v-if="item.status === 'failed'" class="text-xs text-red-600 mt-1">
+                        <i class="fas fa-exclamation-triangle mr-1"></i> Đã hoàn lại cho khách hàng
+                      </div>
                     </td>
                     <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ item.note }}</td>
                   </tr>
@@ -1046,6 +1058,7 @@ const payoutFilters = ref({ keyword: '', status: '' });
 const orderPage = ref(1);
 const orderPageSize = ref(10);
 const orderTotalPages = ref(1);
+const orderTotalItems = ref(0);
 // Backend pagination: orders.value is the current page's data
 const orderPaginatedData = computed(() => orders.value);
 // Change page and fetch orders
@@ -1227,9 +1240,13 @@ const fetchOrders = async () => {
         orderTotalPages.value = response.meta.last_page || 1;
         orderPage.value = response.meta.current_page || 1;
         orderPageSize.value = response.meta.per_page || 10;
+        orderTotalItems.value = response.meta.total || orders.value.length;
+      } else {
+        orderTotalItems.value = orders.value.length;
       }
     } else {
       orders.value = [];
+      orderTotalItems.value = 0;
     }
   } catch (e) {
     console.error('Error fetching orders:', e);
@@ -1539,25 +1556,83 @@ const confirmUpdateStatus = async () => {
 
     const data = await response.json();
 
-    if (response.ok) {
-      showUpdateModal.value = false;
-      orderToUpdate.value = null;
-      newStatus.value = '';
-      trackingCode.value = '';
-      failureReason.value = '';
-      trackingCodeError.value = '';
-      failureReasonError.value = '';
-      await fetchOrders();
-      showNotificationMessage(data.status_message || 'Cập nhật trạng thái đơn hàng thành công!', 'success');
-      if (data.warning_email_sent) {
-        showNotificationMessage('Email cảnh báo từ chối nhận hàng đã được gửi!', 'success');
-      } else if (data.warning_email_error) {
-        showNotificationMessage(`Lỗi gửi email cảnh báo: ${data.warning_email_error}`, 'error');
-      }
-    } else {
-      const msg = data.message || data.error || `Lỗi ${response.status}: Không thể cập nhật trạng thái`;
-      showNotificationMessage(msg, 'error');
-      throw new Error(msg);
+        if (response.ok) {
+            showUpdateModal.value = false;
+            orderToUpdate.value = null;
+            newStatus.value = '';
+            trackingCode.value = '';
+            failureReason.value = '';
+            trackingCodeError.value = '';
+            failureReasonError.value = '';
+            await fetchOrders();
+            showNotificationMessage(data.status_message || 'Cập nhật trạng thái đơn hàng thành công!', 'success');
+            if (data.warning_email_sent) {
+                showNotificationMessage('Email cảnh báo từ chối nhận hàng đã được gửi!', 'success');
+            } else if (data.warning_email_error) {
+                showNotificationMessage(`Lỗi gửi email cảnh báo: ${data.warning_email_error}`, 'error');
+            }
+        } else {
+            // Ưu tiên hiển thị lỗi chi tiết từ backend (errors)
+            let msg = '';
+            if (data && data.errors && typeof data.errors === 'object') {
+              const parts = [];
+              Object.keys(data.errors).forEach((k) => {
+                const v = data.errors[k];
+                if (Array.isArray(v) && v.length) parts.push(v[0]);
+                else if (typeof v === 'string') parts.push(v);
+              });
+              msg = parts.filter(Boolean).join(' | ');
+            }
+            // Chuẩn hóa một số thông điệp tiếng Việt dễ hiểu hơn
+            const rawMsg = msg || data?.message || data?.error || '';
+            const normalized = rawMsg
+              .replace("Invalid data", "Dữ liệu không hợp lệ")
+              .replace("Payload JSON không hợp lệ", "Dữ liệu gửi lên không hợp lệ")
+              .replace(/Cannot transition from 'processing' to 'pending'\.?/i, "Không thể chuyển trạng thái từ 'Đang xử lý' về 'Chờ xử lý'.")
+              .replace(/status is required/i, "Vui lòng chọn trạng thái")
+              .replace(/tracking code is required/i, "Vui lòng nhập mã vận đơn")
+              .replace(/tracking code must be 6 alphanumeric characters/i, "Mã vận đơn phải gồm 6 ký tự chữ cái hoặc số")
+              .replace(/failure reason is required/i, "Vui lòng nhập lý do thất bại");
+
+            // Dịch mã trạng thái (pending, processing, ...) sang tiếng Việt trong thông điệp lỗi
+            const translateStatusCodes = (text) => {
+              if (!text) return text;
+              const map = {
+                pending: 'Chờ xử lý',
+                confirmed: 'Đã xác nhận',
+                processing: 'Đang xử lý',
+                shipping: 'Đang giao',
+                delivered: 'Đã giao',
+                cancelled: 'Đã hủy',
+                refunded: 'Đã hoàn tiền',
+                failed: 'Giao thất bại',
+                failed_delivery: 'Giao không thành công',
+                rejected_by_customer: 'Khách từ chối nhận',
+              };
+              let out = text;
+              Object.keys(map).forEach((code) => {
+                const label = map[code];
+                // thay cả có hoặc không có dấu nháy, có dấu gạch dưới
+                const re = new RegExp(`(['"])${code}(['"])`, 'gi');
+                out = out.replace(re, `$1${label}$2`);
+                const re2 = new RegExp(`\\b${code}\\b`, 'gi');
+                out = out.replace(re2, label);
+              });
+              return out;
+            };
+
+            const finalMsg = translateStatusCodes(normalized) || (response.status === 422
+              ? 'Vui lòng kiểm tra lại thông tin và thử lại.'
+              : `Lỗi ${response.status}: Không thể cập nhật trạng thái`);
+
+            showNotificationMessage(finalMsg, 'error');
+            throw new Error(finalMsg);
+        }
+    } catch (e) {
+        console.error('Error in confirmUpdateStatus:', e.message, e.stack);
+        showNotificationMessage(`Lỗi khi cập nhật trạng thái đơn hàng: ${e.message || 'Không thể kết nối đến server'}`, 'error');
+    } finally {
+        loading.value = false;
     }
   } catch (e) {
     console.error('Error in confirmUpdateStatus:', e);
@@ -1626,6 +1701,7 @@ const payoutStatusLabel = (status) => {
   if (status === 'completed') return 'Đã chuyển khoản';
   if (status === 'pending') return 'Chờ duyệt';
   if (status === 'rejected') return 'Từ chối';
+  if (status === 'failed') return 'Thất bại';
   return status;
 };
 
@@ -1633,6 +1709,7 @@ const payoutStatusClass = (status) => {
   if (status === 'completed') return 'text-green-600 font-bold';
   if (status === 'pending') return 'text-yellow-600 font-bold';
   if (status === 'rejected') return 'text-red-600 font-bold';
+  if (status === 'failed') return 'text-red-600 font-bold';
   return '';
 };
 
@@ -1775,6 +1852,11 @@ definePageMeta({
 const totalApprovedPayout = computed(() => {
   // Tổng tất cả payout đã duyệt (không phân trang, không filter)
   return payoutData.value.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+});
+
+// Kiểm tra có payout nào có status 'failed' không
+const hasFailedPayouts = computed(() => {
+  return payoutData.value.some(item => item.status === 'failed');
 });
 
 const fetchWithdrawHistory = async () => {

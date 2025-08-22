@@ -264,112 +264,111 @@ class DashboardController extends Controller
     }
 
     public function sellerStatsList(Request $request)
-    {
-        try {
-            $user = $request->user();
-            $seller = \App\Models\Seller::where('user_id', $user->id)->first();
-            if (!$seller) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Bạn không phải seller hoặc chưa đăng nhập!'
-                ], 403);
-            }
-
-            // Tính toán các thống kê
-            $totalProducts = \App\Models\ProductVariant::whereHas('product', function($query) use ($seller) {
-                $query->where('seller_id', $seller->id)
-                    ->where('status', '!=', 'trash');
-            })->count();
-
-            $totalOrders = \App\Models\Order::whereHas('orderItems.productVariant.product', function($query) use ($seller) {
-                $query->where('seller_id', $seller->id);
-            })->count();
-
-            $deliveredOrders = \App\Models\Order::whereHas('orderItems.productVariant.product', function($query) use ($seller) {
-                $query->where('seller_id', $seller->id);
-            })->where('status', 'delivered')->count();
-
-            $totalRevenue = \App\Models\Order::whereHas('orderItems.productVariant.product', function($query) use ($seller) {
-                $query->where('seller_id', $seller->id);
-            })->where('status', 'delivered')->sum('final_price');
-
-            // Tính tổng vốn và lợi nhuận
-            $deliveredOrderIds = \App\Models\Order::whereHas('orderItems.productVariant.product', function($query) use ($seller) {
-                $query->where('seller_id', $seller->id);
-            })->where('status', 'delivered')->pluck('id');
-
-            $orderItems = \App\Models\OrderItem::whereIn('order_id', $deliveredOrderIds)
-                ->whereHas('productVariant.product', function($query) use ($seller) {
-                    $query->where('seller_id', $seller->id);
-                })->get();
-
-            $totalCost = 0;
-            foreach ($orderItems as $item) {
-                $variant = $item->productVariant;
-                if ($variant) {
-                    $totalCost += $variant->cost_price * $item->quantity;
-                }
-            }
-
-            $totalProfit = $totalRevenue - $totalCost;
-            $totalLoss = $totalProfit < 0 ? abs($totalProfit) : 0;
-            if ($totalProfit < 0) $totalProfit = 0;
-
-            $stats = [
-                [
-                    'key' => 'total_products',
-                    'label' => 'Tổng sản phẩm',
-                    'value' => $totalProducts
-                ],
-                [
-                    'key' => 'total_orders',
-                    'label' => 'Tổng đơn hàng',
-                    'value' => $totalOrders
-                ],
-                [
-                    'key' => 'delivered_orders',
-                    'label' => 'Đơn hàng đã bán',
-                    'value' => $deliveredOrders
-                ],
-                [
-                    'key' => 'total_revenue',
-                    'label' => 'Tổng doanh thu',
-                    'value' => $totalRevenue
-                ],
-                [
-                    'key' => 'total_cost',
-                    'label' => 'Tổng vốn đã bán',
-                    'value' => $totalCost
-                ],
-                [
-                    'key' => 'total_profit',
-                    'label' => 'Tổng lợi nhuận',
-                    'value' => $totalProfit
-                ]
-            ];
-
-            $lossStats = [
-                [
-                    'key' => 'total_loss',
-                    'label' => 'Tổng lỗ',
-                    'value' => $totalLoss
-                ]
-            ];
-
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'stats' => $stats,
-                    'lossStats' => $lossStats
-                ]
-            ]);
-        } catch (\Exception $e) {
+{
+    try {
+        $user = $request->user();
+        $seller = \App\Models\Seller::where('user_id', $user->id)->first();
+        if (!$seller) {
             return response()->json([
                 'success' => false,
-                'message' => 'Lỗi khi lấy thống kê: ' . $e->getMessage()
-            ], 500);
+                'message' => 'Bạn không phải seller hoặc chưa đăng nhập!'
+            ], 403);
         }
+
+        // Tính toán các thống kê
+        $totalProducts = \App\Models\Product::where('seller_id', $seller->id)
+            ->where('status', '!=', 'trash')
+            ->count();
+
+        $totalOrders = \App\Models\Order::whereHas('orderItems.productVariant.product', function($query) use ($seller) {
+            $query->where('seller_id', $seller->id);
+        })->count();
+
+        $deliveredOrders = \App\Models\Order::whereHas('orderItems.productVariant.product', function($query) use ($seller) {
+            $query->where('seller_id', $seller->id);
+        })->where('status', 'delivered')->count();
+
+        $totalRevenue = \App\Models\Order::whereHas('orderItems.productVariant.product', function($query) use ($seller) {
+            $query->where('seller_id', $seller->id);
+        })->where('status', 'delivered')->sum('final_price');
+
+        // Tính tổng vốn và lợi nhuận
+        $deliveredOrderIds = \App\Models\Order::whereHas('orderItems.productVariant.product', function($query) use ($seller) {
+            $query->where('seller_id', $seller->id);
+        })->where('status', 'delivered')->pluck('id');
+
+        $orderItems = \App\Models\OrderItem::whereIn('order_id', $deliveredOrderIds)
+            ->whereHas('productVariant.product', function($query) use ($seller) {
+                $query->where('seller_id', $seller->id);
+            })->get();
+
+        $totalCost = 0;
+        foreach ($orderItems as $item) {
+            $variant = $item->productVariant;
+            if ($variant) {
+                $totalCost += $variant->cost_price * $item->quantity;
+            }
+        }
+
+        $totalProfit = $totalRevenue - $totalCost;
+        $totalLoss = $totalProfit < 0 ? abs($totalProfit) : 0;
+        if ($totalProfit < 0) $totalProfit = 0;
+
+        $stats = [
+            [
+                'key' => 'total_products',
+                'label' => 'Tổng sản phẩm',
+                'value' => $totalProducts
+            ],
+            [
+                'key' => 'total_orders',
+                'label' => 'Tổng đơn hàng',
+                'value' => $totalOrders
+            ],
+            [
+                'key' => 'delivered_orders',
+                'label' => 'Đơn hàng đã bán',
+                'value' => $deliveredOrders
+            ],
+            [
+                'key' => 'total_revenue',
+                'label' => 'Tổng doanh thu',
+                'value' => $totalRevenue
+            ],
+            [
+                'key' => 'total_cost',
+                'label' => 'Tổng vốn đã bán',
+                'value' => $totalCost
+            ],
+            [
+                'key' => 'total_profit',
+                'label' => 'Tổng lợi nhuận',
+                'value' => $totalProfit
+            ]
+        ];
+
+        $lossStats = [
+            [
+                'key' => 'total_loss',
+                'label' => 'Tổng lỗ',
+                'value' => $totalLoss
+            ]
+        ];
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'stats' => $stats,
+                'lossStats' => $lossStats
+            ]
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Lỗi khi lấy thống kê: ' . $e->getMessage()
+        ], 500);
     }
+}
 
     public function sellerRevenueProfitChart(Request $request)
     {
