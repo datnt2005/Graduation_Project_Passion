@@ -1528,7 +1528,7 @@ class OrderController extends Controller
                         // Thử duyệt payout tự động
                         $payoutController = new \App\Http\Controllers\PayoutController();
                         $autoApproved = $payoutController->autoApprovePayout($order->id, $sellerId);
-                        
+
                         if ($autoApproved) {
                             Log::info('Payout được duyệt tự động sau khi admin cập nhật trạng thái delivered', [
                                 'order_id' => $order->id,
@@ -1558,13 +1558,13 @@ class OrderController extends Controller
                     'returned' => 'Đơn hàng bị trả lại',
                     default => 'Đơn hàng bị hoàn tiền'
                 };
-                
+
                 // Lấy tất cả seller_id trong order để xử lý hoàn tiền
                 $sellerIds = $order->orderItems->pluck('product.seller_id')->unique()->filter();
                 foreach ($sellerIds as $sellerId) {
                     $payoutController->handleOrderRefund($order->id, $sellerId, $reason);
                 }
-                
+
                 Log::info('Đã xử lý hoàn tiền payout khi admin cập nhật trạng thái', [
                     'order_id' => $order->id,
                     'old_status' => $oldStatus,
@@ -1716,8 +1716,10 @@ class OrderController extends Controller
                 'ward_code' => $order->address->ward_code,
                 'detail' => $order->address->detail,
             ] : null,
-            'note' => $order->note ?? '',
+
             'status' => $order->status,
+            'failure_reason' => $order->failure_reason ?? "Hủy hàng",  // thêm dòng này
+            'note' => $order->note ?? null,        // thêm dòng này
             'total_price' => (int) $order->total_price,
             'discount_price' => (int) $order->discount_price,
             'final_price' => (int) $order->final_price,
