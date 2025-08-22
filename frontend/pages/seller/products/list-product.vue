@@ -760,15 +760,22 @@ const confirmDelete = async (product) => {
     `Bạn có chắc chắn muốn xóa vĩnh viễn sản phẩm "${product.name}" không?`,
     async () => {
       try {
+        // Use returnOnError: true to get error response data instead of throwing
         const data = await secureFetch(`${apiBase}/products/${product.id}`, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' }
-        }, ['seller']);
+        }, ['seller'], true);
+        
         if (data.success) {
           showNotificationMessage('Xóa vĩnh viễn sản phẩm thành công!', 'success');
           await fetchAllData();
         } else {
-          showNotificationMessage(data.message || 'Có lỗi xảy ra khi xóa sản phẩm', 'error');
+          // Check if the error is due to existing orders
+          if (data.message && data.message.includes('đang có đơn hàng liên kết')) {
+            showNotificationMessage('Không thể xóa sản phẩm này vì đang có đơn hàng', 'error');
+          } else {
+            showNotificationMessage(data.message || 'Có lỗi xảy ra khi xóa sản phẩm', 'error');
+          }
         }
       } catch (error) {
         console.error('Error deleting product:', error);
