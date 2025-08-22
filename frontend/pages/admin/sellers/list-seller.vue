@@ -54,7 +54,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(seller, idx) in filteredSellers" :key="seller.id" class="border-b group hover:bg-[#f5f6fa]">
+            <tr v-for="(seller, idx) in paginatedSellers" :key="seller.id" class="border-b group hover:bg-[#f5f6fa]">
               <td class="py-3 px-4 text-gray-600 font-semibold">{{ idx + 1 }}</td>
               <td class="py-3 px-4">{{ seller.store_name || '-' }}</td>
               <td class="py-3 px-4">{{ seller.user?.email || '-' }}</td>
@@ -80,6 +80,21 @@
             </tr>
           </tbody>
         </table>
+        <!-- Pagination -->
+        <div v-if="totalPages > 1" class="flex justify-center items-center gap-2 mt-4">
+          <button @click="currentPage--" :disabled="currentPage === 1"
+            class="px-3 py-1 border rounded disabled:opacity-50">
+            ← Trước
+          </button>
+
+          <span class="text-sm">Trang {{ currentPage }} / {{ totalPages }}</span>
+
+          <button @click="currentPage++" :disabled="currentPage === totalPages"
+            class="px-3 py-1 border rounded disabled:opacity-50">
+            Sau →
+          </button>
+        </div>
+
       </div>
 
       <!-- Modal chi tiết -->
@@ -110,54 +125,56 @@
             </div>
           </div>
 
-         <!-- Tab info -->
-<div v-if="tab === 'info'" class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-  <!-- Bên trái: Thông tin tổng quan + thống kê -->
-  <div class="flex flex-col items-center border rounded-lg p-6">
-    <div class="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center text-xl font-bold">
-      {{ getInitials(currentDetail.user?.name) }}
-    </div>
-    <div class="mt-3 text-lg font-semibold text-gray-800">{{ currentDetail.user?.name || '-' }}</div>
-    <div class="mt-1 text-sm">
-   
-    </div>
-    <div class="mt-1 text-sm text-gray-500">
-      🏪 {{ currentDetail.store_name || '-' }}
-    </div>
+          <!-- Tab info -->
+          <div v-if="tab === 'info'" class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+            <!-- Bên trái: Thông tin tổng quan + thống kê -->
+            <div class="flex flex-col items-center border rounded-lg p-6">
+              <div class="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center text-xl font-bold">
+                {{ getInitials(currentDetail.user?.name) }}
+              </div>
+              <div class="mt-3 text-lg font-semibold text-gray-800">{{ currentDetail.user?.name || '-' }}</div>
+              <div class="mt-1 text-sm">
 
-    <!-- Thống kê -->
-    <hr class="w-full my-4 border-gray-300" />
-    <div class="w-full text-sm space-y-1">
-      <div><strong>Tổng sản phẩm:</strong> {{ currentDetail.total_products }}</div>
-      <div><strong>Tổng đơn hàng:</strong> {{ currentDetail.total_orders }}</div>
-      <div><strong>Đơn hoàn thành:</strong> {{ currentDetail.completed_orders }}</div>
-      <div><strong>Doanh thu:</strong>
-        <span class="text-green-600 font-semibold">{{ formatCurrency(currentDetail.total_revenue) }}</span>
-      </div>
-      <div><strong>Lợi nhuận:</strong>
-        <span class="text-green-600 font-semibold">{{ formatCurrency(currentDetail.total_profit) }}</span>
-      </div>
-      <div><strong>Thua lỗ:</strong>
-        <span class="text-red-600 font-semibold">{{ formatCurrency(currentDetail.total_loss) }}</span>
-      </div>
-    </div>
-  </div>
+              </div>
+              <div class="mt-1 text-sm text-gray-500">
+                🏪 {{ currentDetail.store_name || '-' }}
+              </div>
 
-  <!-- Bên phải: Thông tin chi tiết -->
-  <div class="md:col-span-2 border rounded-lg p-6 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
-    <div><strong>CCCD:</strong> {{ currentDetail.identity_card_number || '-' }}</div>
-    <div><strong>Ngày sinh:</strong> {{ currentDetail.date_of_birth || '-' }}</div>
-    <div><strong>Số điện thoại:</strong> {{ currentDetail.phone_number || '-' }}</div>
-    <div><strong>Email:</strong> {{ currentDetail.user?.email || '-' }}</div>
-    <div><strong>Địa chỉ:</strong> {{ currentDetail.personal_address || '-' }}</div>
-    <div><strong>Giới thiệu:</strong> {{ currentDetail.bio || '-' }}</div>
-    <div><strong>Mã số thuế:</strong> {{ currentDetail.tax_code || '-' }}</div>
-    <div><strong>Tên doanh nghiệp:</strong> {{ currentDetail.business_name || '-' }}</div>
-    <div><strong>Email doanh nghiệp:</strong> {{ currentDetail.business_email || '-' }}</div>
-    <div><strong>Giao hàng nhanh:</strong> {{ currentDetail.shipping_options?.express ? 'Có' : 'Không' }}</div>
-    <div><strong>Giao hàng tiêu chuẩn:</strong> {{ currentDetail.shipping_options?.standard ? 'Có' : 'Không' }}</div>
-  </div>
-</div>
+              <!-- Thống kê -->
+              <hr class="w-full my-4 border-gray-300" />
+              <div class="w-full text-sm space-y-1">
+                <div><strong>Tổng sản phẩm:</strong> {{ currentDetail.total_products }}</div>
+                <div><strong>Tổng đơn hàng:</strong> {{ currentDetail.total_orders }}</div>
+                <div><strong>Đơn hoàn thành:</strong> {{ currentDetail.completed_orders }}</div>
+                <div><strong>Doanh thu:</strong>
+                  <span class="text-green-600 font-semibold">{{ formatCurrency(currentDetail.total_revenue) }}</span>
+                </div>
+                <div><strong>Lợi nhuận:</strong>
+                  <span class="text-green-600 font-semibold">{{ formatCurrency(currentDetail.total_profit) }}</span>
+                </div>
+                <div><strong>Thua lỗ:</strong>
+                  <span class="text-red-600 font-semibold">{{ formatCurrency(currentDetail.total_loss) }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Bên phải: Thông tin chi tiết -->
+            <div class="md:col-span-2 border rounded-lg p-6 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+              <div><strong>CCCD:</strong> {{ currentDetail.identity_card_number || '-' }}</div>
+              <div><strong>Ngày sinh:</strong> {{ currentDetail.date_of_birth || '-' }}</div>
+              <div><strong>Số điện thoại:</strong> {{ currentDetail.phone_number || '-' }}</div>
+              <div><strong>Email:</strong> {{ currentDetail.user?.email || '-' }}</div>
+              <div><strong>Địa chỉ:</strong> {{ currentDetail.personal_address || '-' }}</div>
+              <div><strong>Giới thiệu:</strong> {{ currentDetail.bio || '-' }}</div>
+              <div><strong>Mã số thuế:</strong> {{ currentDetail.tax_code || '-' }}</div>
+              <div><strong>Tên doanh nghiệp:</strong> {{ currentDetail.business_name || '-' }}</div>
+              <div><strong>Email doanh nghiệp:</strong> {{ currentDetail.business_email || '-' }}</div>
+              <div><strong>Giao hàng nhanh:</strong> {{ currentDetail.shipping_options?.express ? 'Có' : 'Không' }}
+              </div>
+              <div><strong>Giao hàng tiêu chuẩn:</strong> {{ currentDetail.shipping_options?.standard ? 'Có' : 'Không'
+                }}</div>
+            </div>
+          </div>
 
 
           <!-- Tab giấy tờ -->
@@ -314,6 +331,8 @@ const loadingReject = ref(false);
 const getSellerId = (user) => user?.seller?.id
 const filterVerifyStatus = ref('')
 const rejectSeller = ref(null)
+const currentPage = ref(1)
+const perPage = ref(10)
 
 
 
@@ -321,7 +340,15 @@ const config = useRuntimeConfig();
 const API = config.public.apiBaseUrl;
 const mediaBaseUrl = config.public.mediaBaseUrl;
 
-//  lấy link ảnh
+const paginatedSellers = computed(() => {
+  const start = (currentPage.value - 1) * perPage.value
+  const end = start + perPage.value
+  return filteredSellers.value.slice(start, end)
+})
+
+const totalPages = computed(() => {
+  return Math.ceil(filteredSellers.value.length / perPage.value)
+})
 
 // Lấy danh sách sellers
 const fetchSellers = async () => {
