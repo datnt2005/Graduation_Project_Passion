@@ -373,6 +373,28 @@ onMounted(async () => {
       message.value = 'Thanh toán thành công';
       console.log('Payment successful');
       
+      // Gọi API để xử lý thanh toán MoMo và gửi email
+      try {
+        console.log('Calling MoMo return API...');
+        const momoReturnRes = await fetch(`${config.public.apiBaseUrl}/payments/momo/return`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: JSON.stringify(queryParams)
+        });
+        
+        const momoReturnData = await momoReturnRes.json();
+        console.log('MoMo return API response:', momoReturnData);
+        
+        if (!momoReturnRes.ok) {
+          console.warn('MoMo return API failed:', momoReturnData);
+        }
+      } catch (error) {
+        console.error('Error calling MoMo return API:', error);
+      }
+      
       // Fetch order details
       orderDetail.value = [];
       for (const id of orderIds) {

@@ -398,6 +398,9 @@ class PaymentController extends Controller
                             if ($order->user && $order->user->email) {
                                 \Mail::to($order->user->email)->send(new \App\Mail\OrderSuccessMail($order));
                             }
+                            if (!empty($order->email)) {
+                                \Mail::to($order->email)->send(new \App\Mail\OrderSuccessMail($order));
+                            }
                             
                             // Thêm order detail vào mảng
                             $orderDetails[] = [
@@ -867,6 +870,9 @@ class PaymentController extends Controller
                             if ($order->user && $order->user->email) {
                                 \Mail::to($order->user->email)->send(new \App\Mail\OrderSuccessMail($order));
                             }
+                            if (!empty($order->email)) {
+                                \Mail::to($order->email)->send(new \App\Mail\OrderSuccessMail($order));
+                            }
                         }
                     }
                     return response()->json([
@@ -904,6 +910,9 @@ class PaymentController extends Controller
                 }
                 if ($order->user && $order->user->email) {
                     Mail::to($order->user->email)->send(new OrderSuccessMail($order));
+                }
+                if (!empty($order->email)) {
+                    Mail::to($order->email)->send(new OrderSuccessMail($order));
                 }
                 $payment = Payment::where('order_id', $originalOrderId)
                     ->where('transaction_id', $orderId)
@@ -1026,12 +1035,153 @@ class PaymentController extends Controller
 
     public function momoIPN(Request $request)
     {
-        // Xử lý IPN tương tự như momoReturn
-        // Nhưng không cần trả về response cho user
-        // Chỉ cần trả về response cho MoMo
-        return response()->json([
-            'message' => 'Received IPN successfully',
-            'status' => 'ok'
+        $accessKey = env('MOMO_ACCESS_KEY');
+        $secretKey = env('MOMO_SECRET_KEY');
+    
+        $partnerCode = $request->input('partnerCode');
+        $orderId = $request->input('orderId');
+        $requestId = $request->input('requestId');
+        $amount = $request->input('amount');
+        $orderInfo = $request->input('orderInfo');
+        $orderType = $request->input('orderType');
+        $transId = $request->input('transId');
+        $resultCode = $request->input('resultCode');
+        $message = $request->input('message');
+        $payType = $request->input('payType');
+        $responseTime = $request->input('responseTime');
+        $extraData = $request->input('extraData');
+        $signature = $request->input('signature');
+    
+        $decodedExtraData = json_decode(base64_decode($extraData), true);
+        $originalOrderId = $decodedExtraData['order_id'] ?? null;
+        $originalOrderIds = $decodedExtraData['order_ids'] ?? null;
+    
+        $rawHash = "accessKey=" . $accessKey .
+            "&amount=" . $amount .
+            "&extraData=" . $extraData .
+            "&message=" . $message .
+            "&orderId=" . $orderId .
+            "&orderInfo=" . $orderInfo .
+            "&orderType=" . $orderType .
+            "&partnerCode=" . $partnerCode .
+            "&payType=" . $payType .
+            "&requestId=" . $requestId .
+            "&responseTime=" . $responseTime .
+            "&resultCode=" . $resultCode .
+            "&transId=" . $transId;
+    
+        \Log::info('MoMo IPN Data:', [
+            'rawHash' => $rawHash,
+            'signature' => $signature,
+            'request_data' => $request->all()
         ]);
+    
+        $calculatedSignature = hash_hmac('sha256', $rawHash, $secretKey);
+    
+        try {
+            if ($signature !== $calculatedSignature) {
+                \Log::error('MoMo IPN Signature Mismatch', [
+                    'received' => $signature,
+                    'calculated' => $calculatedSignature
+                ]);
+                return response()->json([
+                    'message' => 'Chữ ký không hợp lệ',
+                    'status' => 'error'
+                ], 400);
+            }
+    
+            // Xử lý nhiều đơn hàng
+            if ($originalOrderIds && is_array($originalOrderIds)) {
+                $payment = Payment::where('transaction_id', $orderId)->first();
+                if (!$payment) {
+                    \Log::error('MoMo IPN: Payment not found', ['transaction_id' => $orderId]);
+                    return response()->json([
+                        'message' => 'Không tìm thấy payment',
+                        'status' => 'error'
+                    ], 404);
+                }
+    
+                if ($resultCode == '0') {
+                    $payment->update(['status' => 'completed', 'transaction_id' => $transId]);
+                    $orderIds = \DB::table('payment_orders')->where('payment_id', $payment->id)->pluck('order_id');
+                    foreach ($orderIds as $oid) {
+                        $order = Order::find($oid);
+                        if ($order) {
+                            $order->update(['status' => 'processing']);
+                            $inventoryController = new InventoryController();
+                            $inventoryController->deductInventoryForOrder($order);
+                            // Sửa: Thêm kiểm tra $order->email
+                            if ($order->user && $order->user->email) {
+                                \Mail::to($order->user->email)->send(new \App\Mail\OrderSuccessMail($order));
+                            }
+                            if (!empty($order->email)) {
+                                \Mail::to($order->email)->send(new \App\Mail\OrderSuccessMail($order));
+                            }
+                        }
+                    }
+                } else {
+                    $payment->update(['status' => 'failed', 'transaction_id' => $transId]);
+                }
+            } else {
+                // Xử lý đơn hàng đơn lẻ
+                if (!$originalOrderId) {
+                    \Log::error('MoMo IPN: No order ID found in extraData');
+                    return response()->json([
+                        'message' => 'Không tìm thấy ID đơn hàng',
+                        'status' => 'error'
+                    ], 400);
+                }
+    
+                $order = Order::find($originalOrderId);
+                if (!$order) {
+                    \Log::error('MoMo IPN: Order not found', ['order_id' => $originalOrderId]);
+                    return response()->json([
+                        'message' => 'Không tìm thấy đơn hàng',
+                        'status' => 'error'
+                    ], 404);
+                }
+    
+                $payment = Payment::where('order_id', $originalOrderId)
+                    ->where('transaction_id', $orderId)
+                    ->first();
+    
+                    if ($resultCode == '0') {
+                        $order = Order::findOrFail($originalOrderId);
+                        $order->update(['status' => 'processing']);
+                        $inventoryController = new InventoryController();
+                        if (!$inventoryController->deductInventoryForOrder($order)) {
+                            \Log::error('Thất bại khi trừ tồn kho cho đơn hàng', ['order_id' => $originalOrderId]);
+                            throw new \Exception('Lỗi khi cập nhật tồn kho');
+                        }
+                        // Sửa: Thêm kiểm tra $order->email
+                        if ($order->user && $order->user->email) {
+                            \Mail::to($order->user->email)->send(new \App\Mail\OrderSuccessMail($order));
+                        }
+                        if (!empty($order->email)) {
+                            \Mail::to($order->email)->send(new \App\Mail\OrderSuccessMail($order));
+                        }
+                } else {
+                    if ($payment) {
+                        $payment->update(['status' => 'failed']);
+                    }
+                }
+            }
+    
+            return response()->json([
+                'message' => 'Received IPN successfully',
+                200,
+                'status' => 'ok'
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('MoMo IPN Error:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all()
+            ]);
+            return response()->json([
+                'message' => 'Error processing IPN: ' . $e->getMessage(),
+                'status' => 'error'
+            ], 500);
+        }
     }
 }
