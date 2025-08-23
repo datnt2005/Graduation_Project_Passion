@@ -74,7 +74,7 @@ async function fetchCategories() {
       method: 'GET',
     })
     if (response.success) {
-      const categories = response.data?.data || []
+      const categories = response.data || []
       // Gom nhóm danh mục theo parent_id (nếu có) hoặc giữ nguyên nếu là cấp cao
       const groupedCategories = {}
       categories.forEach((cat) => {

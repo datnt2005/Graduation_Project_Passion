@@ -423,7 +423,7 @@ const mediaBase = config.public.mediaBaseUrl;
 
 const categories = ref([]);
 const selectedCategories = ref([]);
-const selecAll = ref(false);
+const selectAll = ref(false);
 const searchQuery = ref('');
 const selectedAction = ref('');
 const totalCategories = ref(0);

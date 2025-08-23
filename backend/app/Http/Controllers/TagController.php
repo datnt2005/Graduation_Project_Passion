@@ -16,28 +16,14 @@ class TagController extends Controller
     // Lấy danh sách tag (API)
     public function index(Request $request)
     {
-        try {
-            // Use cache to store all tags
-            $cacheKey = 'all_tags';
+        $tags = Tag::all();
 
-            $tags = Cache::store('redis')->tags(['tags'])->remember($cacheKey, 3600, function () {
-                return Tag::all();
-            });
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Lấy danh sách thẻ thành công.',
-                'data' => $tags
-            ], 200);
-        } catch (\Exception $e) {
-            Log::error('Lỗi khi lấy danh sách thẻ: ' . $e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Đã xảy ra lỗi khi lấy danh sách thẻ.',
-                'error' => config('app.debug') ? $e->getMessage() : null
-            ], 500);
-        }
+        return response()->json([
+            'success' => true,
+            'message' => 'Lấy danh sách thẻ thành công.',
+            'data' => $tags,
+        ], 200);
+           
     }
 
     // Lấy thông tin tag theo ID (API)

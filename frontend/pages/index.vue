@@ -11,7 +11,7 @@
           <img
             :src="BannerSecondIndex"
             alt="Banner"
-            class="w-full h-[350px] rounded-lg shadow-md"
+            class="w-full h-[450px] rounded-lg shadow-md"
           />
         </div>
         <Products />
