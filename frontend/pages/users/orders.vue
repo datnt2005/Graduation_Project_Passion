@@ -1002,36 +1002,8 @@ const requestRefund = async (order) => {
   }
 };
 
-const cancelOrder = async (id) => {
-  try {
-    const token = localStorage.getItem('access_token');
-    if (!token) throw new Error('Chưa đăng nhập');
 
-    const order = orders.value.find(o => o.id === id);
-    if (!order) throw new Error('Không tìm thấy đơn hàng!');
 
-    await axios.post(`${apiBase}/user/orders/${id}/cancel`, {}, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-
-    toast('success', 'Đơn hàng đã được hủy!');
-
-    const cacheKey = `user_orders_page_${page.value}`;
-    localStorage.removeItem(cacheKey);
-    localStorage.removeItem('user_refunds');
-
-    await fetchOrders(true);
-
-    // Nếu đơn hàng sử dụng VNPay hoặc Momo, mở modal chi tiết để hiển thị form hoàn tiền
-    if (!order.payments?.some(payment => payment.method?.toLowerCase() === 'cod')) {
-      await viewOrder(id);
-      toast('info', 'Vui lòng gửi yêu cầu hoàn tiền cho đơn hàng vừa hủy.');
-    }
-  } catch (err) {
-    console.error('cancelOrder error:', err);
-    toast('error', err.response?.data?.message || 'Không thể hủy đơn hàng!');
-  }
-};
 
 const reorderToCart = async (order) => {
   if (!order?.id) {
@@ -1129,27 +1101,104 @@ const updateTabCounts = () => {
 
 const confirmCancel = (orderId) => {
   Swal.fire({
-    icon: 'error',
-    title: 'Xác nhận hủy',
-    text: 'Bạn có chắc chắn muốn hủy đơn hàng này?',
+    icon: 'warning',
+    title: 'Xác nhận hủy đơn hàng',
+    html: `
+      <div class="text-left w-full space-y-4">
+        <p class="text-gray-700 text-sm">
+          Bạn sắp hủy đơn hàng <span class="font-semibold">#${orderId}</span>.
+          Vui lòng chọn lý do và thêm ghi chú nếu cần:
+        </p>
+
+        <div class="flex flex-col gap-4">
+          <div class="flex flex-col">
+            <label for="cancel-failure_reason" class="text-sm font-medium text-gray-700 mb-1">Lý do hủy <span class="text-red-500">*</span></label>
+            <select id="cancel-failure_reason" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors">
+              <option value="">-- Chọn lý do hủy --</option>
+              <option value="tôi muốn thay đổi địa chỉ">tôi muốn thay đổi địa chỉ</option>
+              <option value="không còn nhu cầu nhận hàng">không còn nhu cầu nhận hàng</option>
+              <option value="tôi thấy sản phẩm khác rẻ hơn">tôi thấy sản phẩm khác rẻ hơn</option>
+              <option value="Khác">Khác</option>
+            </select>
+          </div>
+
+          <div class="flex flex-col">
+            <label for="cancel-note" class="text-sm font-medium text-gray-700 mb-1">Ghi chú thêm</label>
+            <textarea id="cancel-note" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors resize-none" rows="3" placeholder="Nhập ghi chú thêm (tùy chọn)"></textarea>
+          </div>
+        </div>
+      </div>
+    `,
     showCancelButton: true,
-    confirmButtonText: 'Xác nhận',
-    cancelButtonText: 'Hủy',
-    confirmButtonColor: '#e53e3e',
-    cancelButtonColor: '#fff',
+    confirmButtonText: 'Xác nhận hủy',
+    cancelButtonText: 'Quay lại',
+    confirmButtonColor: '#dc2626',
+    cancelButtonColor: '#6b7280',
+    buttonsStyling: false,
     customClass: {
-      popup: 'rounded-md shadow-sm',
-      title: 'text-base font-semibold',
-      htmlContainer: 'text-sm',
-      confirmButton: 'text-sm px-4 py-2 bg-red-600 text-white',
-      cancelButton: 'text-sm px-4 py-2 bg-white text-gray-700 border border-gray-300'
+      popup: 'rounded-2xl shadow-2xl border-0 max-w-lg p-6',
+      title: 'text-xl font-semibold text-gray-900 mb-4',
+      htmlContainer: 'px-0',
+      actions: 'flex justify-end gap-3 mt-6',
+      confirmButton: 'px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition-colors duration-200 shadow',
+      cancelButton: 'px-6 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg border border-gray-300 transition-colors duration-200'
+    },
+    backdrop: 'rgba(0,0,0,0.5)',
+    allowOutsideClick: false,
+    preConfirm: () => {
+      const failure_reason = document.getElementById('cancel-failure_reason').value;
+      const note = document.getElementById('cancel-note').value;
+
+      if (!failure_reason) {
+        Swal.showValidationMessage('Vui lòng chọn lý do hủy đơn hàng');
+        return false;
+      }
+
+      return { failure_reason, note };
     }
   }).then((result) => {
     if (result.isConfirmed) {
-      cancelOrder(orderId);
+      cancelOrder(orderId, result.value.failure_reason, result.value.note);
     }
   });
 };
+
+// Gọi API hủy đơn hàng
+const cancelOrder = async (id, failure_reason, note) => {
+  try {
+    const token = localStorage.getItem('access_token');
+    if (!token) throw new Error('Chưa đăng nhập');
+
+    const order = orders.value.find(o => o.id === id);
+    if (!order) throw new Error('Không tìm thấy đơn hàng!');
+
+    await axios.post(`${apiBase}/user/orders/${id}/cancel`, {
+      failure_reason,
+      note
+    }, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    toast('success', 'Đơn hàng đã được hủy!');
+
+    // Xoá cache liên quan
+    const cacheKey = `user_orders_page_${page.value}`;
+    localStorage.removeItem(cacheKey);
+    localStorage.removeItem('user_refunds');
+
+    await fetchOrders(true);
+
+    // Nếu đơn hàng không phải COD, mở modal yêu cầu hoàn tiền
+    if (!order.payments?.some(payment => payment.method?.toLowerCase() === 'cod')) {
+      await viewOrder(id);
+      toast('info', 'Vui lòng gửi yêu cầu hoàn tiền cho đơn hàng vừa hủy.');
+    }
+  } catch (err) {
+    console.error('cancelOrder error:', err);
+    toast('error', err.response?.data?.message || 'Không thể hủy đơn hàng!');
+  }
+};
+
 
 const refreshData = async () => {
   const cacheKey = `user_orders_page_${page.value}`;

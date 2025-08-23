@@ -313,6 +313,12 @@
                     🚫 Cấm cửa hàng
                   </button>
                 </template>
+                <template v-else-if="currentDetail.verification_status === 'banned'">
+  <button @click="unbanSeller(currentDetail.id)"
+    class="flex-1 py-2 rounded bg-green-600 hover:bg-green-700 text-white font-semibold text-sm transition">
+    ✅ Gỡ cấm seller
+  </button>
+</template>
               </div>
             </div>
           </div>
@@ -395,6 +401,35 @@ const fetchSellers = async () => {
     loading.value = false
   }
 }
+const unbanSeller = async (sellerId) => {
+  const result = await Swal.fire({
+    title: 'Gỡ cấm seller này?',
+    text: 'Hành động này sẽ khôi phục quyền bán hàng cho seller.',
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonText: 'Gỡ cấm',
+    cancelButtonText: 'Huỷ',
+    buttonsStyling: false,
+    customClass: {
+      confirmButton: 'bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded mr-2',
+      cancelButton: 'bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold px-4 py-2 rounded',
+    }
+  })
+
+  if (!result.isConfirmed) return
+
+  try {
+    await secureAxios(`${API}/admin/sellers/${sellerId}/unban`, {
+      method: 'POST'
+    }, ['admin'])
+    await fetchSellers()
+    detailModal.value = false
+    showNotification('Seller đã được gỡ cấm thành công!', 'success')
+  } catch (error) {
+    showNotification('Không thể gỡ cấm seller. Vui lòng thử lại sau!', 'error')
+  }
+}
+
 
 const formatCurrency = (value) => {
   if (typeof value !== 'number') return '-'
