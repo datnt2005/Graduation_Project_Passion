@@ -24,6 +24,9 @@ Route::prefix('sellers')->group(function () {
     // Route::get('/store/{slug}/discounts', [SellerController::class, 'getDiscounts']);
     Route::get('/verified', [SellerController::class, 'getVerifiedSellers']);
 
+    Route::middleware(['auth:sanctum'])->group(function () {
+        Route::get('/{seller_id}/status', [SellerController::class, 'getStatus']);
+    });
     Route::get('/{seller_id}', [SellerController::class, 'show']);
 });
 

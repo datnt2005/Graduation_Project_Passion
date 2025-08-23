@@ -1036,6 +1036,44 @@ class SellerController extends Controller
         ]);
     }
     /**
+     * Lấy trạng thái của seller
+     */
+    public function getStatus($seller_id)
+    {
+        try {
+            $seller = Seller::with('user')->find($seller_id);
+            
+            if (!$seller) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không tìm thấy seller'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'seller_id' => $seller->id,
+                    'store_name' => $seller->store_name,
+                    'verification_status' => $seller->verification_status,
+                    'status' => $seller->status,
+                    'ban_reason' => $seller->verification_status === 'banned' ? 'Cửa hàng đã bị cấm do vi phạm quy định' : null,
+                    'is_banned' => $seller->verification_status === 'banned'
+                ],
+                'message' => 'Lấy trạng thái seller thành công'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error in SellerController@getStatus: ' . $e->getMessage());
+            Log::error($e->getTraceAsString());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi khi lấy trạng thái seller: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Lấy thống kê seller cho admin
      */
     public function stats()
