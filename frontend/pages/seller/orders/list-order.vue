@@ -527,9 +527,9 @@
           </div>
           <h2 class="text-xl font-bold text-gray-800 mb-1">Cập nhật trạng thái đơn hàng</h2>
           <div class="text-sm text-gray-500">Mã vận đơn: <span class="font-semibold text-gray-700">{{ orderToUpdate?.shipping?.tracking_code || 'Chưa có' }}</span></div>
-          <div v-if="orderToUpdate?.shipping?.status" class="text-sm text-gray-500 mt-1">
+          <!-- <div v-if="orderToUpdate?.shipping?.status" class="text-sm text-gray-500 mt-1">
             Trạng thái GHN: <span :class="statusClass(orderToUpdate.shipping.status) + ' px-2 py-1 rounded-full text-xs font-semibold'">{{ statusText(orderToUpdate.shipping.status) }}</span>
-          </div>
+          </div> -->
         </div>
         <div class="mb-5 flex flex-col items-center">
           <div class="mb-2 text-base">Trạng thái hiện tại:</div>
@@ -579,13 +579,13 @@
           <p v-if="failureReasonError" class="text-red-500 text-xs mt-1">{{ failureReasonError }}</p>
         </div>
         <div class="flex justify-between gap-2 mt-6">
-          <button v-if="orderToUpdate?.status === 'shipping' && orderToUpdate?.shipping?.tracking_code" @click="syncGHNStatus(orderToUpdate)" :disabled="loading" class="px-5 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition flex items-center gap-2">
+          <!-- <button v-if="orderToUpdate?.status === 'shipping' && orderToUpdate?.shipping?.tracking_code" @click="syncGHNStatus(orderToUpdate)" :disabled="loading" class="px-5 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition flex items-center gap-2">
             <svg v-if="loading" class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
             </svg>
             Đồng bộ GHN
-          </button>
+          </button> -->
           <div class="flex gap-2">
             <button @click="closeUpdateModal" class="px-5 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition">Hủy</button>
             <button @click="confirmUpdateStatus" :disabled="loading || (newStatus === 'shipping' && (trackingCodeError || !trackingCode)) || (['failed', 'failed_delivery', 'rejected_by_customer'].includes(newStatus) && (failureReasonError || !failureReason.trim()))" class="px-5 py-2 bg-blue-600 text-white rounded-lg font-semibold shadow hover:bg-blue-700 transition flex items-center gap-2">
@@ -635,11 +635,11 @@
                 <td class="px-4 py-2 border-b text-center">
                   <span
                     class="inline-block px-3 py-1 rounded-full bg-yellow-100 text-yellow-700 font-semibold text-sm">Chờ
-                    duyệt payout</span>
+                    duyệt thanh toán</span>
                 </td>
               </tr>
               <tr v-if="deliveredUnpaidOrders.length === 0">
-                <td colspan="5" class="text-center text-gray-400 py-4">Không có đơn hàng nào chờ duyệt payout</td>
+                <td colspan="5" class="text-center text-gray-400 py-4">Không có đơn hàng nào chờ duyệt thanh toán</td>
               </tr>
             </tbody>
           </table>
@@ -662,8 +662,8 @@
                 <div class="mt-2 text-sm text-blue-700">
                   <p>Khi bạn cập nhật trạng thái đơn hàng thành "Đã giao", hệ thống sẽ:</p>
                   <ul class="list-disc list-inside mt-1 space-y-1">
-                    <li>Tự động tạo payout cho đơn hàng</li>
-                    <li>Duyệt tự động 80% payout (để đảm bảo an toàn)</li>
+                    <li>Tự động tạo thanh toán cho đơn hàng</li>
+                    <li>Duyệt tự động 80% thanh toán (để đảm bảo an toàn)</li>
                     <li>20% còn lại cần admin duyệt thủ công</li>
                   </ul>
                   <p class="mt-2 text-xs">Thanh toán được duyệt tự động sẽ có ghi chú "(Duyệt tự động)" và biểu tượng robot 🤖</p>
@@ -701,7 +701,7 @@
           </div>
           <div v-if="payoutLoading" class="text-center text-gray-400 py-10">Đang tải dữ liệu...</div>
           <div v-else-if="payoutError" class="text-center text-red-500 py-10">{{ payoutError }}</div>
-          <div v-else-if="!payoutFilteredData.length" class="text-center text-gray-400 py-10">Không có payout nào</div>
+          <div v-else-if="!payoutFilteredData.length" class="text-center text-gray-400 py-10">Không có thanh toán nào</div>
           <div v-else class="mt-4">
             <div style="max-height: 320px; overflow-y: auto;">
               <table class="min-w-full border-collapse border border-gray-300 text-sm">

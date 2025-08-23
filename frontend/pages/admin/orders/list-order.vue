@@ -16,7 +16,7 @@
       <!-- Cảnh báo đơn hàng bất thường -->
       <div v-if="hasAbnormalOrders" class="bg-yellow-100 p-4 mb-4 mx-4 rounded text-yellow-700">
         Có {{ abnormalOrdersCount }} đơn hàng ở trạng thái bất thường (thất bại, hủy, trả hàng hoặc thiếu thông tin
-        payout). Vui lòng kiểm tra!
+        thanh toán). Vui lòng kiểm tra!
       </div>
 
       <!-- Nút chuyển đổi -->
@@ -101,8 +101,8 @@
             class="rounded-md border border-gray-300 py-1.5 pl-3 pr-8 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="">Hành động hàng loạt</option>
-            <option value="update_payout_status">Cập nhật trạng thái payout</option>
-            <option value="create_payout">Tạo payout</option>
+            <option value="update_payout_status">Cập nhật trạng thái thanh toán</option>
+            <option value="create_payout">Tạo thanh toán</option>
             <option value="delete">Xóa</option>
           </select>
           <button
@@ -198,14 +198,14 @@
                         v-if="order.status === 'delivered' && order.payout_status === 'pending' && order.payout_id"
                         @click="approvePayout(order); activeDropdown = null"
                         class="w-full text-left px-4 py-2 text-sm text-green-600 hover:bg-green-50">Duyệt
-                        payout</button>
+                        thanh toán</button>
                       <button v-if="order.status === 'delivered' && !order.payout_id"
                         @click="createPayout(order); activeDropdown = null"
-                        class="w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-blue-50">Tạo payout</button>
-                      <button v-if="order.shipping?.tracking_code"
+                        class="w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-blue-50">Tạo thanh toán</button>
+                      <!-- <button v-if="order.shipping?.tracking_code"
                         @click="verifyGhnStatus(order); activeDropdown = null"
                         class="w-full text-left px-4 py-2 text-sm text-purple-600 hover:bg-purple-50">Kiểm tra
-                        GHN</button>
+                        GHN</button> -->
                       <button @click="deleteOrder(order.id); activeDropdown = null"
                         class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50">Xóa</button>
                         <button @click.prevent="openInvoicePrinter(order)"
@@ -253,7 +253,7 @@
             <thead>
               <tr>
                 <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">Mã vận đơn</th>
-                <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">Trạng thái GHN</th>
+                <!-- <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">Trạng thái GHN</th> -->
                 <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">Thời gian</th>
                 <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">Kết quả</th>
                 <th class="px-4 py-3 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase">Chi tiết</th>
@@ -294,7 +294,7 @@
         </div>
         <div v-if="payoutLoading" class="text-center text-gray-400 py-10">Đang tải dữ liệu...</div>
         <div v-else-if="payoutError" class="text-center text-red-500 py-10">{{ payoutError }}</div>
-        <div v-else-if="!payoutTrackingFilteredData.length" class="text-center text-gray-400 py-10">Không có payout
+        <div v-else-if="!payoutTrackingFilteredData.length" class="text-center text-gray-400 py-10">Không có thanh toán
           nào</div>
         <div v-else class="mt-4">
           <table class="w-full table-auto divide-y divide-gray-200">
@@ -590,13 +590,13 @@
                 <p><b>Mã vận đơn:</b> {{ selectedOrder.shipping?.tracking_code || 'Chưa có' }}</p>
                 <p><b>Trạng thái đơn hàng:</b> <span :class="getStatusClass(selectedOrder.status)">{{
                   getStatusText(selectedOrder.status) }}</span></p>
-                <p><b>Trạng thái GHN:</b> {{ selectedOrder.shipping?.status ? statusText(selectedOrder.shipping.status) : 'Chờ GHN lấy hàng' }}</p>
+                <!-- <p><b>Trạng thái GHN:</b> {{ selectedOrder.shipping?.status ? statusText(selectedOrder.shipping.status) : 'Chờ GHN lấy hàng' }}</p> -->
                 <p><b>Ngày tạo:</b> {{ formatDate(selectedOrder.created_at) }}</p>
-                <p v-if="selectedOrder.shipping?.tracking_code" class="mt-2">
+                <!-- <p v-if="selectedOrder.shipping?.tracking_code" class="mt-2">
                   <button @click="verifyGhnStatus(selectedOrder)"
                     class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">Kiểm tra trạng thái
                     GHN</button>
-                </p>
+                </p> -->
               </div>
             </div>
             <!-- Thông tin thanh toán -->
@@ -634,12 +634,12 @@
                       formatDate(selectedOrder.transferred_at) }}</span><span v-else class="text-gray-500">---</span></p>
                 <p v-if="selectedOrder?.status === 'delivered' && !selectedOrder.payout_id" class="mt-2">
                   <button @click="createPayout(selectedOrder)"
-                    class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Tạo payout thủ công</button>
+                    class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Tạo thanh toán thủ công</button>
                 </p>
                 <p v-if="selectedOrder?.status === 'delivered' && selectedOrder.payout_status === 'pending' && selectedOrder.payout_id"
                   class="mt-2">
                   <button @click="approvePayout(selectedOrder)"
-                    class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Duyệt payout</button>
+                    class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Duyệt thanh toán</button>
                 </p>
                 <p class="text-xs text-gray-500 mt-2">
                   Lưu ý: Số tiền nhận được là 95% tổng giá trị đơn hàng (bao gồm phí vận chuyển, đã trừ chiết khấu 5% cho admin và giảm giá nếu có).
@@ -687,15 +687,15 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
-          <h2 class="text-lg font-semibold mb-4">Cập nhật trạng thái payout</h2>
+          <h2 class="text-lg font-semibold mb-4">Cập nhật trạng thái thanh toán</h2>
           <div class="mb-4">
             <div><b>Đơn hàng - Mã vận đơn:</b> {{ orderToUpdate?.shipping?.tracking_code || 'Chưa có' }}</div>
-            <div><b>Số tiền payout:</b> {{ formatPrice(orderToUpdate?.payout_amount || orderToUpdate?.amount) }}</div>
+            <div><b>Số tiền thanh toán:</b> {{ formatPrice(orderToUpdate?.payout_amount || orderToUpdate?.amount) }}</div>
             <div><b>Trạng thái hiện tại:</b> <span class="font-semibold">{{
               payoutStatusText(orderToUpdate?.payout_status) }}</span></div>
           </div>
           <div class="mb-4">
-            <label class="block mb-1">Chọn trạng thái payout mới:</label>
+            <label class="block mb-1">Chọn trạng thái thanh toán mới:</label>
             <select v-model="newPayoutStatus" class="w-full border rounded px-3 py-2">
               <option value="pending">Chờ xử lý</option>
               <option value="completed">Đã chuyển khoản</option>
@@ -1014,7 +1014,7 @@
                   <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
                   </svg>
-                  <h2 class="text-2xl font-bold">Lưu ý khi cập nhật trạng thái payout</h2>
+                  <h2 class="text-2xl font-bold">Lưu ý khi cập nhật trạng thái thanh toán</h2>
                 </div>
                 <button @click="showPayoutStatusNoteModal = false" class="text-white hover:text-gray-200 transition-colors">
                   <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
@@ -1035,7 +1035,7 @@
                   <h3 class="text-lg font-semibold text-blue-700">THÔNG BÁO QUAN TRỌNG</h3>
                 </div>
                 <p class="text-blue-700 font-medium">
-                  Vui lòng đọc kỹ các lưu ý dưới đây trước khi cập nhật trạng thái payout. 
+                  Vui lòng đọc kỹ các lưu ý dưới đây trước khi cập nhật trạng thái thanh toán. 
                   Việc cập nhật sai trạng thái có thể ảnh hưởng đến quy trình thanh toán!
                 </p>
               </div>
@@ -1043,7 +1043,7 @@
               <!-- Các lưu ý cần thực hiện -->
               <div class="space-y-4">
                 <h3 class="text-xl font-bold text-gray-800 border-b border-gray-200 pb-2">
-                  📋 Các lưu ý khi cập nhật trạng thái payout:
+                  📋 Các lưu ý khi cập nhật trạng thái thanh toán:
                 </h3>
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1082,7 +1082,7 @@
                       <h4 class="text-lg font-semibold text-yellow-800">Trạng thái "Chờ xử lý"</h4>
                     </div>
                     <ul class="text-sm text-yellow-700 space-y-1 ml-10">
-                      <li>✓ Trạng thái mặc định khi tạo payout</li>
+                      <li>✓ Trạng thái mặc định khi tạo thanh toán</li>
                       <li>✓ Có thể cập nhật thành trạng thái khác</li>
                       <li>✓ Chưa thực hiện chuyển tiền</li>
                       <li>✓ Cần theo dõi để xử lý tiếp</li>

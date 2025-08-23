@@ -149,7 +149,12 @@ class SearchService
             ) {
                 // Build main product query
                 $query = $this->buildQuery(
-                    Product::query()->select(['products.id', 'products.name', 'products.slug', 'products.seller_id', 'products.status', 'products.admin_status']),
+                    Product::query()->select(['products.id', 'products.name', 'products.slug', 'products.seller_id', 'products.status', 'products.admin_status'])
+                        ->where('status', 'active')
+                        ->where('admin_status', 'approved')
+                        ->whereHas('seller', function ($q) {
+                            $q->where('verification_status', 'verified');
+                        }),
                     $isSearchMode,
                     $categoryIds,
                     $search,
@@ -225,6 +230,9 @@ class SearchService
                     $categoryIds = Product::whereHas('seller', fn($q) => $q->whereIn('sellers.id', $shopIds))
                         ->where('status', 'active')
                         ->where('admin_status', 'approved')
+                        ->whereHas('seller', function ($q) {
+                            $q->where('verification_status', 'verified');
+                        })
                         ->with(['categories' => fn($q) => $q->select('categories.id', 'categories.name', 'categories.slug', 'categories.parent_id')])
                         ->get()
                         ->pluck('categories')
@@ -245,7 +253,11 @@ class SearchService
                     'user' => fn($q) => $q->select('users.id', 'users.avatar'),
                     'followers' => fn($q) => $q->select('seller_followers.id', 'seller_followers.seller_id'),
                     'products' => fn($q) => $q->select('products.id', 'products.seller_id', 'products.status', 'products.admin_status')
-                        ->where('status', 'active')->where('admin_status', 'approved'),
+                        ->where('status', 'active')
+                        ->where('admin_status', 'approved')
+                        ->whereHas('seller', function ($q) {
+                            $q->where('verification_status', 'verified');
+                        }),
                     'products.reviews' => fn($q) => $q->select('reviews.id', 'reviews.product_id', 'reviews.rating'),
                 ])->where(function ($q) use ($searchVariants) {
                     foreach ($searchVariants as $variant) {
@@ -254,7 +266,9 @@ class SearchService
                             $q->orWhere('store_name', 'LIKE', $pattern);
                         }
                     }
-                })->select('sellers.id', 'sellers.store_name', 'sellers.store_slug', 'sellers.user_id')->get();
+                })->where('verification_status', 'verified')
+                    ->select('sellers.id', 'sellers.store_name', 'sellers.store_slug', 'sellers.user_id')
+                    ->get();
 
                 $relatedShops = $shopQuery->map(function ($seller) {
                     $rating = round($seller->products->flatMap(fn($p) => $p->reviews)->avg('rating') ?? 0, 2);
@@ -275,7 +289,12 @@ class SearchService
                     $shopIds = array_column($relatedShops, 'id');
                     $shopQuery = $this->buildQuery(
                         Product::whereHas('seller', fn($q) => $q->whereIn('sellers.id', $shopIds))
-                            ->select(['products.id', 'products.name', 'products.slug', 'products.seller_id', 'products.status', 'products.admin_status']),
+                            ->select(['products.id', 'products.name', 'products.slug', 'products.seller_id', 'products.status', 'products.admin_status'])
+                            ->where('status', 'active')
+                            ->where('admin_status', 'approved')
+                            ->whereHas('seller', function ($q) {
+                                $q->where('verification_status', 'verified');
+                            }),
                         $isSearchMode,
                         $categoryIds,
                         '',
@@ -332,11 +351,16 @@ class SearchService
             $shopInfo = null;
             if (!$isSearchMode && !$isCategoryMode && $slug) {
                 $seller = Seller::where('store_slug', $slug)
+                    ->where('verification_status', 'verified')
                     ->with([
                         'user' => fn($q) => $q->select('users.id', 'users.avatar'),
                         'followers' => fn($q) => $q->select('seller_followers.id', 'seller_followers.seller_id'),
                         'products' => fn($q) => $q->select('products.id', 'products.seller_id', 'products.status', 'products.admin_status')
-                            ->where('status', 'active')->where('admin_status', 'approved'),
+                            ->where('status', 'active')
+                            ->where('admin_status', 'approved')
+                            ->whereHas('seller', function ($q) {
+                                $q->where('verification_status', 'verified');
+                            }),
                         'products.reviews' => fn($q) => $q->select('reviews.id', 'reviews.product_id', 'reviews.rating'),
                     ])
                     ->select('sellers.id', 'sellers.store_name', 'sellers.store_slug', 'sellers.user_id', 'sellers.verification_status')
@@ -353,7 +377,7 @@ class SearchService
                         'total_products' => $seller->products->count(),
                         'rating_stars' => str_repeat('★', round($rating)) . str_repeat('☆', 5 - round($rating)),
                         'rating_value' => sprintf('%.1f/5 (%d%%)', $rating, round($rating / 5 * 100)),
-                        'status' => $seller->verification_status ?? 'verified',
+                        'status' => $seller->verification_status,
                     ];
                 } else {
                     $shopInfo = [
@@ -550,42 +574,53 @@ class SearchService
     }
     private function buildQuery($baseQuery, $isSearchMode, $categoryIds, $search, $priceMin, $priceMax, $brands, $ratings, $onSale, $sort, $priceOrder)
     {
+        // Đảm bảo chỉ lấy sản phẩm từ seller đã được xác minh
         $query = $baseQuery->with([
-            'categories' => fn($q) => $q->select('categories.id', 'categories.name'),
-            'productPic' => fn($q) => $q->select('product_id', 'imagePath')->latest(),
+            'categories' => fn($q) => $q->select('categories.id', 'categories.name', 'categories.slug', 'categories.parent_id'),
+            'productPic' => fn($q) => $q->select('product_id', 'imagePath')->latest()->take(1),
             'productVariants.inventories' => fn($q) => $q->select('id', 'product_variant_id', 'quantity'),
             'productVariants.orderItems' => fn($q) => $q->select('id', 'product_variant_id', 'quantity'),
             'reviews' => fn($q) => $q->select('id', 'product_id', 'rating'),
-            'seller' => fn($q) => $q->select('id', 'store_name'),
+            'seller' => fn($q) => $q->select('id', 'store_name', 'verification_status')->where('verification_status', 'verified'),
             'tags' => fn($q) => $q->select('tags.id', 'tags.name'),
-        ])->where('status', 'active')
-            ->where('admin_status', 'approved');
+        ])->where('products.status', 'active')
+            ->where('products.admin_status', 'approved')
+            ->whereHas('seller', function ($q) {
+                $q->where('verification_status', 'verified');
+            });
 
+        // Lọc theo danh mục
         if (!$isSearchMode && !empty($categoryIds)) {
             $query->whereHas('categories', fn($q) => $q->whereIn('categories.id', $categoryIds));
         }
 
+        // Tìm kiếm theo tên sản phẩm
         if ($search) {
             $searchVariants = $this->normalizeVietnamese($search);
             $query->where(function ($q) use ($searchVariants) {
                 foreach ($searchVariants as $variant) {
                     $patterns = ["% $variant %", "$variant %", "% $variant", $variant];
                     foreach ($patterns as $pattern) {
-                        $q->orWhere('name', 'LIKE', $pattern);
+                        $q->orWhere('products.name', 'LIKE', $pattern);
                     }
                 }
             });
         }
 
-        $query->whereHas('productVariants', fn($q) => $q->where(function ($q2) use ($priceMin, $priceMax) {
-            $q2->whereBetween('price', [$priceMin, $priceMax])
-                ->orWhereBetween('sale_price', [$priceMin, $priceMax]);
-        }));
-
-        if (!empty($brands)) {
-            $query->whereHas('seller', fn($q) => $q->whereIn('store_name', $brands));
+        // Lọc theo giá
+        if ($priceMin > 0 || $priceMax < 100000000) {
+            $query->whereHas('productVariants', fn($q) => $q->where(function ($q2) use ($priceMin, $priceMax) {
+                $q2->whereBetween('price', [$priceMin, $priceMax])
+                    ->orWhereBetween('sale_price', [$priceMin, $priceMax]);
+            }));
         }
 
+        // Lọc theo thương hiệu
+        if (!empty($brands)) {
+            $query->whereHas('seller', fn($q) => $q->whereIn('store_name', $brands)->where('verification_status', 'verified'));
+        }
+
+        // Lọc theo đánh giá
         if (!empty($ratings)) {
             $query->where(function ($q) use ($ratings) {
                 if (in_array(0, $ratings)) {
@@ -597,25 +632,27 @@ class SearchService
             });
         }
 
+        // Lọc sản phẩm đang giảm giá
         if ($onSale) {
-            $query->whereHas('productVariants', fn($q) => $q->whereNotNull('sale_price')->where('sale_price', '<', DB::raw('price')));
+            $query->whereHas('productVariants', fn($q) => $q->whereNotNull('sale_price')->where('sale_price', '<', DB::raw('product_variants.price')));
         }
 
+        // Sắp xếp kết quả
         if ($priceOrder === 'asc' || $priceOrder === 'desc') {
             $query->orderByRaw('(SELECT MIN(COALESCE(sale_price, price)) FROM product_variants WHERE product_variants.product_id = products.id) ' . $priceOrder);
         } else {
             switch ($sort) {
                 case 'newest':
-                    $query->orderBy('created_at', 'desc');
+                    $query->orderBy('products.created_at', 'desc');
                     break;
                 case 'popular':
                     $query->withCount('reviews')->orderBy('reviews_count', 'desc');
                     break;
                 case 'bestseller':
-                    $query->orderByRaw('(SELECT SUM(quantity) FROM order_items WHERE order_items.product_variant_id IN (SELECT id FROM product_variants WHERE product_variants.product_id = products.id)) DESC');
+                    $query->orderByRaw('(SELECT SUM(quantity) FROM order_items WHERE order_items.product_variant_id IN (SELECT id FROM product_variants WHERE product_variants.product_id = products.id) AND order_items.order_status IN ("completed", "delivered")) DESC');
                     break;
                 default:
-                    $query->orderBy('created_at', 'desc');
+                    $query->orderBy('products.created_at', 'desc');
                     break;
             }
         }
@@ -734,6 +771,9 @@ class SearchService
             ->whereIn('id', $ids)
             ->where('status', 'active')
             ->where('admin_status', 'approved')
+            ->whereHas('seller', function ($q) {
+                $q->where('verification_status', 'verified');
+            })
             ->select('id', 'name', 'slug')
             ->with([
                 // lấy ảnh sản phẩm mới nhất

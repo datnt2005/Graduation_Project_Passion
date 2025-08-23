@@ -478,30 +478,40 @@ const handleConfirmAction = async () => {
 
   try {
     if (!userToDelete.value) {
+      // Xóa hàng loạt
       const json = await secureFetch(`${api}/users/batch-delete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: selectedUsers.value }),
       }, ['admin'])
 
-      if (!json.success) throw new Error(json.status || 'Xoá người dùng thất bại.')
-      
-      notificationMessage.value = 'Đã xóa người dùng đã chọn.'
+      if (!json.success) {
+        throw new Error(json.message || 'Xóa người dùng thất bại.')
+      }
+
+      notificationMessage.value = 'Đã xóa các người dùng được chọn thành công.'
       selectedUsers.value = []
       selectAll.value = false
       selectedAction.value = ''
     } else {
+      // Xóa một người dùng
       const json = await secureFetch(`${api}/users/${userToDelete.value.id}`, {
-        method: 'DELETE'
-      }, ['admin'])
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+      }, ['admin'], true) // Thêm returnOnError: true
 
-      if (!json.success) throw new Error(json.status || 'Xoá người dùng thất bại.')
+      if (!json.success) {
+        throw new Error(json.message || 'Xóa người dùng thất bại.')
+      }
 
-      notificationMessage.value = `Đã xoá người dùng "${userToDelete.value.username}".`
+      notificationMessage.value = `Đã xóa người dùng thành công.`
       userToDelete.value = null
     }
   } catch (err) {
-    notificationMessage.value = `Lỗi: ${err.message}`
+    notificationMessage.value = `Lỗi: ${err.message || 'Đã xảy ra lỗi khi xóa người dùng.'}`
+    if (err.message.includes('Chưa đăng nhập') || err.message.includes('Không xác thực') || err.message.includes('Không có quyền')) {
+      await navigateTo('/unauthorized', { replace: true })
+    }
   } finally {
     await fetchUsers()
     showNotification.value = true

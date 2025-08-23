@@ -20,122 +20,136 @@ class CartController extends Controller
     }
 
     private function refreshCartCache($userId, $selectedItemIds = [])
-    {
-        try {
-            $cacheKey = "cart_user_{$userId}";
+{
+    try {
+        $cacheKey = "cart_user_{$userId}";
 
-            // Clear existing cart cache
-            Cache::store('redis')->forget($cacheKey);
+        // Clear existing cart cache
+        Cache::store('redis')->forget($cacheKey);
 
-            // Fetch and cache cart data
-            $cartData = Cache::store('redis')->remember($cacheKey, 86400, function () use ($userId, $selectedItemIds) {
-                $cart = Cart::with([
-                    'items' => fn($query) => $query->select('id', 'cart_id', 'product_variant_id', 'quantity', 'price'),
-                    'items.productVariant' => fn($query) => $query->select('id', 'product_id', 'sku', 'thumbnail', 'sale_price', 'quantity'),
-                    'items.productVariant.product' => fn($query) => $query->select('id', 'seller_id', 'name', 'slug'),
-                    'items.productVariant.product.seller' => fn($query) => $query->select('id', 'store_name', 'store_slug'),
-                    'items.productVariant.attributes.values' => fn($query) => $query->select('id', 'attribute_id', 'value'),
-                    'items.productVariant.product.productPic' => fn($query) => $query->select('id', 'product_id', 'imagePath')
-                ])
-                    ->where('user_id', $userId)
-                    ->where('status', 'active')
-                    ->select('id', 'user_id', 'status')
-                    ->first();
+        // Fetch and cache cart data
+        $cartData = Cache::store('redis')->remember($cacheKey, 86400, function () use ($userId, $selectedItemIds) {
+            $cart = Cart::with([
+                'items' => fn($query) => $query->select('id', 'cart_id', 'product_variant_id', 'quantity', 'price')
+                    ->whereHas('productVariant.product.seller', function ($q) {
+                        $q->where('verification_status', 'verified');
+                    }),
+                'items.productVariant' => fn($query) => $query->select('id', 'product_id', 'sku', 'thumbnail', 'sale_price', 'quantity'),
+                'items.productVariant.product' => fn($query) => $query->select('id', 'seller_id', 'name', 'slug')
+                    ->whereHas('seller', function ($q) {
+                        $q->where('verification_status', 'verified');
+                    }),
+                'items.productVariant.product.seller' => fn($query) => $query->select('id', 'store_name', 'store_slug', 'verification_status')
+                    ->where('verification_status', 'verified'),
+                'items.productVariant.attributes.values' => fn($query) => $query->select('id', 'attribute_id', 'value'),
+                'items.productVariant.product.productPic' => fn($query) => $query->select('id', 'product_id', 'imagePath')->latest()->take(1),
+            ])
+                ->where('user_id', $userId)
+                ->where('status', 'active')
+                ->select('id', 'user_id', 'status')
+                ->first();
 
-                if (!$cart) {
-                    return [
-                        'stores' => [],
-                        'total' => '0'
-                    ];
-                }
+            if (!$cart) {
+                return [
+                    'stores' => [],
+                    'total' => '0'
+                ];
+            }
 
-                // Group items by seller
-                $itemsByStore = $cart->items->groupBy(function ($item) {
-                    return $item->productVariant->product->seller->id ?? 0;
-                });
+            // Group items by seller
+            $itemsByStore = $cart->items->groupBy(function ($item) {
+                return $item->productVariant->product->seller->id ?? 0;
+            });
 
-                $formattedStores = $itemsByStore->map(function ($items, $sellerId) use ($selectedItemIds) {
-                    $seller = $items->first()->productVariant->product->seller;
+            $formattedStores = $itemsByStore->map(function ($items, $sellerId) use ($selectedItemIds) {
+                $seller = $items->first()->productVariant->product->seller;
 
-                    $storeItems = $items->map(function ($item) use ($selectedItemIds) {
-                        $variant = $item->productVariant;
-                        $product = $variant->product;
+                // Log để kiểm tra verification_status
+                Log::debug('Cart Seller Status', [
+                    'seller_id' => $seller->id,
+                    'store_name' => $seller->store_name,
+                    'verification_status' => $seller->verification_status
+                ]);
 
-                        $attributes = $variant->attributes->map(function ($attr) {
-                            $value = $attr->pivot->value_id
-                                ? $attr->values->find($attr->pivot->value_id)
-                                : null;
-                            return [
-                                'attribute' => $attr->name,
-                                'value' => $value ? $value->value : null
-                            ];
-                        })->filter()->values();
+                $storeItems = $items->map(function ($item) use ($selectedItemIds) {
+                    $variant = $item->productVariant;
+                    $product = $variant->product;
 
+                    $attributes = $variant->attributes->map(function ($attr) {
+                        $value = $attr->pivot->value_id
+                            ? $attr->values->find($attr->pivot->value_id)
+                            : null;
                         return [
-                            'id' => $item->id,
-                            'quantity' => $item->quantity,
-                            'price' => number_format($item->price, 0, ',', '.'),
-                            'sale_price' => $variant->sale_price ? number_format($variant->sale_price, 0, ',', '.') : null,
-                            'product_variant_id' => $item->product_variant_id,
-                            'stock' => $variant->quantity ?? 0,
-                            'is_selected' => in_array($item->id, $selectedItemIds),
-                            'productVariant' => [
-                                'id' => $variant->id,
-                                'sku' => $variant->sku,
-                                'thumbnail' => $variant->thumbnail
-                                    ? config('app.media_base_url') . $variant->thumbnail
-                                    : ($product->productPic->first()
-                                        ? config('app.media_base_url') . $product->productPic->first()->imagePath
-                                        : '/default.jpg'),
-                                'attributes' => $attributes
-                            ],
-                            'product' => [
-                                'id' => $product->id,
-                                'name' => $product->name,
-                                'slug' => $product->slug,
-                                'images' => $product->productPic->map(function ($pic) {
-                                    return config('app.media_base_url') . $pic->imagePath;
-                                })->toArray()
-                            ]
+                            'attribute' => $attr->name,
+                            'value' => $value ? $value->value : null
                         ];
-                    })->values();
-
-                    $storeTotal = $storeItems->sum(function ($item) {
-                        $price = $item['sale_price'] ? (float) str_replace('.', '', $item['sale_price']) : (float) str_replace('.', '', $item['price']);
-                        return $price * $item['quantity'];
-                    });
+                    })->filter()->values();
 
                     return [
-                        'seller_id' => $seller->id,
-                        'store_name' => $seller->store_name ?? 'N/A',
-                        'store_url' => "/seller/{$seller->store_slug}",
-                        'items' => $storeItems,
-                        'store_total' => number_format($storeTotal, 0, ',', '.')
+                        'id' => $item->id,
+                        'quantity' => $item->quantity,
+                        'price' => number_format($item->price, 0, ',', '.'),
+                        'sale_price' => $variant->sale_price ? number_format($variant->sale_price, 0, ',', '.') : null,
+                        'product_variant_id' => $item->product_variant_id,
+                        'stock' => $variant->quantity ?? 0,
+                        'is_selected' => in_array($item->id, $selectedItemIds),
+                        'productVariant' => [
+                            'id' => $variant->id,
+                            'sku' => $variant->sku,
+                            'thumbnail' => $variant->thumbnail
+                                ? config('app.media_base_url') . $variant->thumbnail
+                                : ($product->productPic->first()
+                                    ? config('app.media_base_url') . $product->productPic->first()->imagePath
+                                    : '/default.jpg'),
+                            'attributes' => $attributes
+                        ],
+                        'product' => [
+                            'id' => $product->id,
+                            'name' => $product->name,
+                            'slug' => $product->slug,
+                            'images' => $product->productPic->map(function ($pic) {
+                                return config('app.media_base_url') . $pic->imagePath;
+                            })->toArray()
+                        ]
                     ];
                 })->values();
 
-                $cartTotal = $formattedStores->sum(function ($store) {
-                    return (float) str_replace('.', '', $store['store_total']);
+                $storeTotal = $storeItems->sum(function ($item) {
+                    $price = $item['sale_price'] ? (float) str_replace('.', '', $item['sale_price']) : (float) str_replace('.', '', $item['price']);
+                    return $price * $item['quantity'];
                 });
 
                 return [
-                    'stores' => $formattedStores,
-                    'total' => number_format($cartTotal, 0, ',', '.')
+                    'seller_id' => $seller->id,
+                    'store_name' => $seller->store_name ?? 'N/A',
+                    'store_url' => "/seller/{$seller->store_slug}",
+                    'items' => $storeItems,
+                    'store_total' => number_format($storeTotal, 0, ',', '.')
                 ];
+            })->values();
+
+            $cartTotal = $formattedStores->sum(function ($store) {
+                return (float) str_replace('.', '', $store['store_total']);
             });
 
-            return $cartData;
-        } catch (\Exception $e) {
-            Log::error("Error in refreshCartCache for user {$userId}: {$e->getMessage()}", [
-                'trace' => $e->getTraceAsString()
-            ]);
             return [
-                'success' => false,
-                'message' => 'Lỗi khi làm mới cache giỏ hàng: ' . $e->getMessage(),
-                'code' => 'CACHE_REFRESH_ERROR'
+                'stores' => $formattedStores,
+                'total' => number_format($cartTotal, 0, ',', '.')
             ];
-        }
+        });
+
+        return $cartData;
+    } catch (\Exception $e) {
+        Log::error("Error in refreshCartCache for user {$userId}: {$e->getMessage()}", [
+            'trace' => $e->getTraceAsString()
+        ]);
+        return [
+            'success' => false,
+            'message' => 'Lỗi khi làm mới cache giỏ hàng: ' . $e->getMessage(),
+            'code' => 'CACHE_REFRESH_ERROR'
+        ];
     }
+}
 
     public function index(Request $request)
     {

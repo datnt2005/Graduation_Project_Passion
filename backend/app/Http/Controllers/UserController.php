@@ -520,7 +520,8 @@ class UserController extends Controller
         try {
             if ($user->role === 'admin') {
                 return response()->json([
-                    'error' => 'Không thể xoá người dùng có vai trò là admin.'
+                    'success' => false,
+                    'message' => 'Không thể xoá người dùng có vai trò là quản trị viên.'
                 ], 403);
             }
 

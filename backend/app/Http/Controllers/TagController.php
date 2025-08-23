@@ -215,6 +215,9 @@ class TagController extends Controller
         $products = Product::whereIn('id', $productIds)
             ->where('status', 'active')
             ->where('admin_status', 'approved')
+            ->whereHas('seller', function ($q) {
+                $q->where('verification_status', 'verified');
+            })
             ->with([
                 'variants' => function ($q) {
                     $q->select('id', 'product_id', 'price', 'sale_price', 'quantity', 'thumbnail')

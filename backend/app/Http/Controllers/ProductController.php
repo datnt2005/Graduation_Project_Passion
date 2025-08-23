@@ -62,6 +62,9 @@ class ProductController extends Controller
                 ])
                     ->whereIn('status', ['active', 'inactive'])
                     ->where('admin_status', 'approved')
+                    ->whereHas('seller', function ($q) {
+                        $q->where('verification_status', 'verified');
+                    })
                     ->when($search, function ($query) use ($search) {
                         return $query->where('name', 'like', '%' . $search . '%');
                     })
@@ -123,7 +126,7 @@ class ProductController extends Controller
             return isset($variant['thumbnail']) ? [$variant['thumbnail']] : [];
         })->toArray();
         $totalFiles = count($imageFiles) + count($variantFiles);
-        $maxFiles = ini_get('max_file_uploads') ?: 20; 
+        $maxFiles = ini_get('max_file_uploads') ?: 20;
 
         if ($totalFiles > $maxFiles) {
             return response()->json([
@@ -1177,6 +1180,9 @@ class ProductController extends Controller
                     'tags:id,name,slug',
                     'reviews:id,product_id,rating',
                 ])
+                ->whereHas('seller', function ($q) {
+                    $q->where('verification_status', 'verified');
+                })
                 ->select('id', 'name', 'slug', 'description', 'seller_id', 'status')
                 ->first();
 
@@ -1495,8 +1501,10 @@ class ProductController extends Controller
                     'tags',
                 ])
                     ->where('status', 'active')
-                    ->where('admin_status', 'approved');
-
+                    ->where('admin_status', 'approved')
+                    ->whereHas('seller', function ($q) {
+                        $q->where('verification_status', 'verified');
+                    });
                 // Search by name or description
                 if ($search) {
                     $query->where(function ($q) use ($search) {
