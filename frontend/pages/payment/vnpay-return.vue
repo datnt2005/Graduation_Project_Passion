@@ -62,7 +62,7 @@
                 </div>
                 <div class="flex justify-between">
                   <span>Phí vận chuyển:</span>
-                  <span>{{ formatPrice(order.shipping?.shipping_fee) }}</span>
+                  <span>{{ formatPrice(order.shipping?.shipping_fee) }}đ</span>
                 </div>
                 <div class="flex justify-between" v-if="order.shipping && order.shipping.shipping_discount > 0">
                   <span>Giảm giá phí ship:</span>
@@ -73,7 +73,28 @@
                   <span class="text-blue-700">{{ formatPrice(order.final_price || 0) }}đ</span>
                 </div>
               </div>
-
+              <!-- Danh sách sản phẩm đã đặt (nếu có) -->
+              <div v-if="order.order_items?.length" class="mt-4">
+                <div class="font-medium text-gray-700 mb-2">Sản phẩm đã đặt:</div>
+                <div class="max-h-64 overflow-y-auto pr-2">
+                  <div v-for="item in order.order_items" :key="item.product?.id + '-' + (item.variant?.id || '')" class="flex items-center gap-4 border-b py-2 last:border-0">
+                    <div class="flex gap-2 items-center">
+                      <img
+                        :src="getProductImage(item.variant?.thumbnail || item.product?.thumbnail)"
+                        :alt="item.product?.name || 'Ảnh sản phẩm'"
+                        class="w-12 h-12 object-cover rounded-md border"
+                        @error="e => e.target.src = '/images/default-product.jpg'"
+                      />
+                    </div>
+                    <div class="flex-1">
+                      <div class="font-semibold text-gray-900">{{ item.product?.name || '-' }}</div>
+                      <div v-if="item.variant && item.variant.name" class="text-xs text-gray-500">Phân loại: {{ item.variant.name }}</div>
+                      <div class="text-xs text-gray-500">Số lượng: {{ item.quantity }} × {{ formatPrice(item.price) }}đ</div>
+                    </div>
+                    <div class="font-bold text-blue-700">{{ formatPrice(item.total) }}đ</div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
           <!-- Hỗ trợ hiển thị cũ cho backward compatibility -->
