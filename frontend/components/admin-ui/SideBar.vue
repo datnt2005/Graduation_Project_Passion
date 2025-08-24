@@ -192,7 +192,7 @@
         <li class="pt-2 border-t border-gray-800">
           <NuxtLink to="/admin/notifications/list-notifications"
             class="flex items-center w-full px-4 py-2 hover:bg-gray-800 focus:outline-none rounded"
-            :class="route.path === '/admin/notifications/list-notifications' ? 'bg-gray-800 text-green-400 font-bold' : 'text-gray-300'">
+            :class="route.path === '/admin/notifications/list-notifications' ? 'bg-gray-800 text-green-400 font-bold' : 'text-white'">
 
             <svg class="w-4 h-4 mr-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"
               stroke-width="2">
