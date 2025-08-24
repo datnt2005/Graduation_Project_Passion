@@ -1,5 +1,5 @@
 <template>
-<div class="min-h-screen flex items-center justify-center bg-gradient-to-b from-white to-blue-50 px-4 py-2">
+<div class="flex items-center justify-center bg-gradient-to-b from-white to-blue-50 min-h-[70vh]">
 <div class="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center min-h-[550px] flex flex-col justify-between">
       <!-- Icon thành công -->
       <div class="w-20 h-20 mx-auto mb-4 rounded-full bg-green-100 flex items-center justify-center">

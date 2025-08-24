@@ -158,7 +158,7 @@ const route = useRoute()
 const router = useRouter()
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBaseUrl
-const { showNotification, notificationMessage, notificationType, setNotification } = useNotification()
+const { showNotification, notificationMessage, notificationType, showMessage } = useNotification()
 
 const id = route.params.id
 const form = ref({
@@ -197,7 +197,7 @@ onMounted(async () => {
     ]
   } catch (error) {
     console.error('Lỗi khi tải đánh giá:', error)
-    setNotification('Không thể tải đánh giá.', 'error')
+    showMessage('Không thể tải đánh giá.', 'error')
   }
 })
 
@@ -217,15 +217,15 @@ const submit = async () => {
     })
 
     console.log('Update response:', response.data) // Debug
-    setNotification('Cập nhật phản hồi thành công!', 'success')
+    showMessage('Cập nhật phản hồi thành công!', 'success')
     router.push('/seller/reviews/list-reviews')
   } catch (err) {
     console.error('Error updating review:', err.response?.data || err.message) // Debug
     if (err.response?.status === 422) {
       errors.value = err.response.data.errors
-      setNotification('Dữ liệu không hợp lệ, vui lòng kiểm tra lại.', 'error')
+      showMessage('Dữ liệu không hợp lệ, vui lòng kiểm tra lại.', 'error')
     } else {
-      setNotification('Có lỗi khi cập nhật phản hồi.', 'error')
+      showMessage('Có lỗi khi cập nhật phản hồi.', 'error')
     }
   } finally {
     loading.value = false
