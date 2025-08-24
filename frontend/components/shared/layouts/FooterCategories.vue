@@ -10,7 +10,7 @@
         <div v-for="(categoryGroup, index) in categoryGroups" :key="index">
           <NuxtLink :to="`/shop/${categoryGroup.slug}`" @click="() => trackCategoryClick(categoryGroup.id)"
             class="hover:underline transition-all duration-150 relative">
-            <h3 class="font-semibold text-gray-900 mb-1 text-[12px] sm:text-sm">
+            <h3 class="font-semibold text-gray-900 mb-1 truncate sm:mb-2 md:mb-3 md:text-base md:font-bold md:text-gray-800 md:mb-4 md:truncate md:line-clamp-2">
               {{ categoryGroup.title }}
             </h3>
           </NuxtLink>

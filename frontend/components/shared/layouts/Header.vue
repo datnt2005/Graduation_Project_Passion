@@ -142,9 +142,9 @@
     <div class="bg-white shadow-sm">
       <div class="max-w-7xl mx-auto px-2 flex items-center gap-6 justify-between px-2 py-3">
         <!-- Logo + Danh mục -->
-        <div class="flex items-center gap-3 w-[250px]">
+        <div class="flex items-center gap-3">
           <NuxtLink to="/" class="flex-shrink-0">
-            <img :src="getLogoUrl()" alt="Logo" class="h-[70px] object-contain" />
+            <img :src="getLogoUrl()" alt="Logo" class="h-[45px] md:h-[70px] object-contain" />
           </NuxtLink>
           <!-- Danh mục (ẩn dropdown trên mobile) -->
           <div class="relative group hidden sm:block mx-5">
@@ -173,7 +173,7 @@
               <div>
                 <h4 class="font-bold mb-2 text-gray-800 text-sm sm:text-base">Danh mục sản phẩm</h4>
                 <ul class="text-gray-700 space-y-2">
-                  <li v-for="(item, index) in categories" :key="index">
+                  <li v-for="(item, index) in categories.slice(0, 5)" :key="index">
                     <NuxtLink :to="`/shop/${item.slug}`" class="flex items-center gap-2 hover:underline">
                       <img :src="`${mediaBase}${item.image}`" :alt="item.name"
                         class="w-6 h-6 object-contain rounded-full" />
@@ -616,7 +616,7 @@ const contactHotline = computed(() => {
 
 const fetchCategories = async () => {
   try {
-    const response = await fetch(`${api}/categories/parents`, {
+    const response = await fetch(`${api}/categories/parents?limit=5`, {
       method: "GET",
       headers: { "Content-Type": "application/json" },
     });

@@ -297,58 +297,54 @@
               <h2 class="text-xl font-semibold mb-6 text-gray-900">Chi tiết đơn hàng</h2>
               <!-- Thông tin -->
               <div class="flex flex-col md:flex-row gap-4 mb-6 items-stretch text-sm text-gray-700">
-             <!-- Thông tin đơn hàng -->
-<div class="flex-1 border border-gray-200 rounded-lg p-4 space-y-1 flex flex-col justify-between">
-  <div class="flex items-center gap-2 text-gray-500 mb-1">
-    <span class="font-medium text-gray-900">Thông tin đơn hàng</span>
-  </div>
-  <p class="flex gap-1 pb-2">
-    <span class="min-w-[90px] text-gray-500">Mã vận đơn:</span>
-    <span class="text-black">{{ selectedOrder.shipping?.tracking_code || '-' }}</span>
-  </p>
-  <p class="flex gap-1 pb-2">
-    <span class="min-w-[90px] text-gray-500">Ngày đặt:</span>
-    <span class="text-black">{{ formatDate(selectedOrder.created_at) }}</span>
-  </p>
-  <p class="flex gap-1 pb-2">
-    <span class="min-w-[90px] text-gray-500">Trạng thái:</span>
-    <span :class="statusClass(selectedOrder.status)" class="text-xs px-2 py-1 rounded-full">
-      {{ statusText(selectedOrder.status) }}
-    </span>
-  </p>
-
-  <!-- Hiển thị lý do hủy nếu trạng thái cancelled -->
-  <p v-if="selectedOrder.status === 'cancelled'" class="flex gap-1 pb-2">
-    <span class="min-w-[90px] text-gray-500">Lý do hủy:</span>
-    <span class="text-black">{{ selectedOrder.failure_reason || 'không muốn nhận hàng' }}</span>
-  </p>
-
-    <p v-if="selectedOrder.note" class="flex gap-1 pb-2">
-    <span class="min-w-[90px] text-gray-500">Ghi chú:</span>
-    <span class="text-black">{{ selectedOrder.note }}</span>
-  </p>
-
-  <p v-if="selectedOrder.status === 'cancelled' && selectedOrder.cancel_note" class="flex gap-1 pb-2">
-    <span class="min-w-[90px] text-gray-500">Ghi chú thêm:</span>
-    <span class="text-black">{{ selectedOrder.cancel_note }}</span>
-  </p>
-
-  <p class="flex gap-1 pb-2">
-    <span class="min-w-[90px] text-gray-500">Tổng tiền:</span>
-    <span class="text-black">{{ formatPrice(selectedOrder.final_price) }}</span>
-  </p>
-  <p v-if="selectedOrder.shipping && selectedOrder.shipping.shipping_fee > 0"
-     class="flex gap-1 pb-2 text-xs text-gray-500">
-    <span class="min-w-[90px]">Phí vận chuyển:</span>
-    <span>{{ formatPrice(selectedOrder.shipping.shipping_fee) }}</span>
-  </p>
-  <p v-if="selectedOrder.discount_price > 0" class="flex gap-1 pb-2 text-xs text-gray-500">
-    <span class="min-w-[90px]">Mã giảm giá đã dùng:</span>
-    <span>{{ formatPrice(selectedOrder.discount_price) }}</span>
-  </p>
-
-</div>
-
+                <!-- Box 1: Thông tin đơn hàng -->
+                <div class="flex-1 border border-gray-200 rounded-lg p-4 space-y-1 flex flex-col justify-between">
+                  <div class="flex items-center gap-2 text-gray-500 mb-1">
+                    <span class="font-medium text-gray-900">Thông tin đơn hàng</span>
+                  </div>
+                  <p class="flex gap-1 pb-2">
+                    <span class="min-w-[90px] text-gray-500">Mã vận đơn:</span>
+                    <span class="text-black">{{ selectedOrder.shipping?.tracking_code || '-' }}</span>
+                  </p>
+                  <p class="flex gap-1 pb-2">
+                    <span class="min-w-[90px] text-gray-500">Ngày đặt:</span>
+                    <span class="text-black">{{ formatDate(selectedOrder.created_at) }}</span>
+                  </p>
+                  <p class="flex gap-1 pb-2">
+                    <span class="min-w-[90px] text-gray-500">Trạng thái:</span>
+                    <span :class="statusClass(selectedOrder.status)" class="text-xs px-2 py-1 rounded-full">
+                      {{ statusText(selectedOrder.status) }}
+                    </span>
+                  </p>
+                  <p v-if="selectedOrder.shipping?.status" class="flex gap-1 pb-2">
+                    <span class="min-w-[90px] text-gray-500">Trạng thái giao hàng:</span>
+                    <span :class="statusClass(selectedOrder.shipping.status)" class="text-xs px-2 py-1 rounded-full">
+                      {{ statusText(selectedOrder.shipping.status) }}
+                    </span>
+                  </p>
+                  <p v-if="['failed', 'failed_delivery', 'rejected_by_customer'].includes(selectedOrder.status)"
+                    class="flex gap-1 pb-2">
+                    <span class="min-w-[90px] text-gray-500">Lý do thất bại:</span>
+                    <span class="text-black">{{ selectedOrder.failure_reason || '-' }}</span>
+                  </p>
+                  <p class="flex gap-1 pb-2">
+                    <span class="min-w-[90px] text-gray-500">Tổng tiền:</span>
+                    <span class="text-black">{{ formatPrice(selectedOrder.final_price) }}</span>
+                  </p>
+                  <p v-if="selectedOrder.shipping && selectedOrder.shipping.shipping_fee > 0"
+                    class="flex gap-1 pb-2 text-xs text-gray-500">
+                    <span class="min-w-[90px]">Phí vận chuyển:</span>
+                    <span>{{ formatPrice(selectedOrder.shipping.shipping_fee) }}</span>
+                  </p>
+                  <p v-if="selectedOrder.discount_price > 0" class="flex gap-1 pb-2 text-xs text-gray-500">
+                    <span class="min-w-[90px]">Mã giảm giá đã dùng:</span>
+                    <span>{{ formatPrice(selectedOrder.discount_price) }}</span>
+                  </p>
+                  <p v-if="selectedOrder.note" class="flex gap-1 pb-2">
+                    <span class="min-w-[90px] text-gray-500">Ghi chú:</span>
+                    <span class="text-black">{{ selectedOrder.note }}</span>
+                  </p>
+                </div>
                 <!-- Box 2: Thông tin khách hàng -->
                 <div class="flex-1 border border-gray-200 rounded-lg p-4 flex flex-col space-y-2 text-sm text-gray-700">
                   <div class="flex items-center gap-2 text-gray-500">

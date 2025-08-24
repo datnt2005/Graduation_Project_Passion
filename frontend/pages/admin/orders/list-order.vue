@@ -29,10 +29,10 @@
           :class="['px-4 py-2 rounded', activeTab === 'payouts' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700']">
           Thanh toán đã cập nhật
         </button>
-        <button @click="activeTab = 'logs'; fetchLogs()"
+        <!-- <button @click="activeTab = 'logs'; fetchLogs()"
           :class="['px-4 py-2 rounded', activeTab === 'logs' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700']">
           Nhật ký đồng bộ
-        </button>
+        </button> -->
         <button @click="activeTab = 'refunds'; fetchRefunds()"
           :class="['px-4 py-2 rounded', activeTab === 'refunds' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700']">
           Yêu cầu hoàn tiền

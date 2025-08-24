@@ -12,31 +12,31 @@ use Illuminate\Support\Facades\Validator;
 
 class CategoryController extends Controller
 {
-   public function index(Request $request)
-{
-    try {
-        // Dùng cache cho toàn bộ danh sách danh mục
-        $cacheKey = "all_categories";
+    public function index(Request $request)
+    {
+        try {
+            // Dùng cache cho toàn bộ danh sách danh mục
+            $cacheKey = "all_categories";
 
-        $categories = Cache::store('redis')->tags(['categories'])->remember($cacheKey, 3600, function () {
-            return Category::with('parent')->get();
-        });
+            $categories = Cache::store('redis')->tags(['categories'])->remember($cacheKey, 3600, function () {
+                return Category::with('parent')->get();
+            });
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Lấy danh sách danh mục thành công.',
-            'data' => $categories
-        ], 200);
-    } catch (\Exception $e) {
-        Log::error('Lỗi khi lấy danh sách danh mục: ' . $e->getMessage());
+            return response()->json([
+                'success' => true,
+                'message' => 'Lấy danh sách danh mục thành công.',
+                'data' => $categories
+            ], 200);
+        } catch (\Exception $e) {
+            Log::error('Lỗi khi lấy danh sách danh mục: ' . $e->getMessage());
 
-        return response()->json([
-            'success' => false,
-            'message' => 'Đã xảy ra lỗi khi lấy danh sách danh mục.',
-            'error' => config('app.debug') ? $e->getMessage() : null
-        ], 500);
+            return response()->json([
+                'success' => false,
+                'message' => 'Đã xảy ra lỗi khi lấy danh sách danh mục.',
+                'error' => config('app.debug') ? $e->getMessage() : null
+            ], 500);
+        }
     }
-}
 
     public function show($id)
     {
@@ -286,7 +286,8 @@ class CategoryController extends Controller
         }
     }
 
-    public function parents($id)
+
+    public function parents(Request $request, $id)
     {
         try {
             $category = Category::find($id);
@@ -298,16 +299,37 @@ class CategoryController extends Controller
                 ], 404);
             }
 
+            // Lấy tham số limit (0 hoặc không truyền = không giới hạn)
+            $limit = (int) $request->query('limit', 0);
+            if ($limit < 0) $limit = 0;
+
+            // Nếu là danh mục gốc thì không có cha
+            if ($category->parent_id == null) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Danh mục này không có danh mục cha.',
+                    'categories' => [],
+                ], 200);
+            }
+
             $parents = [];
             while ($category->parent) {
                 $parents[] = $category->parent;
                 $category = $category->parent;
             }
 
+            // Đảo để có thứ tự từ gốc -> cha gần nhất
+            $parents = array_reverse($parents);
+
+            // Áp dụng limit nếu có (>0), không thì giữ nguyên
+            if ($limit > 0) {
+                $parents = array_slice($parents, 0, $limit);
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => 'Lấy danh sách danh mục cha thành công.',
-                'categories' => array_reverse($parents),
+                'categories' => $parents,
             ], 200);
         } catch (\Exception $e) {
             Log::error('Lỗi khi lấy danh mục cha ID ' . $id . ': ' . $e->getMessage());
@@ -318,6 +340,7 @@ class CategoryController extends Controller
             ], 500);
         }
     }
+
 
     protected function clearCategoryCache()
     {
