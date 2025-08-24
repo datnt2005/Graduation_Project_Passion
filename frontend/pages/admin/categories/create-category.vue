@@ -242,7 +242,7 @@ const fetchCategories = async () => {
         Accept: 'application/json'
       }
     }, ['admin']);
-    categories.value = data.data.data || [];
+    categories.value = data.data || [];
   } catch (error) {
     console.error('Error fetching categories:', error);
     showNotificationMessage('Có lỗi xảy ra khi lấy danh sách danh mục' , 'error');
