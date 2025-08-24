@@ -59,7 +59,7 @@ class Order extends Model
             'delivered' => 'Đã giao hàng',
             'cancelled' => 'Đã hủy',
             'failed' => 'Giao thất bại',
-            'refunded' => 'Đã hoàn tiền',
+            'refunded' => 'Đã hoàn trả',
             'failed_delivery' => 'Giao không thành công',
             'rejected_by_customer' => 'Khách từ chối nhận',
         ];

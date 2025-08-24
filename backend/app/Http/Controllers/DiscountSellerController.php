@@ -136,15 +136,11 @@ class DiscountSellerController extends Controller
     public function show($id)
     {
         try {
-            \Log::info('show method called with id:', ['id' => $id]);
             $user = Auth::user();
-            \Log::info('User in show:', ['user' => $user]);
 
             $seller = $user->seller;
-            \Log::info('Seller in show:', ['seller' => $seller]);
 
             if (!$seller) {
-                \Log::error('No seller found in show method');
                 return response()->json([
                     'success' => false,
                     'message' => 'Không tìm thấy seller'
@@ -155,7 +151,6 @@ class DiscountSellerController extends Controller
                 ->where('seller_id', $seller->id)
                 ->findOrFail($id);
 
-            \Log::info('Discount found:', ['discount' => $discount]);
 
             return response()->json([
                 'success' => true,
@@ -163,7 +158,6 @@ class DiscountSellerController extends Controller
                 'data' => $discount
             ], 200);
         } catch (\Exception $e) {
-            \Log::error('Error in show method:', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             return response()->json([
                 'success' => false,
                 'message' => 'Không tìm thấy mã giảm giá'
@@ -539,15 +533,11 @@ class DiscountSellerController extends Controller
     public function sellerProducts(Request $request)
     {
         try {
-            \Log::info('sellerProducts method called');
             $user = Auth::user();
-            \Log::info('User:', ['user' => $user]);
 
             $seller = $user->seller;
-            \Log::info('Seller:', ['seller' => $seller]);
 
             if (!$seller) {
-                \Log::error('No seller found for user');
                 return response()->json([
                     'success' => false,
                     'message' => 'Không tìm thấy seller'
@@ -556,7 +546,6 @@ class DiscountSellerController extends Controller
 
             $perPage = $request->get('per_page', 1000);
             $discountId = $request->get('discount_id'); // Thêm parameter để lấy discount_id
-            \Log::info('Per page:', ['per_page' => $perPage, 'discount_id' => $discountId]);
 
             // Base query cho tất cả sản phẩm của seller
             $query = \App\Models\Product::where('seller_id', $seller->id);
@@ -581,12 +570,9 @@ class DiscountSellerController extends Controller
                       ->where('admin_status', 'approved');
             }
 
-            \Log::info('Query built for seller_id:', ['seller_id' => $seller->id, 'discount_id' => $discountId]);
 
             // Luôn trả về array để frontend dễ xử lý
             $products = $query->paginate($perPage);
-            \Log::info('Products found:', ['count' => $products->count()]);
-            \Log::info('Products details:', ['products' => $products->items()]);
 
             return response()->json([
                 'success' => true,
@@ -594,7 +580,6 @@ class DiscountSellerController extends Controller
                 'data' => $products->items()
             ], 200);
         } catch (\Exception $e) {
-            \Log::error('Error in sellerProducts:', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             return response()->json([
                 'success' => false,
                 'message' => 'Lỗi khi lấy sản phẩm: ' . $e->getMessage()

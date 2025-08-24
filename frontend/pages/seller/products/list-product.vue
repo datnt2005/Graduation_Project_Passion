@@ -5,13 +5,6 @@
       <div class="bg-white px-4 py-4 flex items-center justify-between border-b border-gray-200">
         <h1 class="text-xl font-semibold text-gray-800">Quản lý sản phẩm</h1>
         <div class="flex items-center gap-3">
-          <button @click="openApprovalHistory"
-            class="inline-flex items-center px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors duration-150">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            Lịch sử xét duyệt
-          </button>
           <button @click="router.push('/seller/products/create-product')"
             class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-150">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -912,28 +905,6 @@ const showConfirmationDialog = (title, message, action) => {
   showConfirmDialog.value = true;
 };
 
-// Fetch approval history
-const fetchApprovalHistory = async () => {
-  try {
-    const data = await secureFetch(`${apiBase}/products/approvals/seller/history`, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' }
-    }, ['seller']);
-    if (!data.success) throw new Error(`HTTP error! status: ${data.status}`);
-    approvalHistory.value = data.data || [];
-    if (!approvalHistory.value.length) {
-      showNotificationMessage('Không có lịch sử xét duyệt nào.', 'info');
-    }
-  } catch (error) {
-    console.error('Error fetching approval history:', error);
-    showNotificationMessage('Có lỗi xảy ra khi tải lịch sử xét duyệt', 'error');
-  }
-};
-
-const openApprovalHistory = async () => {
-  await fetchApprovalHistory();
-  showApprovalHistory.value = true;
-};
 
 const closeApprovalHistory = () => {
   showApprovalHistory.value = false;

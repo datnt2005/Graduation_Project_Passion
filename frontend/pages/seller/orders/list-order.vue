@@ -34,7 +34,7 @@
               <option value="shipping">Đang giao</option>
               <option value="delivered">Đã giao</option>
               <option value="cancelled">Đã hủy</option>
-              <option value="refunded">Đã hoàn tiền</option>
+              <option value="refunded">Đã hoàn trả</option>
               <option value="failed">Giao thất bại</option>
               <option value="failed_delivery">Giao không thành công</option>
               <option value="rejected_by_customer">Khách từ chối nhận</option>
@@ -1306,7 +1306,7 @@ const statusText = (status) => {
     case 'shipping': return 'Đang giao';
     case 'delivered': return 'Đã giao';
     case 'cancelled': return 'Đã hủy';
-    case 'refunded': return 'Đã hoàn tiền';
+    case 'refunded': return 'Đã hoàn trả';
     case 'failed': return 'Giao thất bại';
     case 'failed_delivery': return 'Giao không thành công';
     case 'rejected_by_customer': return 'Khách từ chối nhận';
@@ -1476,7 +1476,7 @@ const availableStatuses = computed(() => {
     { value: 'shipping', label: 'Đang giao' },
     { value: 'delivered', label: 'Đã giao' },
     { value: 'cancelled', label: 'Đã hủy' },
-    { value: 'refunded', label: 'Đã hoàn tiền' },
+    { value: 'refunded', label: 'Đã hoàn trả' },
     { value: 'failed', label: 'Giao thất bại' },
     { value: 'failed_delivery', label: 'Giao không thành công' },
     { value: 'rejected_by_customer', label: 'Khách từ chối nhận' }
@@ -1604,7 +1604,7 @@ const confirmUpdateStatus = async () => {
                 shipping: 'Đang giao',
                 delivered: 'Đã giao',
                 cancelled: 'Đã hủy',
-                refunded: 'Đã hoàn tiền',
+                refunded: 'Đã hoàn trả',
                 failed: 'Giao thất bại',
                 failed_delivery: 'Giao không thành công',
                 rejected_by_customer: 'Khách từ chối nhận',

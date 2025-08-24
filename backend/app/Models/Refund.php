@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Refund extends Model
 {
     protected $fillable = [
-        'order_id', // Thay 'order_id' bằng 'order_item_id'
+        'order_id', 
         'user_id',
         'reason',
         'status',

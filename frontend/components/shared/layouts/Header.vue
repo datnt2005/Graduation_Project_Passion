@@ -44,29 +44,44 @@
                   class="p-3 hover:bg-gray-50 flex gap-3 items-start transition group" :class="{
                     'opacity-60': item.is_read === 1,
                     'cursor-pointer': true,
-                  }" @click="
-                    item.link
-                      ? redirectToLink(item)
-                      : openNotificationModal(item)
-                    ">
-                  <img v-if="item.image_url" :src="item.image_url" alt="Ảnh" class="w-12 h-12 object-cover rounded" />
-                  <div class="flex-1 min-w-0">
-                    <div class="flex justify-between items-center">
-                      <span class="text-gray-800 font-semibold truncate" :class="{ 'font-bold': item.is_read === 0 }">
-                        {{ item.title }}
-                      </span>
-                      <span v-if="item.is_read === 0" class="w-2 h-2 bg-blue-500 rounded-full inline-block"></span>
+                  }">
+                  <NuxtLink v-if="item.link" :to="normalizeLink(item.link)" @click.prevent="handleNotificationClick(item)">
+                    <img v-if="item.image_url" :src="item.image_url" alt="Ảnh" class="w-12 h-12 object-cover rounded" />
+                    <div class="flex-1 min-w-0">
+                      <div class="flex justify-between items-center">
+                        <span class="text-gray-800 font-semibold truncate" :class="{ 'font-bold': item.is_read === 0 }">
+                          {{ item.title }}
+                        </span>
+                        <span v-if="item.is_read === 0" class="w-2 h-2 bg-blue-500 rounded-full inline-block"></span>
+                      </div>
+                      <p class="text-gray-500 text-sm mt-1 break-words line-clamp-2">
+                        {{ stripHTML(item.content) || "Không có nội dung" }}
+                      </p>
+                      <p class="text-gray-500 text-xs mt-1 flex justify-between items-center">
+                        <span>{{ item.time_ago || "Vừa xong" }}</span>
+                        <button v-if="item.link" @click.stop="openNotificationModal(item)"
+                          class="text-blue-600 hover:underline text-xs font-medium">
+                          Xem chi tiết
+                        </button>
+                      </p>
                     </div>
-                    <p class="text-gray-500 text-sm mt-1 break-words line-clamp-2">
-                      {{ stripHTML(item.content) || "Không có nội dung" }}
-                    </p>
-                    <p class="text-gray-500 text-xs mt-1 flex justify-between items-center">
-                      <span>{{ item.time_ago || "Vừa xong" }}</span>
-                      <button v-if="item.link" @click.stop="openNotificationModal(item)"
-                        class="text-blue-600 hover:underline text-xs font-medium">
-                        Xem chi tiết
-                      </button>
-                    </p>
+                  </NuxtLink>
+                  <div v-else @click="openNotificationModal(item)" class="cursor-pointer flex gap-3 items-start">
+                    <img v-if="item.image_url" :src="item.image_url" alt="Ảnh" class="w-12 h-12 object-cover rounded" />
+                    <div class="flex-1 min-w-0">
+                      <div class="flex justify-between items-center">
+                        <span class="text-gray-800 font-semibold truncate" :class="{ 'font-bold': item.is_read === 0 }">
+                          {{ item.title }}
+                        </span>
+                        <span v-if="item.is_read === 0" class="w-2 h-2 bg-blue-500 rounded-full inline-block"></span>
+                      </div>
+                      <p class="text-gray-500 text-sm mt-1 break-words line-clamp-2">
+                        {{ stripHTML(item.content) || "Không có nội dung" }}
+                      </p>
+                      <p class="text-gray-500 text-xs mt-1 flex justify-between items-center">
+                        <span>{{ item.time_ago || "Vừa xong" }}</span>
+                      </p>
+                    </div>
                   </div>
                 </li>
               </ul>
@@ -74,9 +89,8 @@
           </div>
 
           <!-- NGƯỜI DÙNG - Desktop only -->
-          <template v-if="isLoggedIn" class="hidden sm:inline-flex">
-            <span class="font-medium whitespace-nowrap hidden sm:inline">Xin chào, <strong>{{ userName
-            }}</strong></span>
+          <template v-if="isLoggedIn">
+            <span class="font-medium whitespace-nowrap hidden sm:inline">Xin chào, <strong>{{ userName }}</strong></span>
             <button @click="logout" class="hover:underline inline-flex items-center gap-1 text-white hidden sm:inline">
               <font-awesome-icon :icon="['fas', 'arrow-right-from-bracket']" />
               Đăng xuất
@@ -439,23 +453,34 @@
               <ul v-else class="space-y-2">
                 <li v-for="item in notifications" :key="item.id"
                   class="flex gap-2 items-start hover:bg-gray-50 p-2 rounded transition"
-                  :class="{ 'opacity-60': item.is_read === 1 }"
-                  @click="item.link ? redirectToLink(item) : openNotificationModal(item); isMobileMenuOpen = false">
-                  <img v-if="item.image_url" :src="item.image_url" alt="Ảnh" class="w-10 h-10 object-cover rounded" />
-                  <div class="flex-1">
-                    <div class="flex justify-between items-center">
-                      <span class="font-semibold truncate" :class="{ 'font-bold': item.is_read === 0 }">{{ item.title
-                        }}</span>
-                      <span v-if="item.is_read === 0" class="w-2 h-2 bg-blue-500 rounded-full"></span>
+                  :class="{ 'opacity-60': item.is_read === 1 }">
+                  <NuxtLink v-if="item.link" :to="normalizeLink(item.link)" @click.prevent="handleNotificationClick(item); isMobileMenuOpen = false">
+                    <img v-if="item.image_url" :src="item.image_url" alt="Ảnh" class="w-10 h-10 object-cover rounded" />
+                    <div class="flex-1">
+                      <div class="flex justify-between items-center">
+                        <span class="font-semibold truncate" :class="{ 'font-bold': item.is_read === 0 }">{{ item.title }}</span>
+                        <span v-if="item.is_read === 0" class="w-2 h-2 bg-blue-500 rounded-full"></span>
+                      </div>
+                      <p class="text-gray-500 text-xs mt-1 line-clamp-2">{{ stripHTML(item.content) || "Không có nội dung" }}</p>
+                      <p class="text-gray-500 text-xs mt-1 flex justify-between items-center">
+                        <span>{{ item.time_ago || "Vừa xong" }}</span>
+                        <button v-if="item.link" @click.stop="openNotificationModal(item); isMobileMenuOpen = false"
+                          class="text-blue-600 hover:underline text-xs">Xem chi tiết</button>
+                      </p>
                     </div>
-                    <p class="text-gray-500 text-xs mt-1 line-clamp-2">{{ stripHTML(item.content) || "Không có nội dung"
-                      }}
-                    </p>
-                    <p class="text-gray-500 text-xs mt-1 flex justify-between items-center">
-                      <span>{{ item.time_ago || "Vừa xong" }}</span>
-                      <button v-if="item.link" @click.stop="openNotificationModal(item); isMobileMenuOpen = false"
-                        class="text-blue-600 hover:underline text-xs">Xem chi tiết</button>
-                    </p>
+                  </NuxtLink>
+                  <div v-else @click="openNotificationModal(item); isMobileMenuOpen = false" class="cursor-pointer flex gap-2 items-start">
+                    <img v-if="item.image_url" :src="item.image_url" alt="Ảnh" class="w-10 h-10 object-cover rounded" />
+                    <div class="flex-1">
+                      <div class="flex justify-between items-center">
+                        <span class="font-semibold truncate" :class="{ 'font-bold': item.is_read === 0 }">{{ item.title }}</span>
+                        <span v-if="item.is_read === 0" class="w-2 h-2 bg-blue-500 rounded-full"></span>
+                      </div>
+                      <p class="text-gray-500 text-xs mt-1 line-clamp-2">{{ stripHTML(item.content) || "Không có nội dung" }}</p>
+                      <p class="text-gray-500 text-xs mt-1 flex justify-between items-center">
+                        <span>{{ item.time_ago || "Vừa xong" }}</span>
+                      </p>
+                    </div>
                   </div>
                 </li>
               </ul>
@@ -502,7 +527,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from "vue";
+import { ref, onMounted, onUnmounted, computed } from "vue";
+import { debounce } from 'lodash';
+import { useRouter } from 'vue-router'; // Thêm import useRouter
 import axios from "axios";
 import Features from "~/components/shared/Features.vue";
 import SearchBar from "~/components/shared/filters/SearchBar.vue";
@@ -512,6 +539,7 @@ import { useCartStore } from "~/stores/cart";
 import { useRuntimeConfig } from "#imports";
 import { useSettings } from "~/composables/useSettings";
 
+const router = useRouter(); // Khởi tạo router
 const cartStore = useCartStore();
 const { toast } = useToast();
 const config = useRuntimeConfig();
@@ -533,17 +561,38 @@ const notificationDropdownOpen = ref(false);
 const currentNotification = ref(null);
 const showNotificationModal = ref(false);
 const categories = ref([]);
+const isRedirecting = ref(false);
 
-const redirectToLink = async (item) => {
-  await markAsRead(item);
-  window.location.href = item.link;
+const normalizeLink = (link) => {
+  if (!link) return '#';
+  return link.startsWith('http') ? link : `/${link.replace(/^\//, '')}`;
 };
+
+const handleNotificationClick = debounce(async (item) => {
+  if (isRedirecting.value) return;
+  isRedirecting.value = true;
+
+  try {
+    console.log('Chuyển hướng đến link:', item.link);
+    await markAsRead(item);
+    const normalizedLink = normalizeLink(item.link);
+    console.log('Đường dẫn chuẩn hóa:', normalizedLink);
+    router.push(normalizedLink); // Sử dụng router.push để điều hướng
+  } catch (error) {
+    console.error('Lỗi khi xử lý click thông báo:', error);
+  } finally {
+    setTimeout(() => {
+      isRedirecting.value = false;
+    }, 1000);
+  }
+}, 500);
 
 const openNotificationModal = async (item) => {
   await markAsRead(item);
   currentNotification.value = item;
   showNotificationModal.value = true;
   notificationDropdownOpen.value = false;
+  isMobileMenuOpen.value = false;
 };
 
 const stripHTML = (html) => {

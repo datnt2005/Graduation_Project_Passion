@@ -313,7 +313,7 @@ const statusText = (status) => ({
   cancelled: 'Đã huỷ',
   completed: 'Đã thanh toán',
   failed: 'Giao thất bại',
-  refunded: 'Đã hoàn tiền',
+  refunded: 'Đã hoàn trả',
   returned: 'Đã trả hàng',
   success: 'Thành công',
   paid: 'Đã thanh toán',

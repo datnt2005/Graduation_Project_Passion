@@ -4,6 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Refund;
 use App\Models\Order;
+use App\Models\User;
+use App\Models\Notification;
+use App\Models\NotificationRecipient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Response;
@@ -12,184 +15,180 @@ use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 
+
 class RefundController extends Controller
 {
-   public function index(Request $request)
-{
-    try {
-        $user = Auth::user();
-        if (!$user) {
-            Log::warning('Unauthorized access attempt to refunds endpoint', [
-                'ip' => $request->ip(),
-                'user_agent' => $request->userAgent()
+    public function index(Request $request)
+    {
+        try {
+            $user = Auth::user();
+            if (!$user) {
+                Log::warning('Unauthorized access attempt to refunds endpoint', [
+                    'ip' => $request->ip(),
+                    'user_agent' => $request->userAgent()
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Chưa đăng nhập. Vui lòng đăng nhập lại.'
+                ], 401);
+            }
+
+            Log::info('Fetching refunds for user:', [
+                'user_id' => $user->id,
+                'role' => $user->role,
+                'email' => $user->email
+            ]);
+
+            $query = Refund::query()
+                ->with([
+                    'order' => fn($q) => $q->select('id', 'user_id')->with([
+                        'shipping' => fn($q) => $q->select('id', 'order_id', 'tracking_code', 'shipping_fee')
+                    ]),
+                    'user' => fn($q) => $q->select('id', 'name', 'email')
+                ])
+                ->select('id', 'order_id', 'user_id', 'reason', 'status', 'amount', 'bank_account_number', 'bank_name', 'created_at', 'updated_at')
+                ->latest();
+
+            if ($request->filled('order_id')) {
+                $query->where('order_id', $request->order_id);
+            }
+
+            if ($user->role !== 'admin') {
+                $query->where('user_id', $user->id);
+            }
+
+            $refunds = $query->get();
+
+            // Format dữ liệu để log + trả response đồng bộ
+            $formattedRefunds = $refunds->map(function ($refund) {
+                return [
+                    'id' => $refund->id,
+                    'order_id' => $refund->order_id,
+                    'user_id' => $refund->user_id,
+                    'reason' => $refund->reason,
+                    'status' => $refund->status,
+                    'amount' => (float)$refund->amount,
+                    'bank_account_number' => $refund->bank_account_number,
+                    'bank_name' => $refund->bank_name,
+                    'created_at' => $refund->created_at?->toISOString(),
+                    'updated_at' => $refund->updated_at?->toISOString(),
+                    'order' => $refund->order ? [
+                        'id' => $refund->order->id,
+                        'shipping' => $refund->order->shipping ? [
+                            'tracking_code' => $refund->order->shipping->tracking_code,
+                            'shipping_fee' => (float)($refund->order->shipping->shipping_fee ?? 0),
+                        ] : null,
+                    ] : null,
+                    'user' => $refund->user ? [
+                        'id' => $refund->user->id,
+                        'name' => $refund->user->name,
+                        'email' => $refund->user->email,
+                    ] : null,
+                ];
+            });
+
+            // Log sau khi format
+            Log::info('Refunds retrieved:', [
+                'count' => $formattedRefunds->count(),
+                'data' => $formattedRefunds
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'data' => $formattedRefunds
+            ], 200);
+        } catch (\Exception $e) {
+            Log::error('Error fetching refunds', [
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
             return response()->json([
                 'success' => false,
-                'message' => 'Chưa đăng nhập. Vui lòng đăng nhập lại.'
-            ], 401);
+                'message' => 'Lỗi khi tải danh sách hoàn tiền: ' . $e->getMessage()
+            ], 500);
         }
+    }
 
-        Log::info('Fetching refunds for user:', [
-            'user_id' => $user->id,
-            'role' => $user->role,
-            'email' => $user->email
-        ]);
+    public function show($id)
+    {
+        try {
+            $user = Auth::user();
+            if (!$user) {
+                Log::warning('Unauthorized access attempt to refund details', [
+                    'ip' => request()->ip(),
+                    'user_agent' => request()->userAgent(),
+                    'refund_id' => $id
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Chưa đăng nhập. Vui lòng đăng nhập lại.'
+                ], 401);
+            }
 
-        $query = Refund::query()
-            ->with([
+            $query = Refund::with([
                 'order' => fn($query) => $query->select('id', 'user_id')->with([
                     'shipping' => fn($query) => $query->select('id', 'order_id', 'tracking_code', 'shipping_fee')
                 ]),
                 'user' => fn($query) => $query->select('id', 'name', 'email')
-            ])
-            ->select('id', 'order_id', 'user_id', 'reason', 'status', 'amount', 'bank_account_number', 'bank_name', 'created_at', 'updated_at')
-            ->latest();
+            ])->select('id', 'order_id', 'user_id', 'reason', 'status', 'amount', 'bank_account_number', 'bank_name', 'created_at', 'updated_at');
 
-        if ($request->has('order_id') && !empty($request->order_id)) {
-            $query->where('order_id', $request->order_id);
-        }
+            if ($user->role !== 'admin') {
+                $query->where('user_id', $user->id);
+            }
 
-        if ($user->role !== 'admin') {
-            $query->where('user_id', $user->id);
-        }
+            $refund = $query->findOrFail($id);
 
-        $perPage = $request->query('per_page', 10);
-        $refunds = $query->paginate($perPage);
+            Log::info('Refund details retrieved:', [
+                'refund_id' => $refund->id,
+                'user_id' => $user->id,
+                'role' => $user->role
+            ]);
 
-        Log::info('Refunds retrieved:', [
-            'count' => $refunds->total(),
-            'data' => $refunds->items()
-        ]);
-
-        $formattedRefunds = $refunds->getCollection()->map(function ($refund) {
-            return [
-                'id' => $refund->id,
-                'order_id' => $refund->order_id,
-                'user_id' => $refund->user_id,
-                'reason' => $refund->reason,
-                'status' => $refund->status,
-                'amount' => (float)$refund->amount,
-                'bank_account_number' => $refund->bank_account_number,
-                'bank_name' => $refund->bank_name,
-                'created_at' => $refund->created_at ? $refund->created_at->toISOString() : null,
-                'updated_at' => $refund->updated_at ? $refund->updated_at->toISOString() : null,
-                'order' => $refund->order ? [
-                    'id' => $refund->order->id,
-                    'shipping' => $refund->order->shipping ? [
-                        'tracking_code' => $refund->order->shipping->tracking_code,
-                        'shipping_fee' => (float)($refund->order->shipping->shipping_fee ?? 0),
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'id' => $refund->id,
+                    'order_id' => $refund->order_id,
+                    'user_id' => $refund->user_id,
+                    'reason' => $refund->reason,
+                    'status' => $refund->status,
+                    'amount' => (float)$refund->amount,
+                    'bank_account_number' => $refund->bank_account_number,
+                    'bank_name' => $refund->bank_name,
+                    'created_at' => $refund->created_at ? $refund->created_at->toISOString() : null,
+                    'updated_at' => $refund->updated_at ? $refund->updated_at->toISOString() : null,
+                    'order' => $refund->order ? [
+                        'id' => $refund->order->id,
+                        'shipping' => $refund->order->shipping ? [
+                            'tracking_code' => $refund->order->shipping->tracking_code,
+                            'shipping_fee' => (float)($refund->order->shipping->shipping_fee ?? 0),
+                        ] : null,
                     ] : null,
-                ] : null,
-                'user' => $refund->user ? [
-                    'id' => $refund->user->id,
-                    'name' => $refund->user->name,
-                    'email' => $refund->user->email,
-                ] : null,
-            ];
-        });
-
-        return response()->json([
-            'success' => true,
-            'data' => $formattedRefunds,
-            'pagination' => [
-                'current_page' => $refunds->currentPage(),
-                'last_page' => $refunds->lastPage(),
-                'per_page' => $refunds->perPage(),
-                'total' => $refunds->total(),
-            ],
-        ], 200);
-    } catch (\Exception $e) {
-        Log::error('Error fetching refunds', [
-            'user_id' => Auth::id(),
-            'error' => $e->getMessage(),
-            'trace' => $e->getTraceAsString()
-        ]);
-        return response()->json([
-            'success' => false,
-            'message' => 'Lỗi khi tải danh sách hoàn tiền: ' . $e->getMessage()
-        ], 500);
-    }
-}
-
-    public function show($id)
-{
-    try {
-        $user = Auth::user();
-        if (!$user) {
-            Log::warning('Unauthorized access attempt to refund details', [
-                'ip' => request()->ip(),
-                'user_agent' => request()->userAgent(),
-                'refund_id' => $id
+                    'user' => $refund->user ? [
+                        'id' => $refund->user->id,
+                        'name' => $refund->user->name,
+                        'email' => $refund->user->email,
+                    ] : null,
+                ]
+            ], 200);
+        } catch (\Exception $e) {
+            Log::error('Error fetching refund details', [
+                'refund_id' => $id,
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
             return response()->json([
                 'success' => false,
-                'message' => 'Chưa đăng nhập. Vui lòng đăng nhập lại.'
-            ], 401);
+                'message' => 'Không thể lấy thông tin hoàn tiền: ' . $e->getMessage()
+            ], 404);
         }
-
-        $query = Refund::with([
-            'order' => fn($query) => $query->select('id', 'user_id')->with([
-                'shipping' => fn($query) => $query->select('id', 'order_id', 'tracking_code', 'shipping_fee')
-            ]),
-            'user' => fn($query) => $query->select('id', 'name', 'email')
-        ])->select('id', 'order_id', 'user_id', 'reason', 'status', 'amount', 'bank_account_number', 'bank_name', 'created_at', 'updated_at');
-
-        if ($user->role !== 'admin') {
-            $query->where('user_id', $user->id);
-        }
-
-        $refund = $query->findOrFail($id);
-
-        Log::info('Refund details retrieved:', [
-            'refund_id' => $refund->id,
-            'user_id' => $user->id,
-            'role' => $user->role
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'id' => $refund->id,
-                'order_id' => $refund->order_id,
-                'user_id' => $refund->user_id,
-                'reason' => $refund->reason,
-                'status' => $refund->status,
-                'amount' => (float)$refund->amount,
-                'bank_account_number' => $refund->bank_account_number,
-                'bank_name' => $refund->bank_name,
-                'created_at' => $refund->created_at ? $refund->created_at->toISOString() : null,
-                'updated_at' => $refund->updated_at ? $refund->updated_at->toISOString() : null,
-                'order' => $refund->order ? [
-                    'id' => $refund->order->id,
-                    'shipping' => $refund->order->shipping ? [
-                        'tracking_code' => $refund->order->shipping->tracking_code,
-                        'shipping_fee' => (float)($refund->order->shipping->shipping_fee ?? 0),
-                    ] : null,
-                ] : null,
-                'user' => $refund->user ? [
-                    'id' => $refund->user->id,
-                    'name' => $refund->user->name,
-                    'email' => $refund->user->email,
-                ] : null,
-            ]
-        ], 200);
-    } catch (\Exception $e) {
-        Log::error('Error fetching refund details', [
-            'refund_id' => $id,
-            'user_id' => Auth::id(),
-            'error' => $e->getMessage(),
-            'trace' => $e->getTraceAsString()
-        ]);
-        return response()->json([
-            'success' => false,
-            'message' => 'Không thể lấy thông tin hoàn tiền: ' . $e->getMessage()
-        ], 404);
     }
-}
 
 
 
- public function store(Request $request)
+    public function store(Request $request)
     {
         try {
             $validator = Validator::make($request->all(), [
@@ -223,7 +222,7 @@ class RefundController extends Controller
 
             if ($validator->fails()) {
                 // Chỉ trả về lỗi đầu tiên, ưu tiên bank_account_number
-                $errorMessage = $validator->errors()->first('bank_account_number') 
+                $errorMessage = $validator->errors()->first('bank_account_number')
                     ?: $validator->errors()->first();
                 return response()->json([
                     'success' => false,
@@ -261,6 +260,18 @@ class RefundController extends Controller
             if ($data['status'] === 'approved') {
                 $order->update(['status' => 'refunded', 'note' => $data['reason']]);
             }
+            $notification = Notification::create([
+                'title' => 'Yêu cầu hoàn tiền',
+                'content' => "Bạn vừa nhận được một yêu cầu hoàn tiền mới.",
+                'type' => 'system',
+                'link' => "/admin/orders/list-order",
+                'user_id' => $refund->user_id,
+                'from_role' => 'admin',
+                'channels' => json_encode(['dashboard']),
+                'status' => 'sent',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -342,6 +353,28 @@ class RefundController extends Controller
             $order->note = $refund->reason;
             $order->save();
 
+            $notification = Notification::create([
+                'title' => 'Yêu cầu hoàn tiền',
+                'content' => "Yêu cầu hoàn tiền của bạn đã được cập nhật",
+                'type' => 'system',
+                'link' => "/users/orders",
+                'user_id' => $refund->user_id,
+                'from_role' => 'customer',
+                'channels' => json_encode(['dashboard']),
+                'status' => 'sent',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            NotificationRecipient::create([
+                'notification_id' => $notification->id,
+                'user_id' => $refund->user_id,
+                'is_read' => false,
+                'is_hidden' => false,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
             return response()->json([
                 'success' => true,
                 'data' => [
@@ -417,204 +450,252 @@ class RefundController extends Controller
     }
 
     public function getByOrderId($id)
-{
-    try {
-        $user = Auth::user();
-        if (!$user) {
-            Log::warning('Unauthorized access attempt to refund by order endpoint', [
-                'ip' => request()->ip(),
-                'user_agent' => request()->userAgent(),
-                'order_id' => $id
+    {
+        try {
+            $user = Auth::user();
+            if (!$user) {
+                Log::warning('Unauthorized access attempt to refund by order endpoint', [
+                    'ip' => request()->ip(),
+                    'user_agent' => request()->userAgent(),
+                    'order_id' => $id
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Chưa đăng nhập. Vui lòng đăng nhập lại.'
+                ], 401);
+            }
+
+            $query = Refund::with([
+                'order' => function ($query) {
+                    $query->with('shipping');
+                },
+                'user'
+            ])->where('order_id', $id);
+
+            if ($user->role !== 'admin') {
+                $query->where('user_id', $user->id);
+            }
+
+            $refund = $query->first();
+
+            if (!$refund) {
+                return response()->json([
+                    'success' => true,
+                    'data' => null,
+                    'message' => 'Không tìm thấy yêu cầu hoàn tiền cho đơn hàng này.'
+                ], 200);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'id' => $refund->id,
+                    'order_id' => $refund->order_id,
+                    'user_id' => $refund->user_id,
+                    'reason' => $refund->reason,
+                    'status' => $refund->status,
+                    'amount' => (float)$refund->amount,
+                    'bank_account_number' => $refund->bank_account_number,
+                    'bank_name' => $refund->bank_name,
+                    'created_at' => $refund->created_at ? $refund->created_at->toISOString() : null,
+                    'updated_at' => $refund->updated_at ? $refund->updated_at->toISOString() : null,
+                    'order' => $refund->order ? [
+                        'id' => $refund->order->id,
+                        'shipping' => $refund->order->shipping ? [
+                            'tracking_code' => $refund->order->shipping->tracking_code,
+                            'shipping_fee' => (float)($refund->order->shipping->shipping_fee ?? 0),
+                        ] : null,
+                    ] : null,
+                    'user' => $refund->user ? [
+                        'id' => $refund->user->id,
+                        'name' => $refund->user->name,
+                        'email' => $refund->user->email,
+                    ] : null,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error fetching refund by order_id', [
+                'order_id' => $id,
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
             return response()->json([
                 'success' => false,
-                'message' => 'Chưa đăng nhập. Vui lòng đăng nhập lại.'
-            ], 401);
+                'message' => 'Lỗi khi lấy thông tin hoàn tiền: ' . $e->getMessage()
+            ], 500);
         }
+    }
 
-        $query = Refund::with([
-            'order' => function ($query) {
-                $query->with('shipping');
-            },
-            'user'
-        ])->where('order_id', $id);
+    public function process(Request $request, $orderId)
+    {
+        try {
+            // 1) Validate input
+            $validator = Validator::make($request->all(), [
+                'reason'              => 'required|string|min:10|max:1000',
+                'amount'              => 'required|numeric|min:0',
+                'bank_account_number' => 'required|string|max:50',
+                'bank_name'           => 'required|string|max:255',
+                'status'              => 'nullable|in:pending,approved,rejected',
+            ], [
+                'reason.required'              => 'Vui lòng nhập lý do hoàn tiền.',
+                'reason.string'                => 'Lý do hoàn tiền phải là chuỗi ký tự.',
+                'reason.min'                   => 'Lý do hoàn tiền phải có ít nhất :min ký tự.',
+                'reason.max'                   => 'Lý do hoàn tiền không được vượt quá :max ký tự.',
+                'amount.required'              => 'Vui lòng nhập số tiền hoàn.',
+                'amount.numeric'               => 'Số tiền hoàn phải là số.',
+                'amount.min'                   => 'Số tiền hoàn phải lớn hơn hoặc bằng 0.',
+                'bank_account_number.required' => 'Vui lòng nhập số tài khoản ngân hàng.',
+                'bank_account_number.string'   => 'Số tài khoản ngân hàng phải là chuỗi ký tự.',
+                'bank_account_number.max'      => 'Số tài khoản ngân hàng không được vượt quá :max ký tự.',
+                'bank_name.required'           => 'Vui lòng nhập tên ngân hàng.',
+                'bank_name.string'             => 'Tên ngân hàng phải là chuỗi ký tự.',
+                'bank_name.max'                => 'Tên ngân hàng không được vượt quá :max ký tự.',
+                'status.in'                    => 'Trạng thái không hợp lệ (chỉ chấp nhận: pending, approved, rejected).',
+            ]);
 
-        if ($user->role !== 'admin') {
-            $query->where('user_id', $user->id);
-        }
+            // Ưu tiên trả lỗi của bank_account_number
+            if ($validator->fails()) {
+                $errorMessage = $validator->errors()->first('bank_account_number')
+                    ?: $validator->errors()->first();
 
-        $refund = $query->first();
+                return response()->json([
+                    'success' => false,
+                    'message' => $errorMessage,
+                ], 422);
+            }
 
-        if (!$refund) {
+            $data = $validator->validated();
+
+            // 2) Tìm đơn hàng thuộc user hiện tại
+            $order = Order::with(['payments.paymentMethod', 'shipping'])
+                ->where('id', $orderId)
+                ->where('user_id', Auth::id())
+                ->firstOrFail();
+
+            // Số tiền tối đa có thể hoàn = final_price (VND)
+            $maxRefundAmount = max((float) ($order->final_price ?? 0), 0.0);
+
+            Log::info('Processing refund request', [
+                'order_id'        => $orderId,
+                'user_id'         => Auth::id(),
+                'final_price'     => $order->final_price,
+                'total_price'     => $order->total_price,
+                'shipping_fee'    => optional($order->shipping)->shipping_fee ?? 0,
+                'maxRefundAmount' => $maxRefundAmount,
+                'requested_amount' => $data['amount'],
+                'order_status'    => $order->status,
+            ]);
+
+            // 3) Chặn vượt trần
+            if ((float)$data['amount'] > $maxRefundAmount) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Số tiền hoàn không được vượt quá ' . number_format($maxRefundAmount, 0, ',', '.') . ' VND',
+                ], 422);
+            }
+
+            // 4) Không cho tạo trùng yêu cầu
+            if (Refund::where('order_id', $orderId)->exists()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Đơn hàng này đã có yêu cầu hoàn tiền.',
+                ], 422);
+            }
+
+            // 5) Xác định loại thanh toán
+            $hasPayments = $order->payments && $order->payments->count() > 0;
+            $hasCOD = $hasPayments && $order->payments->contains(function ($p) {
+                return strtolower(optional($p->paymentMethod)->name ?? '') === 'cod';
+            });
+            $hasNonCOD = $hasPayments && $order->payments->contains(function ($p) {
+                return strtolower(optional($p->paymentMethod)->name ?? '') !== 'cod';
+            });
+
+            // 6) Kiểm tra điều kiện đủ để hoàn tiền
+            //    - COD: CHỈ khi trạng thái = returned (đã hoàn hàng)
+            //    - Online (không COD): khi trạng thái thuộc 1 trong các case sau
+            $onlineEligibleStatuses = ['failed', 'failed_delivery', 'rejected_by_customer', 'refunded', 'returned'];
+            if ($hasCOD && !$hasNonCOD) {
+                // Đơn COD thuần
+                if (!in_array($order->status, ['returned', 'refunded'], true)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Đơn hàng COD chỉ được yêu cầu hoàn tiền khi trạng thái là "Đã trả hàng".',
+                    ], 422);
+                }
+            } else {
+                // Đơn online (không COD, hoặc pha trộn nhưng có non-COD)
+                if (!in_array($order->status, $onlineEligibleStatuses, true)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Chỉ hoàn tiền cho đơn hàng online khi trạng thái là: thất bại / giao không thành công / khách từ chối / đã hoàn trả / đã trả hàng.',
+                    ], 422);
+                }
+            }
+
+            // 7) Tạo refund trong transaction, duyệt -> cập nhật trạng thái đơn
+            $refund = DB::transaction(function () use ($data, $order, $orderId) {
+                $refund = Refund::create([
+                    'order_id'            => $orderId,
+                    'user_id'             => Auth::id(),
+                    'reason'              => $data['reason'],
+                    'amount'              => (float)$data['amount'],  // Frontend đã gửi VND
+                    'bank_account_number' => $data['bank_account_number'],
+                    'bank_name'           => $data['bank_name'],
+                    'status'              => $data['status'] ?? 'pending',
+                ]);
+
+                if ($refund->status === 'approved') {
+                    // Nếu duyệt ngay -> set trạng thái đơn thành refunded và ghi chú
+                    $order->update([
+                        'status' => 'refunded',
+                        'note'   => $data['reason'],
+                    ]);
+                }
+
+                return $refund;
+            });
+            $admins = User::where('role', 'admin')->first();
+            $admin_id = $admins ? $admins->id : 1;
+            $notification = Notification::create([
+                'title' => 'Yêu cầu hoàn tiền',
+                'content' => "Bạn vừa nhận được một yêu cầu hoàn tiền mới.",
+                'type' => 'system',
+                'link' => "/admin/orders/list-order",
+                'user_id' => $admin_id,
+                'from_role' => 'system',
+                'channels' => json_encode(['dashboard']),
+                'status' => 'sent',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
             return response()->json([
                 'success' => true,
-                'data' => null,
-                'message' => 'Không tìm thấy yêu cầu hoàn tiền cho đơn hàng này.'
-            ], 200);
-        }
+                'message' => 'Yêu cầu hoàn tiền đã được gửi',
+                'data'    => [
+                    'id'                  => $refund->id,
+                    'order_id'            => $refund->order_id,
+                    'user_id'             => $refund->user_id,
+                    'amount'              => (float) $refund->amount,
+                    'bank_account_number' => $refund->bank_account_number,
+                    'bank_name'           => $refund->bank_name,
+                    'status'              => $refund->status,
+                    'reason'              => $refund->reason,
+                    'created_at'          => $refund->created_at ? $refund->created_at->toIso8601String() : null,
+                ],
+            ], 201);
+        } catch (\Exception $e) {
+            Log::error('Error processing refund: ' . $e->getMessage(), [
+                'order_id' => $orderId,
+                'user_id'  => Auth::id(),
+                'trace'    => $e->getTraceAsString(),
+            ]);
 
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'id' => $refund->id,
-                'order_id' => $refund->order_id,
-                'user_id' => $refund->user_id,
-                'reason' => $refund->reason,
-                'status' => $refund->status,
-                'amount' => (float)$refund->amount,
-                'bank_account_number' => $refund->bank_account_number,
-                'bank_name' => $refund->bank_name,
-                'created_at' => $refund->created_at ? $refund->created_at->toISOString() : null,
-                'updated_at' => $refund->updated_at ? $refund->updated_at->toISOString() : null,
-                'order' => $refund->order ? [
-                    'id' => $refund->order->id,
-                    'shipping' => $refund->order->shipping ? [
-                        'tracking_code' => $refund->order->shipping->tracking_code,
-                        'shipping_fee' => (float)($refund->order->shipping->shipping_fee ?? 0),
-                    ] : null,
-                ] : null,
-                'user' => $refund->user ? [
-                    'id' => $refund->user->id,
-                    'name' => $refund->user->name,
-                    'email' => $refund->user->email,
-                ] : null,
-            ]
-        ]);
-    } catch (\Exception $e) {
-        Log::error('Error fetching refund by order_id', [
-            'order_id' => $id,
-            'user_id' => Auth::id(),
-            'error' => $e->getMessage(),
-            'trace' => $e->getTraceAsString()
-        ]);
-        return response()->json([
-            'success' => false,
-            'message' => 'Lỗi khi lấy thông tin hoàn tiền: ' . $e->getMessage()
-        ], 500);
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi server khi xử lý yêu cầu hoàn tiền.',
+            ], 500);
+        }
     }
-}
-
-  public function process(Request $request, $orderId)
-{
-    try {
-        // Sử dụng Validator::make để kiểm soát lỗi
-        $validator = Validator::make($request->all(), [
-            'reason' => 'required|string|min:10|max:1000',
-            'amount' => 'required|numeric|min:0',
-            'bank_account_number' => 'required|string|max:50',
-            'bank_name' => 'required|string|max:255',
-            'status' => 'nullable|in:pending,approved,rejected'
-        ], [
-            'reason.required' => 'Vui lòng nhập lý do hoàn tiền.',
-            'reason.string' => 'Lý do hoàn tiền phải là chuỗi ký tự.',
-            'reason.min' => 'Lý do hoàn tiền phải có ít nhất :min ký tự.',
-            'reason.max' => 'Lý do hoàn tiền không được vượt quá :max ký tự.',
-            'amount.required' => 'Vui lòng nhập số tiền hoàn.',
-            'amount.numeric' => 'Số tiền hoàn phải là số.',
-            'amount.min' => 'Số tiền hoàn phải lớn hơn hoặc bằng 0.',
-            'bank_account_number.required' => 'Vui lòng nhập số tài khoản ngân hàng.',
-            'bank_account_number.string' => 'Số tài khoản ngân hàng phải là chuỗi ký tự.',
-            'bank_account_number.max' => 'Số tài khoản ngân hàng không được vượt quá :max ký tự.',
-            'bank_name.required' => 'Vui lòng nhập tên ngân hàng.',
-            'bank_name.string' => 'Tên ngân hàng phải là chuỗi ký tự.',
-            'bank_name.max' => 'Tên ngân hàng không được vượt quá :max ký tự.',
-            'status.in' => 'Trạng thái không hợp lệ (chỉ chấp nhận: pending, approved, rejected).',
-        ]);
-
-        // Chỉ trả về lỗi đầu tiên, ưu tiên bank_account_number
-        if ($validator->fails()) {
-            $errorMessage = $validator->errors()->first('bank_account_number') 
-                ?: $validator->errors()->first();
-            return response()->json([
-                'success' => false,
-                'message' => $errorMessage,
-            ], 422);
-        }
-
-        $data = $validator->validated();
-
-        // Kiểm tra đơn hàng
-        $order = Order::where('id', $orderId)->where('user_id', Auth::id())->firstOrFail();
-        $maxRefundAmount = max((float) ($order->final_price ?? 0), 0); // Đơn vị VND
-
-        Log::info('Processing refund request', [
-            'order_id' => $orderId,
-            'final_price' => $order->final_price,
-            'total_price' => $order->total_price,
-            'shipping_fee' => $order->shipping?->shipping_fee ?? 0,
-            'maxRefundAmount' => $maxRefundAmount,
-            'requested_amount' => $data['amount']
-        ]);
-
-        // Kiểm tra số tiền hoàn (frontend gửi amount ở đơn vị VND)
-        if ($data['amount'] > $maxRefundAmount) {
-            return response()->json([
-                'success' => false,
-                'message' => "Số tiền hoàn không được vượt quá " . number_format($maxRefundAmount, 0, ',', '.') . " VND"
-            ], 422);
-        }
-
-        if (Refund::where('order_id', $orderId)->exists()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Đơn hàng này đã có yêu cầu hoàn tiền.'
-            ], 422);
-        }
-
-        $hasNonCodPayment = $order->payments->isNotEmpty() && $order->payments->every(function ($payment) {
-            return strtolower($payment->paymentMethod->name ?? '') !== 'cod';
-        });
-
-        if (!$hasNonCodPayment && $order->payments->isNotEmpty()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Đơn hàng sử dụng thanh toán COD, không thể yêu cầu hoàn tiền trực tuyến. Vui lòng liên hệ hỗ trợ.'
-            ], 422);
-        }
-
-        $refundData = [
-            'order_id' => $orderId,
-            'user_id' => Auth::id(),
-            'reason' => $data['reason'],
-            'amount' => $data['amount'], // Không nhân 1000 vì frontend đã gửi đúng đơn vị VND
-            'bank_account_number' => $data['bank_account_number'],
-            'bank_name' => $data['bank_name'],
-            'status' => $data['status'] ?? 'pending'
-        ];
-
-        Log::info('Refund data before create', ['refundData' => $refundData]);
-
-        $refund = Refund::create($refundData);
-
-        if ($refund->status === 'approved') {
-            $order->update(['status' => 'refunded', 'note' => $data['reason']]);
-        }
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Yêu cầu hoàn tiền đã được gửi',
-            'data' => [
-                'id' => $refund->id,
-                'order_id' => $refund->order_id,
-                'user_id' => $refund->user_id,
-                'amount' => (float)$refund->amount,
-                'bank_account_number' => $refund->bank_account_number,
-                'bank_name' => $refund->bank_name,
-                'status' => $refund->status,
-                'reason' => $refund->reason,
-                'created_at' => $refund->created_at ? $refund->created_at->toISOString() : null
-            ]
-        ], 201);
-    } catch (\Exception $e) {
-        Log::error('Error processing refund: ' . $e->getMessage(), [
-            'order_id' => $orderId,
-            'user_id' => Auth::id(),
-            'trace' => $e->getTraceAsString()
-        ]);
-        return response()->json([
-            'success' => false,
-            'message' => 'Lỗi server khi xử lý yêu cầu hoàn tiền.'
-        ], 500);
-    }
-}
 }

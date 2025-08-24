@@ -67,7 +67,7 @@
               <option value="shipping">Đang giao</option>
               <option value="delivered">Đã giao</option>
               <option value="cancelled">Đã hủy</option>
-              <option value="refunded">Đã hoàn tiền</option>
+              <option value="refunded">Đã hoàn trả</option>
               <option value="failed">Giao thất bại</option>
             </select>
             <select v-model="filters.payment_method"
@@ -398,14 +398,8 @@
                     <button @click="rejectRefund(refund)" class="px-2 py-1 text-red-600 hover:bg-red-50 border rounded">
                       Từ chối
                     </button>
-                    <button @click="editRefund(refund)" class="px-2 py-1 text-blue-600 hover:bg-blue-50 border rounded">
-                      Sửa
-                    </button>
                   </div>
                   <div v-else class="flex gap-2">
-                    <button @click="editRefund(refund)" class="px-2 py-1 text-blue-600 hover:bg-blue-50 border rounded">
-                      Sửa
-                    </button>
                     <button @click="deleteRefund(refund.id)" class="px-2 py-1 text-red-600 hover:bg-red-50 border rounded">
                       Xóa
                     </button>
@@ -1364,7 +1358,6 @@ const payoutTrackingPaginatedData = computed(() => {
 
 const refundFilteredData = computed(() => {
   let arr = refunds.value;
-  console.log('Raw refunds:', arr);
   if (refundSearchKeyword.value) {
     const kw = refundSearchKeyword.value.toLowerCase();
     arr = arr.filter(item => {
@@ -1914,7 +1907,7 @@ const fetchRefunds = async () => {
     if (response.ok && data.success) {
       refunds.value = Array.isArray(data.data) ? data.data.map(refund => ({
         ...refund,
-        amount: Number(refund.amount) * 1000 || 0,
+        amount: Number(refund.amount) || 0,
         created_at: refund.created_at || null
       })) : [];
       if (!refunds.value.length) {
@@ -1967,7 +1960,7 @@ const confirmEditRefund = async () => {
       body: JSON.stringify({
         status: refundToEdit.value.status,
         reason: refundToEdit.value.reason,
-        amount: Number(refundToEdit.value.amount)
+        amount: refundToEdit.value.amount
       })
     });
 
@@ -2175,7 +2168,7 @@ const statusMap = {
   delivered: { text: 'Đã giao', class: 'bg-green-100 text-green-800' },
   failed: { text: 'Giao thất bại', class: 'bg-red-100 text-red-800' },
   cancelled: { text: 'Đã hủy', class: 'bg-red-100 text-red-800' },
-  refunded: { text: 'Đã hoàn tiền', class: 'bg-orange-100 text-orange-800' },
+  refunded: { text: 'Đã hoàn trả', class: 'bg-orange-100 text-orange-800' },
   returned: { text: 'Đã trả hàng', class: 'bg-orange-100 text-orange-800' }
 };
 

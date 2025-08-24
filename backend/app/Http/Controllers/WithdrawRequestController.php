@@ -71,12 +71,14 @@ class WithdrawRequestController extends Controller
             'bank_account' => $request->input('bank_account'),
             'bank_account_name' => $request->input('bank_account_name'),
         ]);
-        $admins = User::where('role', 'admin')->get();
+        $admins = User::where('role', 'admin')->first();
+        $admin_id = $admins ? $admins->id : 1;
+
         $notification = Notification::create([
             'title' => "Có yêu cầu rút tiền mới",
             'content' => "Có yêu cầu rút tiền mới" . now()->format('d/m/Y H:i'),
             'type' => 'system',
-            'user_id' => $seller->user->id,
+            'user_id' =>  $admin_id,
             'to_roles' => json_encode(['admin']),
             'link' => '/admin/orders/list-order',
             'from_role' => 'system',

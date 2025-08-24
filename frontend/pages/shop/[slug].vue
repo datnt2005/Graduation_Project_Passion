@@ -1,6 +1,6 @@
 <template>
   <main class="bg-[#F5F5FA] py-2">
-    <div class="max-w-7xl mx-auto">
+    <div class="max-w-7xl mx-auto pb-6">
       <!-- Breadcrumb -->
       <div class="mb-4 mt-2 text-sm text-gray-500 rounded">
         <nuxt-link to="/" class="text-gray-400 hover:text-gray-600">Trang chủ</nuxt-link>

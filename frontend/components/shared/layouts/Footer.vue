@@ -66,10 +66,9 @@
             Tài Nguyên & Tin Tức
           </h2>
           <ul class="space-y-2">
-            <li><a href="#" class="hover:underline">Blog</a></li>
-            <li><a href="#" class="hover:underline">Tin khuyến mãi</a></li>
+            <li><a href="/post" class="hover:underline">Blog</a></li>
+            <li><a href="/post" class="hover:underline">Tin khuyến mãi</a></li>
             <li><a href="#" class="hover:underline">Cẩm nang mua sắm</a></li>
-            <li><a href="#" class="hover:underline">Tải app Passion</a></li>
           </ul>
         </div>
 
@@ -80,12 +79,12 @@
           </h2>
           <ul class="space-y-3">
             <li>
-              <a href="#" class="hover:underline flex items-center gap-2">
+              <a href="https://www.facebook.com/people/H%E1%BB%87-th%E1%BB%91ng-th%C6%B0%C6%A1ng-m%E1%BA%A1i-%C4%91i%E1%BB%87n-t%E1%BB%AD-Passion/61579740514637/" class="hover:underline flex items-center gap-2">
                 <i class="fab fa-facebook text-blue-600"></i> Facebook Passion
               </a>
             </li>
             <li>
-              <a href="#" class="hover:underline flex items-center gap-2">
+              <a href="https://www.instagram.com/tie_dajt/" class="hover:underline flex items-center gap-2">
                 <i class="fab fa-instagram text-pink-500"></i> Instagram
               </a>
             </li>

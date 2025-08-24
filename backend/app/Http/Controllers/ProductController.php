@@ -157,9 +157,9 @@ class ProductController extends Controller
             'variants.*.inventory.*.batch_number' => 'nullable|string|max:255',
             'variants.*.inventory.*.import_source' => 'nullable|string|max:255',
             'variants.*.inventory.*.note' => 'nullable|string',
-            'variants.*.thumbnail' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:4048',
+            'variants.*.thumbnail' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:16384',
             'images' => 'nullable|array',
-            'images.*' => 'image|mimes:jpeg,png,jpg,gif,svg,webp|max:4048',
+            'images.*' => 'image|mimes:jpeg,png,jpg,gif,svg,webp|max:16384',
         ], [
             'name.required' => 'Tên sản phẩm là bắt buộc.',
             'name.max' => 'Tên sản phẩm không được vượt quá 255 ký tự.',
@@ -561,9 +561,9 @@ class ProductController extends Controller
             'variants.*.inventory.*.batch_number' => 'nullable|string|max:255',
             'variants.*.inventory.*.import_source' => 'nullable|string|max:255',
             'variants.*.inventory.*.note' => 'nullable|string|max:255',
-            'variants.*.thumbnail' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:4048',
+            'variants.*.thumbnail' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:16384',
             'images' => 'nullable|array',
-            'images.*' => 'image|mimes:jpeg,png,jpg,gif,svg,webp|max:4048',
+            'images.*' => 'image|mimes:jpeg,png,jpg,gif,svg,webp|max:16384',
             'removed_images' => 'nullable|array',
             'removed_images.*' => 'integer|exists:product_pics,id,product_id,' . $id,
         ], [

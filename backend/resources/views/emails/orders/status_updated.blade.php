@@ -198,7 +198,7 @@
                             'cancelled'  => 'Đã hủy',
                             'completed'  => 'Hoàn thành',
                             'returned'   => 'Đã trả hàng',
-                            'refunded'   => 'Đã hoàn tiền',
+                            'refunded'   => 'Đã hoàn trả',
                             'failed'     => 'Thất bại',
                             'success'    => 'Thành công',
                             'paid'       => 'Đã thanh toán',
